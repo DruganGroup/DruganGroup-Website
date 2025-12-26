@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing | TradeCore Enterprise</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        /* Pricing Specific Styles */
+        .pricing-header { text-align: center; padding: 120px 0 60px 0; }
+        .pricing-header h1 { font-size: 3rem; margin-bottom: 15px; }
+        
+        .pricing-grid {
+            display: flex; justify-content: center; gap: 30px;
+            padding-bottom: 100px;
+            flex-wrap: wrap;
+        }
+
+        .price-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 40px;
+            width: 350px;
+            text-align: center;
+            position: relative;
+            transition: 0.3s;
+        }
+        
+        .price-card:hover { transform: translateY(-10px); }
+
+        .price-card.popular {
+            border: 2px solid var(--primary-gold);
+            background: linear-gradient(160deg, #1a1a1a 0%, #252525 100%);
+            transform: scale(1.05);
+            z-index: 2;
+        }
+        .price-card.popular:hover { transform: scale(1.05) translateY(-10px); }
+
+        .price-tag { font-size: 3rem; font-weight: 800; margin: 20px 0; color: #fff; }
+        .price-tag span { font-size: 1rem; color: var(--text-muted); font-weight: 400; }
+        
+        .tier-name { font-size: 1.2rem; color: var(--primary-gold); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+        
+        .features-ul { text-align: left; margin: 30px 0; padding-left: 20px; }
+        .features-ul li { list-style: none; margin-bottom: 12px; color: #ccc; font-size: 0.95rem; }
+        .features-ul li i { color: var(--primary-gold); margin-right: 10px; width: 20px; }
+        .features-ul li.locked { color: #555; text-decoration: line-through; }
+        .features-ul li.locked i { color: #444; }
+
+        .badge-popular {
+            position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
+            background: var(--gradient-gold); color: #000;
+            padding: 5px 20px; border-radius: 20px; font-weight: 700; font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar" id="navbar">
+        <div class="container nav-container">
+            <div class="brand">
+                <span class="logo-icon">⚡</span> TradeCore <span class="tagline">Created by Drugan Group</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="features.html">Platform</a></li>
+                <li><a href="pricing.html" style="color: var(--primary-gold);">Pricing</a></li>
+            </ul>
+            <div class="nav-actions">
+                <a href="login.html" class="btn-primary">Client Portal</a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="pricing-header">
+        <div class="container">
+            <h1>Transparent Pricing.<br><span class="gold-text">Powerful ROI.</span></h1>
+            <p style="color: var(--text-muted);">Choose the tier that fits your fleet size.</p>
+        </div>
+    </header>
+
+    <section class="container pricing-grid">
+        <div class="price-card">
+            <div class="tier-name">Basic</div>
+            <div class="price-tag">£49<span>/mo</span></div>
+            <p style="color: #888; font-size: 0.9rem;">For sole traders starting out.</p>
+            <ul class="features-ul">
+                <li><i class="fas fa-check"></i> Job Management</li>
+                <li><i class="fas fa-check"></i> Client Directory</li>
+                <li><i class="fas fa-check"></i> Basic Quotes</li>
+                <li class="locked"><i class="fas fa-times"></i> Finance Hub</li>
+                <li class="locked"><i class="fas fa-times"></i> Site Companion App</li>
+            </ul>
+            <a href="#" class="btn-secondary" style="display:block;">Start Basic</a>
+        </div>
+
+        <div class="price-card popular">
+            <div class="badge-popular">MOST POPULAR</div>
+            <div class="tier-name">Pro Edition</div>
+            <div class="price-tag">£99<span>/mo</span></div>
+            <p style="color: #888; font-size: 0.9rem;">For growing trade businesses.</p>
+            <ul class="features-ul">
+                <li><i class="fas fa-check"></i> <strong>Everything in Basic</strong></li>
+                <li><i class="fas fa-check"></i> Finance & Invoicing</li>
+                <li><i class="fas fa-check"></i> SMTP Email Automation</li>
+                <li><i class="fas fa-check"></i> Advanced Reports</li>
+                <li class="locked"><i class="fas fa-times"></i> GPS Tracking</li>
+            </ul>
+            <a href="#" class="btn-primary" style="display:block;">Upgrade to Pro</a>
+        </div>
+
+        <div class="price-card">
+            <div class="tier-name">Enterprise</div>
+            <div class="price-tag">£199<span>/mo</span></div>
+            <p style="color: #888; font-size: 0.9rem;">For fleet management & control.</p>
+            <ul class="features-ul">
+                <li><i class="fas fa-check"></i> <strong>Everything in Pro</strong></li>
+                <li><i class="fas fa-check"></i> Site Companion App</li>
+                <li><i class="fas fa-check"></i> GPS Staff Tracking</li>
+                <li><i class="fas fa-check"></i> Unlimited Trade Plugins</li>
+                <li><i class="fas fa-check"></i> Priority Support</li>
+            </ul>
+            <a href="#" class="btn-secondary" style="display:block;">Contact Sales</a>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container bottom-bar">
+            <p>&copy; 2025 TradeCore | Created by Drugan Group</p>
+        </div>
+    </footer>
+
+</body>
+</html>

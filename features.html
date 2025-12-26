@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Features | TradeCore Enterprise</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="style.css">
+    
+    <style>
+        /* Specific Styles for Features Page */
+        .feature-hero { text-align: center; padding: 120px 0 60px 0; }
+        .feature-hero h1 { font-size: 3rem; margin-bottom: 20px; }
+        
+        .feature-row { 
+            display: flex; align-items: center; justify-content: space-between; 
+            padding: 80px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .feature-row.reverse { flex-direction: row-reverse; }
+        
+        .feature-text { width: 45%; }
+        .feature-text h2 { font-size: 2.2rem; margin-bottom: 20px; }
+        .feature-text p { color: var(--text-muted); font-size: 1.1rem; margin-bottom: 30px; }
+        .feature-list li { margin-bottom: 15px; color: #ddd; list-style: none; }
+        .feature-list i { color: var(--primary-gold); margin-right: 10px; }
+        
+        .feature-visual { width: 50%; height: 400px; position: relative; }
+        .feature-glass {
+            width: 100%; height: 100%;
+            background: linear-gradient(145deg, rgba(30,30,30,0.6), rgba(20,20,20,0.8));
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; color: #555;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar" id="navbar">
+        <div class="container nav-container">
+            <div class="brand">
+                <span class="logo-icon">⚡</span> TradeCore <span class="tagline">Created by Drugan Group</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="features.html" style="color: var(--primary-gold);">Platform</a></li>
+                <li><a href="pricing.html">Pricing</a></li>
+            </ul>
+            <div class="nav-actions">
+                <a href="login.html" class="btn-primary">Client Portal</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="feature-hero">
+        <div class="container">
+            <h1>Built for the <span class="gold-gradient">Field.</span> <br>Mastered in the Office.</h1>
+            <p style="color: var(--text-muted);">See exactly what makes TradeCore the industry standard for construction management.</p>
+        </div>
+    </section>
+
+    <section class="container">
+        <div class="feature-row">
+            <div class="feature-text">
+                <div class="badge">ENTERPRISE EXCLUSIVE</div>
+                <h2>GPS Geofencing & Tracking</h2>
+                <p>Stop relying on trust alone. Our "Smart Clock-In" technology automatically verifies if your staff are actually at the job site when they start their shift.</p>
+                <ul class="feature-list">
+                    <li><i class="fas fa-check-circle"></i> Live Distance Verification</li>
+                    <li><i class="fas fa-check-circle"></i> Historical GPS Logs</li>
+                    <li><i class="fas fa-check-circle"></i> Google Maps Integration</li>
+                </ul>
+            </div>
+            <div class="feature-visual">
+                <div class="feature-glass">
+                    <div style="text-align:center;">
+                        <i class="fas fa-map-marked-alt" style="font-size: 4rem; color: #333; margin-bottom: 20px;"></i>
+                        <p>Live Fleet Map UI</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="feature-row reverse">
+            <div class="feature-text">
+                <h2>The Site Companion App</h2>
+                <p>We built this for big fingers and dusty screens. A simplified tablet interface that lets your field team focus on the work, not the paperwork.</p>
+                <ul class="feature-list">
+                    <li><i class="fas fa-check-circle"></i> One-Tap Clock In/Out</li>
+                    <li><i class="fas fa-check-circle"></i> Vehicle Safety Checks</li>
+                    <li><i class="fas fa-check-circle"></i> Receipt Photo Uploads</li>
+                </ul>
+            </div>
+            <div class="feature-visual">
+                <div class="feature-glass">
+                    <div style="text-align:center;">
+                        <i class="fas fa-tablet-alt" style="font-size: 4rem; color: #333; margin-bottom: 20px;"></i>
+                        <p>Tablet Interface UI</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="feature-row">
+            <div class="feature-text">
+                <h2>Surgical Quoting Precision</h2>
+                <p>Protect your profit margins. Our "Trade Logic" engine calculates waste, plant, and material costs automatically based on your inputs.</p>
+                <ul class="feature-list">
+                    <li><i class="fas fa-check-circle"></i> Custom Markups per Trade</li>
+                    <li><i class="fas fa-check-circle"></i> Automated RAMS Generation</li>
+                    <li><i class="fas fa-check-circle"></i> Professional PDF Exports</li>
+                </ul>
+            </div>
+            <div class="feature-visual">
+                <div class="feature-glass">
+                    <div style="text-align:center;">
+                        <i class="fas fa-file-invoice-dollar" style="font-size: 4rem; color: #333; margin-bottom: 20px;"></i>
+                        <p>Quote Builder UI</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container bottom-bar">
+            <p>&copy; 2025 TradeCore | Created by Drugan Group</p>
+        </div>
+    </footer>
+</body>
+</html>
