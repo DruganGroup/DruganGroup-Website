@@ -8,8 +8,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev_key_123")
 
 # --- DATABASE CONNECTION ---
 # We use the Cloud URL as a backup so it works on your PC too
-CLOUD_DB_URL = "postgresql://tradecore_db_user:vPGgjZZyFjYbxoQ9sEbkwBQTy6Ty4ex8@dpg-d57vom4hg0os73bgt8g0-a.frankfurt-postgres.render.com/tradecore_db"
-DB_URL = os.environ.get("DATABASE_URL", CLOUD_DB_URL)
+DB_URL = os.environ.get("DATABASE_URL")
 
 def get_db():
     try:
@@ -19,35 +18,29 @@ def get_db():
         print(f"❌ DB Connection Error: {e}")
         return None
 
-# --- MAIN PAGES (Fixes the 404 Errors) ---
+# --- MAIN PAGES ---
 @app.route('/')
-def home():
-    return render_template('index.html')
+def home(): return render_template('index.html')
 
 @app.route('/about')
 @app.route('/about.html')
-def about():
-    return render_template('about.html')
+def about(): return render_template('about.html')
 
 @app.route('/services')
 @app.route('/services.html')
-def services():
-    return render_template('services.html')
+def services(): return render_template('services.html')
 
 @app.route('/tradecore')
 @app.route('/tradecore.html')
-def tradecore():
-    return render_template('tradecore.html')
+def tradecore(): return render_template('tradecore.html')
 
 @app.route('/forensics')
 @app.route('/forensics.html')
-def forensics():
-    return render_template('forensics.html')
+def forensics(): return render_template('forensics.html')
 
 @app.route('/contact')
 @app.route('/contact.html')
-def contact():
-    return render_template('contact.html')
+def contact(): return render_template('contact.html')
 
 # --- SERVICE SUB-PAGES ---
 @app.route('/roofing.html')
@@ -107,11 +100,77 @@ def login():
             if user[2] == 'SuperAdmin':
                 return redirect(url_for('super_admin_dashboard'))
             else:
-                return redirect(url_for('client_dashboard'))
+                # SUCCESS: Redirect to the Main Launcher (3 Buttons)
+                return redirect(url_for('main_launcher'))
         else:
             flash('Invalid Email or Password')
 
     return render_template('login.html')
+
+# --- THE MAIN LAUNCHER (3 BUTTON MENU) ---
+@app.route('/dashboard-menu')
+def main_launcher():
+    if 'user_id' not in session: return redirect(url_for('login'))
+    
+    # We pass the role to the HTML so it knows which buttons to lock
+    return render_template('main_launcher.html', role=session.get('role'))
+
+
+# --- CLIENT DASHBOARD (OFFICE HUB) ---
+@app.route('/client-portal')
+def client_dashboard():
+    # 1. Security Check
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    company_id = session.get('company_id')
+    
+    # 2. Fetch Data for THIS Company Only
+    conn = get_db()
+    if not conn: return "DB Error"
+    cur = conn.cursor()
+    
+    # Create tables if they don't exist yet (Safety First)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS transactions (
+            id SERIAL PRIMARY KEY,
+            company_id INTEGER,
+            date DATE,
+            type TEXT, 
+            category TEXT, 
+            description TEXT, 
+            amount DECIMAL(10,2), 
+            reference TEXT
+        );
+    """)
+    conn.commit()
+
+    # 3. Calculate Totals (Income vs Expense)
+    cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Income'", (company_id,))
+    income = cur.fetchone()[0] or 0.0
+    
+    cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Expense'", (company_id,))
+    expense = cur.fetchone()[0] or 0.0
+    
+    balance = income - expense
+
+    # 4. Get Recent Transactions
+    cur.execute("""
+        SELECT date, type, category, description, amount, reference 
+        FROM transactions 
+        WHERE company_id = %s 
+        ORDER BY date DESC LIMIT 10
+    """, (company_id,))
+    transactions = cur.fetchall()
+    
+    conn.close()
+
+    # 5. Show the HTML Page
+    return render_template('client_dashboard.html', 
+                           total_income=income, 
+                           total_expense=expense, 
+                           total_balance=balance,
+                           transactions=transactions)
 
 # --- SUPER ADMIN DASHBOARD ---
 @app.route('/super-admin', methods=['GET', 'POST'])
@@ -149,17 +208,12 @@ def super_admin_dashboard():
     
     return render_template('super_admin.html', companies=companies)
 
-@app.route('/client-portal')
-def client_dashboard():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    return f"<h1>Welcome {session.get('user_name')}</h1><p>Company ID: {session.get('company_id')}</p><a href='/logout'>Logout</a>"
-
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
+# --- SERVER START COMMAND (Must be at the very bottom) ---
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
