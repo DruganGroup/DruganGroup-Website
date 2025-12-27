@@ -1,79 +1,285 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>SuperAdmin Control Panel</title>
-    <style>
-        body { font-family: sans-serif; background: #f4f4f4; padding: 20px; }
-        .container { max_width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #333; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
-        
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 90%; }
-        button { background: #27ae60; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
-        button:hover { background: #219150; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Admin | Drugan Group</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    
+    <link rel="stylesheet" href="/static/style.css">
 
-        table { width: 100%; border-collapse: collapse; margin-top: 30px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background: #34495e; color: white; }
-        tr:hover { background: #f1f1f1; }
-        .tag { padding: 4px 8px; border-radius: 4px; font-size: 12px; color: white; }
-        .active { background: #27ae60; }
-        .basic { background: #7f8c8d; }
-        .pro { background: #8e44ad; }
-        .enterprise { background: #f39c12; }
+    <style>
+        /* --- DASHBOARD SPECIFIC OVERRIDES --- */
+        body {
+            background-color: #f4f4f4; /* Reset body background */
+        }
+        
+        /* Force Nav to be visible since there is no Hero image here */
+        .navbar {
+            background: #111;
+            position: relative; /* Not fixed/transparent on this page */
+            padding: 15px 0;
+        }
+
+        /* The Dark Command Center Container */
+        .dashboard-wrapper {
+            background-color: #121212;
+            color: #e0e0e0;
+            padding: 60px 0;
+            min-height: 80vh;
+        }
+
+        .dashboard-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Dashboard Header */
+        .dash-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 20px;
+        }
+
+        .dash-header h1 {
+            color: var(--primary-gold);
+            font-family: 'Montserrat', sans-serif;
+            text-transform: uppercase;
+            font-size: 1.8rem;
+            margin: 0;
+        }
+
+        /* Cards */
+        .admin-card {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .admin-card h3 {
+            color: #fff;
+            margin-bottom: 25px;
+            border-left: 3px solid var(--primary-gold);
+            padding-left: 15px;
+        }
+
+        /* Form Styling */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            align-items: end;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .dark-input, .dark-select {
+            width: 100%;
+            padding: 12px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .dark-input:focus, .dark-select:focus {
+            border-color: var(--primary-gold);
+        }
+
+        /* Table Styling */
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .admin-table th {
+            text-align: left;
+            padding: 15px;
+            color: var(--primary-gold);
+            border-bottom: 2px solid #333;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+        }
+
+        .admin-table td {
+            padding: 15px;
+            border-bottom: 1px solid #333;
+            color: #ddd;
+        }
+
+        .admin-table tr:hover td {
+            background-color: #252525;
+        }
+
+        /* Status Badges */
+        .badge-status {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+        .badge-active { background: rgba(39, 174, 96, 0.2); color: #2ecc71; border: 1px solid #2ecc71; }
+        .badge-basic { background: #333; color: #aaa; border: 1px solid #555; }
+        .badge-pro { background: rgba(142, 68, 173, 0.2); color: #9b59b6; border: 1px solid #9b59b6; }
+        .badge-enterprise { background: rgba(197, 160, 89, 0.2); color: var(--primary-gold); border: 1px solid var(--primary-gold); }
+
+        /* Flash Messages */
+        .flash-msg {
+            background: rgba(197, 160, 89, 0.15);
+            border-left: 4px solid var(--primary-gold);
+            color: #fff;
+            padding: 15px;
+            margin-bottom: 30px;
+        }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>⚡ SuperAdmin Control Panel</h1>
-    
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <div style="background: #d4edda; color: #155724; padding: 10px; margin-bottom: 20px;">
-            {{ messages[0] }}
+    <nav class="navbar" id="navbar">
+        <div class="container nav-container">
+            <div class="brand">
+                <a href="/">
+                    <img src="/static/images/logo.png" alt="Drugan Group" class="main-logo-img">
+                </a> 
+                DRUGAN <span class="tagline">GROUP</span>
+            </div>
+            
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/client-portal">Client Portal</a></li>
+                <li><a href="#" style="color: var(--primary-gold);">Super Admin</a></li>
+            </ul>
         </div>
-      {% endif %}
-    {% endwith %}
+    </nav>
 
-    <h3>➕ Register New Company</h3>
-    <form method="POST">
-        <div class="form-grid">
-            <input type="text" name="company_name" placeholder="Company Name (e.g. Smith Roofing)" required>
-            <input type="text" name="owner_email" placeholder="Owner Email (Login Username)" required>
-            <input type="text" name="owner_pass" placeholder="Set Password" required>
-            <select name="plan">
-                <option value="Basic">Basic Plan</option>
-                <option value="Pro">Pro Plan</option>
-                <option value="Enterprise">Enterprise Plan</option>
-            </select>
+    <div class="dashboard-wrapper">
+        <div class="dashboard-container">
+            
+            <div class="dash-header">
+                <div>
+                    <h1>Command Center</h1>
+                    <span style="color: #888; font-size: 0.9rem;">SaaS Management Console</span>
+                </div>
+                <div>
+                    <span class="badge-status badge-enterprise">System Secure</span>
+                </div>
+            </div>
+
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                <div class="flash-msg">
+                    {{ messages[0] }}
+                </div>
+              {% endif %}
+            {% endwith %}
+
+            <div class="admin-card">
+                <h3><i class="fas fa-bolt"></i> Deploy New Instance</h3>
+                <form method="POST">
+                    <div class="form-grid">
+                        <div>
+                            <label>Company Name</label>
+                            <input type="text" name="company_name" class="dark-input" placeholder="e.g. Apex Roofing Ltd" required>
+                        </div>
+                        <div>
+                            <label>Owner Email (Login)</label>
+                            <input type="text" name="owner_email" class="dark-input" placeholder="admin@client.com" required>
+                        </div>
+                        <div>
+                            <label>Initial Password</label>
+                            <input type="text" name="owner_pass" class="dark-input" placeholder="Create Password" required>
+                        </div>
+                        <div>
+                            <label>Subscription Tier</label>
+                            <select name="plan" class="dark-select">
+                                <option value="Basic">Basic (Starter)</option>
+                                <option value="Pro">Pro (Growth)</option>
+                                <option value="Enterprise" selected>Enterprise (Full Suite)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>&nbsp;</label>
+                            <button type="submit" class="btn-primary" style="width: 100%;">Create Tenant</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="admin-card">
+                <h3><i class="fas fa-building"></i> Active Tenants</h3>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Company</th>
+                            <th>Admin Contact</th>
+                            <th>License Tier</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in companies %}
+                        <tr>
+                            <td style="color: #666;">#{{ c[0] }}</td>
+                            <td><strong style="color: #fff;">{{ c[1] }}</strong></td>
+                            <td>{{ c[4] }}</td>
+                            <td>
+                                <span class="badge-status {{ 'badge-enterprise' if c[2] == 'Enterprise' else 'badge-pro' if c[2] == 'Pro' else 'badge-basic' }}">
+                                    {{ c[2] }}
+                                </span>
+                            </td>
+                            <td><span class="badge-status badge-active">{{ c[3] }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
         </div>
-        <button type="submit">🚀 Create Company & Admin User</button>
-    </form>
+    </div>
 
-    <h3>🏢 Active Tenants</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Company Name</th>
-                <th>Main Contact</th>
-                <th>Plan Tier</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for c in companies %}
-            <tr>
-                <td>#{{ c[0] }}</td>
-                <td><strong>{{ c[1] }}</strong></td>
-                <td>{{ c[4] }}</td> <td><span class="tag {{ c[2]|lower }}">{{ c[2] }}</span></td>
-                <td><span class="tag active">{{ c[3] }}</span></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+    <footer>
+        <div class="container footer-content">
+            <div class="footer-col">
+                <h4>Drugan Group</h4>
+                <p class="creator">Building & Maintenance</p>
+                <p>Internal Systems & Administration.</p>
+            </div>
+            <div class="footer-col">
+                <h5>Quick Links</h5>
+                <a href="/">Return to Website</a>
+                <a href="/login">Portal Login</a>
+            </div>
+            <div class="footer-col">
+                <h5>Support</h5>
+                <a href="#">IT Support</a>
+                <a href="#">Database Status</a>
+            </div>
+        </div>
+        <div class="bottom-bar">
+            <p>&copy; 2025 Drugan Group. All rights reserved.</p>
+        </div>
+    </footer>
 
 </body>
 </html>
