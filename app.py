@@ -3,9 +3,11 @@ import psycopg2
 import os
 
 app = Flask(__name__)
+# Secure secret key
 app.secret_key = os.environ.get("SECRET_KEY", "dev_key_123") 
 
 # --- DATABASE CONNECTION ---
+# We use the Cloud URL as a backup so it works on your PC too
 CLOUD_DB_URL = "postgresql://tradecore_db_user:vPGgjZZyFjYbxoQ9sEbkwBQTy6Ty4ex8@dpg-d57vom4hg0os73bgt8g0-a.frankfurt-postgres.render.com/tradecore_db"
 DB_URL = os.environ.get("DATABASE_URL", CLOUD_DB_URL)
 
@@ -17,12 +19,11 @@ def get_db():
         print(f"❌ DB Connection Error: {e}")
         return None
 
-# --- MAIN PAGES ---
+# --- MAIN PAGES (Fixes the 404 Errors) ---
 @app.route('/')
 def home():
     return render_template('index.html')
 
-# We add these so your existing <a href="about.html"> links work
 @app.route('/about')
 @app.route('/about.html')
 def about():
@@ -70,7 +71,7 @@ def management(): return render_template('management.html')
 
 # --- LOGIN SYSTEM ---
 @app.route('/login', methods=['GET', 'POST'])
-@app.route('/login.html', methods=['GET', 'POST']) # Handle login.html link too
+@app.route('/login.html', methods=['GET', 'POST']) 
 def login():
     if request.method == 'POST':
         email_or_user = request.form.get('email')
@@ -83,6 +84,7 @@ def login():
             
         cur = conn.cursor()
         try:
+            # Check user credentials
             cur.execute("""
                 SELECT id, username, role, company_id 
                 FROM users 
@@ -96,6 +98,7 @@ def login():
             conn.close()
         
         if user:
+            # Login Success: Save details to session
             session['user_id'] = user[0]
             session['user_name'] = user[1]
             session['role'] = user[2]
@@ -113,6 +116,7 @@ def login():
 # --- SUPER ADMIN DASHBOARD ---
 @app.route('/super-admin', methods=['GET', 'POST'])
 def super_admin_dashboard():
+    # Security Gate
     if session.get('role') != 'SuperAdmin':
         return redirect(url_for('login'))
         
@@ -121,6 +125,7 @@ def super_admin_dashboard():
     cur = conn.cursor()
     
     if request.method == 'POST':
+        # Create New Company Logic
         comp_name = request.form.get('company_name')
         owner_email = request.form.get('owner_email')
         owner_pass = request.form.get('owner_pass')
@@ -129,17 +134,15 @@ def super_admin_dashboard():
         try:
             cur.execute("INSERT INTO companies (name, contact_email) VALUES (%s, %s) RETURNING id", (comp_name, owner_email))
             new_company_id = cur.fetchone()[0]
-            
             cur.execute("INSERT INTO subscriptions (company_id, plan_tier, status) VALUES (%s, %s, 'Active')", (new_company_id, plan))
-            
             cur.execute("INSERT INTO users (username, password_hash, email, role, company_id) VALUES (%s, %s, %s, 'Admin', %s)", (owner_email, owner_pass, owner_email, new_company_id))
-            
             conn.commit()
             flash(f"✅ Success! {comp_name} created.")
         except Exception as e:
             conn.rollback()
             flash(f"❌ Error: {e}")
             
+    # Load Company List
     cur.execute("SELECT c.id, c.name, s.plan_tier, s.status, u.email FROM companies c LEFT JOIN subscriptions s ON c.id = s.company_id LEFT JOIN users u ON c.id = u.company_id AND u.role = 'Admin' ORDER BY c.id DESC")
     companies = cur.fetchall()
     conn.close()
