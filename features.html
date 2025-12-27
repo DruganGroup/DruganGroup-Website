@@ -7,13 +7,63 @@
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
-    <link rel="stylesheet" href="style.css">
     
+    <!-- AOS for fade-in animations -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+
     <style>
-        /* Specific Styles for Features Page */
-        .feature-hero { text-align: center; padding: 120px 0 60px 0; }
-        .feature-hero h1 { font-size: 3rem; margin-bottom: 20px; }
+        /* Pricing Specific Styles (kept from your original) */
+        .pricing-header { text-align: center; padding: 120px 0 60px 0; }
+        .pricing-header h1 { font-size: 3rem; margin-bottom: 15px; }
         
+        .pricing-grid {
+            display: flex; justify-content: center; gap: 30px;
+            padding-bottom: 100px;
+            flex-wrap: wrap;
+        }
+
+        .price-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 40px;
+            width: 350px;
+            text-align: center;
+            position: relative;
+            transition: 0.3s;
+        }
+        
+        .price-card:hover { transform: translateY(-10px); }
+
+        .price-card.popular {
+            border: 2px solid var(--primary-gold);
+            background: linear-gradient(160deg, #1a1a1a 0%, #252525 100%);
+            transform: scale(1.05);
+            z-index: 2;
+        }
+        .price-card.popular:hover { transform: scale(1.05) translateY(-10px); }
+
+        .price-tag { font-size: 3rem; font-weight: 800; margin: 20px 0; color: #fff; }
+        .price-tag span { font-size: 1rem; color: var(--text-muted); font-weight: 400; }
+        
+        .tier-name { font-size: 1.2rem; color: var(--primary-gold); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+        
+        .features-ul { text-align: left; margin: 30px 0; padding-left: 20px; }
+        .features-ul li { list-style: none; margin-bottom: 12px; color: #ccc; font-size: 0.95rem; }
+        .features-ul li i { color: var(--primary-gold); margin-right: 10px; width: 20px; }
+        .features-ul li.locked { color: #555; text-decoration: line-through; }
+        .features-ul li.locked i { color: #444; }
+
+        .badge-popular {
+            position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
+            background: var(--gradient-gold); color: #000;
+            padding: 5px 20px; border-radius: 20px; font-weight: 700; font-size: 0.8rem;
+        }
+
+        /* Features page specific styles (your original) */
+        .feature-hero { text-align: center; padding: 120px 0 60px 0; }
         .feature-row { 
             display: flex; align-items: center; justify-content: space-between; 
             padding: 80px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
@@ -41,30 +91,55 @@
 </head>
 <body>
 
+    <!-- Floating CTA -->
+    <div class="floating-cta" id="floatingCta">
+        <a href="pricing.html" class="btn-primary">See Pricing →</a>
+    </div>
+
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-                <span class="logo-icon">⚡</span> TradeCore <span class="tagline">Created by Drugan Group</span>
+                <a href="index.html"><img src="images/logo.png" alt="Drugan Group" class="main-logo-img"></a> DRUGAN <span class="tagline">GROUP</span><span class="tagline">Features</span>
             </div>
+            
+            <div class="menu-toggle" id="mobile-menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+            
             <ul class="nav-links">
                 <li><a href="index.html">Home</a></li>
-                <li><a href="features.html" style="color: var(--primary-gold);">Platform</a></li>
-                <li><a href="pricing.html">Pricing</a></li>
+                <li><a href="about.html">About</a></li>
+                <li><a href="services.html">Services</a></li>
+                <li><a href="tradecore.html" style="color: var(--primary-gold);">Software</a></li>
+                <li><a href="forensics.html">Disputes</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
+            
             <div class="nav-actions">
-                <a href="login.html" class="btn-primary">Client Portal</a>
+                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i> Portal Login</a>
             </div>
         </div>
     </nav>
 
-    <section class="feature-hero">
+    <!-- Updated premium hero -->
+    <header class="hero hero-enhanced" style="min-height: 70vh; padding-top: 120px;">
+        <div class="hero-bg"></div>
+        <div class="hero-overlay"></div>
+        
         <div class="container">
-            <h1>Built for the <span class="gold-gradient">Field.</span> <br>Mastered in the Office.</h1>
-            <p style="color: var(--text-muted);">See exactly what makes TradeCore the industry standard for construction management.</p>
+            <div class="hero-content center-text" data-aos="fade-up">
+                <h1>Built for the <span class="gold-gradient">Field.</span><br>Mastered in the Office.</h1>
+                <p style="color: var(--text-muted); max-width: 700px; margin: 1.5rem auto;">
+                    See exactly what makes TradeCore the industry standard for construction management.
+                </p>
+            </div>
         </div>
-    </section>
+    </header>
 
-    <section class="container">
+    <section class="container" data-aos="fade-up">
         <div class="feature-row">
             <div class="feature-text">
                 <div class="badge">ENTERPRISE EXCLUSIVE</div>
@@ -132,5 +207,24 @@
             <p>&copy; 2025 TradeCore | Created by Drugan Group</p>
         </div>
     </footer>
+
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({
+            duration: 800,
+            once: true,
+            offset: 100
+        });
+
+        window.addEventListener('scroll', function() {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) nav.classList.add('scrolled');
+            else nav.classList.remove('scrolled');
+
+            const floating = document.getElementById('floatingCta');
+            if (window.scrollY > 400) floating.classList.add('visible');
+            else floating.classList.remove('visible');
+        });
+    </script>
 </body>
 </html>

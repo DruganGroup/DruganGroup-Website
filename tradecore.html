@@ -3,36 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TradeCore Enterprise | Created by Drugan Group</title>
+    <title>TradeCore | Created by Drugan Group</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    
+    <!-- AOS animations -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+    <!-- Floating CTA -->
+    <div class="floating-cta" id="floatingCta">
+        <a href="pricing.html" class="btn-primary">View Pricing →</a>
+    </div>
+
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-                <span class="logo-icon">⚡</span> TradeCore <span class="tagline">Created by Drugan Group</span>
+    <a href="index.html"><img src="images/logo.png" alt="Drugan Group" class="main-logo-img"></a> DRUGAN <span class="tagline">GROUP</span><span class="tagline">TradeCore</span></div>
+            
+            <div class="menu-toggle" id="mobile-menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
             </div>
+                        
             <ul class="nav-links">
-                <li><a href="#features">Platform</a></li>
-                <li><a href="#solutions">Solutions</a></li>
-                <li><a href="pricing.html">Pricing</a></li>
-                <li><a href="#contact" class="nav-link-contact">Contact</a></li>
+                <li></li><li><a href="index.html">Home</a></li>
+                <li><a href="about.html">About</a></li>
+				<li><a href="services.html">Services</a></li>
+                <li><a href="tradecore.html" style="color: var(--primary-gold);">Software</a></li>
+                <li><a href="forensics.html">Disputes</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
+            
             <div class="nav-actions">
-                <a href="login.html" class="btn-login">Client Portal</a>
-                <a href="#get-started" class="btn-primary">Get Enterprise</a>
+                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i> Portal Login</a>
             </div>
         </div>
     </nav>
 
-    <header class="hero">
+    <!-- Improved premium hero -->
+    <header class="hero hero-enhanced">
+        <div class="hero-bg"></div>
+        <div class="hero-overlay"></div>
+        
         <div class="container hero-grid">
-            <div class="hero-text">
-                <div class="badge">🚀 v2.0 Enterprise Edition Now Live</div>
+            <div class="hero-text" data-aos="fade-up">
+                <div class="badge">🚀 v2.0 Enterprise Edition – Launched 2025</div>
                 <h1>The Operating System for <span class="gold-gradient">Modern Trades.</span></h1>
                 <p class="hero-sub">Stop guessing your margins. From GPS-verified timesheets to automated RAMS, TradeCore bridges the gap between your office and the site with surgical precision.</p>
                 
@@ -54,7 +76,7 @@
                 </div>
             </div>
             
-            <div class="hero-visual">
+            <div class="hero-visual" data-aos="fade-up" data-aos-delay="200">
                 <div class="glass-card main-ui">
                     <div class="ui-header">
                         <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
@@ -81,7 +103,7 @@
         </div>
     </header>
 
-    <section class="logos">
+    <section class="logos" data-aos="fade-up">
         <div class="container">
             <p>TRUSTED BY INDUSTRY LEADERS IN ROOFING, ELECTRICAL & CIVIL ENGINEERING</p>
             <div class="logo-grid">
@@ -94,7 +116,7 @@
         </div>
     </section>
 
-    <section class="features" id="features">
+    <section class="features" id="features" data-aos="fade-up">
         <div class="container">
             <div class="section-header">
                 <h2>Total Control. <span class="gold-text">Zero Friction.</span></h2>
@@ -102,26 +124,26 @@
             </div>
 
             <div class="bento-grid">
-                <div class="bento-card large">
+                <div class="bento-card large" data-aos="fade-up" data-aos-delay="100">
                     <div class="card-icon"><i class="fas fa-map-marked-alt"></i></div>
                     <h3>GPS Geofencing & Fleet Tracking</h3>
                     <p>Eliminate time theft. The Site Companion app automatically verifies staff location against job coordinates when they clock in.</p>
                     <div class="feature-tag">Enterprise Only</div>
                 </div>
 
-                <div class="bento-card">
+                <div class="bento-card" data-aos="fade-up" data-aos-delay="150">
                     <div class="card-icon"><i class="fas fa-file-invoice-dollar"></i></div>
                     <h3>Smart Quoting</h3>
                     <p>Use pre-built trade plugins to calculate material, waste, and labour costs instantly.</p>
                 </div>
 
-                <div class="bento-card">
+                <div class="bento-card" data-aos="fade-up" data-aos-delay="200">
                     <div class="card-icon"><i class="fas fa-shield-alt"></i></div>
                     <h3>Hardware Lock</h3>
                     <p>Bank-grade security ensures your software license is cryptographically bound to your hardware.</p>
                 </div>
 
-                <div class="bento-card wide">
+                <div class="bento-card wide" data-aos="fade-up" data-aos-delay="250">
                     <div class="text-content">
                         <div class="card-icon"><i class="fas fa-tablet-alt"></i></div>
                         <h3>The Site Companion App</h3>
@@ -161,12 +183,22 @@
         </div>
     </footer>
 
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
-        // Simple Sticky Nav Script
+        AOS.init({
+            duration: 800,
+            once: true,
+            offset: 100
+        });
+
         window.addEventListener('scroll', function() {
             const nav = document.getElementById('navbar');
             if (window.scrollY > 50) nav.classList.add('scrolled');
             else nav.classList.remove('scrolled');
+
+            const floating = document.getElementById('floatingCta');
+            if (window.scrollY > 400) floating.classList.add('visible');
+            else floating.classList.remove('visible');
         });
     </script>
 </body>

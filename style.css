@@ -76,8 +76,44 @@ p { color: var(--text-muted); }
 
 .nav-actions { display: flex; gap: 15px; align-items: center; }
 
-/* Mobile Menu Toggle (Hidden on Desktop) */
-.mobile-menu-btn { display: none; color: white; font-size: 1.5rem; cursor: pointer; }
+/* New: Gold logo in top-right */
+.nav-logo-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+}
+
+.nav-dg-logo {
+    height: 54px;
+    width: auto;
+    max-width: 160px;
+    object-fit: contain;
+}
+
+.nav-dg-logo:hover {
+    filter: brightness(1.15);
+    transform: scale(1.05);
+    transition: all 0.3s ease;
+}
+
+/* HAMBURGER MENU ICON (Default State) */
+.menu-toggle {
+    display: none; /* Hidden on Desktop */
+    flex-direction: column;
+    justify-content: space-between;
+    width: 30px;
+    height: 21px;
+    cursor: pointer;
+    z-index: 1001; /* Must be above the slide-out menu */
+}
+
+.menu-toggle .bar {
+    height: 3px;
+    width: 100%;
+    background-color: #fff;
+    border-radius: 10px;
+    transition: all 0.3s ease-in-out;
+}
 
 /* =========================================
    3. BUTTONS
@@ -94,272 +130,293 @@ p { color: var(--text-muted); }
     display: inline-block;
     cursor: pointer;
 }
-.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(148, 115, 54, 0.3); color: #000; }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(148,115,54,0.4); }
 
 .btn-secondary {
     background: transparent;
-    border: 1px solid rgba(255,255,255,0.2);
-    color: #fff;
+    border: 2px solid var(--primary-gold);
+    color: var(--primary-gold);
     padding: 10px 24px;
     border-radius: 6px;
-    font-weight: 600;
+    font-weight: 700;
     text-decoration: none;
-    transition: 0.3s;
-    display: inline-block;
-    cursor: pointer;
+    transition: all 0.3s;
 }
-.btn-secondary:hover { border-color: #fff; background: rgba(255,255,255,0.05); }
+.btn-secondary:hover { background: var(--primary-gold); color: #000; }
 
+.btn-large { padding: 14px 32px; font-size: 1.1rem; }
 .btn-outline {
-    display: inline-block;
+    background: transparent;
     border: 1px solid var(--primary-gold);
     color: var(--primary-gold);
     padding: 10px 24px;
     border-radius: 6px;
-    font-weight: 600;
     text-decoration: none;
-    transition: 0.3s;
-    background: transparent;
+    transition: all 0.3s;
 }
 .btn-outline:hover { background: var(--primary-gold); color: #000; }
 
-.btn-login { color: #fff; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: 0.3s; }
-.btn-login:hover { color: var(--primary-gold); }
+/* =========================================
+   4. HERO - Improved Premium Version
+   ========================================= */
+.hero-enhanced {
+    position: relative;
+    min-height: calc(100vh - var(--nav-height));
+    display: flex;
+    align-items: center;
+    background: linear-gradient(rgba(10,10,15,0.82), rgba(10,10,15,0.92)),
+                url('https://images.unsplash.com/photo-1503387762-592deb58baa4?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat fixed;
+    padding-top: calc(var(--nav-height) + 40px); /* Ensures content starts below navbar */
+}
 
-.btn-large { padding: 14px 32px; font-size: 1rem; }
+.hero-bg {
+    position: absolute;
+    inset: 0;
+}
+
+.hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(15,15,21,0.78), rgba(20,20,30,0.88));
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+.hero-lead, .hero-sub {
+    font-size: 1.35rem;
+    margin: 1.6rem 0 2.8rem;
+    color: #e5e5e5;
+    line-height: 1.6;
+}
+
+.hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 60px;
+    margin: 2.5rem 0 3.5rem;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-item .number {
+    font-size: 3.6rem;
+    font-weight: 800;
+    color: var(--primary-gold);
+    line-height: 1;
+    display: block;
+}
+
+.stat-item .label {
+    font-size: 1.05rem;
+    color: #bbb;
+    margin-top: 0.5rem;
+    display: block;
+}
 
 /* =========================================
-   4. HERO SECTIONS (Software & Construction)
+   5. FLOATING CTA
    ========================================= */
-.hero {
-    padding-top: calc(var(--nav-height) + 60px);
-    padding-bottom: 80px;
-    position: relative;
-    overflow: hidden;
+.floating-cta {
+    position: fixed;
+    bottom: 30px;
+    right: 40px;
+    z-index: 1000;
+    opacity: 0;
+    transform: translateY(60px);
+    transition: all 0.4s ease;
+    pointer-events: none;
 }
 
-.badge {
-    display: inline-block;
-    background: rgba(148, 115, 54, 0.1);
-    border: 1px solid rgba(148, 115, 54, 0.3);
-    color: var(--primary-gold);
-    padding: 6px 12px;
+.floating-cta.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.floating-cta .btn-primary {
+    padding: 14px 34px;
+    font-size: 1.1rem;
+    box-shadow: 0 8px 30px rgba(148,115,54,0.35);
+}
+
+/* =========================================
+   6. PUSH CONTENT BELOW FIXED NAVBAR (global fix)
+   ========================================= */
+body > *:first-child:not(.navbar) {
+    padding-top: calc(var(--nav-height) + 20px);
+}
+
+/* =========================================
+   7. GENERAL COMPONENTS (Cards, Grids, Etc)
+   ========================================= */
+.glass-card {
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.12);
     border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    margin-bottom: 20px;
+    padding: 40px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
 }
 
-.hero h1 { font-size: 3.5rem; line-height: 1.1; margin-bottom: 20px; }
-.hero-sub { color: var(--text-muted); font-size: 1.1rem; margin-bottom: 30px; max-width: 90%; }
-.cta-group { display: flex; gap: 15px; margin-bottom: 40px; }
+.wide-card { max-width: 1000px; margin: 0 auto; }
 
-/* --- Software Hero Specifics --- */
-.hero-grid {
+.portal-content {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 60px;
     align-items: center;
 }
 
-.hero-visual { position: relative; height: 400px; }
+.portal-text h2 { font-size: 2.4rem; margin-bottom: 0.5rem; }
+.portal-text h3 { font-size: 1.6rem; color: var(--primary-gold); margin-bottom: 1rem; }
 
-/* Glass Cards for Software Mockups */
-.glass-card {
-    background: rgba(30, 30, 30, 0.6);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--border-light);
-    border-radius: 12px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+.phone-mockup {
+    background: #111;
+    border-radius: 40px;
+    padding: 10px;
+    border: 8px solid #222;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
 }
 
-.main-ui {
-    position: absolute; width: 90%; height: 320px; top: 0; left: 0; z-index: 1; overflow: hidden;
-}
-.mobile-ui {
-    position: absolute; width: 140px; height: 280px; bottom: -20px; right: 20px; z-index: 2;
-    background: #000; border: 4px solid #333; border-radius: 20px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-}
-
-.ui-header {
-    height: 40px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border-light);
-    display: flex; align-items: center; padding: 0 15px; gap: 8px;
-}
-.dot { width: 10px; height: 10px; border-radius: 50%; }
-.red { background: #ff5f56; } .yellow { background: #ffbd2e; } .green { background: #27c93f; }
-.ui-content-placeholder { height: 100%; position: relative; opacity: 0.2; background: #222; }
-
-/* --- Construction Hero Specifics --- */
-.construction-hero {
-    background: linear-gradient(rgba(15,15,15,0.6), rgba(15,15,15,0.9)), url('https://images.unsplash.com/photo-1541888946425-d81bb19240f5?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80');
-    background-size: cover;
-    background-position: center;
-    height: 85vh; /* Taller for impact */
-    display: flex;
-    align-items: center;
-    padding-top: 0; /* Override standard hero padding */
+.screen-header {
+    background: #222;
+    color: #aaa;
+    padding: 10px;
+    text-align: center;
+    font-size: 0.9rem;
+    border-radius: 20px 20px 0 0;
 }
 
-.single-col { grid-template-columns: 1fr; }
-.center-text { text-align: center; max-width: 900px; margin: 0 auto; }
-.center-group { justify-content: center; }
+.screen-body {
+    padding: 20px;
+    background: #000;
+    min-height: 300px;
+}
 
-/* =========================================
-   5. CONSTRUCTION SERVICES GRID
-   ========================================= */
+.msg-bubble {
+    background: #222;
+    color: white;
+    padding: 12px 18px;
+    border-radius: 20px;
+    margin: 10px 0;
+    max-width: 80%;
+}
+
+.msg-bubble.system {
+    background: var(--primary-gold);
+    color: #000;
+    align-self: flex-start;
+}
+
 .services-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 30px;
-    padding: 40px 0;
+    margin-top: 60px;
 }
 
 .service-card {
     background: var(--bg-card);
+    padding: 40px 30px;
+    border-radius: 16px;
+    text-align: center;
+    transition: all 0.3s;
     border: 1px solid var(--border-light);
-    border-radius: 12px;
-    padding: 35px;
-    transition: 0.3s;
-    border-bottom: 2px solid transparent;
 }
 
 .service-card:hover {
-    transform: translateY(-5px);
-    background: var(--bg-card-hover);
-    border-bottom: 2px solid var(--primary-gold);
+    transform: translateY(-10px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    border-color: var(--primary-gold);
 }
 
-.card-icon { font-size: 2.5rem; color: var(--primary-gold); margin-bottom: 20px; }
-.service-card h3 { margin-bottom: 10px; font-size: 1.4rem; }
-.service-card p { font-size: 0.95rem; line-height: 1.6; }
+.card-icon {
+    font-size: 3.5rem;
+    color: var(--primary-gold);
+    margin-bottom: 20px;
+}
 
-/* =========================================
-   6. CLIENT PORTAL PROMO
-   ========================================= */
-.portal-promo { padding: 80px 0; }
-.wide-card { width: 100%; position: relative; padding: 0; overflow: hidden; }
+.section-header {
+    text-align: center;
+    margin-bottom: 60px;
+}
 
-.portal-content {
-    display: flex;
-    flex-wrap: wrap;
+.section-header h2 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.software-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 60px;
     align-items: center;
-    justify-content: space-between;
-    padding: 60px;
-    background: linear-gradient(145deg, #222, #1a1a1a);
 }
 
-.portal-text { flex: 1; min-width: 300px; padding-right: 40px; }
-.portal-text h2 { font-size: 1.2rem; margin-bottom: 10px; letter-spacing: 1px; text-transform: uppercase; }
-.portal-text h3 { font-size: 2.5rem; margin-bottom: 20px; color: #fff; }
-.portal-features { list-style: none; margin: 25px 0; }
-.portal-features li { margin-bottom: 12px; font-weight: 600; color: #ddd; font-size: 1.1rem; }
-
-.portal-visual { flex: 1; display: flex; justify-content: center; align-items: center; }
-
-.phone-mockup {
-    width: 240px; height: 480px;
-    background: #000; border: 6px solid #333;
-    border-radius: 30px; padding: 20px;
-    box-shadow: 0 30px 60px rgba(0,0,0,0.6);
-    position: relative;
+.logo-display {
+    font-size: 4rem;
+    font-weight: 800;
+    color: var(--primary-gold);
+    text-align: center;
+    opacity: 0.8;
 }
-.screen-header { text-align: center; border-bottom: 1px solid #333; padding-bottom: 15px; color: #666; font-size: 0.8rem; margin-bottom: 20px; }
-.screen-body { display: flex; flex-direction: column; gap: 15px; }
-.msg-bubble { background: #333; padding: 10px 15px; border-radius: 12px; font-size: 0.9rem; color: #fff; align-self: flex-start; max-width: 80%; }
-.msg-bubble.system { background: rgba(39, 174, 96, 0.2); color: #27ae60; border: 1px solid rgba(39, 174, 96, 0.4); align-self: flex-end; text-align: right; }
-
-/* =========================================
-   7. SOFTWARE & FEATURES (Bento Grid)
-   ========================================= */
-.features { padding: 100px 0; }
-.section-header { text-align: center; margin-bottom: 60px; max-width: 800px; margin-left: auto; margin-right: auto; }
-.section-header h2 { font-size: 2.5rem; margin-bottom: 15px; }
 
 .bento-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 25px;
+    gap: 30px;
 }
 
 .bento-card {
     background: var(--bg-card);
+    padding: 40px;
+    border-radius: 20px;
     border: 1px solid var(--border-light);
-    border-radius: 16px;
-    padding: 30px;
-    transition: 0.3s;
-    position: relative; overflow: hidden;
-    display: flex; flex-direction: column; justify-content: center;
-    min-height: 280px;
+    transition: all 0.3s;
 }
-.bento-card:hover { transform: translateY(-5px); background: var(--bg-card-hover); border-color: rgba(148, 115, 54, 0.3); }
 
-.bento-card.large { grid-column: span 2; background: linear-gradient(145deg, #1a1a1a, #252525); }
-.bento-card.wide { grid-column: span 3; display: flex; flex-direction: row; align-items: center; justify-content: space-between; }
+.bento-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+.bento-card.large { grid-column: span 2; }
+.bento-card.wide { grid-column: span 2; }
 
 .feature-tag {
-    position: absolute; top: 20px; right: 20px;
-    background: rgba(148, 115, 54, 0.2); color: var(--primary-gold);
-    padding: 4px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: bold;
-}
-
-/* Software Link (Powered By) */
-.software-link { padding: 80px 0; background: #0a0a0a; border-top: 1px solid var(--border-light); margin-top: 50px; }
-.software-row { display: flex; justify-content: space-between; align-items: center; }
-.software-row .text { max-width: 600px; }
-.software-row h4 { color: var(--primary-gold); letter-spacing: 2px; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 15px; }
-.software-row h2 { font-size: 2.5rem; margin-bottom: 15px; }
-.logo-display { font-size: 3rem; font-weight: 800; color: #333; opacity: 0.5; }
-
-/* =========================================
-   8. PRICING & TRUST
-   ========================================= */
-.pricing-header { text-align: center; padding: 120px 0 60px 0; }
-.pricing-grid { display: flex; justify-content: center; gap: 30px; padding-bottom: 100px; flex-wrap: wrap; }
-
-.price-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-light);
+    background: var(--primary-gold);
+    color: #000;
+    font-size: 0.8rem;
+    padding: 4px 12px;
     border-radius: 20px;
-    padding: 40px;
-    width: 350px;
+    display: inline-block;
+    margin-top: 1rem;
+}
+
+.mini-visual {
+    background: #111;
+    padding: 20px;
+    border-radius: 12px;
+    margin-top: 1rem;
+}
+
+.app-row {
+    background: #222;
+    padding: 12px;
+    margin: 8px 0;
+    border-radius: 8px;
     text-align: center;
-    position: relative;
-    transition: 0.3s;
-}
-.price-card:hover { transform: translateY(-10px); }
-
-.price-card.popular {
-    border: 2px solid var(--primary-gold);
-    background: linear-gradient(160deg, #1a1a1a 0%, #252525 100%);
-    transform: scale(1.05);
-    z-index: 2;
 }
 
-.price-tag { font-size: 3rem; font-weight: 800; margin: 20px 0; color: #fff; }
-.price-tag span { font-size: 1rem; color: var(--text-muted); font-weight: 400; }
-.tier-name { font-size: 1.2rem; color: var(--primary-gold); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
-
-.features-ul { text-align: left; margin: 30px 0; padding-left: 20px; }
-.features-ul li { list-style: none; margin-bottom: 12px; color: #ccc; font-size: 0.95rem; }
-.features-ul li i { color: var(--primary-gold); margin-right: 10px; width: 20px; }
-.features-ul li.locked { color: #555; text-decoration: line-through; }
-.features-ul li.locked i { color: #444; }
-
-.badge-popular {
-    position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
-    background: var(--gradient-gold); color: #000;
-    padding: 5px 20px; border-radius: 20px; font-weight: 700; font-size: 0.8rem;
-}
-
-.logos { padding: 40px 0; border-top: 1px solid var(--border-light); border-bottom: 1px solid var(--border-light); text-align: center; }
-.logos p { font-size: 0.8rem; color: #555; letter-spacing: 1px; margin-bottom: 20px; text-transform: uppercase; }
-.logo-grid { display: flex; justify-content: center; gap: 60px; font-size: 2.5rem; color: #333; }
-
-/* =========================================
-   9. FOOTER
-   ========================================= */
+/* Footer */
 footer { background: #000; padding-top: 80px; border-top: 1px solid #222; }
 .footer-content { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 40px; padding-bottom: 60px; }
 .footer-col h4 { font-size: 1.5rem; margin-bottom: 10px; color: #fff; }
@@ -370,27 +427,9 @@ footer { background: #000; padding-top: 80px; border-top: 1px solid #222; }
 .bottom-bar { text-align: center; padding: 20px; border-top: 1px solid #111; color: #444; font-size: 0.8rem; }
 
 /* =========================================
-   10. FEATURES PAGE SPECIFIC
+   8. MOBILE RESPONSIVE & ANIMATIONS
    ========================================= */
-.feature-hero { text-align: center; padding: 120px 0 60px 0; }
-.feature-row { display: flex; align-items: center; justify-content: space-between; padding: 80px 0; border-bottom: 1px solid var(--border-light); }
-.feature-row.reverse { flex-direction: row-reverse; }
-.feature-text { width: 45%; }
-.feature-text h2 { font-size: 2.2rem; margin-bottom: 20px; }
-.feature-visual { width: 50%; height: 400px; position: relative; }
-.feature-glass {
-    width: 100%; height: 100%;
-    background: linear-gradient(145deg, rgba(30,30,30,0.6), rgba(20,20,20,0.8));
-    border: 1px solid rgba(255,255,255,0.1);
-    backdrop-filter: blur(10px);
-    border-radius: 20px;
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
-}
 
-/* =========================================
-   11. RESPONSIVE MEDIA QUERIES
-   ========================================= */
 @media (max-width: 1024px) {
     .container { width: 95%; }
     .bento-grid { grid-template-columns: repeat(2, 1fr); }
@@ -398,16 +437,77 @@ footer { background: #000; padding-top: 80px; border-top: 1px solid #222; }
 }
 
 @media (max-width: 768px) {
-    .nav-links, .nav-actions { display: none; } /* Simplified mobile nav for code brevity */
-    .mobile-menu-btn { display: block; }
-    
-    .hero-grid, .feature-row, .software-row, .portal-content { grid-template-columns: 1fr; flex-direction: column; text-align: center; }
-    .hero-grid { display: block; }
-    
+    /* 1. RESET NAV CONTAINER FOR MOBILE */
+    .nav-container {
+        position: relative;
+    }
+
+    /* 2. SHOW HAMBURGER BUTTON */
+    .menu-toggle {
+        display: flex;
+        position: absolute;
+        right: 0;
+        top: 0;
+    }
+
+    /* 3. HIDE DESKTOP ACTIONS/LOGO */
+    .nav-actions, .nav-logo-right { 
+        display: none; 
+    }
+
+    /* 4. MOBILE MENU DRAWER STYLE */
+    .nav-links {
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        top: 0;
+        right: -100%; /* Hidden off-screen to the right */
+        width: 75%;   /* Width of the drawer */
+        height: 100vh;
+        background-color: #0f0f0f; /* Solid dark background */
+        padding-top: 100px; /* Push links down below close button area */
+        transition: right 0.4s ease-in-out;
+        box-shadow: -5px 0 20px rgba(0,0,0,0.8);
+        z-index: 1000;
+        gap: 0; /* Reset flex gap */
+        border-left: 1px solid var(--primary-gold);
+    }
+
+    /* 5. ACTIVE STATE (SLIDE IN) */
+    .nav-links.active {
+        right: 0;
+    }
+
+    /* 6. LINK STYLING */
+    .nav-links li {
+        width: 100%;
+        text-align: center;
+        padding: 20px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .nav-links a {
+        font-size: 1.2rem;
+        display: block;
+        width: 100%;
+    }
+
+    /* 7. ANIMATE HAMBURGER TO 'X' */
+    .menu-toggle.is-active .bar:nth-child(2) {
+        opacity: 0;
+    }
+    .menu-toggle.is-active .bar:nth-child(1) {
+        transform: translateY(9px) rotate(45deg);
+    }
+    .menu-toggle.is-active .bar:nth-child(3) {
+        transform: translateY(-9px) rotate(-45deg);
+    }
+
+    /* 8. GENERAL LAYOUT ADJUSTMENTS */
+    .hero-grid, .portal-content, .software-row { grid-template-columns: 1fr; text-align: center; }
     .hero h1 { font-size: 2.5rem; }
-    .hero-visual { display: none; } /* Hide complex visuals on mobile */
+    .hero-visual { display: none; }
     .portal-text { padding-right: 0; margin-bottom: 40px; }
-    .portal-text h3 { font-size: 2rem; }
     
     .bento-grid { grid-template-columns: 1fr; }
     .bento-card.large, .bento-card.wide { grid-column: span 1; }
@@ -415,6 +515,31 @@ footer { background: #000; padding-top: 80px; border-top: 1px solid #222; }
     .footer-content { grid-template-columns: 1fr; text-align: center; }
     
     .feature-text, .feature-visual { width: 100%; }
-    .feature-row.reverse { flex-direction: column; }
-    .logo-display { display: none; }
+    .feature-row, .feature-row.reverse { flex-direction: column; }
+    .feature-visual { height: 300px; margin-top: 30px; }
+}
+/* =========================================
+   FIX: Hide Mobile Login Link on Desktop
+   ========================================= */
+.mobile-only-link {
+    display: none; /* Hidden by default on desktop */
+}
+
+@media (max-width: 768px) {
+    .mobile-only-link {
+        display: block; /* Show only on mobile */
+    }
+}
+/* --- LOGO STYLES (Add this to the bottom of style.css) --- */
+.main-logo-img {
+    height: 50px;       /* Sets the height (adjust if you want it bigger) */
+    width: auto;        /* Keeps the aspect ratio correct */
+    vertical-align: middle;
+}
+
+/* Mobile Adjustment (Shrinks it slightly for phones) */
+@media (max-width: 768px) {
+    .main-logo-img {
+        height: 40px;
+    }
 }

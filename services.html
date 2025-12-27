@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Our Services | Drugan Group</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        /* Special Layout for Services Page: Zig-Zag Rows */
+        .service-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 80px;
+            gap: 60px;
+        }
+
+        .service-row.reverse {
+            flex-direction: row-reverse;
+        }
+
+        .service-content {
+            flex: 1;
+        }
+
+        .service-image {
+            flex: 1;
+            height: 400px;
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .service-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        .service-row:hover .service-image img {
+            transform: scale(1.05);
+        }
+
+        .service-content h3 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+
+        .service-content p {
+            margin-bottom: 25px;
+            font-size: 1.05rem;
+            color: #ccc;
+        }
+
+        .service-icon-circle {
+            width: 60px; height: 60px;
+            background: rgba(148,115,54,0.1);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--primary-gold);
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            border: 1px solid var(--primary-gold);
+        }
+
+        /* Mobile Fix */
+        @media (max-width: 900px) {
+            .service-row, .service-row.reverse {
+                flex-direction: column;
+                gap: 30px;
+                text-align: center;
+            }
+            .service-icon-circle { margin: 0 auto 20px auto; }
+            .service-image { width: 100%; height: 250px; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar" id="navbar">
+        <div class="container nav-container">
+            <div class="brand">
+    <a href="index.html"><img src="images/logo.png" alt="Drugan Group" class="main-logo-img"></a> DRUGAN <span class="tagline">GROUP</span><span class="tagline">Services</span></div>
+            
+            <div class="menu-toggle" id="mobile-menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+            
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="about.html">About</a></li>
+                <li><a href="services.html" style="color: var(--primary-gold);">Services</a></li>
+                <li><a href="tradecore.html">Software</a></li>
+                <li><a href="forensics.html">Disputes</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
+            </ul>
+            
+            <div class="nav-actions">
+                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i> Portal Login</a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero hero-enhanced" style="min-height: 60vh;">
+        <div class="hero-bg"></div>
+        <div class="hero-overlay"></div>
+        <div class="container hero-grid single-col">
+            <div class="hero-text center-text" data-aos="fade-up">
+                <div class="badge">END-TO-END SOLUTIONS</div>
+                <h1>Complete <span class="gold-gradient">Lifecycle.</span></h1>
+                <p class="hero-sub">We don't just build. We maintain, manage, and protect your assets. Explore our specialist divisions below.</p>
+            </div>
+        </div>
+    </header>
+
+    <section class="container" style="padding: 100px 0;">
+        
+        <div class="service-row" data-aos="fade-up">
+            <div class="service-content">
+                <div class="service-icon-circle"><i class="fas fa-hard-hat"></i></div>
+                <h3>Construction & Build</h3>
+                <p>From residential extensions to new build developments. We manage the entire build phase using our proprietary TradeCore software to ensure projects stay on time and on budget.</p>
+                <ul style="margin-bottom: 30px; color: #aaa; list-style: none;">
+                    <li><i class="fas fa-check" style="color: var(--primary-gold); margin-right: 10px;"></i> Extensions & Renovations</li>
+                    <li><i class="fas fa-check" style="color: var(--primary-gold); margin-right: 10px;"></i> New Build Developments</li>
+                    <li><i class="fas fa-check" style="color: var(--primary-gold); margin-right: 10px;"></i> Structural Alterations</li>
+                </ul>
+                <a href="construction.html" class="btn-primary">View Construction</a>
+            </div>
+            <div class="service-image">
+                <img src="https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=800&q=80" alt="Construction Site">
+            </div>
+        </div>
+
+        <div class="service-row reverse" data-aos="fade-up">
+            <div class="service-content">
+                <div class="service-icon-circle"><i class="fas fa-home"></i></div>
+                <h3>Specialist Roofing</h3>
+                <p>We keep you watertight. Utilizing drone technology for safe inspections, we handle everything from heritage slate repairs to modern EPDM rubber flat roofing systems.</p>
+                <ul style="margin-bottom: 30px; color: #aaa; list-style: none;">
+                    <li><i class="fas fa-check" style="color: var(--primary-gold); margin-right: 10px;"></i> Drone Surveys</li>
+                    <li><i class="fas fa-check" style="color: var(--primary-gold); margin-right: 10px;"></i> Flat Roofing (EPDM)</li>
+                    <li><i class="fas fa-check" style="color: var(--primary-gold); margin-right: 10px;"></i> Chimney Repairs</li>
+                </ul>
+                <a href="roofing.html" class="btn-secondary">View Roofing</a>
+            </div>
+            <div class="service-image">
+                <img src="https://images.unsplash.com/photo-1632759145351-1d592919f522?auto=format&fit=crop&w=800&q=80" alt="Roofing Work">
+            </div>
+        </div>
+
+        <div class="service-row" data-aos="fade-up">
+            <div class="service-row" data-aos="fade-up">
+            <div class="service-content">
+                <div class="service-icon-circle"><i class="fas fa-tractor"></i></div>
+                <h3>Civil Engineering & Groundworks</h3>
+                <p>The heavy lifting done right. We operate our own core fleet for rapid deployment on standard jobs, while scaling up with specialist heavy plant partners for major infrastructure works.</p>
+                <a href="groundworks.html" class="btn-secondary">View Groundworks</a>
+            </div>
+            <div class="service-image">
+                <img src="https://images.unsplash.com/photo-1590486803833-1c5dc8ce2085?auto=format&fit=crop&w=800&q=80" alt="Excavator">
+            </div>
+        </div>
+        </div>
+
+        <div class="service-row reverse" data-aos="fade-up">
+            <div class="service-content">
+                <div class="service-icon-circle"><i class="fas fa-tools"></i></div>
+                <h3>Reactive Maintenance</h3>
+                <p>The "Uber" of property repair. Log a fault via our client portal, track your engineer via GPS, and get instant photo reports when the job is done.</p>
+                <a href="maintenance.html" class="btn-primary">View Maintenance</a>
+            </div>
+            <div class="service-image">
+                <img src="https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80" alt="Engineer Fixing">
+            </div>
+        </div>
+
+		<div class="service-row" data-aos="fade-up">
+            <div class="service-content">
+                <div class="service-icon-circle"><i class="fas fa-gavel"></i></div>
+                <h3>Drugan Forensics</h3>
+                <p>Precision dispute resolution. We combine industry expertise with advanced AI forensics to audit construction quality and financial accounts. We identify regulatory breaches and commercial discrepancies with data-driven accuracy, providing the irrefutable evidence needed for legal or mediation proceedings.</p>
+                <a href="forensics.html" class="btn-outline">Dispute Resolution</a>
+            </div>
+            <div class="service-image">
+                <img src="https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&w=800&q=80" alt="Legal Documents">
+            </div>
+        </div>
+            <div class="service-image">
+                <img src="https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&w=800&q=80" alt="Gavel and Documents">
+            </div>
+        </div>
+
+    </section>
+
+    <section class="container" style="padding-bottom: 100px; text-align: center;">
+        <div class="glass-card wide-card">
+            <h2>Not sure what you need?</h2>
+            <p style="margin-bottom: 30px;">Our team can advise on the best approach for your project.</p>
+            <a href="contact.html" class="btn-primary btn-large">Contact Us</a>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container footer-content">
+            <div class="footer-col">
+                <h4>Drugan Group</h4>
+                <p class="creator">Building & Maintenance</p>
+                <p>Quality workmanship backed by cutting-edge technology.</p>
+            </div>
+            <div class="footer-col">
+                <h5>Group Companies</h5>
+                <a href="index.html">Construction</a>
+                <a href="tradecore.html">TradeCore Software</a>
+                <a href="forensics.html">Forensics Unit</a>
+            </div>
+            <div class="footer-col">
+                <h5>Contact</h5>
+                <a href="login.html">Client Portal</a>
+                <a href="mailto:info@drugangroup.com">info@drugangroup.com</a>
+            </div>
+        </div>
+        <div class="bottom-bar">
+            <p>&copy; 2025 Drugan Group. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({ duration: 800, once: true });
+        
+        // Mobile Menu Logic
+        const menuToggle = document.querySelector('#mobile-menu');
+        const navLinks = document.querySelector('.nav-links');
+        if (menuToggle) {
+            menuToggle.addEventListener('click', function() {
+                navLinks.classList.toggle('active');
+                menuToggle.classList.toggle('is-active');
+            });
+        }
+    </script>
+</body>
+</html>

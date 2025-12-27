@@ -1,0 +1,209 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Login | Drugan Group</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="style.css">
+    
+    <style>
+        body {
+            background-image: linear-gradient(rgba(10,10,15,0.9), rgba(10,10,15,0.95)), url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1920&q=80');
+            background-size: cover;
+            background-position: center;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .login-container {
+            display: flex;
+            max-width: 900px;
+            width: 90%;
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+            backdrop-filter: blur(20px);
+        }
+
+        /* Left Side - The Login Form */
+        .login-form-side {
+            flex: 1;
+            padding: 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* Right Side - The Visual Promo */
+        .login-visual-side {
+            flex: 1;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            border-left: 1px solid rgba(255,255,255,0.05);
+            text-align: center;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            transition: 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary-gold);
+            box-shadow: 0 0 10px rgba(148,115,54,0.2);
+        }
+
+        .login-tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .tab {
+            padding: 10px 20px;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: 0.3s;
+        }
+
+        .tab.active {
+            color: var(--primary-gold);
+            border-bottom: 2px solid var(--primary-gold);
+        }
+
+        .back-link {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            color: #666;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: 0.3s;
+        }
+        .back-link:hover { color: #fff; }
+
+        /* Mobile Responsive */
+        @media(max-width: 768px) {
+            .login-container { flex-direction: column; }
+            .login-visual-side { display: none; }
+            .login-form-side { padding: 30px; }
+            body { height: auto; min-height: 100vh; padding: 20px 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar" id="navbar">
+        <div class="container nav-container">
+            <div class="brand">
+    <a href="index.html"><img src="images/logo.png" alt="Drugan Group" class="main-logo-img"></a> DRUGAN <span class="tagline">GROUP</span><span class="tagline">Login</span></div>
+            <div class="menu-toggle" id="mobile-menu"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
+            <ul class="nav-links">
+                <li><a href="index.html" style="color: var(--primary-gold);">Home</a></li>
+                <li><a href="about.html">About</a></li>
+                <li><a href="services.html">Services</a></li>
+                <li><a href="tradecore.html">Software</a></li>
+                <li><a href="forensics.html">Disputes</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
+            </ul>
+            <div class="nav-actions">
+                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i> Portal Login</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="login-container">
+        <div class="login-form-side">
+            <div style="margin-bottom: 30px;">
+                <span class="logo-icon" style="font-size: 2rem;">DG</span>
+                <h2 style="margin-top: 10px;">Welcome Back</h2>
+                <p>Secure access to your project dashboard.</p>
+            </div>
+
+            <div class="login-tabs">
+                <div class="tab active" onclick="switchTab('client')">Client Portal</div>
+                <div class="tab" onclick="switchTab('staff')">Staff / TradeCore</div>
+            </div>
+
+            <form>
+                <div class="input-group">
+                    <label>Email Address / Job ID</label>
+                    <input type="email" placeholder="e.g. name@example.com">
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" placeholder="••••••••">
+                </div>
+                
+                <button type="button" class="btn-primary" style="width: 100%; border:none; margin-top: 10px;">Secure Login <i class="fas fa-lock" style="font-size: 0.8rem; margin-left: 8px;"></i></button>
+                
+                <div style="margin-top: 20px; text-align: center; font-size: 0.85rem;">
+                    <a href="#" style="color: var(--text-muted); text-decoration: none;">Forgot Password?</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="login-visual-side">
+            <div class="glass-card" style="background: rgba(255,255,255,0.03); padding: 30px; max-width: 80%;">
+                <i class="fas fa-shield-alt" style="font-size: 3rem; color: var(--primary-gold); margin-bottom: 20px;"></i>
+                <h3 style="margin-bottom: 10px;">Bank-Grade Security</h3>
+                <p style="font-size: 0.9rem; color: #aaa;">Your project data, invoices, and forensic reports are protected by 256-bit AES encryption.</p>
+                <br>
+                <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+                    <p style="font-size: 0.8rem; color: #666;">POWERED BY</p>
+                    <h4 style="color: #fff; letter-spacing: 2px;">TRADECORE</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(type) {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Optional: Change UI based on tab
+            const btn = document.querySelector('.btn-primary');
+            if(type === 'staff') {
+                btn.innerHTML = 'Access Fleet System <i class="fas fa-satellite-dish" style="font-size: 0.8rem; margin-left: 8px;"></i>';
+            } else {
+                btn.innerHTML = 'Secure Login <i class="fas fa-lock" style="font-size: 0.8rem; margin-left: 8px;"></i>';
+            }
+        }
+    </script>
+</body>
+</html>

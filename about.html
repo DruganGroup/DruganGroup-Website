@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Us | Drugan Group</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+    
+    <style>
+        .ecosystem-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 60px;
+        }
+        
+        .ecosystem-card {
+            background: var(--bg-card);
+            padding: 40px 30px;
+            border-radius: 20px;
+            border: 1px solid var(--border-light);
+            transition: 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .ecosystem-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--primary-gold);
+        }
+        
+        .card-number {
+            position: absolute;
+            top: -20px;
+            right: -10px;
+            font-size: 8rem;
+            font-weight: 800;
+            color: rgba(255,255,255,0.03);
+            z-index: 0;
+        }
+        
+        .eco-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            display: inline-block;
+            background: rgba(255,255,255,0.05);
+            padding: 20px;
+            border-radius: 50%;
+        }
+        
+        /* Mobile adjustment */
+        @media(max-width: 900px) {
+            .ecosystem-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar" id="navbar">
+        <div class="container nav-container">
+            <div class="brand">
+    <a href="index.html"><img src="images/logo.png" alt="Drugan Group" class="main-logo-img"></a>DRUGAN <span class="tagline">GROUP</span>
+            </div>
+            
+            <div class="menu-toggle" id="mobile-menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+            <ul class="nav-links">
+                <li></li><li><a href="index.html">Home</a></li>
+                <li><a href="about.html" style="color: var(--primary-gold);">About</a></li>
+                <li><a href="services.html">Services</a></li>
+                <li><a href="tradecore.html">Software</a></li>
+                <li><a href="forensics.html">Disputes</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
+            </ul>
+            
+            <div class="nav-actions">
+                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i> Portal Login</a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero hero-enhanced" style="min-height: 60vh;">
+        <div class="hero-bg"></div>
+        <div class="hero-overlay"></div>
+        <div class="container hero-grid single-col">
+            <div class="hero-text center-text" data-aos="fade-up">
+                <div class="badge">EST. 2019</div>
+                <h1>More Than Just <span class="gold-gradient">Builders.</span></h1>
+                <p class="hero-sub">We are a technology-first construction ecosystem. We don't just do the work; we built the software that powers it and the forensics that protect it.</p>
+            </div>
+        </div>
+    </header>
+
+    <section class="container" style="padding: 100px 0;" data-aos="fade-up">
+        <div class="section-header">
+            <h2>The Drugan <span class="gold-text">Ecosystem</span></h2>
+            <p>Why choose us? Because we cover the entire lifecycle of the built environment.</p>
+        </div>
+
+        <div class="ecosystem-grid">
+            <div class="ecosystem-card">
+                <span class="card-number">01</span>
+                <i class="fas fa-hard-hat eco-icon" style="color: #fff;"></i>
+                <h3 style="margin-bottom: 15px;">We Build.</h3>
+                <h4 style="color: var(--primary-gold); margin-bottom: 15px;">Drugan Construction</h4>
+                <p>The foundation of our group. From heavy groundworks and roofing to reactive property maintenance. We employ the boots on the ground that get the job done right, the first time.</p>
+                <a href="services.html" class="btn-outline" style="margin-top: 20px; display:inline-block; font-size: 0.8rem;">View Services</a>
+            </div>
+
+            <div class="ecosystem-card">
+                <span class="card-number">02</span>
+                <i class="fas fa-microchip eco-icon" style="color: var(--primary-gold);"></i>
+                <h3 style="margin-bottom: 15px;">We Power.</h3>
+                <h4 style="color: var(--primary-gold); margin-bottom: 15px;">TradeCore Enterprise</h4>
+                <p>We grew tired of inefficient software, so we built our own. TradeCore is the "Operating System" for modern trades, handling GPS tracking, smart quoting, and automated invoicing.</p>
+                <a href="tradecore.html" class="btn-outline" style="margin-top: 20px; display:inline-block; font-size: 0.8rem;">See The Tech</a>
+            </div>
+
+            <div class="ecosystem-card">
+                <span class="card-number">03</span>
+                <i class="fas fa-balance-scale eco-icon" style="color: #ff5555;"></i>
+                <h3 style="margin-bottom: 15px;">We Protect.</h3>
+                <h4 style="color: var(--primary-gold); margin-bottom: 15px;">Drugan Forensics</h4>
+                <p>When standards slip elsewhere, we provide the audit. Our AI-driven forensic unit analyzes technical specifications and commercial data to substantiate claims of non-compliance.</p>
+                <a href="forensics.html" class="btn-outline" style="margin-top: 20px; display:inline-block; font-size: 0.8rem;">Dispute Resolution</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="features" style="background: #151515; padding: 100px 0;">
+        <div class="container feature-row">
+            <div class="feature-text" data-aos="fade-right">
+                <h2>Our <span class="gold-text">Philosophy</span></h2>
+                <p style="margin-bottom: 20px;">Established in 2019, Drugan Group started with a single van and a simple mission: <strong>Do the job right, and be transparent about the cost.</strong></p>
+                <p>Today, we have evolved into a multi-faceted group, but that core mission remains. Whether we are digging foundations, writing code, or analyzing legal documents, we believe in precision and accountability.</p>
+                <br>
+                <div style="display: flex; gap: 40px;">
+                    <div>
+                        <h1 class="gold-text">500+</h1>
+                        <p>Projects Completed</p>
+                    </div>
+                    <div>
+                        <h1 class="gold-text">24/7</h1>
+                        <p>Support Portal</p>
+                    </div>
+                </div>
+            </div>
+            <div class="feature-visual" data-aos="fade-left">
+                <div class="glass-card">
+                    <h3>"We don't just work in the industry.<br>We are upgrading it."</h3>
+                    <p style="margin-top: 20px; color: #888;">- The Drugan Group Team</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container footer-content">
+            <div class="footer-col">
+                <h4>Drugan Group</h4>
+                <p class="creator">Building & Maintenance</p>
+                <p>Quality workmanship backed by cutting-edge technology.</p>
+            </div>
+            <div class="footer-col">
+                <h5>Group Companies</h5>
+                <a href="index.html">Construction</a>
+                <a href="tradecore.html">TradeCore Software</a>
+                <a href="forensics.html">Forensics Unit</a>
+            </div>
+            <div class="footer-col">
+                <h5>Contact</h5>
+                <a href="login.html">Client Portal</a>
+                <a href="mailto:info@drugangroup.com">info@drugangroup.com</a>
+            </div>
+        </div>
+        <div class="bottom-bar">
+            <p>&copy; 2025 Drugan Group. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({ duration: 800, once: true, offset: 100 });
+        
+        window.addEventListener('scroll', function() {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) nav.classList.add('scrolled');
+            else nav.classList.remove('scrolled');
+        });
+
+        // Mobile Menu Logic
+        const menuToggle = document.querySelector('#mobile-menu');
+        const navLinks = document.querySelector('.nav-links');
+        if (menuToggle) {
+            menuToggle.addEventListener('click', function() {
+                navLinks.classList.toggle('active');
+                menuToggle.classList.toggle('is-active');
+            });
+        }
+    </script>
+</body>
+</html>
