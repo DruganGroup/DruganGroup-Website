@@ -7,7 +7,6 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev_key_123") 
 
 # --- DATABASE CONNECTION ---
-# We use the Cloud URL as a backup so it works on your PC too
 DB_URL = os.environ.get("DATABASE_URL")
 
 def get_db():
@@ -18,7 +17,7 @@ def get_db():
         print(f"❌ DB Connection Error: {e}")
         return None
 
-# --- MAIN PAGES ---
+# --- MAIN STATIC PAGES ---
 @app.route('/')
 def home(): return render_template('index.html')
 
@@ -77,7 +76,6 @@ def login():
             
         cur = conn.cursor()
         try:
-            # Check user credentials
             cur.execute("""
                 SELECT id, username, role, company_id 
                 FROM users 
@@ -91,7 +89,6 @@ def login():
             conn.close()
         
         if user:
-            # Login Success: Save details to session
             session['user_id'] = user[0]
             session['user_name'] = user[1]
             session['role'] = user[2]
@@ -100,7 +97,6 @@ def login():
             if user[2] == 'SuperAdmin':
                 return redirect(url_for('super_admin_dashboard'))
             else:
-                # SUCCESS: Redirect to the Main Launcher (3 Buttons)
                 return redirect(url_for('main_launcher'))
         else:
             flash('Invalid Email or Password')
@@ -111,26 +107,21 @@ def login():
 @app.route('/dashboard-menu')
 def main_launcher():
     if 'user_id' not in session: return redirect(url_for('login'))
-    
-    # We pass the role to the HTML so it knows which buttons to lock
     return render_template('main_launcher.html', role=session.get('role'))
 
 
 # --- CLIENT DASHBOARD (OFFICE HUB) ---
 @app.route('/client-portal')
 def client_dashboard():
-    # 1. Security Check
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
+    if 'user_id' not in session: return redirect(url_for('login'))
     
     company_id = session.get('company_id')
     
-    # 2. Fetch Data for THIS Company Only
     conn = get_db()
     if not conn: return "DB Error"
     cur = conn.cursor()
     
-    # Create tables if they don't exist yet (Safety First)
+    # Create tables if they don't exist yet
     cur.execute("""
         CREATE TABLE IF NOT EXISTS transactions (
             id SERIAL PRIMARY KEY,
@@ -145,7 +136,7 @@ def client_dashboard():
     """)
     conn.commit()
 
-    # 3. Calculate Totals (Income vs Expense)
+    # Calculate Totals
     cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Income'", (company_id,))
     income = cur.fetchone()[0] or 0.0
     
@@ -154,7 +145,7 @@ def client_dashboard():
     
     balance = income - expense
 
-    # 4. Get Recent Transactions
+    # Get Recent Transactions
     cur.execute("""
         SELECT date, type, category, description, amount, reference 
         FROM transactions 
@@ -165,26 +156,144 @@ def client_dashboard():
     
     conn.close()
 
-    # 5. Show the HTML Page
     return render_template('client_dashboard.html', 
                            total_income=income, 
                            total_expense=expense, 
                            total_balance=balance,
                            transactions=transactions)
 
+
+# --- FINANCE DASHBOARD ---
+@app.route('/finance-dashboard')
+def finance_dashboard():
+    if 'user_id' not in session: return redirect(url_for('login'))
+    if session.get('role') not in ['Admin', 'SuperAdmin']:
+        return "Access Denied: You need Admin privileges to view Finance."
+
+    company_id = session.get('company_id')
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS transactions (
+            id SERIAL PRIMARY KEY,
+            company_id INTEGER,
+            date DATE,
+            type TEXT, category TEXT, description TEXT, amount DECIMAL(10,2), reference TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    conn.commit()
+
+    cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Income'", (company_id,))
+    income = cur.fetchone()[0] or 0.0
+    cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Expense'", (company_id,))
+    expense = cur.fetchone()[0] or 0.0
+    balance = income - expense
+
+    cur.execute("SELECT date, type, category, description, amount, reference FROM transactions WHERE company_id = %s ORDER BY date DESC LIMIT 20", (company_id,))
+    transactions = cur.fetchall()
+    
+    cur.execute("SELECT name FROM companies WHERE id = %s", (company_id,))
+    comp_row = cur.fetchone()
+    session['company_name'] = comp_row[0] if comp_row else "My Company"
+
+    conn.close()
+    return render_template('finance_dashboard.html', total_income=income, total_expense=expense, total_balance=balance, transactions=transactions)
+
+
+# --- HR & STAFF ROUTES ---
+@app.route('/finance/hr')
+def finance_hr():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS staff (
+            id SERIAL PRIMARY KEY,
+            company_id INTEGER,
+            name TEXT, position TEXT, dept TEXT, pay_rate DECIMAL(10,2), pay_model TEXT, access_level TEXT
+        );
+    """)
+    conn.commit()
+
+    cur.execute("SELECT id, name, position, dept, pay_rate, pay_model, access_level FROM staff WHERE company_id = %s ORDER BY name", (session.get('company_id'),))
+    staff = cur.fetchall()
+    conn.close()
+    
+    return render_template('finance_hr.html', staff=staff)
+
+@app.route('/finance/hr/add', methods=['POST'])
+def add_staff():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    
+    name = request.form.get('name')
+    position = request.form.get('position')
+    dept = request.form.get('dept')
+    rate = request.form.get('rate') or 0
+    model = request.form.get('model')
+    access = request.form.get('access_level')
+    comp_id = session.get('company_id')
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        cur.execute("""
+            INSERT INTO staff (company_id, name, position, dept, pay_rate, pay_model, access_level)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (comp_id, name, position, dept, rate, model, access))
+        
+        if access != "None":
+            username = name.split(" ")[0].lower() + f"{comp_id}" # e.g. john51
+            email_fake = f"{username}@tradecore.com"
+            default_pass = "Password123!" 
+            
+            cur.execute("SELECT id FROM users WHERE username=%s", (username,))
+            if not cur.fetchone():
+                cur.execute("""
+                    INSERT INTO users (username, email, password_hash, role, company_id)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (username, email_fake, default_pass, access, comp_id))
+                flash(f"✅ Staff added! Login: {username} / Pass: {default_pass}")
+            else:
+                flash("✅ Staff added, but username already existed.")
+        else:
+            flash("✅ Staff added successfully.")
+            
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('finance_hr'))
+
+@app.route('/finance/hr/delete/<int:id>')
+def delete_staff(id):
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM staff WHERE id = %s AND company_id = %s", (id, session.get('company_id')))
+    conn.commit()
+    conn.close()
+    flash("Staff deleted.")
+    return redirect(url_for('finance_hr'))
+
+
 # --- SUPER ADMIN DASHBOARD ---
 @app.route('/super-admin', methods=['GET', 'POST'])
 def super_admin_dashboard():
-    # Security Gate
-    if session.get('role') != 'SuperAdmin':
-        return redirect(url_for('login'))
+    if session.get('role') != 'SuperAdmin': return redirect(url_for('login'))
         
     conn = get_db()
     if not conn: return "Database Error"
     cur = conn.cursor()
     
     if request.method == 'POST':
-        # Create New Company Logic
         comp_name = request.form.get('company_name')
         owner_email = request.form.get('owner_email')
         owner_pass = request.form.get('owner_pass')
@@ -201,11 +310,9 @@ def super_admin_dashboard():
             conn.rollback()
             flash(f"❌ Error: {e}")
             
-    # Load Company List
     cur.execute("SELECT c.id, c.name, s.plan_tier, s.status, u.email FROM companies c LEFT JOIN subscriptions s ON c.id = s.company_id LEFT JOIN users u ON c.id = u.company_id AND u.role = 'Admin' ORDER BY c.id DESC")
     companies = cur.fetchall()
     conn.close()
-    
     return render_template('super_admin.html', companies=companies)
 
 @app.route('/logout')
@@ -213,7 +320,6 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# --- SERVER START COMMAND (Must be at the very bottom) ---
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
