@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SuperAdmin Control Panel</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f4; padding: 20px; }
+        .container { max_width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 90%; }
+        button { background: #27ae60; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #219150; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #34495e; color: white; }
+        tr:hover { background: #f1f1f1; }
+        .tag { padding: 4px 8px; border-radius: 4px; font-size: 12px; color: white; }
+        .active { background: #27ae60; }
+        .basic { background: #7f8c8d; }
+        .pro { background: #8e44ad; }
+        .enterprise { background: #f39c12; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>⚡ SuperAdmin Control Panel</h1>
+    
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div style="background: #d4edda; color: #155724; padding: 10px; margin-bottom: 20px;">
+            {{ messages[0] }}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <h3>➕ Register New Company</h3>
+    <form method="POST">
+        <div class="form-grid">
+            <input type="text" name="company_name" placeholder="Company Name (e.g. Smith Roofing)" required>
+            <input type="text" name="owner_email" placeholder="Owner Email (Login Username)" required>
+            <input type="text" name="owner_pass" placeholder="Set Password" required>
+            <select name="plan">
+                <option value="Basic">Basic Plan</option>
+                <option value="Pro">Pro Plan</option>
+                <option value="Enterprise">Enterprise Plan</option>
+            </select>
+        </div>
+        <button type="submit">🚀 Create Company & Admin User</button>
+    </form>
+
+    <h3>🏢 Active Tenants</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Company Name</th>
+                <th>Main Contact</th>
+                <th>Plan Tier</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in companies %}
+            <tr>
+                <td>#{{ c[0] }}</td>
+                <td><strong>{{ c[1] }}</strong></td>
+                <td>{{ c[4] }}</td> <td><span class="tag {{ c[2]|lower }}">{{ c[2] }}</span></td>
+                <td><span class="tag active">{{ c[3] }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+</body>
+</html>
