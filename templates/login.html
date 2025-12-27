@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -17,18 +18,18 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            font-family: 'Inter', sans-serif;
         }
 
         .login-container {
             display: flex;
             max-width: 900px;
             width: 90%;
-            background: var(--bg-card);
+            background: #1a1a1a;
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 20px;
             overflow: hidden;
             box-shadow: 0 30px 60px rgba(0,0,0,0.5);
-            backdrop-filter: blur(20px);
         }
 
         /* Left Side - The Login Form */
@@ -38,12 +39,13 @@
             display: flex;
             flex-direction: column;
             justify-content: center;
+            color: #fff;
         }
 
         /* Right Side - The Visual Promo */
         .login-visual-side {
             flex: 1;
-            background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+            background: linear-gradient(135deg, #111 0%, #000 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -61,7 +63,7 @@
         .input-group label {
             display: block;
             margin-bottom: 8px;
-            color: var(--text-muted);
+            color: #aaa;
             font-size: 0.9rem;
         }
 
@@ -74,14 +76,16 @@
             color: #fff;
             font-family: 'Inter', sans-serif;
             transition: 0.3s;
+            box-sizing: border-box; /* Fixes padding width issues */
         }
 
         .input-group input:focus {
             outline: none;
-            border-color: var(--primary-gold);
-            box-shadow: 0 0 10px rgba(148,115,54,0.2);
+            border-color: #C5A059; /* Gold */
+            box-shadow: 0 0 10px rgba(197, 160, 89, 0.2);
         }
 
+        /* Tabs */
         .login-tabs {
             display: flex;
             margin-bottom: 30px;
@@ -90,29 +94,46 @@
 
         .tab {
             padding: 10px 20px;
-            color: var(--text-muted);
+            color: #666;
             cursor: pointer;
             border-bottom: 2px solid transparent;
             transition: 0.3s;
+            font-weight: 600;
         }
 
         .tab.active {
-            color: var(--primary-gold);
-            border-bottom: 2px solid var(--primary-gold);
+            color: #C5A059;
+            border-bottom: 2px solid #C5A059;
         }
 
-        .back-link {
-            position: absolute;
-            top: 30px;
-            left: 30px;
-            color: #666;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            transition: 0.3s;
+        /* Button */
+        .btn-gold {
+            background: linear-gradient(135deg, #C5A059 0%, #a68545 100%);
+            color: #000;
+            font-weight: bold;
+            border: none;
+            padding: 12px;
+            width: 100%;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 10px;
+            transition: transform 0.1s;
         }
-        .back-link:hover { color: #fff; }
+        .btn-gold:hover {
+            transform: scale(1.02);
+        }
+
+        /* Error Messages */
+        .flash-error {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #e74c3c;
+            font-size: 0.9rem;
+        }
 
         /* Mobile Responsive */
         @media(max-width: 768px) {
@@ -125,84 +146,71 @@
 </head>
 <body>
 
-    <nav class="navbar" id="navbar">
-        <div class="container nav-container">
-            <div class="brand">
-    <a href="index.html"><img src="/static/images/logo.png" alt="Drugan Group" class="main-logo-img"></a> DRUGAN <span class="tagline">GROUP</span><span class="tagline">Login</span></div>
-            <div class="menu-toggle" id="mobile-menu"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
-            <ul class="nav-links">
-                <li><a href="index.html" style="color: var(--primary-gold);">Home</a></li>
-                <li><a href="about.html">About</a></li>
-                <li><a href="services.html">Services</a></li>
-                <li><a href="tradecore.html">Software</a></li>
-                <li><a href="forensics.html">Disputes</a></li>
-                <li><a href="contact.html">Contact</a></li>
-                <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
-            </ul>
-            <div class="nav-actions">
-                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i> Portal Login</a>
-            </div>
-        </div>
-    </nav>
+    <div style="position: absolute; top: 20px; left: 20px;">
+        <a href="/" style="color: #fff; text-decoration: none; font-weight: bold;">← Back to Home</a>
+    </div>
 
     <div class="login-container">
         <div class="login-form-side">
             <div style="margin-bottom: 30px;">
-                <span class="logo-icon" style="font-size: 2rem;">DG</span>
-                <h2 style="margin-top: 10px;">Welcome Back</h2>
-                <p>Secure access to your project dashboard.</p>
+                <span style="font-size: 2rem; font-weight: 800; color: #fff;">DG</span>
+                <h2 style="margin-top: 10px; color: #fff;">Welcome Back</h2>
+                <p style="color: #888;">Secure access to your project dashboard.</p>
             </div>
+
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                <div class="flash-error">
+                    <i class="fas fa-exclamation-circle"></i> {{ messages[0] }}
+                </div>
+              {% endif %}
+            {% endwith %}
 
             <div class="login-tabs">
-                <div class="tab active" onclick="switchTab('client')">Client Portal</div>
-                <div class="tab" onclick="switchTab('staff')">Staff / TradeCore</div>
+                <div class="tab" onclick="switchTab('client')">Client Portal</div>
+                <div class="tab active" onclick="switchTab('staff')">Staff / TradeCore</div>
             </div>
 
-            <form>
+            <form method="POST" action="/login">
                 <div class="input-group">
-                    <label>Email Address / Job ID</label>
-                    <input type="email" placeholder="e.g. name@example.com">
+                    <label>Email Address / Username</label>
+                    <input type="text" name="email" placeholder="e.g. admin@drugangroup.co.uk" required>
                 </div>
                 <div class="input-group">
                     <label>Password</label>
-                    <input type="password" placeholder="••••••••">
+                    <input type="password" name="password" placeholder="••••••••" required>
                 </div>
                 
-                <button type="button" class="btn-primary" style="width: 100%; border:none; margin-top: 10px;">Secure Login <i class="fas fa-lock" style="font-size: 0.8rem; margin-left: 8px;"></i></button>
+                <button type="submit" class="btn-gold">
+                    Secure Login <i class="fas fa-lock" style="font-size: 0.8rem; margin-left: 8px;"></i>
+                </button>
                 
                 <div style="margin-top: 20px; text-align: center; font-size: 0.85rem;">
-                    <a href="#" style="color: var(--text-muted); text-decoration: none;">Forgot Password?</a>
+                    <a href="#" style="color: #666; text-decoration: none;">Forgot Password?</a>
                 </div>
             </form>
         </div>
 
         <div class="login-visual-side">
-            <div class="glass-card" style="background: rgba(255,255,255,0.03); padding: 30px; max-width: 80%;">
-                <i class="fas fa-shield-alt" style="font-size: 3rem; color: var(--primary-gold); margin-bottom: 20px;"></i>
-                <h3 style="margin-bottom: 10px;">Bank-Grade Security</h3>
-                <p style="font-size: 0.9rem; color: #aaa;">Your project data, invoices, and forensic reports are protected by 256-bit AES encryption.</p>
+            <div style="background: rgba(255,255,255,0.03); padding: 30px; max-width: 80%; border-radius: 10px; border: 1px solid #333;">
+                <i class="fas fa-shield-alt" style="font-size: 3rem; color: #C5A059; margin-bottom: 20px;"></i>
+                <h3 style="margin-bottom: 10px; color: #fff;">Bank-Grade Security</h3>
+                <p style="font-size: 0.9rem; color: #aaa;">Your project data, invoices, and forensic reports are protected by Enterprise Encryption.</p>
                 <br>
                 <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
-                    <p style="font-size: 0.8rem; color: #666;">POWERED BY</p>
-                    <h4 style="color: #fff; letter-spacing: 2px;">TRADECORE</h4>
+                    <p style="font-size: 0.8rem; color: #666; margin-bottom: 5px;">POWERED BY</p>
+                    <h4 style="color: #fff; letter-spacing: 2px; margin: 0;">TRADECORE</h4>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
+        // Simple visual toggle (Functionality is handled by the server now)
         function switchTab(type) {
             const tabs = document.querySelectorAll('.tab');
             tabs.forEach(t => t.classList.remove('active'));
             event.target.classList.add('active');
-            
-            // Optional: Change UI based on tab
-            const btn = document.querySelector('.btn-primary');
-            if(type === 'staff') {
-                btn.innerHTML = 'Access Fleet System <i class="fas fa-satellite-dish" style="font-size: 0.8rem; margin-left: 8px;"></i>';
-            } else {
-                btn.innerHTML = 'Secure Login <i class="fas fa-lock" style="font-size: 0.8rem; margin-left: 8px;"></i>';
-            }
         }
     </script>
 </body>
