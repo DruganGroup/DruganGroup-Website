@@ -130,12 +130,36 @@ def finance_hr():
 
 @app.route('/finance/fleet')
 def finance_fleet():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: 
+        return redirect(url_for('login'))
+        
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT id, reg_plate, make_model, daily_cost, mot_due, tax_due, service_due, status FROM vehicles WHERE company_id = %s", (comp_id,))
-    vehicles = cur.fetchall(); conn.close()
-    return render_template('finance_fleet.html', vehicles=vehicles, brand_color=config['color'], logo_url=config['logo'])
+    
+    conn = get_db()
+    cur = conn.cursor()
+
+    # --- UPDATED: DATABASE AUTO-REPAIR (Added repair_cost) ---
+    cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tracker_url TEXT;")
+    cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_notes TEXT;")
+    cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_image TEXT;")
+    cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS repair_cost DECIMAL(10,2) DEFAULT 0.00;")
+    conn.commit()
+
+    # --- UPDATED: PULLING DATA (v[10] is now repair_cost) ---
+    cur.execute("""
+        SELECT id, reg_plate, make_model, daily_cost, mot_due, tax_due, 
+               service_due, status, defect_notes, tracker_url, repair_cost 
+        FROM vehicles WHERE company_id = %s
+    """, (comp_id,))
+    
+    vehicles = cur.fetchall()
+    conn.close()
+    
+    return render_template('finance_fleet.html', 
+                           vehicles=vehicles, 
+                           brand_color=config['color'], 
+                           logo_url=config['logo'])
 
 @app.route('/finance/materials')
 def finance_materials():
