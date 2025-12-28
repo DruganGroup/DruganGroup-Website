@@ -1,10 +1,25 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
+from werkzeug.utils import secure_filename
 import psycopg2
 import os
 
 app = Flask(__name__)
 # Secure secret key
 app.secret_key = os.environ.get("SECRET_KEY", "dev_key_123") 
+
+# --- CONFIG FOR LOGO UPLOADS (Persistent Disk) ---
+# This points to the 5GB disk you mounted in Render
+UPLOAD_FOLDER = '/opt/render/project/src/static/uploads/logos'
+# Fallback for local testing if the disk path doesn't exist
+if not os.path.exists('/opt/render/project/src'):
+    UPLOAD_FOLDER = 'static/uploads/logos'
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- DATABASE CONNECTION ---
 DB_URL = os.environ.get("DATABASE_URL")
@@ -16,6 +31,22 @@ def get_db():
     except Exception as e:
         print(f"❌ DB Connection Error: {e}")
         return None
+
+# --- BRANDING HELPER (New) ---
+# Loads logo and color for the finance pages
+def get_site_config(comp_id):
+    if not comp_id:
+        return {"color": "#27AE60", "logo": "/static/images/logo.png"}
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    rows = cur.fetchall()
+    conn.close()
+    settings_dict = {row[0]: row[1] for row in rows}
+    return {
+        "color": settings_dict.get('brand_color', '#27AE60'),
+        "logo": settings_dict.get('logo_url', '/static/images/logo.png')
+    }
 
 # --- MAIN STATIC PAGES ---
 @app.route('/')
@@ -148,6 +179,9 @@ def finance_dashboard():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
 
     company_id = session.get('company_id')
+    # Use helper for branding
+    config = get_site_config(company_id)
+    
     conn = get_db()
     cur = conn.cursor()
 
@@ -174,13 +208,16 @@ def finance_dashboard():
     session['company_name'] = comp_row[0] if comp_row else "My Company"
     conn.close()
 
-    return render_template('finance_dashboard.html', total_income=income, total_expense=expense, total_balance=balance, transactions=transactions)
+    return render_template('finance_dashboard.html', total_income=income, total_expense=expense, total_balance=balance, transactions=transactions, brand_color=config['color'], logo_url=config['logo'])
 
 
 # --- HR & STAFF ROUTES ---
 @app.route('/finance/hr')
 def finance_hr():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    
     conn = get_db()
     cur = conn.cursor()
     cur.execute("""
@@ -189,10 +226,10 @@ def finance_hr():
         );
     """)
     conn.commit()
-    cur.execute("SELECT id, name, position, dept, pay_rate, pay_model, access_level FROM staff WHERE company_id = %s ORDER BY name", (session.get('company_id'),))
+    cur.execute("SELECT id, name, position, dept, pay_rate, pay_model, access_level FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
     staff = cur.fetchall()
     conn.close()
-    return render_template('finance_hr.html', staff=staff)
+    return render_template('finance_hr.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
 @app.route('/finance/hr/add', methods=['POST'])
 def add_staff():
@@ -233,32 +270,61 @@ def delete_staff(id):
     return redirect(url_for('finance_hr'))
 
 
-# --- FLEET ROUTES ---
+# --- FLEET ROUTES (UPDATED WITH TRACKER & REPAIR) ---
 @app.route('/finance/fleet')
 def finance_fleet():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    
     conn = get_db(); cur = conn.cursor()
     cur.execute("""
         CREATE TABLE IF NOT EXISTS vehicles (
             id SERIAL PRIMARY KEY, company_id INTEGER, reg_plate TEXT, make_model TEXT, daily_cost DECIMAL(10,2), mot_due DATE, tax_due DATE, service_due DATE, status TEXT, tracker_url TEXT
         );
     """)
+    # Auto-repair DB for new features
+    cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tracker_url TEXT;")
+    cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_notes TEXT;")
+    cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_image TEXT;")
+    cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS repair_cost DECIMAL(10,2) DEFAULT 0.00;")
     conn.commit()
-    cur.execute("SELECT id, reg_plate, make_model, daily_cost, mot_due, tax_due, service_due, status FROM vehicles WHERE company_id = %s", (session.get('company_id'),))
+    
+    cur.execute("SELECT id, reg_plate, make_model, daily_cost, mot_due, tax_due, service_due, status, defect_notes, tracker_url, repair_cost FROM vehicles WHERE company_id = %s", (comp_id,))
     vehicles = cur.fetchall()
     conn.close()
-    return render_template('finance_fleet.html', vehicles=vehicles)
+    return render_template('finance_fleet.html', vehicles=vehicles, brand_color=config['color'], logo_url=config['logo'])
 
 @app.route('/finance/fleet/add', methods=['POST'])
 def add_vehicle():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    comp_id = session.get('company_id')
     reg = request.form.get('reg'); model = request.form.get('model')
     cost = request.form.get('cost') or 0; mot = request.form.get('mot') or None
     tax = request.form.get('tax') or None; status = request.form.get('status')
+    tracker = request.form.get('tracker_url')
+    
     conn = get_db(); cur = conn.cursor()
     try:
-        cur.execute("INSERT INTO vehicles (company_id, reg_plate, make_model, daily_cost, mot_due, tax_due, status) VALUES (%s, %s, %s, %s, %s, %s, %s)", (session.get('company_id'), reg, model, cost, mot, tax, status))
+        cur.execute("INSERT INTO vehicles (company_id, reg_plate, make_model, daily_cost, mot_due, tax_due, status, tracker_url) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", (comp_id, reg, model, cost, mot, tax, status, tracker))
         conn.commit(); flash("Vehicle Added")
+    except Exception as e: conn.rollback(); flash(f"Error: {e}")
+    finally: conn.close()
+    return redirect(url_for('finance_fleet'))
+
+@app.route('/finance/fleet/update_repair', methods=['POST'])
+def update_repair():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    v_id = request.form.get('vehicle_id')
+    cost = request.form.get('repair_cost') or 0
+    notes = request.form.get('defect_notes')
+    status = request.form.get('status')
+    comp_id = session.get('company_id')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("UPDATE vehicles SET repair_cost = %s, defect_notes = %s, status = %s WHERE id = %s AND company_id = %s", (cost, notes, status, v_id, comp_id))
+        conn.commit(); flash("Invoice Updated")
     except Exception as e: conn.rollback(); flash(f"Error: {e}")
     finally: conn.close()
     return redirect(url_for('finance_fleet'))
@@ -276,6 +342,9 @@ def delete_vehicle(id):
 @app.route('/finance/materials')
 def finance_materials():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    
     conn = get_db(); cur = conn.cursor()
     cur.execute("""
         CREATE TABLE IF NOT EXISTS materials (
@@ -283,10 +352,10 @@ def finance_materials():
         );
     """)
     conn.commit()
-    cur.execute("SELECT id, sku, name, category, unit, cost_price, supplier FROM materials WHERE company_id = %s ORDER BY name", (session.get('company_id'),))
+    cur.execute("SELECT id, sku, name, category, unit, cost_price, supplier FROM materials WHERE company_id = %s ORDER BY name", (comp_id,))
     materials = cur.fetchall()
     conn.close()
-    return render_template('finance_materials.html', materials=materials)
+    return render_template('finance_materials.html', materials=materials, brand_color=config['color'], logo_url=config['logo'])
 
 @app.route('/finance/materials/add', methods=['POST'])
 def add_material():
@@ -316,6 +385,8 @@ def delete_material(id):
 def finance_analysis():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
     comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT reference, description, amount FROM transactions WHERE company_id = %s AND type = 'Income' ORDER BY date DESC LIMIT 50", (comp_id,))
     raw_jobs = cur.fetchall()
@@ -332,13 +403,17 @@ def finance_analysis():
     conn.close()
     total_profit = total_rev - total_cost
     avg_margin = (total_profit / total_rev * 100) if total_rev > 0 else 0
-    return render_template('finance_analysis.html', jobs=analyzed_jobs, total_rev=total_rev, total_cost=total_cost, total_profit=total_profit, avg_margin=avg_margin)
+    return render_template('finance_analysis.html', jobs=analyzed_jobs, total_rev=total_rev, total_cost=total_cost, total_profit=total_profit, avg_margin=avg_margin, brand_color=config['color'], logo_url=config['logo'])
 
 
-# --- SETTINGS ROUTES (GLOBAL) ---
+# --- SETTINGS ROUTES (UPDATED WITH LOGO UPLOAD) ---
 @app.route('/finance/settings')
 def finance_settings():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    comp_id = session.get('company_id')
+    # We use get_site_config here to keep the branding consistent too
+    config = get_site_config(comp_id)
+    
     conn = get_db(); cur = conn.cursor()
     cur.execute("""
         CREATE TABLE IF NOT EXISTS settings (
@@ -346,22 +421,34 @@ def finance_settings():
         );
     """)
     conn.commit()
-    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (session.get('company_id'),))
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     rows = cur.fetchall(); conn.close()
     settings_dict = {row[0]: row[1] for row in rows}
-    brand = settings_dict.get('brand_color', '#27AE60') 
-    ui_mode = settings_dict.get('ui_mode', 'light')
-    return render_template('finance_settings.html', settings=settings_dict, brand_color=brand, ui_mode=ui_mode)
+    
+    return render_template('finance_settings.html', settings=settings_dict, brand_color=config['color'], logo_url=config['logo'])
 
 @app.route('/finance/settings/save', methods=['POST'])
 def save_settings():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
     comp_id = session.get('company_id')
-    form_data = request.form.to_dict()
     conn = get_db(); cur = conn.cursor()
     try:
-        for key, value in form_data.items():
+        # 1. Save Text Fields
+        for key, value in request.form.items():
             cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, value))
+        
+        # 2. Save Logo to Persistent Disk
+        if 'logo' in request.files:
+            file = request.files['logo']
+            if file and allowed_file(file.filename):
+                filename = secure_filename(f"logo_{comp_id}_{file.filename}")
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(file_path)
+                
+                # Save the relative web path to DB
+                db_path = f"/static/uploads/logos/{filename}"
+                cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
+
         conn.commit(); flash("Configuration Saved Successfully!")
     except Exception as e: conn.rollback(); flash(f"Error saving settings: {e}")
     finally: conn.close()
