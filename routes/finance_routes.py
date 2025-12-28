@@ -17,6 +17,7 @@ def finance_dashboard():
     conn = get_db()
     cur = conn.cursor()
 
+    # Ensure Transactions Table
     cur.execute("""
         CREATE TABLE IF NOT EXISTS transactions (
             id SERIAL PRIMARY KEY, company_id INTEGER, date DATE,
@@ -26,6 +27,7 @@ def finance_dashboard():
     """)
     conn.commit()
 
+    # Financial Calcs
     cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Income'", (company_id,))
     income = cur.fetchone()[0] or 0.0
     cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Expense'", (company_id,))
@@ -37,6 +39,7 @@ def finance_dashboard():
     
     conn.close()
     return render_template('finance/finance_dashboard.html', total_income=income, total_expense=expense, total_balance=balance, transactions=transactions, brand_color=config['color'], logo_url=config['logo'])
+
 
 # 2. HR & STAFF
 @finance_bp.route('/finance/hr')
@@ -52,19 +55,45 @@ def finance_hr():
     conn.close()
     return render_template('finance/finance_hr.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# 3. FLEET
+# 3. FLEET (FIXED TO ADD MISSING COLUMNS)
 @finance_bp.route('/finance/fleet')
 def finance_fleet():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("CREATE TABLE IF NOT EXISTS vehicles (id SERIAL PRIMARY KEY, company_id INTEGER, reg_plate TEXT, make_model TEXT, daily_cost DECIMAL(10,2), mot_due DATE, tax_due DATE, service_due DATE, status TEXT, tracker_url TEXT, defect_notes TEXT, defect_image TEXT, repair_cost DECIMAL(10,2) DEFAULT 0.00);")
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # 1. Ensure Table Exists
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS vehicles (
+            id SERIAL PRIMARY KEY, company_id INTEGER, reg_plate TEXT, make_model TEXT, 
+            daily_cost DECIMAL(10,2), mot_due DATE, tax_due DATE, service_due DATE, 
+            status TEXT, tracker_url TEXT, defect_notes TEXT, defect_image TEXT, 
+            repair_cost DECIMAL(10,2) DEFAULT 0.00
+        );
+    """)
     conn.commit()
+
+    # 2. FIX MISSING COLUMNS (Run this safely)
+    try:
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tracker_url TEXT;")
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_notes TEXT;")
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_image TEXT;")
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS repair_cost DECIMAL(10,2) DEFAULT 0.00;")
+        conn.commit()
+    except Exception as e:
+        print(f"Column update skipped or failed: {e}")
+        conn.rollback()
+
+    # 3. Select Data
     cur.execute("SELECT id, reg_plate, make_model, daily_cost, mot_due, tax_due, service_due, status, defect_notes, tracker_url, repair_cost FROM vehicles WHERE company_id = %s", (comp_id,))
     vehicles = cur.fetchall()
     conn.close()
+    
     return render_template('finance/finance_fleet.html', vehicles=vehicles, brand_color=config['color'], logo_url=config['logo'])
+
 
 # 4. MATERIALS
 @finance_bp.route('/finance/materials')
