@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TradeCore | Analysis</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
+        
+        /* SIDEBAR (Dynamic Color supported via inline style in real app) */
+        .sidebar { height: 100vh; background-color: #27AE60; color: white; position: fixed; width: 250px; padding-top: 20px; }
+        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; }
+        .sidebar a:hover { background-color: rgba(255,255,255,0.1); }
+        .content { margin-left: 250px; padding: 30px; }
+        
+        .card-metric { border: none; border-radius: 12px; color: white; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .bg-rev { background: linear-gradient(45deg, #27AE60, #2ecc71); }
+        .bg-cost { background: linear-gradient(45deg, #C0392B, #e74c3c); }
+        .bg-prof { background: linear-gradient(45deg, #F39C12, #f1c40f); }
+        .bg-marg { background: linear-gradient(45deg, #2980B9, #3498DB); }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="text-center mb-4 fw-bold fs-4">FINANCE ADMIN</div>
+        <a href="/finance-dashboard"><i class="fas fa-tachometer-alt me-2"></i> Overview</a>
+        <a href="/finance/hr"><i class="fas fa-users me-2"></i> HR & Staff</a>
+        <a href="/finance/fleet"><i class="fas fa-truck me-2"></i> Fleet & Gangs</a>
+        <a href="/finance/materials"><i class="fas fa-cubes me-2"></i> Materials</a>
+        <a href="/finance/analysis" style="background-color: rgba(255,255,255,0.2); border-left: 5px solid white;"><i class="fas fa-chart-pie me-2"></i> Analysis</a>
+        <a href="/finance/settings"><i class="fas fa-cogs me-2"></i> Settings</a>
+        <a href="/dashboard-menu" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
+    </div>
+
+    <div class="content">
+        <h2 class="mb-4 fw-bold">Profitability Analysis</h2>
+
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card card-metric bg-rev">
+                    <h6>Total Revenue</h6>
+                    <h3>£{{ "%.2f"|format(total_rev) }}</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-metric bg-cost">
+                    <h6>Est. Costs (Calc)</h6>
+                    <h3>£{{ "%.2f"|format(total_cost) }}</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-metric bg-prof">
+                    <h6>Net Profit</h6>
+                    <h3>£{{ "%.2f"|format(total_profit) }}</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-metric bg-marg">
+                    <h6>Avg Margin</h6>
+                    <h3>{{ "%.1f"|format(avg_margin) }}%</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 p-3">
+            <h5 class="fw-bold mb-3">Job Performance Breakdown</h5>
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Job Ref</th>
+                        <th>Client / Site</th>
+                        <th>Status</th>
+                        <th class="text-end">Revenue</th>
+                        <th class="text-end">Est. Cost</th>
+                        <th class="text-end">Profit</th>
+                        <th class="text-end">Margin</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for j in jobs %}
+                    <tr>
+                        <td class="fw-bold">{{ j.ref }}</td>
+                        <td>{{ j.client }}</td>
+                        <td><span class="badge bg-secondary">{{ j.status }}</span></td>
+                        <td class="text-end">£{{ "%.2f"|format(j.rev) }}</td>
+                        <td class="text-end text-muted">£{{ "%.2f"|format(j.cost) }}</td>
+                        <td class="text-end fw-bold text-success">£{{ "%.2f"|format(j.profit) }}</td>
+                        <td class="text-end">{{ "%.1f"|format(j.margin) }}%</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7" class="text-center p-4">No completed jobs found to analyze.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

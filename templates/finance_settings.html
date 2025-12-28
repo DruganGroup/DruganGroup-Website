@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="{{ ui_mode }}">
+<head>
+    <meta charset="UTF-8">
+    <title>TradeCore | Settings</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* If Dark Mode is active, these overrides happen automatically via Bootstrap 5.3 */
+        body { font-family: 'Segoe UI', sans-serif; }
+        
+        /* DYNAMIC BRAND COLOR */
+        .sidebar { 
+            height: 100vh; 
+            background-color: {{ brand_color }}; 
+            color: white; 
+            position: fixed; 
+            width: 250px; 
+            padding-top: 20px; 
+        }
+        .sidebar a { color: white; text-decoration: none; padding: 15px 25px; display: block; }
+        .sidebar a:hover { filter: brightness(0.9); background-color: rgba(0,0,0,0.1); }
+        
+        .content { margin-left: 250px; padding: 30px; }
+        .settings-card { border: 1px solid rgba(0,0,0,0.1); border-radius: 10px; padding: 25px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="text-center mb-4 fw-bold fs-4">FINANCE ADMIN</div>
+        <a href="/finance-dashboard"><i class="fas fa-tachometer-alt me-2"></i> Overview</a>
+        <a href="/finance/hr"><i class="fas fa-users me-2"></i> HR & Staff</a>
+        <a href="/finance/fleet"><i class="fas fa-truck me-2"></i> Fleet & Gangs</a>
+        <a href="/finance/materials"><i class="fas fa-cubes me-2"></i> Materials</a>
+        <a href="/finance/analysis"><i class="fas fa-chart-pie me-2"></i> Analysis</a>
+        <a href="/finance/settings" style="background-color: rgba(255,255,255,0.2); border-left: 5px solid white;"><i class="fas fa-cogs me-2"></i> Settings</a>
+        <a href="/dashboard-menu" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
+    </div>
+
+    <div class="content">
+        <h2 class="fw-bold mb-4">System Configuration</h2>
+
+        <form action="/finance/settings/save" method="POST" enctype="multipart/form-data">
+            
+            <div class="card settings-card shadow-sm">
+                <h5 class="fw-bold mb-3 text-primary">🎨 Brand Identity & Appearance</h5>
+                <div class="row align-items-center">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Primary Brand Color</label>
+                        <div class="input-group">
+                            <input type="color" class="form-control form-control-color" name="brand_color" value="{{ brand_color }}" title="Choose your color">
+                            <input type="text" class="form-control" value="{{ brand_color }}" readonly>
+                        </div>
+                        <small class="text-muted">Changes the sidebar color.</small>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">UI Theme Mode</label>
+                        <select name="ui_mode" class="form-select">
+                            <option value="light" {% if ui_mode == 'light' %}selected{% endif %}>☀️ Light Mode</option>
+                            <option value="dark" {% if ui_mode == 'dark' %}selected{% endif %}>🌙 Dark Mode</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">Company Logo</label>
+                        <input type="file" name="logo" class="form-control">
+                        <small class="text-muted">Updates the logo on PDF Invoices and the Dashboard.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card settings-card shadow-sm">
+                <h5 class="fw-bold mb-3 text-primary">🏢 Company Details</h5>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label>Company Name</label>
+                        <input type="text" name="company_name" class="form-control" value="{{ settings.get('company_name', '') }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label>VAT / Tax Number</label>
+                        <input type="text" name="vat_number" class="form-control" value="{{ settings.get('vat_number', '') }}">
+                    </div>
+                    <div class="col-12 mb-3">
+                        <label>Head Office Address</label>
+                        <input type="text" name="address_1" class="form-control mb-2" placeholder="Line 1" value="{{ settings.get('address_1', '') }}">
+                        <input type="text" name="address_2" class="form-control" placeholder="Line 2 / Postcode" value="{{ settings.get('address_2', '') }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label>Official Email</label>
+                        <input type="email" name="email" class="form-control" value="{{ settings.get('email', '') }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label>Phone Number</label>
+                        <input type="text" name="phone" class="form-control" value="{{ settings.get('phone', '') }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card settings-card shadow-sm">
+                <h5 class="fw-bold mb-3 text-primary">🏦 Banking & Payments</h5>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label>Bank Name</label>
+                        <input type="text" name="bank_name" class="form-control" value="{{ settings.get('bank_name', '') }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label>Account Name</label>
+                        <input type="text" name="bank_account_name" class="form-control" value="{{ settings.get('bank_account_name', '') }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label>Sort Code</label>
+                        <input type="text" name="bank_sort_code" class="form-control" value="{{ settings.get('bank_sort_code', '') }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label>Account Number</label>
+                        <input type="text" name="bank_account_number" class="form-control" value="{{ settings.get('bank_account_number', '') }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label>Default Payment Terms</label>
+                        <select name="payment_terms" class="form-select">
+                            <option {% if settings.get('payment_terms') == 'Immediate' %}selected{% endif %}>Immediate</option>
+                            <option {% if settings.get('payment_terms') == '7 Days' %}selected{% endif %}>7 Days</option>
+                            <option {% if settings.get('payment_terms') == '30 Days' %}selected{% endif %}>30 Days</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label>Standard Profit Markup (%)</label>
+                        <input type="number" name="default_markup" class="form-control" value="{{ settings.get('default_markup', '20') }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg fw-bold">💾 SAVE CONFIGURATION</button>
+            </div>
+            
+        </form>
+        <br><br>
+    </div>
+
+</body>
+</html>

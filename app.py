@@ -319,6 +319,268 @@ def super_admin_dashboard():
 def logout():
     session.clear()
     return redirect(url_for('login'))
+    
+# --- FLEET ROUTES ---
+@app.route('/finance/fleet')
+def finance_fleet():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    # Create Table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS vehicles (
+            id SERIAL PRIMARY KEY,
+            company_id INTEGER,
+            reg_plate TEXT,
+            make_model TEXT,
+            daily_cost DECIMAL(10,2),
+            mot_due DATE,
+            tax_due DATE,
+            service_due DATE,
+            status TEXT,
+            tracker_url TEXT
+        );
+    """)
+    conn.commit()
+    
+    # Fetch Data
+    cur.execute("SELECT id, reg_plate, make_model, daily_cost, mot_due, tax_due, service_due, status FROM vehicles WHERE company_id = %s", (session.get('company_id'),))
+    vehicles = cur.fetchall()
+    conn.close()
+    return render_template('finance_fleet.html', vehicles=vehicles)
+
+@app.route('/finance/fleet/add', methods=['POST'])
+def add_vehicle():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    
+    reg = request.form.get('reg')
+    model = request.form.get('model')
+    cost = request.form.get('cost') or 0
+    mot = request.form.get('mot') or None
+    tax = request.form.get('tax') or None
+    status = request.form.get('status')
+    
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO vehicles (company_id, reg_plate, make_model, daily_cost, mot_due, tax_due, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (session.get('company_id'), reg, model, cost, mot, tax, status))
+        conn.commit()
+        flash("Vehicle Added")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}")
+    finally:
+        conn.close()
+    return redirect(url_for('finance_fleet'))
+
+@app.route('/finance/fleet/delete/<int:id>')
+def delete_vehicle(id):
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM vehicles WHERE id=%s AND company_id=%s", (id, session.get('company_id')))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('finance_fleet'))
+
+
+# --- MATERIALS ROUTES ---
+@app.route('/finance/materials')
+def finance_materials():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    # Create Table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS materials (
+            id SERIAL PRIMARY KEY,
+            company_id INTEGER,
+            sku TEXT,
+            name TEXT,
+            category TEXT,
+            unit TEXT,
+            cost_price DECIMAL(10,2),
+            supplier TEXT
+        );
+    """)
+    conn.commit()
+    
+    # Fetch Data
+    cur.execute("SELECT id, sku, name, category, unit, cost_price, supplier FROM materials WHERE company_id = %s ORDER BY name", (session.get('company_id'),))
+    materials = cur.fetchall()
+    conn.close()
+    return render_template('finance_materials.html', materials=materials)
+
+@app.route('/finance/materials/add', methods=['POST'])
+def add_material():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    
+    supplier = request.form.get('supplier')
+    sku = request.form.get('sku')
+    name = request.form.get('name')
+    cat = request.form.get('category')
+    unit = request.form.get('unit')
+    cost = request.form.get('cost') or 0
+    
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO materials (company_id, sku, name, category, unit, cost_price, supplier)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (session.get('company_id'), sku, name, cat, unit, cost, supplier))
+        conn.commit()
+        flash("Item Added")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}")
+    finally:
+        conn.close()
+    return redirect(url_for('finance_materials'))
+
+@app.route('/finance/materials/delete/<int:id>')
+def delete_material(id):
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM materials WHERE id=%s AND company_id=%s", (id, session.get('company_id')))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('finance_materials'))
+    
+# --- ANALYSIS ROUTES ---
+@app.route('/finance/analysis')
+def finance_analysis():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    
+    comp_id = session.get('company_id')
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # 1. Fetch Completed Jobs (Mocking Job Data based on Transactions for now)
+    # Ideally this joins with a real 'Jobs' table, but we will use Transactions as proxy 
+    # to show the math working.
+    
+    # We look for Income transactions that have a Reference
+    cur.execute("""
+        SELECT reference, description, amount 
+        FROM transactions 
+        WHERE company_id = %s AND type = 'Income' 
+        ORDER BY date DESC LIMIT 50
+    """, (comp_id,))
+    
+    raw_jobs = cur.fetchall()
+    
+    # Get Markup Setting
+    cur.execute("SELECT value FROM settings WHERE key='default_markup' AND company_id=%s", (comp_id,))
+    row = cur.fetchone()
+    markup_percent = float(row[0]) if row else 20.0
+    markup_factor = 1 + (markup_percent / 100)
+    
+    analyzed_jobs = []
+    total_rev = 0
+    total_cost = 0
+    
+    for j in raw_jobs:
+        ref = j[0] if j[0] else "UNK"
+        desc = j[1]
+        rev = float(j[2])
+        
+        # Reverse Engineer Cost based on Margin
+        est_cost = rev / markup_factor
+        profit = rev - est_cost
+        margin = (profit / rev * 100) if rev > 0 else 0
+        
+        total_rev += rev
+        total_cost += est_cost
+        
+        analyzed_jobs.append({
+            "ref": ref, "client": desc, "status": "Completed",
+            "rev": rev, "cost": est_cost, "profit": profit, "margin": margin
+        })
+
+    conn.close()
+    
+    total_profit = total_rev - total_cost
+    avg_margin = (total_profit / total_rev * 100) if total_rev > 0 else 0
+    
+    return render_template('finance_analysis.html', 
+                           jobs=analyzed_jobs, 
+                           total_rev=total_rev, 
+                           total_cost=total_cost, 
+                           total_profit=total_profit, 
+                           avg_margin=avg_margin)
+
+
+# --- SETTINGS ROUTES ---
+@app.route('/finance/settings')
+def finance_settings():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # Ensure settings table exists (with company_id)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS settings (
+            company_id INTEGER,
+            key TEXT,
+            value TEXT,
+            PRIMARY KEY (company_id, key)
+        );
+    """)
+    conn.commit()
+    
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (session.get('company_id'),))
+    rows = cur.fetchall()
+    conn.close()
+    
+    # Convert list of rows to dictionary
+    settings_dict = {row[0]: row[1] for row in rows}
+    
+    # Defaults
+    brand = settings_dict.get('brand_color', '#27AE60') # Default Green
+    ui_mode = settings_dict.get('ui_mode', 'light')
+    
+    return render_template('finance_settings.html', 
+                           settings=settings_dict, 
+                           brand_color=brand, 
+                           ui_mode=ui_mode)
+
+@app.route('/finance/settings/save', methods=['POST'])
+def save_settings():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
+    
+    comp_id = session.get('company_id')
+    form_data = request.form.to_dict()
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # Save every field in the form to the DB
+        for key, value in form_data.items():
+            # Upsert (Insert or Update)
+            cur.execute("""
+                INSERT INTO settings (company_id, key, value) 
+                VALUES (%s, %s, %s)
+                ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+            """, (comp_id, key, value))
+            
+        conn.commit()
+        flash("Configuration Saved Successfully!")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error saving settings: {e}")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('finance_settings'))
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
