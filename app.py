@@ -32,7 +32,7 @@ def get_db():
         print(f"❌ DB Connection Error: {e}")
         return None
 
-# --- BRANDING HELPER (New) ---
+# --- BRANDING HELPER ---
 # Loads logo and color for the finance pages
 def get_site_config(comp_id):
     if not comp_id:
@@ -48,7 +48,7 @@ def get_site_config(comp_id):
         "logo": settings_dict.get('logo_url', '/static/images/logo.png')
     }
 
-# --- PUBLIC WEBSITE ROUTES ---
+# --- PUBLIC WEBSITE ROUTES (Now pointing to /templates/public) ---
 @app.route('/')
 def home():
     return render_template('public/index.html')
@@ -104,9 +104,6 @@ def management(): return render_template('public/management.html')
 # --- AUTHENTICATION ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    # ... (Your existing login logic here) ...
-    # BUT UPDATE THE RETURN LINE:
-    return render_template('public/login.html')def login():
     if request.method == 'POST':
         email_or_user = request.form.get('email')
         password = request.form.get('password')
@@ -114,7 +111,7 @@ def login():
         conn = get_db()
         if not conn: 
             flash("System Error: Database Connection Failed")
-            return render_template('login.html')
+            return render_template('public/login.html')
             
         cur = conn.cursor()
         try:
@@ -143,49 +140,25 @@ def login():
         else:
             flash('Invalid Email or Password')
 
-    return render_template('login.html')
+    return render_template('public/login.html')
 
-# --- THE MAIN LAUNCHER (3 BUTTON MENU) ---
+# --- THE MAIN LAUNCHER (Root level template) ---
 @app.route('/dashboard-menu')
 def main_launcher():
     if 'user_id' not in session: return redirect(url_for('login'))
     return render_template('main_launcher.html', role=session.get('role'))
 
 
-# --- OFFICE DASHBOARD (Staff Only) ---
+# --- OFFICE DASHBOARD (Now pointing to /templates/office) ---
 @app.route('/office-hub')
 def office_dashboard():
     if 'user_id' not in session: return redirect(url_for('login'))
     
-    # ... (Keep your existing database logic here) ...
-    
-    # UPDATE RETURN PATH:
-    return render_template('office/office_dashboard.html', total_income=income, total_expense=expense, transactions=transactions)
-
-# --- CLIENT PORTAL (End-Customer Only) ---
-@app.route('/client-portal')
-def client_portal_login():
-    return render_template('client/client_login.html')
-@app.route('/track-my-job/<job_id>')
-def track_job(job_id):
-    # This is where Mrs. Smith sees HER specific job
-    # We would fetch only data related to 'job_id'
-    return render_template('client_tracking.html', job_id=job_id)
-
-
-# --- FINANCE DASHBOARD (OVERVIEW) ---
-@app.route('/finance-dashboard')
-def finance_dashboard():
-    if 'user_id' not in session: return redirect(url_for('login'))
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
-
     company_id = session.get('company_id')
-    # Use helper for branding
-    config = get_site_config(company_id)
-    
     conn = get_db()
     cur = conn.cursor()
-
+    
+    # Ensure transactions table exists
     cur.execute("""
         CREATE TABLE IF NOT EXISTS transactions (
             id SERIAL PRIMARY KEY, company_id INTEGER, date DATE,
@@ -194,6 +167,41 @@ def finance_dashboard():
         );
     """)
     conn.commit()
+
+    cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Income'", (company_id,))
+    income = cur.fetchone()[0] or 0.0
+    
+    cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Expense'", (company_id,))
+    expense = cur.fetchone()[0] or 0.0
+    balance = income - expense
+
+    cur.execute("SELECT date, type, category, description, amount, reference FROM transactions WHERE company_id = %s ORDER BY date DESC LIMIT 10", (company_id,))
+    transactions = cur.fetchall()
+    conn.close()
+
+    return render_template('office/office_dashboard.html', total_income=income, total_expense=expense, transactions=transactions)
+
+# --- CLIENT PORTAL (Now pointing to /templates/client) ---
+@app.route('/client-portal')
+def client_portal_login():
+    return render_template('client/client_login.html')
+
+@app.route('/track-my-job/<job_id>')
+def track_job(job_id):
+    return render_template('client/client_tracking.html', job_id=job_id)
+
+
+# --- FINANCE DASHBOARD (Now pointing to /templates/finance) ---
+@app.route('/finance-dashboard')
+def finance_dashboard():
+    if 'user_id' not in session: return redirect(url_for('login'))
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
+
+    company_id = session.get('company_id')
+    config = get_site_config(company_id)
+    
+    conn = get_db()
+    cur = conn.cursor()
 
     cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Income'", (company_id,))
     income = cur.fetchone()[0] or 0.0
@@ -209,7 +217,7 @@ def finance_dashboard():
     session['company_name'] = comp_row[0] if comp_row else "My Company"
     conn.close()
 
-    return render_template('finance_dashboard.html', total_income=income, total_expense=expense, total_balance=balance, transactions=transactions, brand_color=config['color'], logo_url=config['logo'])
+    return render_template('finance/finance_dashboard.html', total_income=income, total_expense=expense, total_balance=balance, transactions=transactions, brand_color=config['color'], logo_url=config['logo'])
 
 
 # --- HR & STAFF ROUTES ---
@@ -230,7 +238,7 @@ def finance_hr():
     cur.execute("SELECT id, name, position, dept, pay_rate, pay_model, access_level FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
     staff = cur.fetchall()
     conn.close()
-    return render_template('finance_hr.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
+    return render_template('finance/finance_hr.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
 @app.route('/finance/hr/add', methods=['POST'])
 def add_staff():
@@ -271,7 +279,7 @@ def delete_staff(id):
     return redirect(url_for('finance_hr'))
 
 
-# --- FLEET ROUTES (UPDATED WITH TRACKER & REPAIR) ---
+# --- FLEET ROUTES ---
 @app.route('/finance/fleet')
 def finance_fleet():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
@@ -294,7 +302,7 @@ def finance_fleet():
     cur.execute("SELECT id, reg_plate, make_model, daily_cost, mot_due, tax_due, service_due, status, defect_notes, tracker_url, repair_cost FROM vehicles WHERE company_id = %s", (comp_id,))
     vehicles = cur.fetchall()
     conn.close()
-    return render_template('finance_fleet.html', vehicles=vehicles, brand_color=config['color'], logo_url=config['logo'])
+    return render_template('finance/finance_fleet.html', vehicles=vehicles, brand_color=config['color'], logo_url=config['logo'])
 
 @app.route('/finance/fleet/add', methods=['POST'])
 def add_vehicle():
@@ -356,7 +364,7 @@ def finance_materials():
     cur.execute("SELECT id, sku, name, category, unit, cost_price, supplier FROM materials WHERE company_id = %s ORDER BY name", (comp_id,))
     materials = cur.fetchall()
     conn.close()
-    return render_template('finance_materials.html', materials=materials, brand_color=config['color'], logo_url=config['logo'])
+    return render_template('finance/finance_materials.html', materials=materials, brand_color=config['color'], logo_url=config['logo'])
 
 @app.route('/finance/materials/add', methods=['POST'])
 def add_material():
@@ -404,15 +412,14 @@ def finance_analysis():
     conn.close()
     total_profit = total_rev - total_cost
     avg_margin = (total_profit / total_rev * 100) if total_rev > 0 else 0
-    return render_template('finance_analysis.html', jobs=analyzed_jobs, total_rev=total_rev, total_cost=total_cost, total_profit=total_profit, avg_margin=avg_margin, brand_color=config['color'], logo_url=config['logo'])
+    return render_template('finance/finance_analysis.html', jobs=analyzed_jobs, total_rev=total_rev, total_cost=total_cost, total_profit=total_profit, avg_margin=avg_margin, brand_color=config['color'], logo_url=config['logo'])
 
 
-# --- SETTINGS ROUTES (UPDATED WITH LOGO UPLOAD) ---
+# --- SETTINGS ROUTES ---
 @app.route('/finance/settings')
 def finance_settings():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('login'))
     comp_id = session.get('company_id')
-    # We use get_site_config here to keep the branding consistent too
     config = get_site_config(comp_id)
     
     conn = get_db(); cur = conn.cursor()
@@ -426,7 +433,7 @@ def finance_settings():
     rows = cur.fetchall(); conn.close()
     settings_dict = {row[0]: row[1] for row in rows}
     
-    return render_template('finance_settings.html', settings=settings_dict, brand_color=config['color'], logo_url=config['logo'])
+    return render_template('finance/finance_settings.html', settings=settings_dict, brand_color=config['color'], logo_url=config['logo'])
 
 @app.route('/finance/settings/save', methods=['POST'])
 def save_settings():
@@ -456,7 +463,7 @@ def save_settings():
     return redirect(url_for('finance_settings'))
 
 
-# --- SUPER ADMIN DASHBOARD ---
+# --- SUPER ADMIN DASHBOARD (Root level template) ---
 @app.route('/super-admin', methods=['GET', 'POST'])
 def super_admin_dashboard():
     if session.get('role') != 'SuperAdmin': return redirect(url_for('login'))
