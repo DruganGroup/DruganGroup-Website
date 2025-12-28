@@ -75,6 +75,51 @@ def finance_fleet():
         );
     """)
     conn.commit()
+    @finance_bp.route('/finance/fleet/add', methods=['POST'])
+def add_vehicle():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    comp_id = session.get('company_id')
+    
+    # Get form data
+    reg = request.form.get('reg')
+    model = request.form.get('model')
+    cost = request.form.get('cost') or 0
+    mot = request.form.get('mot') or None
+    tax = request.form.get('tax') or None
+    status = request.form.get('status')
+    tracker = request.form.get('tracker_url')
+    
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO vehicles 
+            (company_id, reg_plate, make_model, daily_cost, mot_due, tax_due, status, tracker_url) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (comp_id, reg, model, cost, mot, tax, status, tracker))
+        conn.commit()
+        flash("Vehicle Added Successfully")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}")
+    finally:
+        conn.close()
+    return redirect(url_for('finance.finance_fleet'))
+
+@finance_bp.route('/finance/fleet/delete/<int:id>')
+def delete_vehicle(id):
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM vehicles WHERE id=%s AND company_id=%s", (id, session.get('company_id')))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Error deleting vehicle: {e}")
+    finally:
+        conn.close()
+    return redirect(url_for('finance.finance_fleet'))
 
     # 2. FIX MISSING COLUMNS (Run this safely)
     try:
