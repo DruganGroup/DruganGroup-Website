@@ -48,54 +48,65 @@ def get_site_config(comp_id):
         "logo": settings_dict.get('logo_url', '/static/images/logo.png')
     }
 
-# --- MAIN STATIC PAGES ---
+# --- PUBLIC WEBSITE ROUTES ---
 @app.route('/')
-def home(): return render_template('index.html')
+def home():
+    return render_template('public/index.html')
 
 @app.route('/about')
-@app.route('/about.html')
-def about(): return render_template('about.html')
+def about():
+    return render_template('public/about.html')
 
 @app.route('/services')
-@app.route('/services.html')
-def services(): return render_template('services.html')
+def services():
+    return render_template('public/services.html')
 
 @app.route('/tradecore')
-@app.route('/tradecore.html')
-def tradecore(): return render_template('tradecore.html')
+def tradecore():
+    return render_template('public/tradecore.html')
 
 @app.route('/forensics')
-@app.route('/forensics.html')
-def forensics(): return render_template('forensics.html')
+def forensics():
+    return render_template('public/forensics.html')
 
 @app.route('/contact')
-@app.route('/contact.html')
-def contact(): return render_template('contact.html')
+def contact():
+    return render_template('public/contact.html')
 
-# --- SERVICE SUB-PAGES ---
-@app.route('/roofing.html')
-def roofing(): return render_template('roofing.html')
+@app.route('/pricing')
+def pricing():
+    return render_template('public/pricing.html')
 
-@app.route('/construction.html')
-def construction(): return render_template('construction.html')
+@app.route('/legal')
+def legal():
+    return render_template('public/legal.html')
 
-@app.route('/groundworks.html')
-def groundworks(): return render_template('groundworks.html')
+@app.route('/process')
+def process():
+    return render_template('public/process.html')
 
-@app.route('/landscaping.html')
-def landscaping(): return render_template('landscaping.html')
+# --- SERVICE PAGES ---
+@app.route('/roofing')
+def roofing(): return render_template('public/roofing.html')
 
-@app.route('/maintenance.html')
-def maintenance(): return render_template('maintenance.html')
+@app.route('/groundworks')
+def groundworks(): return render_template('public/groundworks.html')
 
-@app.route('/management.html')
-def management(): return render_template('management.html')
+@app.route('/landscaping')
+def landscaping(): return render_template('public/landscaping.html')
 
+@app.route('/maintenance')
+def maintenance(): return render_template('public/maintenance.html')
 
-# --- LOGIN SYSTEM ---
+@app.route('/management')
+def management(): return render_template('public/management.html')
+
+# --- AUTHENTICATION ---
 @app.route('/login', methods=['GET', 'POST'])
-@app.route('/login.html', methods=['GET', 'POST']) 
 def login():
+    # ... (Your existing login logic here) ...
+    # BUT UPDATE THE RETURN LINE:
+    return render_template('public/login.html')def login():
     if request.method == 'POST':
         email_or_user = request.form.get('email')
         password = request.form.get('password')
@@ -141,35 +152,25 @@ def main_launcher():
     return render_template('main_launcher.html', role=session.get('role'))
 
 
-# --- CLIENT DASHBOARD (OFFICE HUB) ---
-@app.route('/client-portal')
-def client_dashboard():
+# --- OFFICE DASHBOARD (Staff Only) ---
+@app.route('/office-hub')
+def office_dashboard():
     if 'user_id' not in session: return redirect(url_for('login'))
     
-    company_id = session.get('company_id')
-    conn = get_db()
-    if not conn: return "DB Error"
-    cur = conn.cursor()
+    # ... (Keep your existing database logic here) ...
     
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS transactions (
-            id SERIAL PRIMARY KEY, company_id INTEGER, date DATE,
-            type TEXT, category TEXT, description TEXT, amount DECIMAL(10,2), reference TEXT
-        );
-    """)
-    conn.commit()
+    # UPDATE RETURN PATH:
+    return render_template('office/office_dashboard.html', total_income=income, total_expense=expense, transactions=transactions)
 
-    cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Income'", (company_id,))
-    income = cur.fetchone()[0] or 0.0
-    cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Expense'", (company_id,))
-    expense = cur.fetchone()[0] or 0.0
-    balance = income - expense
-
-    cur.execute("SELECT date, type, category, description, amount, reference FROM transactions WHERE company_id = %s ORDER BY date DESC LIMIT 10", (company_id,))
-    transactions = cur.fetchall()
-    conn.close()
-
-    return render_template('client_dashboard.html', total_income=income, total_expense=expense, total_balance=balance, transactions=transactions)
+# --- CLIENT PORTAL (End-Customer Only) ---
+@app.route('/client-portal')
+def client_portal_login():
+    return render_template('client/client_login.html')
+@app.route('/track-my-job/<job_id>')
+def track_job(job_id):
+    # This is where Mrs. Smith sees HER specific job
+    # We would fetch only data related to 'job_id'
+    return render_template('client_tracking.html', job_id=job_id)
 
 
 # --- FINANCE DASHBOARD (OVERVIEW) ---
