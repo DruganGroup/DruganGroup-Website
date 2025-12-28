@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -8,8 +7,15 @@
     <style>
         body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
         
-        /* SIDEBAR (Dynamic Color supported via inline style in real app) */
-        .sidebar { height: 100vh; background-color: #27AE60; color: white; position: fixed; width: 250px; padding-top: 20px; }
+        /* FIXED: Now uses dynamic brand color */
+        .sidebar { 
+            height: 100vh; 
+            background-color: {{ brand_color or '#27AE60' }}; 
+            color: white; 
+            position: fixed; 
+            width: 250px; 
+            padding-top: 20px; 
+        }
         .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; }
         .sidebar a:hover { background-color: rgba(255,255,255,0.1); }
         .content { margin-left: 250px; padding: 30px; }
@@ -24,7 +30,11 @@
 <body>
 
     <div class="sidebar">
-        <div class="text-center mb-4 fw-bold fs-4">FINANCE ADMIN</div>
+        <div class="text-center mb-4">
+            <img src="{{ logo_url }}" alt="Logo" style="max-width: 180px; height: auto; padding: 10px; border-radius: 10px;">
+            <div class="fw-bold fs-5 text-uppercase mt-2">Finance Admin</div>
+        </div>
+        
         <a href="/finance-dashboard"><i class="fas fa-tachometer-alt me-2"></i> Overview</a>
         <a href="/finance/hr"><i class="fas fa-users me-2"></i> HR & Staff</a>
         <a href="/finance/fleet"><i class="fas fa-truck me-2"></i> Fleet & Gangs</a>

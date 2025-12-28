@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for
-from db import get_db
+from db import get_db, get_site_config  # IMPORTED BRANDING TOOL
 
 office_bp = Blueprint('office', __name__)
 
@@ -9,6 +9,10 @@ def office_dashboard():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
     
     company_id = session.get('company_id')
+    
+    # 1. GET BRANDING CONFIG
+    config = get_site_config(company_id)
+    
     conn = get_db()
     cur = conn.cursor()
     
@@ -23,5 +27,10 @@ def office_dashboard():
     transactions = cur.fetchall()
     conn.close()
 
-    # Renders the template inside the 'office' folder
-    return render_template('office/office_dashboard.html', total_income=income, total_expense=expense, transactions=transactions)
+    # Renders the template with BRANDING DATA passed in
+    return render_template('office/office_dashboard.html', 
+                           total_income=income, 
+                           total_expense=expense, 
+                           transactions=transactions,
+                           brand_color=config['color'],  # PASS COLOR
+                           logo_url=config['logo'])      # PASS LOGO
