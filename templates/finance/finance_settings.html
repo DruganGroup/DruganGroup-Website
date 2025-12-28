@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en" data-bs-theme="{{ ui_mode }}">
 <head>
     <meta charset="UTF-8">
@@ -6,6 +7,8 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         body { font-family: 'Segoe UI', sans-serif; }
+        
+        /* Dynamic Sidebar Color */
         .sidebar { 
             height: 100vh; 
             background-color: {{ brand_color }}; 
@@ -16,9 +19,12 @@
         }
         .sidebar a { color: white; text-decoration: none; padding: 15px 25px; display: block; }
         .sidebar a:hover { filter: brightness(0.9); background-color: rgba(0,0,0,0.1); }
+        
         .content { margin-left: 250px; padding: 30px; }
         .settings-card { border: 1px solid rgba(0,0,0,0.1); border-radius: 10px; padding: 25px; margin-bottom: 20px; }
         .form-check-input:checked { background-color: {{ brand_color }}; border-color: {{ brand_color }}; }
+        
+        /* Hide tax sections by default; JS will show the right one */
         .tax-section { display: none; }
     </style>
 </head>
@@ -44,9 +50,10 @@
         <form action="/finance/settings/save" method="POST" enctype="multipart/form-data">
             
             <ul class="nav nav-tabs mb-4" id="settingTabs" role="tablist">
-                <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#general" type="button">General</button></li>
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#general" type="button">General & Branding</button></li>
                 <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#email" type="button">📧 Email & SMTP</button></li>
-                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#compliance" type="button">Tax</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#compliance" type="button">Tax & Currency</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#legal" type="button">Legal & Terms</button></li>
             </ul>
 
             <div class="tab-content">
@@ -56,24 +63,43 @@
                         <h5 class="fw-bold mb-3 text-primary">🎨 Brand Identity</h5>
                         <div class="row align-items-center">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Brand Color</label>
+                                <label class="form-label fw-bold">Primary Brand Color</label>
                                 <div class="input-group">
-                                    <input type="color" class="form-control form-control-color" name="brand_color" value="{{ settings.get('brand_color', '#27AE60') }}">
-                                    <input type="text" class="form-control" value="{{ settings.get('brand_color', '#27AE60') }}" readonly>
+                                    <input type="color" class="form-control form-control-color" name="brand_color" value="{{ brand_color }}" title="Choose your color">
+                                    <input type="text" class="form-control" value="{{ brand_color }}" readonly>
                                 </div>
                             </div>
                             <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">UI Theme Mode</label>
+                                <select name="ui_mode" class="form-select">
+                                    <option value="light" {% if ui_mode == 'light' %}selected{% endif %}>☀️ Light Mode</option>
+                                    <option value="dark" {% if ui_mode == 'dark' %}selected{% endif %}>🌙 Dark Mode</option>
+                                </select>
+                            </div>
+                            <div class="col-md-12">
                                 <label class="form-label fw-bold">Company Logo</label>
                                 <input type="file" name="logo" class="form-control">
+                                <small class="text-muted">Current Path: {{ logo_url }}</small>
                             </div>
                         </div>
                     </div>
+
                     <div class="card settings-card shadow-sm">
                         <h5 class="fw-bold mb-3 text-primary">🏢 Company Details</h5>
                         <div class="row">
-                            <div class="col-md-6 mb-3"><label>Company Name</label><input type="text" name="company_name" class="form-control" value="{{ settings.get('company_name', '') }}"></div>
-                            <div class="col-md-6 mb-3"><label>Phone</label><input type="text" name="phone" class="form-control" value="{{ settings.get('phone', '') }}"></div>
-                            <div class="col-12 mb-3"><label>Address</label><input type="text" name="address_1" class="form-control" value="{{ settings.get('address_1', '') }}"></div>
+                            <div class="col-md-6 mb-3">
+                                <label>Company Name</label>
+                                <input type="text" name="company_name" class="form-control" value="{{ settings.get('company_name', '') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Phone Number</label>
+                                <input type="text" name="phone" class="form-control" value="{{ settings.get('phone', '') }}">
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label>Head Office Address</label>
+                                <input type="text" name="address_1" class="form-control mb-2" placeholder="Line 1 / Street" value="{{ settings.get('address_1', '') }}">
+                                <input type="text" name="address_2" class="form-control" placeholder="City / Postcode / Zip" value="{{ settings.get('address_2', '') }}">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -84,7 +110,6 @@
                         <div class="alert alert-light border">
                             <small class="text-muted">
                                 <strong>Note for Gmail Users:</strong> You must use an <u>App Password</u>, not your normal login password. 
-                                <a href="https://support.google.com/accounts/answer/185833" target="_blank">Learn how to create one here.</a>
                             </small>
                         </div>
                         <div class="row">
@@ -109,11 +134,104 @@
                 </div>
 
                 <div class="tab-pane fade" id="compliance">
-                    <div class="card settings-card shadow-sm">
-                        <h5 class="fw-bold mb-3 text-success">Tax Configuration</h5>
+                    
+                    <div class="col-12 mb-4 bg-light p-3 rounded border">
+                        <label class="fw-bold text-dark">Operating Region (Updates Currency & Tax Fields)</label>
+                        <select name="country_code" id="countrySelector" class="form-select form-select-lg fw-bold text-primary">
+                            <option value="UK" data-currency="£" {% if settings.get('country_code') == 'UK' %}selected{% endif %}>🇬🇧 United Kingdom (GBP £)</option>
+                            <option value="US" data-currency="$" {% if settings.get('country_code') == 'US' %}selected{% endif %}>🇺🇸 United States (USD $)</option>
+                            <option value="CA" data-currency="$" {% if settings.get('country_code') == 'CA' %}selected{% endif %}>🇨🇦 Canada (CAD $)</option>
+                            <option value="AU" data-currency="$" {% if settings.get('country_code') == 'AU' %}selected{% endif %}>🇦🇺 Australia (AUD $)</option>
+                            <option value="NZ" data-currency="$" {% if settings.get('country_code') == 'NZ' %}selected{% endif %}>🇳🇿 New Zealand (NZD $)</option>
+                            <option value="ZA" data-currency="R" {% if settings.get('country_code') == 'ZA' %}selected{% endif %}>🇿🇦 South Africa (ZAR R)</option>
+                        </select>
+                    </div>
+
+                    <div id="tax-UK" class="tax-section">
+                        <div class="card settings-card shadow-sm border-primary">
+                            <h5 class="fw-bold mb-3 text-primary">🇬🇧 UK Tax Rules</h5>
+                            <div class="row">
+                                <div class="col-md-6 mb-3"><label>VAT Number</label><input type="text" name="vat_number" class="form-control" value="{{ settings.get('vat_number', '') }}"></div>
+                                <div class="col-md-6 mb-3"><label>UTR Number (CIS)</label><input type="text" name="utr_number" class="form-control" value="{{ settings.get('utr_number', '') }}"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tax-US" class="tax-section">
+                        <div class="card settings-card shadow-sm border-danger">
+                            <h5 class="fw-bold mb-3 text-danger">🇺🇸 US Tax Rules</h5>
+                            <div class="row">
+                                <div class="col-md-6"><label>EIN (Employer ID)</label><input type="text" name="ein_number" class="form-control" value="{{ settings.get('ein_number', '') }}"></div>
+                                <div class="col-md-6"><label>State Tax %</label><input type="text" name="sales_tax" class="form-control" value="{{ settings.get('sales_tax', '') }}"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tax-AU" class="tax-section">
+                        <div class="card settings-card shadow-sm border-success">
+                            <h5 class="fw-bold mb-3 text-success">🇦🇺 Australia Tax Rules</h5>
+                            <div class="row">
+                                <div class="col-md-6"><label>ABN (Australian Business No)</label><input type="text" name="abn_number" class="form-control" value="{{ settings.get('abn_number', '') }}"></div>
+                                <div class="col-md-6"><label>GST Registered?</label>
+                                    <select name="au_gst" class="form-select">
+                                        <option value="Yes" {% if settings.get('au_gst') == 'Yes' %}selected{% endif %}>Yes</option>
+                                        <option value="No" {% if settings.get('au_gst') == 'No' %}selected{% endif %}>No</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tax-NZ" class="tax-section">
+                        <div class="card settings-card shadow-sm border-dark">
+                            <h5 class="fw-bold mb-3">🇳🇿 New Zealand Tax Rules</h5>
+                            <div class="row">
+                                <div class="col-md-6"><label>IRD Number</label><input type="text" name="ird_number" class="form-control" value="{{ settings.get('ird_number', '') }}"></div>
+                                <div class="col-md-6"><label>GST Rate (%)</label><input type="text" name="nz_gst" class="form-control" value="{{ settings.get('nz_gst', '15') }}"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tax-ZA" class="tax-section">
+                        <div class="card settings-card shadow-sm border-warning">
+                            <h5 class="fw-bold mb-3 text-warning">🇿🇦 South Africa Tax Rules</h5>
+                            <div class="row">
+                                <div class="col-md-6"><label>VAT Registration No</label><input type="text" name="za_vat" class="form-control" value="{{ settings.get('za_vat', '') }}"></div>
+                                <div class="col-md-6"><label>Standard VAT Rate (%)</label><input type="text" name="za_rate" class="form-control" value="{{ settings.get('za_rate', '15') }}"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tax-CA" class="tax-section">
+                        <div class="card settings-card shadow-sm border-danger">
+                            <h5 class="fw-bold mb-3 text-danger">🇨🇦 Canada Tax Rules</h5>
+                            <div class="row">
+                                <div class="col-md-6"><label>GST / HST Number</label><input type="text" name="gst_number" class="form-control" value="{{ settings.get('gst_number', '') }}"></div>
+                                <div class="col-md-6"><label>Business Number (BN)</label><input type="text" name="business_number" class="form-control" value="{{ settings.get('business_number', '') }}"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card settings-card shadow-sm mt-3">
+                        <h5 class="fw-bold mb-3 text-secondary">🏦 Bank Details</h5>
                         <div class="row">
-                            <div class="col-md-6 mb-3"><label>VAT Number</label><input type="text" name="vat_number" class="form-control" value="{{ settings.get('vat_number', '') }}"></div>
-                            <div class="col-md-6 mb-3"><label>Bank Account</label><input type="text" name="bank_account_number" class="form-control" value="{{ settings.get('bank_account_number', '') }}"></div>
+                            <div class="col-md-6 mb-3"><label>Bank Name</label><input type="text" name="bank_name" class="form-control" value="{{ settings.get('bank_name', '') }}"></div>
+                            <div class="col-md-6 mb-3"><label>Account Number</label><input type="text" name="bank_account_number" class="form-control" value="{{ settings.get('bank_account_number', '') }}"></div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="tab-pane fade" id="legal">
+                    <div class="card settings-card shadow-sm">
+                        <h5 class="fw-bold mb-3 text-primary">📜 Terms & Conditions</h5>
+                        <div class="mb-4">
+                            <label class="fw-bold">Quote Footer</label>
+                            <textarea name="quote_terms" class="form-control" rows="5">{{ settings.get('quote_terms', '') }}</textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="fw-bold">Invoice Footer</label>
+                            <textarea name="invoice_terms" class="form-control" rows="5">{{ settings.get('invoice_terms', '') }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -121,13 +239,35 @@
             </div>
 
             <div class="fixed-bottom p-3 bg-white border-top shadow-lg" style="left: 250px;">
-                <button type="submit" class="btn btn-primary btn-lg fw-bold w-100">💾 SAVE SETTINGS</button>
+                <button type="submit" class="btn btn-primary btn-lg fw-bold w-100">💾 SAVE CONFIGURATION</button>
             </div>
             
         </form>
-        <br><br>
+        <br><br><br>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const selector = document.getElementById("countrySelector");
+            
+            function updateSystem() {
+                const country = selector.value;
+                const option = selector.options[selector.selectedIndex];
+                const symbol = option.getAttribute('data-currency');
+
+                // 1. Show correct Tax Section
+                document.querySelectorAll('.tax-section').forEach(el => el.style.display = 'none');
+                const target = document.getElementById('tax-' + country);
+                if (target) target.style.display = 'block';
+
+                console.log("System Switched to: " + country + " | Currency: " + symbol);
+            }
+
+            selector.addEventListener("change", updateSystem);
+            updateSystem(); // Run on load
+        });
+    </script>
 </body>
 </html>
