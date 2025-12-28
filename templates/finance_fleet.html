@@ -54,85 +54,86 @@
                     </tr>
                 </thead>
                 <tbody>
-    {% for v in vehicles %}
-    <tr class="{% if v[7] == 'Defect Reported' %}status-defect{% endif %}">
-        <td class="fw-bold text-uppercase">{{ v[1] }}</td>
-        <td>
-            {{ v[2] }}
-            {% if v[9] %}
-                <br><a href="{{ v[9] }}" target="_blank" class="btn btn-sm btn-info py-0 mt-1" style="font-size: 11px;">
-                    <i class="fas fa-map-marker-alt"></i> View Tracker
-                </a>
-            {% endif %}
-        </td>
-        <td>£{{ "%.2f"|format(v[3]) }}</td>
-        <td>
-            <small class="d-block text-muted">MOT: {{ v[4] }}</small>
-            <small class="d-block text-muted">Tax: {{ v[5] }}</small>
-        </td>
-        <td>
-            {% if v[7] == 'Active' %}
-                <span class="badge bg-success">Active</span>
-            {% elif v[7] == 'Defect Reported' %}
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <span class="badge bg-danger">DEFECT</span>
-                        <p class="small mb-0 mt-1 text-danger" style="font-size: 12px;">
-                            <strong>Note:</strong> {{ v[8] or 'Pending details...' }}<br>
-                            <strong>Invoice:</strong> £{{ "%.2f"|format(v[10] or 0) }}
-                        </p>
-                    </div>
-                    <button class="btn btn-sm btn-dark ms-2" data-bs-toggle="modal" data-bs-target="#editRepair{{ v[0] }}" title="Update Invoice">
-                        <i class="fas fa-file-invoice-dollar"></i>
-                    </button>
-                </div>
-            {% else %}
-                <span class="badge bg-secondary">{{ v[7] }}</span>
-            {% endif %}
-        </td>
-        <td>
-            <a href="/finance/fleet/delete/{{ v[0] }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this vehicle?')">
-                <i class="fas fa-trash"></i>
-            </a>
-        </td>
-    </tr>
+                    {% for v in vehicles %}
+                    <tr class="{% if v[7] == 'Defect Reported' %}status-defect{% endif %}">
+                        <td class="fw-bold text-uppercase">{{ v[1] }}</td>
+                        <td>
+                            {{ v[2] }}
+                            {% if v[9] %}
+                                <br><a href="{{ v[9] }}" target="_blank" class="btn btn-sm btn-info py-0 mt-1" style="font-size: 11px;">
+                                    <i class="fas fa-map-marker-alt"></i> View Tracker
+                                </a>
+                            {% endif %}
+                        </td>
+                        <td>£{{ "%.2f"|format(v[3]) }}</td>
+                        <td>
+                            <small class="d-block text-muted">MOT: {{ v[4] }}</small>
+                            <small class="d-block text-muted">Tax: {{ v[5] }}</small>
+                        </td>
+                        <td>
+                            {% if v[7] == 'Active' %}
+                                <span class="badge bg-success">Active</span>
+                            {% elif v[7] == 'Defect Reported' %}
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <span class="badge bg-danger">DEFECT</span>
+                                        <p class="small mb-0 mt-1 text-danger" style="font-size: 12px;">
+                                            <strong>Note:</strong> {{ v[8] or 'Pending details...' }}<br>
+                                            <strong>Invoice:</strong> £{{ "%.2f"|format(v[10] or 0) }}
+                                        </p>
+                                    </div>
+                                    <button class="btn btn-sm btn-dark ms-2" data-bs-toggle="modal" data-bs-target="#editRepair{{ v[0] }}" title="Update Invoice">
+                                        <i class="fas fa-file-invoice-dollar"></i>
+                                    </button>
+                                </div>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ v[7] }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="/finance/fleet/delete/{{ v[0] }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this vehicle?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
 
-    <div class="modal fade" id="editRepair{{ v[0] }}" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content text-dark">
-                <div class="modal-header">
-                    <h5 class="modal-title fw-bold">Update Garage Invoice: {{ v[1] }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form action="/finance/fleet/update_repair" method="POST">
-                    <input type="hidden" name="vehicle_id" value="{{ v[0] }}">
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label">Final Repair/Towing Cost (£)</label>
-                            <input type="number" step="0.01" name="repair_cost" class="form-control" value="{{ v[10] }}">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Office Notes (Work Carried Out)</label>
-                            <textarea name="defect_notes" class="form-control" rows="3">{{ v[8] }}</textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Update Status</label>
-                            <select name="status" class="form-select">
-                                <option value="Defect Reported" {% if v[7] == 'Defect Reported' %}selected{% endif %}>Still in Repair</option>
-                                <option value="Active">Fixed & Back on Road (Active)</option>
-                                <option value="In Repair">In Repair / Off Road</option>
-                            </select>
+                    <div class="modal fade" id="editRepair{{ v[0] }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content text-dark">
+                                <div class="modal-header">
+                                    <h5 class="modal-title fw-bold">Update Garage Invoice: {{ v[1] }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form action="/finance/fleet/update_repair" method="POST">
+                                    <input type="hidden" name="vehicle_id" value="{{ v[0] }}">
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Final Repair/Towing Cost (£)</label>
+                                            <input type="number" step="0.01" name="repair_cost" class="form-control" value="{{ v[10] }}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Office Notes (Work Carried Out)</label>
+                                            <textarea name="defect_notes" class="form-control" rows="3">{{ v[8] }}</textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Update Status</label>
+                                            <select name="status" class="form-select">
+                                                <option value="Defect Reported" {% if v[7] == 'Defect Reported' %}selected{% endif %}>Still in Repair</option>
+                                                <option value="Active">Fixed & Back on Road (Active)</option>
+                                                <option value="In Repair">In Repair / Off Road</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="submit" class="btn btn-primary fw-bold">Update Record</button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary fw-bold">Update Record</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    {% endfor %}
-</tbody>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
