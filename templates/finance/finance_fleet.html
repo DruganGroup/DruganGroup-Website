@@ -6,19 +6,16 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; overflow-x: hidden; }
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
         .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; z-index: 1000; }
-        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; transition: 0.2s; }
+        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; }
         .sidebar a:hover { background-color: rgba(0,0,0,0.1); }
         .sidebar a.active { background-color: rgba(255,255,255,0.2); border-left: 5px solid white; }
         .content { margin-left: 250px; padding: 30px; }
         .card { border: none; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .status-defect { background-color: #ffebee; color: #c0392b; border: 1px solid #c0392b; }
-        @media (max-width: 768px) { .sidebar { width: 100%; height: auto; position: relative; } .content { margin-left: 0; padding: 15px; } }
     </style>
 </head>
 <body>
-
     <div class="sidebar">
         <div class="text-center mb-4">
             <img src="{{ logo_url }}" alt="Logo" style="max-width: 180px; height: auto; padding: 10px; border-radius: 10px;">
@@ -35,161 +32,58 @@
 
     <div class="content">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>Vehicle Asset Register</h2>
-            <button class="btn btn-warning text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#addVehicleModal">
-                <i class="fas fa-plus me-2"></i> Add Vehicle
-            </button>
+            <h2>Fleet Management</h2>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addVehicleModal"><i class="fas fa-plus me-2"></i> Add Vehicle</button>
         </div>
 
-        <div class="card p-3">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>Registration</th>
-                        <th>Make / Model & Tracker</th>
-                        <th>Daily Cost</th>
-                        <th>Compliance (MOT/Tax)</th>
-                        <th>Status / Defects</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for v in vehicles %}
-                    <tr class="{% if v[7] == 'Defect Reported' %}status-defect{% endif %}">
-                        <td class="fw-bold text-uppercase">{{ v[1] }}</td>
-                        <td>
-                            {{ v[2] }}
-                            {% if v[9] %}
-                                <br><a href="{{ v[9] }}" target="_blank" class="btn btn-sm btn-info py-0 mt-1" style="font-size: 11px;">
-                                    <i class="fas fa-map-marker-alt"></i> View Tracker
-                                </a>
-                            {% endif %}
-                        </td>
-                        <td>£{{ "%.2f"|format(v[3]) }}</td>
-                        <td>
-                            <small class="d-block text-muted">MOT: {{ v[4] }}</small>
-                            <small class="d-block text-muted">Tax: {{ v[5] }}</small>
-                        </td>
-                        <td>
-                            {% if v[7] == 'Active' %}
-                                <span class="badge bg-success">Active</span>
-                            {% elif v[7] == 'Defect Reported' %}
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <span class="badge bg-danger">DEFECT</span>
-                                        <p class="small mb-0 mt-1 text-danger" style="font-size: 12px;">
-                                            <strong>Note:</strong> {{ v[8] or 'Pending details...' }}<br>
-                                            <strong>Invoice:</strong> £{{ "%.2f"|format(v[10] or 0) }}
-                                        </p>
-                                    </div>
-                                    <button class="btn btn-sm btn-dark ms-2" data-bs-toggle="modal" data-bs-target="#editRepair{{ v[0] }}" title="Update Invoice">
-                                        <i class="fas fa-file-invoice-dollar"></i>
-                                    </button>
-                                </div>
-                            {% else %}
-                                <span class="badge bg-secondary">{{ v[7] }}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="/finance/fleet/delete/{{ v[0] }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this vehicle?')">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        </td>
-                    </tr>
-
-                    <div class="modal fade" id="editRepair{{ v[0] }}" tabindex="-1">
-                        <div class="modal-dialog">
-                            <div class="modal-content text-dark">
-                                <div class="modal-header">
-                                    <h5 class="modal-title fw-bold">Update Garage Invoice: {{ v[1] }}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <form action="/finance/fleet/update_repair" method="POST">
-                                    <input type="hidden" name="vehicle_id" value="{{ v[0] }}">
-                                    <div class="modal-body">
-                                        <div class="mb-3">
-                                            <label class="form-label">Final Repair/Towing Cost (£)</label>
-                                            <input type="number" step="0.01" name="repair_cost" class="form-control" value="{{ v[10] }}">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Office Notes (Work Carried Out)</label>
-                                            <textarea name="defect_notes" class="form-control" rows="3">{{ v[8] }}</textarea>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Update Status</label>
-                                            <select name="status" class="form-select">
-                                                <option value="Defect Reported" {% if v[7] == 'Defect Reported' %}selected{% endif %}>Still in Repair</option>
-                                                <option value="Active">Fixed & Back on Road (Active)</option>
-                                                <option value="In Repair">In Repair / Off Road</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="submit" class="btn btn-primary fw-bold">Update Record</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
+        <div class="row">
+            {% for v in vehicles %}
+            <div class="col-md-6 mb-4">
+                <div class="card p-3 h-100">
+                    <div class="d-flex justify-content-between">
+                        <h5 class="fw-bold">{{ v[1] }} <span class="text-muted fs-6">({{ v[2] }})</span></h5>
+                        <span class="badge {{ 'bg-success' if v[7] == 'Active' else 'bg-danger' }}">{{ v[7] }}</span>
                     </div>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    <hr>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6"><small class="text-muted">MOT Due:</small><br>{{ v[4] }}</div>
+                        <div class="col-6"><small class="text-muted">Tax Due:</small><br>{{ v[5] }}</div>
+                        <div class="col-12"><small class="text-muted">Daily Cost:</small> £{{ v[3] }}</div>
+                        {% if v[9] %}
+                        <div class="col-12 mt-2"><a href="{{ v[9] }}" target="_blank" class="btn btn-sm btn-outline-info w-100"><i class="fas fa-map-marker-alt"></i> GPS Tracker</a></div>
+                        {% endif %}
+                    </div>
+                    <div class="mt-auto text-end">
+                        <a href="/finance/fleet/delete/{{ v[0] }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete Vehicle?')"><i class="fas fa-trash"></i></a>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12 text-center text-muted">No vehicles found.</div>
+            {% endfor %}
         </div>
     </div>
-
+    
     <div class="modal fade" id="addVehicleModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title fw-bold">Add New Asset</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
                 <form action="/finance/fleet/add" method="POST">
+                    <div class="modal-header"><h5 class="modal-title">Add Vehicle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                     <div class="modal-body">
-                        <div class="row mb-3">
-                            <div class="col-6">
-                                <label class="form-label">Reg Plate</label>
-                                <input type="text" name="reg" class="form-control" required placeholder="AB12 CDE">
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label">Daily Cost (£)</label>
-                                <input type="number" step="0.01" name="cost" class="form-control" placeholder="25.00">
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Make & Model</label>
-                            <input type="text" name="model" class="form-control" placeholder="e.g. Ford Transit Custom">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Tracker Provider URL</label>
-                            <input type="url" name="tracker_url" class="form-control" placeholder="https://tracking-login.com">
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-6">
-                                <label class="form-label">MOT Due</label>
-                                <input type="date" name="mot" class="form-control">
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label">Tax Due</label>
-                                <input type="date" name="tax" class="form-control">
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Initial Status</label>
-                            <select name="status" class="form-select">
-                                <option value="Active">Active (Roadworthy)</option>
-                                <option value="In Repair">In Repair / Off Road</option>
-                            </select>
-                        </div>
+                        <input type="text" name="reg" class="form-control mb-2" placeholder="Reg Plate" required>
+                        <input type="text" name="model" class="form-control mb-2" placeholder="Make/Model">
+                        <input type="number" step="0.01" name="cost" class="form-control mb-2" placeholder="Daily Cost">
+                        <label>MOT Date</label><input type="date" name="mot" class="form-control mb-2">
+                        <label>Tax Date</label><input type="date" name="tax" class="form-control mb-2">
+                        <input type="text" name="tracker_url" class="form-control mb-2" placeholder="GPS Tracker URL">
+                        <select name="status" class="form-select"><option>Active</option><option>Repair</option></select>
                     </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-warning text-dark fw-bold">Save Asset</button>
-                    </div>
+                    <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Vehicle</button></div>
                 </form>
             </div>
         </div>
     </div>
-
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

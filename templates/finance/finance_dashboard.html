@@ -1,17 +1,15 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TradeCore | HR & Staff</title>
+    <title>TradeCore | Finance Overview</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* Shared Dashboard Layout CSS */
         body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; overflow-x: hidden; }
         
         .sidebar {
             height: 100vh;
-            background-color: {{ brand_color }}; /* Dynamic Brand Color */
+            background-color: {{ brand_color }}; 
             color: white;
             position: fixed;
             width: 250px;
@@ -22,17 +20,10 @@
             padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; transition: 0.2s;
         }
         .sidebar a:hover { background-color: rgba(0,0,0,0.1); }
-        /* Active state for current page */
         .sidebar a.active { background-color: rgba(255,255,255,0.2); border-left: 5px solid white; }
         
         .content { margin-left: 250px; padding: 30px; }
         .card { border: none; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-
-        /* Mobile Responsiveness */
-        @media (max-width: 768px) {
-            .sidebar { width: 100%; height: auto; position: relative; }
-            .content { margin-left: 0; padding: 15px; }
-        }
     </style>
 </head>
 <body>
@@ -42,8 +33,9 @@
             <img src="{{ logo_url }}" alt="Logo" style="max-width: 180px; height: auto; padding: 10px; border-radius: 10px;">
             <div class="fw-bold fs-5 text-uppercase mt-2">Finance Admin</div>
         </div>
-        <a href="/finance-dashboard"><i class="fas fa-tachometer-alt me-2"></i> Overview</a>
-        <a href="/finance/hr" class="active"><i class="fas fa-users me-2"></i> HR & Staff</a>
+        
+        <a href="/finance-dashboard" class="active"><i class="fas fa-tachometer-alt me-2"></i> Overview</a>
+        <a href="/finance/hr"><i class="fas fa-users me-2"></i> HR & Staff</a>
         <a href="/finance/fleet"><i class="fas fa-truck me-2"></i> Fleet & Gangs</a>
         <a href="/finance/materials"><i class="fas fa-cubes me-2"></i> Materials</a>
         <a href="/finance/analysis"><i class="fas fa-chart-pie me-2"></i> Analysis</a>
@@ -52,114 +44,56 @@
     </div>
 
     <div class="content">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>Staff Directory</h2>
-            <button class="btn btn-success fw-bold" data-bs-toggle="modal" data-bs-target="#addStaffModal">
-                <i class="fas fa-plus me-2"></i> Add New Staff
-            </button>
+        <h2 class="mb-4 fw-bold">Financial Overview</h2>
+        
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card p-3 text-white bg-success">
+                    <h5>Total Income</h5>
+                    <h2>£{{ "%.2f"|format(total_income) }}</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-3 text-white bg-danger">
+                    <h5>Total Expense</h5>
+                    <h2>£{{ "%.2f"|format(total_expense) }}</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-3 text-dark bg-warning">
+                    <h5>Net Balance</h5>
+                    <h2>£{{ "%.2f"|format(total_balance) }}</h2>
+                </div>
+            </div>
         </div>
 
-        <div class="card p-3">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
+        <div class="card p-4">
+            <h5>Recent Transactions</h5>
+            <table class="table table-hover">
+                <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Role / Position</th>
-                        <th>Department</th>
-                        <th>Pay Rate</th>
-                        <th>System Access</th>
-                        <th>Action</th>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th class="text-end">Amount</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for s in staff %}
+                    {% for t in transactions %}
                     <tr>
-                        <td class="fw-bold">{{ s[1] }}</td>
-                        <td>{{ s[2] }}</td>
-                        <td>{{ s[3] }}</td>
-                        <td>£{{ s[4] }} / {{ s[5] }}</td>
-                        <td>
-                            {% if s[6] == 'Admin' %}<span class="badge bg-danger">Admin</span>
-                            {% elif s[6] == 'Office' %}<span class="badge bg-primary">Office</span>
-                            {% elif s[6] == 'Site' %}<span class="badge bg-warning text-dark">Site App</span>
-                            {% else %}<span class="badge bg-secondary">None</span>{% endif %}
-                        </td>
-                        <td>
-                            <a href="/finance/hr/delete/{{ s[0] }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this staff member?')">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        </td>
+                        <td>{{ t[0] }}</td>
+                        <td><span class="badge {{ 'bg-success' if t[1] == 'Income' else 'bg-danger' }}">{{ t[1] }}</span></td>
+                        <td>{{ t[2] }}</td>
+                        <td>{{ t[3] }}</td>
+                        <td class="text-end">£{{ "%.2f"|format(t[4]) }}</td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="6" class="text-center py-4 text-muted">No staff members found. Click "Add New Staff" to begin.</td></tr>
+                    <tr><td colspan="5" class="text-center text-muted">No recent activity found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
-
-    <div class="modal fade" id="addStaffModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title fw-bold">Add Staff Member</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form action="/finance/hr/add" method="POST">
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label">Full Name</label>
-                            <input type="text" name="name" class="form-control" required>
-                        </div>
-                        <div class="row">
-                            <div class="col-6 mb-3">
-                                <label class="form-label">Job Title</label>
-                                <input type="text" name="position" class="form-control" placeholder="e.g. Roofer">
-                            </div>
-                            <div class="col-6 mb-3">
-                                <label class="form-label">Department</label>
-                                <select name="dept" class="form-select">
-                                    <option>Field/Site</option>
-                                    <option>Office</option>
-                                    <option>Management</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-6 mb-3">
-                                <label class="form-label">Pay Rate (£)</label>
-                                <input type="number" step="0.01" name="rate" class="form-control" placeholder="0.00">
-                            </div>
-                            <div class="col-6 mb-3">
-                                <label class="form-label">Per...</label>
-                                <select name="model" class="form-select">
-                                    <option value="Hour">Hour</option>
-                                    <option value="Day">Day</option>
-                                    <option value="Year">Year</option>
-                                </select>
-                            </div>
-                        </div>
-                        <hr>
-                        <h6 class="text-danger fw-bold">System Access (Login)</h6>
-                        <div class="mb-3">
-                            <label class="form-label">Grant Permission Level</label>
-                            <select name="access_level" class="form-select">
-                                <option value="None">No System Access (Manual Worker)</option>
-                                <option value="Site">Site App Only (Mobile)</option>
-                                <option value="Office">Office Hub (Quotes/Jobs)</option>
-                                <option value="Admin">Full Admin (Finance/HR)</option>
-                            </select>
-                            <small class="text-muted d-block mt-1">This will generate a user login automatically in the background.</small>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-success fw-bold">Create Staff & User</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
