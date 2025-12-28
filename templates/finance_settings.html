@@ -1,15 +1,12 @@
-<!DOCTYPE html>
 <html lang="en" data-bs-theme="{{ ui_mode }}">
 <head>
     <meta charset="UTF-8">
-    <title>TradeCore | Settings</title>
+    <title>TradeKore | Settings</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* If Dark Mode is active, these overrides happen automatically via Bootstrap 5.3 */
         body { font-family: 'Segoe UI', sans-serif; }
         
-        /* DYNAMIC BRAND COLOR */
         .sidebar { 
             height: 100vh; 
             background-color: {{ brand_color }}; 
@@ -23,6 +20,10 @@
         
         .content { margin-left: 250px; padding: 30px; }
         .settings-card { border: 1px solid rgba(0,0,0,0.1); border-radius: 10px; padding: 25px; margin-bottom: 20px; }
+        .form-check-input:checked { background-color: {{ brand_color }}; border-color: {{ brand_color }}; }
+        
+        /* Hide tax sections by default; JS will show the right one */
+        .tax-section { display: none; }
     </style>
 </head>
 <body>
@@ -43,102 +44,192 @@
 
         <form action="/finance/settings/save" method="POST" enctype="multipart/form-data">
             
-            <div class="card settings-card shadow-sm">
-                <h5 class="fw-bold mb-3 text-primary">🎨 Brand Identity & Appearance</h5>
-                <div class="row align-items-center">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">Primary Brand Color</label>
-                        <div class="input-group">
-                            <input type="color" class="form-control form-control-color" name="brand_color" value="{{ brand_color }}" title="Choose your color">
-                            <input type="text" class="form-control" value="{{ brand_color }}" readonly>
+            <ul class="nav nav-tabs mb-4" id="settingTabs" role="tablist">
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#general" type="button">General & Branding</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#compliance" type="button">Tax & Currency</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#legal" type="button">Legal & Terms</button></li>
+            </ul>
+
+            <div class="tab-content">
+                
+                <div class="tab-pane fade show active" id="general">
+                    <div class="card settings-card shadow-sm">
+                        <h5 class="fw-bold mb-3 text-primary">🎨 Brand Identity</h5>
+                        <div class="row align-items-center">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Primary Brand Color</label>
+                                <div class="input-group">
+                                    <input type="color" class="form-control form-control-color" name="brand_color" value="{{ brand_color }}" title="Choose your color">
+                                    <input type="text" class="form-control" value="{{ brand_color }}" readonly>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">UI Theme Mode</label>
+                                <select name="ui_mode" class="form-select">
+                                    <option value="light" {% if ui_mode == 'light' %}selected{% endif %}>☀️ Light Mode</option>
+                                    <option value="dark" {% if ui_mode == 'dark' %}selected{% endif %}>🌙 Dark Mode</option>
+                                </select>
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold">Company Logo</label>
+                                <input type="file" name="logo" class="form-control">
+                            </div>
                         </div>
-                        <small class="text-muted">Changes the sidebar color.</small>
+                    </div>
+
+                    <div class="card settings-card shadow-sm">
+                        <h5 class="fw-bold mb-3 text-primary">🏢 Company Details</h5>
+                        <div class="row">
+                            <div class="col-12 mb-4 bg-light p-3 rounded border">
+                                <label class="fw-bold text-dark">Operating Region (Updates Currency & Tax)</label>
+                                <select name="country_code" id="countrySelector" class="form-select form-select-lg fw-bold text-primary">
+                                    <option value="UK" data-currency="£" {% if settings.get('country_code') == 'UK' %}selected{% endif %}>🇬🇧 United Kingdom (GBP £)</option>
+                                    <option value="US" data-currency="$" {% if settings.get('country_code') == 'US' %}selected{% endif %}>🇺🇸 United States (USD $)</option>
+                                    <option value="CA" data-currency="$" {% if settings.get('country_code') == 'CA' %}selected{% endif %}>🇨🇦 Canada (CAD $)</option>
+                                    <option value="AU" data-currency="$" {% if settings.get('country_code') == 'AU' %}selected{% endif %}>🇦🇺 Australia (AUD $)</option>
+                                    <option value="NZ" data-currency="$" {% if settings.get('country_code') == 'NZ' %}selected{% endif %}>🇳🇿 New Zealand (NZD $)</option>
+                                    <option value="ZA" data-currency="R" {% if settings.get('country_code') == 'ZA' %}selected{% endif %}>🇿🇦 South Africa (ZAR R)</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label>Company Name</label>
+                                <input type="text" name="company_name" class="form-control" value="{{ settings.get('company_name', '') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Phone Number</label>
+                                <input type="text" name="phone" class="form-control" value="{{ settings.get('phone', '') }}">
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label>Head Office Address</label>
+                                <input type="text" name="address_1" class="form-control mb-2" placeholder="Line 1 / Street" value="{{ settings.get('address_1', '') }}">
+                                <input type="text" name="address_2" class="form-control" placeholder="City / Postcode / Zip" value="{{ settings.get('address_2', '') }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="compliance">
+                    
+                    <div id="tax-UK" class="tax-section">
+                        <div class="card settings-card shadow-sm border-primary">
+                            <h5 class="fw-bold mb-3 text-primary">🇬🇧 UK Tax Rules</h5>
+                            <div class="row">
+                                <div class="col-md-6 mb-3"><label>VAT Number</label><input type="text" name="vat_number" class="form-control" value="{{ settings.get('vat_number', '') }}"></div>
+                                <div class="col-md-6 mb-3"><label>UTR Number (CIS)</label><input type="text" name="utr_number" class="form-control" value="{{ settings.get('utr_number', '') }}"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tax-US" class="tax-section">
+                        <div class="card settings-card shadow-sm border-danger">
+                            <h5 class="fw-bold mb-3 text-danger">🇺🇸 US Tax Rules</h5>
+                            <div class="row">
+                                <div class="col-md-6"><label>EIN (Employer ID)</label><input type="text" name="ein_number" class="form-control" value="{{ settings.get('ein_number', '') }}"></div>
+                                <div class="col-md-6"><label>State Tax %</label><input type="text" name="sales_tax" class="form-control" value="{{ settings.get('sales_tax', '') }}"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tax-AU" class="tax-section">
+                        <div class="card settings-card shadow-sm border-success">
+                            <h5 class="fw-bold mb-3 text-success">🇦🇺 Australia Tax Rules</h5>
+                            <div class="row">
+                                <div class="col-md-6"><label>ABN (Australian Business No)</label><input type="text" name="abn_number" class="form-control" value="{{ settings.get('abn_number', '') }}"></div>
+                                <div class="col-md-6"><label>GST Registered?</label>
+                                    <select name="au_gst" class="form-select"><option>Yes</option><option>No</option></select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tax-NZ" class="tax-section">
+                        <div class="card settings-card shadow-sm border-dark">
+                            <h5 class="fw-bold mb-3">🇳🇿 New Zealand Tax Rules</h5>
+                            <div class="row">
+                                <div class="col-md-6"><label>IRD Number</label><input type="text" name="ird_number" class="form-control" value="{{ settings.get('ird_number', '') }}"></div>
+                                <div class="col-md-6"><label>GST Rate (%)</label><input type="text" name="nz_gst" class="form-control" value="15"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tax-ZA" class="tax-section">
+                        <div class="card settings-card shadow-sm border-warning">
+                            <h5 class="fw-bold mb-3 text-warning">🇿🇦 South Africa Tax Rules</h5>
+                            <div class="row">
+                                <div class="col-md-6"><label>VAT Registration No</label><input type="text" name="za_vat" class="form-control" value="{{ settings.get('za_vat', '') }}"></div>
+                                <div class="col-md-6"><label>Standard VAT Rate (%)</label><input type="text" name="za_rate" class="form-control" value="15"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tax-CA" class="tax-section">
+                        <div class="card settings-card shadow-sm border-danger">
+                            <h5 class="fw-bold mb-3 text-danger">🇨🇦 Canada Tax Rules</h5>
+                            <div class="row">
+                                <div class="col-md-6"><label>GST / HST Number</label><input type="text" name="gst_number" class="form-control" value="{{ settings.get('gst_number', '') }}"></div>
+                                <div class="col-md-6"><label>Business Number (BN)</label><input type="text" name="business_number" class="form-control" value="{{ settings.get('business_number', '') }}"></div>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">UI Theme Mode</label>
-                        <select name="ui_mode" class="form-select">
-                            <option value="light" {% if ui_mode == 'light' %}selected{% endif %}>☀️ Light Mode</option>
-                            <option value="dark" {% if ui_mode == 'dark' %}selected{% endif %}>🌙 Dark Mode</option>
-                        </select>
+                    <div class="card settings-card shadow-sm">
+                        <h5 class="fw-bold mb-3 text-secondary">🏦 Bank Details</h5>
+                        <div class="row">
+                            <div class="col-md-6 mb-3"><label>Bank Name</label><input type="text" name="bank_name" class="form-control" value="{{ settings.get('bank_name', '') }}"></div>
+                            <div class="col-md-6 mb-3"><label>Account Number</label><input type="text" name="bank_account_number" class="form-control" value="{{ settings.get('bank_account_number', '') }}"></div>
+                        </div>
                     </div>
 
-                    <div class="col-md-12">
-                        <label class="form-label fw-bold">Company Logo</label>
-                        <input type="file" name="logo" class="form-control">
-                        <small class="text-muted">Updates the logo on PDF Invoices and the Dashboard.</small>
+                </div>
+
+                <div class="tab-pane fade" id="legal">
+                    <div class="card settings-card shadow-sm">
+                        <h5 class="fw-bold mb-3 text-primary">📜 Terms & Conditions</h5>
+                        <div class="mb-4">
+                            <label class="fw-bold">Quote Footer</label>
+                            <textarea name="quote_terms" class="form-control" rows="5">{{ settings.get('quote_terms', '') }}</textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="fw-bold">Invoice Footer</label>
+                            <textarea name="invoice_terms" class="form-control" rows="5">{{ settings.get('invoice_terms', '') }}</textarea>
+                        </div>
                     </div>
                 </div>
+
             </div>
 
-            <div class="card settings-card shadow-sm">
-                <h5 class="fw-bold mb-3 text-primary">🏢 Company Details</h5>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label>Company Name</label>
-                        <input type="text" name="company_name" class="form-control" value="{{ settings.get('company_name', '') }}">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label>VAT / Tax Number</label>
-                        <input type="text" name="vat_number" class="form-control" value="{{ settings.get('vat_number', '') }}">
-                    </div>
-                    <div class="col-12 mb-3">
-                        <label>Head Office Address</label>
-                        <input type="text" name="address_1" class="form-control mb-2" placeholder="Line 1" value="{{ settings.get('address_1', '') }}">
-                        <input type="text" name="address_2" class="form-control" placeholder="Line 2 / Postcode" value="{{ settings.get('address_2', '') }}">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label>Official Email</label>
-                        <input type="email" name="email" class="form-control" value="{{ settings.get('email', '') }}">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label>Phone Number</label>
-                        <input type="text" name="phone" class="form-control" value="{{ settings.get('phone', '') }}">
-                    </div>
-                </div>
-            </div>
-
-            <div class="card settings-card shadow-sm">
-                <h5 class="fw-bold mb-3 text-primary">🏦 Banking & Payments</h5>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label>Bank Name</label>
-                        <input type="text" name="bank_name" class="form-control" value="{{ settings.get('bank_name', '') }}">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label>Account Name</label>
-                        <input type="text" name="bank_account_name" class="form-control" value="{{ settings.get('bank_account_name', '') }}">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label>Sort Code</label>
-                        <input type="text" name="bank_sort_code" class="form-control" value="{{ settings.get('bank_sort_code', '') }}">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label>Account Number</label>
-                        <input type="text" name="bank_account_number" class="form-control" value="{{ settings.get('bank_account_number', '') }}">
-                    </div>
-                    <div class="col-md-6">
-                        <label>Default Payment Terms</label>
-                        <select name="payment_terms" class="form-select">
-                            <option {% if settings.get('payment_terms') == 'Immediate' %}selected{% endif %}>Immediate</option>
-                            <option {% if settings.get('payment_terms') == '7 Days' %}selected{% endif %}>7 Days</option>
-                            <option {% if settings.get('payment_terms') == '30 Days' %}selected{% endif %}>30 Days</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label>Standard Profit Markup (%)</label>
-                        <input type="number" name="default_markup" class="form-control" value="{{ settings.get('default_markup', '20') }}">
-                    </div>
-                </div>
-            </div>
-
-            <div class="d-grid gap-2">
-                <button type="submit" class="btn btn-primary btn-lg fw-bold">💾 SAVE CONFIGURATION</button>
+            <div class="fixed-bottom p-3 bg-white border-top shadow-lg" style="left: 250px;">
+                <button type="submit" class="btn btn-primary btn-lg fw-bold w-100">💾 SAVE CONFIGURATION</button>
             </div>
             
         </form>
-        <br><br>
+        <br><br><br>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const selector = document.getElementById("countrySelector");
+            
+            function updateSystem() {
+                const country = selector.value;
+                const option = selector.options[selector.selectedIndex];
+                const symbol = option.getAttribute('data-currency');
+
+                // 1. Show correct Tax Section
+                document.querySelectorAll('.tax-section').forEach(el => el.style.display = 'none');
+                const target = document.getElementById('tax-' + country);
+                if (target) target.style.display = 'block';
+
+                // 2. (Optional) In a real app, we'd update live previews here
+                console.log("System Switched to: " + country + " | Currency: " + symbol);
+            }
+
+            selector.addEventListener("change", updateSystem);
+            updateSystem(); // Run on load
+        });
+    </script>
 </body>
 </html>
