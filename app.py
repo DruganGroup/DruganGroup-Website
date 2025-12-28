@@ -161,6 +161,34 @@ def finance_fleet():
                            brand_color=config['color'], 
                            logo_url=config['logo'])
 
+@app.route('/finance/fleet/update_repair', methods=['POST'])
+def update_repair():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: 
+        return redirect(url_for('login'))
+        
+    vehicle_id = request.form.get('vehicle_id')
+    cost = request.form.get('repair_cost') or 0
+    notes = request.form.get('defect_notes')
+    status = request.form.get('status') # Allows office to move it back to 'Active'
+    
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            UPDATE vehicles 
+            SET repair_cost = %s, defect_notes = %s, status = %s 
+            WHERE id = %s AND company_id = %s
+        """, (cost, notes, status, vehicle_id, session.get('company_id')))
+        conn.commit()
+        flash("✅ Vehicle Repair Details Updated")
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error: {e}")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('finance_fleet'))
+    
 @app.route('/finance/materials')
 def finance_materials():
     comp_id = session.get('company_id')
