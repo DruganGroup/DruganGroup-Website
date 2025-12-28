@@ -1,17 +1,14 @@
 import psycopg2
 import os
-from werkzeug.utils import secure_filename
 
-# --- CONFIG ---
+# Database Configuration
+DB_URL = os.environ.get("DATABASE_URL")
+
+# Upload Configuration
 UPLOAD_FOLDER = '/opt/render/project/src/static/uploads/logos'
 if not os.path.exists('/opt/render/project/src'):
     UPLOAD_FOLDER = 'static/uploads/logos'
-
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-DB_URL = os.environ.get("DATABASE_URL")
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def get_db():
     try:
@@ -34,3 +31,6 @@ def get_site_config(comp_id):
         "color": settings_dict.get('brand_color', '#27AE60'),
         "logo": settings_dict.get('logo_url', '/static/images/logo.png')
     }
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

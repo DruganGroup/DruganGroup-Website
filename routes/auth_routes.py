@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
-from db import get_db  # Importing from our new shared file
+from db import get_db
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -36,9 +36,9 @@ def login():
             session['company_id'] = user[3]
             
             if user[2] == 'SuperAdmin':
-                return redirect(url_for('admin.super_admin_dashboard')) # Note: 'admin.' prefix
+                return redirect(url_for('admin.super_admin_dashboard'))
             else:
-                return redirect(url_for('auth.main_launcher')) # Note: 'auth.' prefix
+                return redirect(url_for('auth.main_launcher'))
         else:
             flash('Invalid Email or Password')
 

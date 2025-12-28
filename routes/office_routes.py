@@ -12,25 +12,13 @@ def office_dashboard():
     conn = get_db()
     cur = conn.cursor()
     
-    # Ensure transactions table exists (Safety check)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS transactions (
-            id SERIAL PRIMARY KEY, company_id INTEGER, date DATE,
-            type TEXT, category TEXT, description TEXT, amount DECIMAL(10,2), reference TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-    conn.commit()
-
-    # Get Financial Summaries for the Dashboard Cards
+    # Get Financials
     cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Income'", (company_id,))
     income = cur.fetchone()[0] or 0.0
-    
     cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Expense'", (company_id,))
     expense = cur.fetchone()[0] or 0.0
-    balance = income - expense
-
-    # Get Recent Activity List
+    
+    # Get Recent Jobs
     cur.execute("SELECT date, type, category, description, amount, reference FROM transactions WHERE company_id = %s ORDER BY date DESC LIMIT 10", (company_id,))
     transactions = cur.fetchall()
     conn.close()
