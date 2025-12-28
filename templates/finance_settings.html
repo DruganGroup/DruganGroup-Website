@@ -9,6 +9,7 @@
         
         .sidebar { 
             height: 100vh; 
+            /* FIXED: Now uses your dynamic brand color */
             background-color: {{ brand_color }}; 
             color: white; 
             position: fixed; 
@@ -29,7 +30,10 @@
 <body>
 
     <div class="sidebar">
-        <div class="text-center mb-4 fw-bold fs-4">FINANCE ADMIN</div>
+        <div class="text-center mb-4">
+            <img src="{{ logo_url }}" alt="Logo" style="max-width: 180px; height: auto; padding: 10px; border-radius: 10px;">
+            <div class="fw-bold fs-5 text-uppercase mt-2">Finance Admin</div>
+        </div>
         <a href="/finance-dashboard"><i class="fas fa-tachometer-alt me-2"></i> Overview</a>
         <a href="/finance/hr"><i class="fas fa-users me-2"></i> HR & Staff</a>
         <a href="/finance/fleet"><i class="fas fa-truck me-2"></i> Fleet & Gangs</a>
@@ -71,8 +75,9 @@
                                 </select>
                             </div>
                             <div class="col-md-12">
-                                <label class="form-label fw-bold">Company Logo</label>
+                                <label class="form-label fw-bold">Company Logo (Upload to Persistent Disk)</label>
                                 <input type="file" name="logo" class="form-control">
+                                <small class="text-muted">Current Path: {{ logo_url }}</small>
                             </div>
                         </div>
                     </div>
@@ -137,7 +142,10 @@
                             <div class="row">
                                 <div class="col-md-6"><label>ABN (Australian Business No)</label><input type="text" name="abn_number" class="form-control" value="{{ settings.get('abn_number', '') }}"></div>
                                 <div class="col-md-6"><label>GST Registered?</label>
-                                    <select name="au_gst" class="form-select"><option>Yes</option><option>No</option></select>
+                                    <select name="au_gst" class="form-select">
+                                        <option value="Yes" {% if settings.get('au_gst') == 'Yes' %}selected{% endif %}>Yes</option>
+                                        <option value="No" {% if settings.get('au_gst') == 'No' %}selected{% endif %}>No</option>
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -148,7 +156,7 @@
                             <h5 class="fw-bold mb-3">🇳🇿 New Zealand Tax Rules</h5>
                             <div class="row">
                                 <div class="col-md-6"><label>IRD Number</label><input type="text" name="ird_number" class="form-control" value="{{ settings.get('ird_number', '') }}"></div>
-                                <div class="col-md-6"><label>GST Rate (%)</label><input type="text" name="nz_gst" class="form-control" value="15"></div>
+                                <div class="col-md-6"><label>GST Rate (%)</label><input type="text" name="nz_gst" class="form-control" value="{{ settings.get('nz_gst', '15') }}"></div>
                             </div>
                         </div>
                     </div>
@@ -158,7 +166,7 @@
                             <h5 class="fw-bold mb-3 text-warning">🇿🇦 South Africa Tax Rules</h5>
                             <div class="row">
                                 <div class="col-md-6"><label>VAT Registration No</label><input type="text" name="za_vat" class="form-control" value="{{ settings.get('za_vat', '') }}"></div>
-                                <div class="col-md-6"><label>Standard VAT Rate (%)</label><input type="text" name="za_rate" class="form-control" value="15"></div>
+                                <div class="col-md-6"><label>Standard VAT Rate (%)</label><input type="text" name="za_rate" class="form-control" value="{{ settings.get('za_rate', '15') }}"></div>
                             </div>
                         </div>
                     </div>
@@ -223,7 +231,6 @@
                 const target = document.getElementById('tax-' + country);
                 if (target) target.style.display = 'block';
 
-                // 2. (Optional) In a real app, we'd update live previews here
                 console.log("System Switched to: " + country + " | Currency: " + symbol);
             }
 

@@ -158,26 +158,46 @@ def finance_settings():
     return render_template('finance_settings.html', settings=settings_dict, brand_color=config['color'], logo_url=config['logo'])
 
 @app.route('/finance/settings/save', methods=['POST'])
+@app.route('/finance/settings/save', methods=['POST'])
 def save_settings():
     comp_id = session.get('company_id')
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     
-    # 1. Handle Text Fields
+    # 1. Handle Text Fields (Currency, Tax, Brand Color, etc.)
     for key, value in request.form.items():
-        cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, value))
+        cur.execute("""
+            INSERT INTO settings (company_id, key, value) 
+            VALUES (%s, %s, %s) 
+            ON CONFLICT (company_id, key) 
+            DO UPDATE SET value = EXCLUDED.value
+        """, (comp_id, key, value))
     
-    # 2. Handle Logo Upload
+    # 2. Handle Logo Upload (Saving to the 5GB Persistent Disk)
     if 'logo' in request.files:
         file = request.files['logo']
         if file and allowed_file(file.filename):
+            # Ensure the sub-folder exists on the disk
+            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+            
             filename = secure_filename(f"logo_{comp_id}_{file.filename}")
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            
+            # Save the physical file to the disk
             file.save(file_path)
-            # Save the relative path to the database
-            db_path = f"/{UPLOAD_FOLDER}/{filename}"
-            cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
+            
+            # Save the WEB PATH to the database so the browser can find it
+            # This must match your static folder structure
+            db_path = f"/static/uploads/logos/{filename}"
+            cur.execute("""
+                INSERT INTO settings (company_id, key, value) 
+                VALUES (%s, 'logo_url', %s) 
+                ON CONFLICT (company_id, key) 
+                DO UPDATE SET value = EXCLUDED.value
+            """, (comp_id, db_path))
 
-    conn.commit(); conn.close()
+    conn.commit()
+    conn.close()
     flash("Configuration Saved Successfully!")
     return redirect(url_for('finance_settings'))
 
