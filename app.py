@@ -8,9 +8,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev_key_123") 
 
 # --- CONFIG FOR LOGO UPLOADS (Persistent Disk) ---
-# This points to the 5GB disk you mounted in Render
 UPLOAD_FOLDER = '/opt/render/project/src/static/uploads/logos'
-# Fallback for local testing if the disk path doesn't exist
 if not os.path.exists('/opt/render/project/src'):
     UPLOAD_FOLDER = 'static/uploads/logos'
 
@@ -33,7 +31,6 @@ def get_db():
         return None
 
 # --- BRANDING HELPER ---
-# Loads logo and color for the finance pages
 def get_site_config(comp_id):
     if not comp_id:
         return {"color": "#27AE60", "logo": "/static/images/logo.png"}
@@ -48,61 +45,79 @@ def get_site_config(comp_id):
         "logo": settings_dict.get('logo_url', '/static/images/logo.png')
     }
 
-# --- PUBLIC WEBSITE ROUTES (Now pointing to /templates/public) ---
+# --- PUBLIC WEBSITE ROUTES ---
+# Notice: Each function now has TWO routes. 
+# One for the clean name, and one for the .html version (to fix your links).
+
 @app.route('/')
+@app.route('/index.html')
 def home():
     return render_template('public/index.html')
 
 @app.route('/about')
+@app.route('/about.html')
 def about():
     return render_template('public/about.html')
 
 @app.route('/services')
+@app.route('/services.html')
 def services():
     return render_template('public/services.html')
 
 @app.route('/tradecore')
+@app.route('/tradecore.html')
 def tradecore():
     return render_template('public/tradecore.html')
 
 @app.route('/forensics')
+@app.route('/forensics.html')
 def forensics():
     return render_template('public/forensics.html')
 
 @app.route('/contact')
+@app.route('/contact.html')
 def contact():
     return render_template('public/contact.html')
 
 @app.route('/pricing')
+@app.route('/pricing.html')
 def pricing():
     return render_template('public/pricing.html')
 
 @app.route('/legal')
+@app.route('/legal.html')
 def legal():
     return render_template('public/legal.html')
 
 @app.route('/process')
+@app.route('/process.html')
 def process():
     return render_template('public/process.html')
 
 # --- SERVICE PAGES ---
 @app.route('/roofing')
+@app.route('/roofing.html')
 def roofing(): return render_template('public/roofing.html')
 
 @app.route('/groundworks')
+@app.route('/groundworks.html')
 def groundworks(): return render_template('public/groundworks.html')
 
 @app.route('/landscaping')
+@app.route('/landscaping.html')
 def landscaping(): return render_template('public/landscaping.html')
 
 @app.route('/maintenance')
+@app.route('/maintenance.html')
 def maintenance(): return render_template('public/maintenance.html')
 
 @app.route('/management')
+@app.route('/management.html')
 def management(): return render_template('public/management.html')
 
 # --- AUTHENTICATION ---
 @app.route('/login', methods=['GET', 'POST'])
+@app.route('/login.html', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email_or_user = request.form.get('email')
@@ -142,15 +157,17 @@ def login():
 
     return render_template('public/login.html')
 
-# --- THE MAIN LAUNCHER (Root level template) ---
+# --- THE MAIN LAUNCHER ---
 @app.route('/dashboard-menu')
+@app.route('/dashboard-menu.html')
 def main_launcher():
     if 'user_id' not in session: return redirect(url_for('login'))
     return render_template('main_launcher.html', role=session.get('role'))
 
 
-# --- OFFICE DASHBOARD (Now pointing to /templates/office) ---
+# --- OFFICE DASHBOARD (Staff Only) ---
 @app.route('/office-hub')
+@app.route('/office-hub.html')
 def office_dashboard():
     if 'user_id' not in session: return redirect(url_for('login'))
     
@@ -181,8 +198,10 @@ def office_dashboard():
 
     return render_template('office/office_dashboard.html', total_income=income, total_expense=expense, transactions=transactions)
 
-# --- CLIENT PORTAL (Now pointing to /templates/client) ---
+
+# --- CLIENT PORTAL (End-Customer) ---
 @app.route('/client-portal')
+@app.route('/client-portal.html')
 def client_portal_login():
     return render_template('client/client_login.html')
 
@@ -191,8 +210,9 @@ def track_job(job_id):
     return render_template('client/client_tracking.html', job_id=job_id)
 
 
-# --- FINANCE DASHBOARD (Now pointing to /templates/finance) ---
+# --- FINANCE DASHBOARD ---
 @app.route('/finance-dashboard')
+@app.route('/finance-dashboard.html')
 def finance_dashboard():
     if 'user_id' not in session: return redirect(url_for('login'))
     if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
@@ -292,7 +312,6 @@ def finance_fleet():
             id SERIAL PRIMARY KEY, company_id INTEGER, reg_plate TEXT, make_model TEXT, daily_cost DECIMAL(10,2), mot_due DATE, tax_due DATE, service_due DATE, status TEXT, tracker_url TEXT
         );
     """)
-    # Auto-repair DB for new features
     cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tracker_url TEXT;")
     cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_notes TEXT;")
     cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_image TEXT;")
@@ -463,7 +482,7 @@ def save_settings():
     return redirect(url_for('finance_settings'))
 
 
-# --- SUPER ADMIN DASHBOARD (Root level template) ---
+# --- SUPER ADMIN DASHBOARD ---
 @app.route('/super-admin', methods=['GET', 'POST'])
 def super_admin_dashboard():
     if session.get('role') != 'SuperAdmin': return redirect(url_for('login'))
