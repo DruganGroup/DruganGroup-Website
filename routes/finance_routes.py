@@ -41,7 +41,7 @@ def finance_dashboard():
     return render_template('finance/finance_dashboard.html', total_income=income, total_expense=expense, total_balance=balance, transactions=transactions, brand_color=config['color'], logo_url=config['logo'])
 
 
-# --- 2. HR & STAFF ---
+# --- 2. HR & STAFF (PROFESSIONAL VERSION) ---
 @finance_bp.route('/finance/hr')
 def finance_hr():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -103,7 +103,7 @@ def add_staff():
             # Check if user exists
             cur.execute("SELECT id FROM users WHERE email=%s", (email,))
             if not cur.fetchone():
-                # Create User
+                # Create User (Store password)
                 cur.execute("""
                     INSERT INTO users (username, email, password_hash, role, company_id) 
                     VALUES (%s, %s, %s, %s, %s)
@@ -123,17 +123,19 @@ def add_staff():
                     <p>Please login and change your password immediately.</p>
                     """
                     send_company_email(comp_id, email, subject, body)
-                    flash(f"Staff added and login details emailed to {email}")
+                    flash(f"✅ Staff added and login details emailed to {email}")
                 except ImportError:
-                    flash("Staff added. (Email Service not found - check file placement)")
+                    flash("✅ Staff added. (Email Service not found - check file placement)")
+                except Exception as e:
+                    flash(f"✅ Staff added, but email failed: {str(e)}")
             else:
-                flash("Staff added, but user email already exists in system.")
+                flash("⚠️ Staff added, but user email already exists in system.")
         else:
-            flash("Staff member added successfully.")
+            flash("✅ Staff member added successfully.")
 
         conn.commit()
     except Exception as e:
-        conn.rollback(); flash(f"Error: {e}")
+        conn.rollback(); flash(f"❌ Error: {e}")
     finally: conn.close()
     return redirect(url_for('finance.finance_hr'))
 
