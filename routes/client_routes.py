@@ -116,3 +116,26 @@ def delete_client(id):
     cur.execute("DELETE FROM clients WHERE id=%s AND company_id=%s", (id, session.get('company_id')))
     conn.commit(); conn.close()
     return redirect(url_for('client.client_dashboard'))
+    
+    # --- DATABASE REPAIR TOOL ---
+@client_bp.route('/clients/fix-schema')
+def fix_client_schema():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
+    
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # Force add the missing columns
+        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS site_address TEXT;")
+        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS gate_code TEXT;")
+        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS billing_address TEXT;")
+        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes TEXT;")
+        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';")
+        
+        conn.commit()
+        return "<h1>✅ Client Database Upgraded Successfully!</h1><br><a href='/clients'>Click here to view Client List</a>"
+    except Exception as e:
+        conn.rollback()
+        return f"<h1>Error</h1><p>{e}</p>"
+    finally:
+        conn.close()
