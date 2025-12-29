@@ -315,3 +315,38 @@ def save_system_settings():
         conn.close()
         
     return redirect(url_for('admin.super_admin_dashboard'))
+    
+    # --- 8. DELETE COMPANY (THE NUCLEAR OPTION) ---
+@admin_bp.route('/admin/delete-tenant/<int:company_id>')
+def delete_tenant(company_id):
+    if session.get('role') != 'SuperAdmin': return "Access Denied", 403
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Clean up all tables linked to this company
+        tables = [
+            'transactions', 'service_requests', 'properties', 'clients', 
+            'vehicles', 'materials', 'staff', 'users', 
+            'system_settings', 'settings', 'subscriptions'
+        ]
+        
+        for table in tables:
+            cur.execute(f"SELECT to_regclass('{table}')")
+            if cur.fetchone()[0]: 
+                cur.execute(f"DELETE FROM {table} WHERE company_id = %s", (company_id,))
+        
+        # 2. Delete the Company record itself
+        cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
+        
+        conn.commit()
+        flash(f"✅ Company ID {company_id} and ALL data have been permanently deleted.")
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Delete Failed: {e}")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('admin.super_admin_dashboard'))
