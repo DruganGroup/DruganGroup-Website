@@ -364,3 +364,57 @@ def fix_database_ids():
     except Exception as e:
         conn.rollback(); return f"<h1>Error</h1><p>{e}</p>"
     finally: conn.close()
+    
+    # --- TEMP TOOL: GENERATE SUBDOMAINS FOR EXISTING COMPANIES ---
+@finance_bp.route('/finance/fix-subdomains')
+def fix_subdomains():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
+    
+    conn = get_db()
+    cur = conn.cursor()
+    import re
+
+    messages = []
+    try:
+        # 1. Add the Column if it doesn't exist
+        cur.execute("ALTER TABLE companies ADD COLUMN IF NOT EXISTS subdomain TEXT UNIQUE;")
+        conn.commit()
+        messages.append("✅ 'subdomain' column confirmed.")
+
+        # 2. Fetch all companies that don't have a subdomain yet
+        cur.execute("SELECT id, name FROM companies WHERE subdomain IS NULL OR subdomain = ''")
+        companies = cur.fetchall()
+
+        for comp in companies:
+            c_id = comp[0]
+            c_name = comp[1]
+            
+            # 3. Create "Slug" (Lowercase, remove special chars, spaces to hyphens)
+            # e.g. "Nick's Construction Ltd." -> "nicks-construction-ltd"
+            base_slug = re.sub(r'[^a-z0-9-]', '', c_name.lower().replace(' ', '-'))
+            # Remove double hyphens caused by weird symbols
+            base_slug = re.sub(r'-+', '-', base_slug).strip('-')
+            
+            # 4. Duplicate Defender
+            # Check if this slug exists. If so, add -1, -2, etc.
+            final_slug = base_slug
+            counter = 1
+            while True:
+                cur.execute("SELECT id FROM companies WHERE subdomain = %s AND id != %s", (final_slug, c_id))
+                if not cur.fetchone():
+                    break # Unique!
+                final_slug = f"{base_slug}-{counter}"
+                counter += 1
+            
+            # 5. Save it
+            cur.execute("UPDATE companies SET subdomain = %s WHERE id = %s", (final_slug, c_id))
+            messages.append(f"✅ Generated subdomain for {c_name}: <strong>{final_slug}</strong>")
+
+        conn.commit()
+        return f"<h1>Subdomain Generation Complete</h1><br>{'<br>'.join(messages)}<br><br><a href='/finance-dashboard'>Back to Dashboard</a>"
+
+    except Exception as e:
+        conn.rollback()
+        return f"<h1>Error</h1><p>{e}</p>"
+    finally:
+        conn.close()
