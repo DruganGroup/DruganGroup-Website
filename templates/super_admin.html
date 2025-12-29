@@ -97,7 +97,7 @@
                 </div>
               {% endif %}
             {% endwith %}
-
+			
             <div class="admin-card">
                 <h3><i class="fas fa-bolt"></i> Deploy New Tenant</h3>
                 <form method="POST">
@@ -120,6 +120,53 @@
 
             <div class="admin-card">
                 <h3><i class="fas fa-building"></i> Active Tenants</h3>
+				
+				<div class="admin-card" style="border-left: 3px solid #3498db;">
+    <h3><i class="fas fa-cogs"></i> System Configuration</h3>
+    <form method="POST" action="/admin/settings">
+        <div class="form-grid">
+            
+            <div style="grid-column: span 2;">
+                <h4 style="color: #3498db; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 5px;">
+                    <i class="fas fa-envelope"></i> Outgoing Mail Server (SMTP)
+                </h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div>
+                        <label>SMTP Server Host</label>
+                        <input type="text" name="smtp_server" class="dark-input" placeholder="smtp.gmail.com" value="{{ config.get('smtp_server', '') }}">
+                    </div>
+                    <div>
+                        <label>SMTP Port</label>
+                        <input type="text" name="smtp_port" class="dark-input" placeholder="587" value="{{ config.get('smtp_port', '') }}">
+                    </div>
+                    <div>
+                        <label>System Email Address</label>
+                        <input type="text" name="smtp_email" class="dark-input" placeholder="system@drugangroup.co.uk" value="{{ config.get('smtp_email', '') }}">
+                    </div>
+                    <div>
+                        <label>Email Password / App Key</label>
+                        <input type="password" name="smtp_password" class="dark-input" placeholder="••••••••" value="{{ config.get('smtp_password', '') }}">
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 style="color: #e74c3c; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 5px;">
+                    <i class="fas fa-bullhorn"></i> Global Broadcast
+                </h4>
+                <label>System Alert Message</label>
+                <input type="text" name="global_alert" class="dark-input" placeholder="e.g. System Maintenance at 10PM..." value="{{ config.get('global_alert', '') }}">
+                <p style="font-size: 0.75rem; color: #888; margin-top: 5px;">Leave empty to disable. If set, ALL users will see this banner.</p>
+            </div>
+
+            <div style="display: flex; align-items: end;">
+                <button type="submit" class="btn-manage" style="width: 100%; padding: 12px;">
+                    <i class="fas fa-save"></i> Save System Config
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
                 
                 <div class="search-box">
                     <i class="fas fa-search"></i>

@@ -28,7 +28,6 @@ def perform_company_backup(company_id, cur):
         cur.execute(f"SELECT to_regclass('{table}')")
         if cur.fetchone()[0]:
             # Fetch data strictly for this company
-            # Note: 'companies' table uses 'id', others use 'company_id'
             if table == 'companies':
                 cur.execute(f"SELECT * FROM {table} WHERE id = %s", (company_id,))
             else:
@@ -41,6 +40,7 @@ def perform_company_backup(company_id, cur):
                 backup_data[table] = [dict(zip(columns, row)) for row in rows]
 
     return backup_data
+
 
 # --- 1. SUPER ADMIN DASHBOARD ---
 @admin_bp.route('/super-admin', methods=['GET', 'POST'])
@@ -107,14 +107,21 @@ def super_admin_dashboard():
     """)
     companies = cur.fetchall()
     
-    # 2. Users (NEW: For Password Reset Table)
+    # 2. Users (For Password Reset Table)
     cur.execute("SELECT id, username, role, company_id FROM users ORDER BY id ASC")
     users = cur.fetchall()
+
+    # 3. System Settings (For SMTP Config)
+    cur.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)") # Safety check
+    cur.execute("SELECT key, value FROM system_settings")
+    settings_rows = cur.fetchall()
+    system_config = {row[0]: row[1] for row in settings_rows}
     
     conn.close()
     
-    # Pass both 'companies' and 'users' to the template
-    return render_template('super_admin.html', companies=companies, users=users)
+    # Pass all data to the template
+    return render_template('super_admin.html', companies=companies, users=users, config=system_config)
+
 
 # --- 2. HANDLE PASSWORD RESET ---
 @admin_bp.route('/admin/reset-password', methods=['POST'])
@@ -140,6 +147,7 @@ def reset_user_password():
         conn.close()
         
     return redirect(url_for('admin.super_admin_dashboard'))
+
 
 # --- 3. SUSPEND / ACTIVATE COMPANY ---
 @admin_bp.route('/admin/suspend/<int:company_id>')
@@ -173,6 +181,7 @@ def toggle_suspend(company_id):
         
     return redirect(url_for('admin.super_admin_dashboard'))
 
+
 # --- 4. UPDATE TIER (Basic / Pro / Enterprise) ---
 @admin_bp.route('/admin/update-tier', methods=['POST'])
 def update_tier():
@@ -193,6 +202,7 @@ def update_tier():
     finally:
         conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
+
 
 # --- 5. RUN BACKUP FOR A COMPANY ---
 @admin_bp.route('/admin/backup/<int:company_id>')
@@ -226,6 +236,7 @@ def backup_company(company_id):
         conn.close()
         
     return redirect(url_for('admin.super_admin_dashboard'))
+
 
 # --- 6. MASS BACKUP (ALL COMPANIES) ---
 @admin_bp.route('/admin/backup/all')
@@ -261,6 +272,45 @@ def backup_all_companies():
         
     except Exception as e:
         flash(f"❌ Mass Backup Failed: {e}")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('admin.super_admin_dashboard'))
+
+
+# --- 7. SYSTEM SETTINGS & SMTP ---
+@admin_bp.route('/admin/settings', methods=['POST'])
+def save_system_settings():
+    if session.get('role') != 'SuperAdmin': return "Access Denied", 403
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # We will store settings as Key-Value pairs in a new table
+    settings = {
+        'smtp_server': request.form.get('smtp_server'),
+        'smtp_port': request.form.get('smtp_port'),
+        'smtp_email': request.form.get('smtp_email'),
+        'smtp_password': request.form.get('smtp_password'), # In production, encrypt this!
+        'global_alert': request.form.get('global_alert')    # For broadcast messages
+    }
+    
+    try:
+        # Create table if it doesn't exist
+        cur.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)")
+        
+        for key, val in settings.items():
+            cur.execute("""
+                INSERT INTO system_settings (key, value) 
+                VALUES (%s, %s) 
+                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+            """, (key, val))
+            
+        conn.commit()
+        flash("✅ System Configuration Saved")
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error: {e}")
     finally:
         conn.close()
         
