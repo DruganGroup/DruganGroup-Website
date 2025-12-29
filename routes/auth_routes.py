@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash
 from db import get_db
-# FIXED IMPORT BELOW: Now includes generate_password_hash
+# Ensure all security tools are imported
 from werkzeug.security import check_password_hash, generate_password_hash
 
 auth_bp = Blueprint('auth', __name__)
@@ -18,7 +18,6 @@ def login():
         user = cur.fetchone()
         conn.close()
 
-        # If user found AND password hash matches
         if user and check_password_hash(user[2], password):
             session['user_id'] = user[0]
             session['username'] = user[1]
@@ -59,54 +58,18 @@ def client_portal_login():
 def main_launcher():
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
-    return render_template('auth/launcher.html', role=session.get('role'))
+    
+    # --- SUPER ADMIN REDIRECT (User ID 1) ---
+    if session.get('user_id') == 1:
+        # Assumes the file is named 'super_admin.html' in the templates folder
+        return render_template('super_admin.html')
+
+    # --- STAFF REDIRECT (Everyone else) ---
+    # Corrected to 'main_launcher.html' as per your instructions
+    return render_template('main_launcher.html', role=session.get('role'))
 
 @auth_bp.route('/logout')
 def logout():
     session.clear()
     flash("🔒 You have been logged out securely.")
     return redirect(url_for('auth.login'))
-
-# --- DIAGNOSTIC & FIX TOOL (DELETE AFTER USE) ---
-@auth_bp.route('/debug-auth-fix')
-def debug_auth_fix():
-    conn = get_db()
-    if not conn:
-        return "<h1>❌ CRITICAL: Database Connection Failed. Check Render Environment Variables.</h1>"
-
-    cur = conn.cursor()
-    target_email = 'admin@drugangroup.co.uk' # CHANGE THIS IF YOUR EMAIL IS DIFFERENT
-    target_pass = 'admin123'                 # THIS WILL BE YOUR NEW PASSWORD
-    
-    # 1. Check if user exists
-    cur.execute("SELECT id, username, password_hash FROM users WHERE username = %s", (target_email,))
-    user = cur.fetchone()
-    
-    if not user:
-        conn.close()
-        return f"<h1>❌ Connected, but User '{target_email}' Not Found</h1><p>Check the spelling of the email in your database.</p>"
-
-    # 2. Show what is currently stored (Safe first few chars)
-    current_stored = user[2]
-    
-    # 3. Force Update to the correct Hash
-    new_hash = generate_password_hash(target_pass)
-    try:
-        cur.execute("UPDATE users SET password_hash = %s WHERE username = %s", (new_hash, target_email))
-        conn.commit()
-        msg = f"""
-        <h1>✅ REPAIR SUCCESSFUL</h1>
-        <p><strong>Database Connection:</strong> 100% Active</p>
-        <p><strong>User Found:</strong> Yes (ID: {user[0]})</p>
-        <p><strong>Previous Password Data:</strong> {current_stored[:15]}...</p>
-        <p><strong>Action Taken:</strong> Password reset to secure hash.</p>
-        <hr>
-        <h3>👉 <a href='/login'>Go Login Now</a></h3>
-        <p><strong>Username:</strong> {target_email}</p>
-        <p><strong>Password:</strong> {target_pass}</p>
-        """
-    except Exception as e:
-        msg = f"<h1>❌ Update Failed</h1><p>Error: {e}</p>"
-    
-    conn.close()
-    return msg
