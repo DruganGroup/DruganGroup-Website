@@ -8,6 +8,7 @@
     <style>
         body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
         
+        /* YOUR EXISTING SIDEBAR & LAYOUT CSS */
         .sidebar { 
             height: 100vh; 
             background-color: {{ brand_color }}; 
@@ -23,6 +24,8 @@
         
         .content { margin-left: 250px; padding: 30px; }
         .card { border: none; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+
+        /* NEW STYLING FOR THE PRO MODAL */
         .form-section-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: #6c757d; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 15px; }
     </style>
 </head>
@@ -33,6 +36,7 @@
             <img src="{{ logo_url }}" alt="Logo" style="max-width: 180px; height: auto; padding: 10px; border-radius: 10px;">
             <div class="fw-bold fs-5 text-uppercase mt-2">Finance Admin</div>
         </div>
+        
         <a href="/finance-dashboard"><i class="fas fa-tachometer-alt me-2"></i> Overview</a>
         <a href="/finance/hr" class="active"><i class="fas fa-users me-2"></i> HR & Staff</a>
         <a href="/finance/fleet"><i class="fas fa-truck me-2"></i> Fleet & Gangs</a>
@@ -46,7 +50,7 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h2 class="fw-bold">Staff Directory</h2>
-                <p class="text-muted">Manage employees, sub-contractors, and system users.</p>
+                <p class="text-muted mb-0">Manage employees, sub-contractors, and system access.</p>
             </div>
             <button class="btn btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#addStaffModal">
                 <i class="fas fa-user-plus me-2"></i> Add New Staff
@@ -57,10 +61,10 @@
             <table class="table table-hover align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th>Name</th>
-                        <th>Contact</th>
-                        <th>Role / Type</th>
-                        <th>Pay Model</th>
+                        <th>Name / Role</th>
+                        <th>Contact Details</th>
+                        <th>Type</th>
+                        <th>Pay Rate</th>
                         <th>System Access</th>
                         <th class="text-end">Action</th>
                     </tr>
@@ -70,25 +74,30 @@
                     <tr>
                         <td>
                             <div class="fw-bold">{{ s[1] }}</div>
-                            <small class="text-muted">{{ s[2] }}</small>
+                            <div class="text-muted small">{{ s[2] }}</div>
                         </td>
+                        
                         <td>
-                            <div style="font-size: 0.9rem;"><i class="fas fa-envelope me-1 text-muted"></i> {{ s[7] }}</div>
-                            <div style="font-size: 0.9rem;"><i class="fas fa-phone me-1 text-muted"></i> {{ s[8] }}</div>
+                            {% if s[7] %}<div class="small"><i class="fas fa-envelope text-muted me-1"></i> {{ s[7] }}</div>{% endif %}
+                            {% if s[8] %}<div class="small"><i class="fas fa-phone text-muted me-1"></i> {{ s[8] }}</div>{% endif %}
                         </td>
+
                         <td>
-                            <span class="badge {{ 'bg-info text-dark' if s[9] == 'Employee' else 'bg-warning text-dark' }}">{{ s[9] }}</span>
-                            <div class="small text-muted mt-1">{{ s[3] }}</div>
+                            <span class="badge {{ 'bg-info text-dark' if s[9] == 'Employee' else 'bg-warning text-dark' }}">{{ s[9] or 'Staff' }}</span>
+                            <div class="small text-muted">{{ s[3] }}</div>
                         </td>
-                        <td>
-                            £{{ s[4] }} <span class="text-muted">/ {{ s[5] }}</span>
+
+                        <td class="fw-bold text-success">
+                            £{{ s[4] }} <span class="text-muted fw-normal text-small">/ {{ s[5] }}</span>
                         </td>
+
                         <td>
                             {% if s[6] == 'Admin' %}<span class="badge bg-danger">Admin</span>
                             {% elif s[6] == 'Office' %}<span class="badge bg-primary">Office</span>
                             {% elif s[6] == 'Site' %}<span class="badge bg-success">Site App</span>
-                            {% else %}<span class="badge bg-secondary">No Access</span>{% endif %}
+                            {% else %}<span class="badge bg-secondary">None</span>{% endif %}
                         </td>
+
                         <td class="text-end">
                             <a href="/finance/hr/delete/{{ s[0] }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this staff member?')">
                                 <i class="fas fa-trash"></i>
@@ -113,7 +122,7 @@
                 <form action="/finance/hr/add" method="POST">
                     <div class="modal-body p-4">
                         
-                        <div class="form-section-title">1. Personal Details</div>
+                        <div class="form-section-title">1. Personal & Contact Details</div>
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label">Full Name</label>
@@ -124,8 +133,9 @@
                                 <input type="text" name="position" class="form-control" placeholder="e.g. Senior Roofer">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Email Address</label>
+                                <label class="form-label">Email Address <span class="text-danger">*</span></label>
                                 <input type="email" name="email" class="form-control" placeholder="john@example.com" required>
+                                <div class="form-text text-muted">Used for login and notifications.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Phone Number</label>
@@ -133,7 +143,7 @@
                             </div>
                             <div class="col-12">
                                 <label class="form-label">Home Address</label>
-                                <input type="text" name="address" class="form-control" placeholder="Full Address with Postcode">
+                                <input type="text" name="address" class="form-control" placeholder="Full Address">
                             </div>
                         </div>
 
@@ -144,7 +154,7 @@
                                 <select name="employment_type" class="form-select">
                                     <option value="Employee">Full-Time Employee</option>
                                     <option value="Part-Time">Part-Time Employee</option>
-                                    <option value="Sub-Contractor">Sub-Contractor (CIS/1099)</option>
+                                    <option value="Sub-Contractor">Sub-Contractor (CIS)</option>
                                     <option value="Casual">Casual / Zero Hours</option>
                                 </select>
                             </div>
@@ -154,52 +164,48 @@
                                     <option>Site / Field</option>
                                     <option>Office / Admin</option>
                                     <option>Management</option>
-                                    <option>Sales</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Pay Rate</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">£/$</span>
-                                    <input type="number" step="0.01" name="rate" class="form-control" placeholder="0.00">
-                                </div>
+                                <label class="form-label">Pay Rate (£)</label>
+                                <input type="number" step="0.01" name="rate" class="form-control" placeholder="0.00">
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Per...</label>
                                 <select name="model" class="form-select">
                                     <option value="Hour">Hour</option>
                                     <option value="Day">Day</option>
-                                    <option value="Year">Year (Salary)</option>
-                                    <option value="Job">Fixed Price (Subbie)</option>
+                                    <option value="Year">Year</option>
+                                    <option value="Job">Fixed (Subbie)</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Tax / ID Number</label>
-                                <input type="text" name="tax_id" class="form-control" placeholder="NI / SSN / UTR">
+                                <label class="form-label">Tax ID / NI / UTR</label>
+                                <input type="text" name="tax_id" class="form-control">
                             </div>
                         </div>
 
-                        <div class="form-section-title text-primary">3. System Access (User Login)</div>
+                        <div class="form-section-title text-primary">3. System Access</div>
                         <div class="bg-light p-3 rounded border">
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="form-label fw-bold">Software Access Level</label>
+                                    <label class="form-label fw-bold">Permission Level</label>
                                     <select name="access_level" class="form-select" id="accessSelect" onchange="togglePassword()">
                                         <option value="None">No Access (Manual Worker)</option>
                                         <option value="Site">Site App Only (Mobile)</option>
-                                        <option value="Office">Office Hub (Quotes/Invoices)</option>
+                                        <option value="Office">Office Hub (Quotes/Admin)</option>
                                         <option value="Admin">Full Admin (Finance/HR)</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6" id="passwordField" style="display:none;">
-                                    <label class="form-label fw-bold">Login Password</label>
+                                    <label class="form-label fw-bold">User Password</label>
                                     <div class="input-group">
-                                        <input type="text" name="password" id="generatedPass" class="form-control" placeholder="Leave blank to auto-generate">
+                                        <input type="text" name="password" id="generatedPass" class="form-control" placeholder="Auto-generate...">
                                         <button class="btn btn-outline-secondary" type="button" onclick="generatePass()">
                                             <i class="fas fa-random"></i> Generate
                                         </button>
                                     </div>
-                                    <div class="form-text text-success"><i class="fas fa-envelope"></i> Credentials will be emailed to the user.</div>
+                                    <small class="text-success"><i class="fas fa-envelope"></i> Login details will be emailed to them.</small>
                                 </div>
                             </div>
                         </div>
@@ -220,10 +226,12 @@
         function togglePassword() {
             const val = document.getElementById('accessSelect').value;
             const passField = document.getElementById('passwordField');
+            
             if(val === 'None') {
                 passField.style.display = 'none';
             } else {
                 passField.style.display = 'block';
+                // Auto generate if empty
                 if(document.getElementById('generatedPass').value === '') {
                     generatePass();
                 }
@@ -231,7 +239,7 @@
         }
 
         function generatePass() {
-            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$";
+            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$";
             let pass = "";
             for (let i = 0; i < 12; i++) {
                 pass += chars.charAt(Math.floor(Math.random() * chars.length));
