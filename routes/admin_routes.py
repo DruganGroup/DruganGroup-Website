@@ -3,10 +3,46 @@ from db import get_db
 from werkzeug.security import generate_password_hash
 from datetime import datetime
 import re
-
+import json
+import os
+import zipfile
 
 admin_bp = Blueprint('admin', __name__)
 
+# --- HELPER: PERFORM SINGLE BACKUP (Used by Single & Mass Backup) ---
+def perform_company_backup(company_id, cur):
+    backup_data = {}
+    
+    # THE COMPLETE LIST OF TABLES
+    # We include 'companies' and 'subscriptions' to ensure we capture the core account info
+    tables = [
+        'companies', 'subscriptions', 'settings',  # Core & Branding
+        'users', 'staff',                          # People
+        'vehicles', 'materials',                   # Assets
+        'clients', 'properties',                   # CRM
+        'service_requests', 'transactions'         # Data
+    ]
+    
+    for table in tables:
+        # Check if table exists first (Safety check)
+        cur.execute(f"SELECT to_regclass('{table}')")
+        if cur.fetchone()[0]:
+            # Fetch data strictly for this company
+            # Note: 'companies' table uses 'id', others use 'company_id'
+            if table == 'companies':
+                cur.execute(f"SELECT * FROM {table} WHERE id = %s", (company_id,))
+            else:
+                cur.execute(f"SELECT * FROM {table} WHERE company_id = %s", (company_id,))
+            
+            if cur.description:
+                columns = [desc[0] for desc in cur.description]
+                rows = cur.fetchall()
+                # Convert rows to list of dicts
+                backup_data[table] = [dict(zip(columns, row)) for row in rows]
+
+    return backup_data
+
+# --- 1. SUPER ADMIN DASHBOARD ---
 @admin_bp.route('/super-admin', methods=['GET', 'POST'])
 def super_admin_dashboard():
     # Security Check
@@ -49,7 +85,6 @@ def super_admin_dashboard():
             cur.execute("INSERT INTO subscriptions (company_id, plan_tier, status) VALUES (%s, %s, 'Active')", (new_company_id, plan))
             
             # Create Admin User
-            # Important: We hash the password here for consistency
             secure_pass = generate_password_hash(owner_pass)
             cur.execute("INSERT INTO users (username, password_hash, email, role, company_id) VALUES (%s, %s, %s, 'Admin', %s)", 
                         (owner_email, secure_pass, owner_email, new_company_id))
@@ -81,7 +116,7 @@ def super_admin_dashboard():
     # Pass both 'companies' and 'users' to the template
     return render_template('super_admin.html', companies=companies, users=users)
 
-# --- NEW ROUTE: HANDLE PASSWORD RESET ---
+# --- 2. HANDLE PASSWORD RESET ---
 @admin_bp.route('/admin/reset-password', methods=['POST'])
 def reset_user_password():
     if session.get('role') != 'SuperAdmin':
@@ -105,7 +140,9 @@ def reset_user_password():
         conn.close()
         
     return redirect(url_for('admin.super_admin_dashboard'))
-    admin_bp.route('/admin/suspend/<int:company_id>')
+
+# --- 3. SUSPEND / ACTIVATE COMPANY ---
+@admin_bp.route('/admin/suspend/<int:company_id>')
 def toggle_suspend(company_id):
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
     
@@ -119,9 +156,15 @@ def toggle_suspend(company_id):
             SET status = CASE WHEN status = 'Active' THEN 'Suspended' ELSE 'Active' END 
             WHERE company_id = %s RETURNING status
         """, (company_id,))
-        new_status = cur.fetchone()[0]
-        conn.commit()
-        flash(f"✅ Company ID {company_id} is now {new_status}")
+        result = cur.fetchone()
+        
+        if result:
+            new_status = result[0]
+            conn.commit()
+            flash(f"✅ Company ID {company_id} is now {new_status}")
+        else:
+            flash("❌ Company subscription not found.")
+            
     except Exception as e:
         conn.rollback()
         flash(f"❌ Error: {e}")
@@ -130,7 +173,7 @@ def toggle_suspend(company_id):
         
     return redirect(url_for('admin.super_admin_dashboard'))
 
-# --- 2. UPDATE TIER (Basic / Pro / Enterprise) ---
+# --- 4. UPDATE TIER (Basic / Pro / Enterprise) ---
 @admin_bp.route('/admin/update-tier', methods=['POST'])
 def update_tier():
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
@@ -151,31 +194,20 @@ def update_tier():
         conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
 
-# --- 3. RUN BACKUP FOR A COMPANY ---
+# --- 5. RUN BACKUP FOR A COMPANY ---
 @admin_bp.route('/admin/backup/<int:company_id>')
 def backup_company(company_id):
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
     
     conn = get_db()
     cur = conn.cursor()
-    backup_data = {}
     
     try:
-        # Gather all data for this company
-        tables = ['users', 'clients', 'properties', 'service_requests', 'transactions', 'staff']
-        for table in tables:
-            # Check if table exists first to avoid errors
-            cur.execute(f"SELECT to_regclass('{table}')")
-            if cur.fetchone()[0]:
-                cur.execute(f"SELECT * FROM {table} WHERE company_id = %s", (company_id,))
-                columns = [desc[0] for desc in cur.description]
-                rows = cur.fetchall()
-                # Convert rows to list of dicts
-                backup_data[table] = [dict(zip(columns, row)) for row in rows]
+        data = perform_company_backup(company_id, cur)
         
-        # Save to file (simulated secure storage)
+        # Save to JSON
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
-        filename = f"backup_co{company_id}_{timestamp}.json"
+        filename = f"FULL_BACKUP_Co{company_id}_{timestamp}.json"
         
         # Ensure backup directory exists
         backup_dir = os.path.join(os.getcwd(), 'static', 'backups')
@@ -183,14 +215,52 @@ def backup_company(company_id):
         
         filepath = os.path.join(backup_dir, filename)
         
-        # Write JSON (Handle date serialization manually if needed, usually default=str works)
         with open(filepath, 'w') as f:
-            json.dump(backup_data, f, indent=4, default=str)
+            json.dump(data, f, indent=4, default=str)
             
-        flash(f"💾 Backup successful! Saved to: static/backups/{filename}")
+        flash(f"💾 Complete Backup (inc. Logo/Fleet) saved: {filename}")
         
     except Exception as e:
         flash(f"❌ Backup Failed: {e}")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('admin.super_admin_dashboard'))
+
+# --- 6. MASS BACKUP (ALL COMPANIES) ---
+@admin_bp.route('/admin/backup/all')
+def backup_all_companies():
+    if session.get('role') != 'SuperAdmin': return "Access Denied", 403
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Get all Company IDs
+        cur.execute("SELECT id FROM companies")
+        company_ids = [row[0] for row in cur.fetchall()]
+        
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        backup_dir = os.path.join(os.getcwd(), 'static', 'backups')
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # 2. Create a ZIP file to hold all backups
+        zip_filename = f"MASS_BACKUP_{timestamp}.zip"
+        zip_path = os.path.join(backup_dir, zip_filename)
+        
+        with zipfile.ZipFile(zip_path, 'w') as zipf:
+            for c_id in company_ids:
+                # Generate data for this company
+                data = perform_company_backup(c_id, cur)
+                
+                # Write individual JSON inside the ZIP
+                json_name = f"Company_{c_id}_Data.json"
+                zipf.writestr(json_name, json.dumps(data, indent=4, default=str))
+        
+        flash(f"✅ MASS BACKUP COMPLETE! Saved {len(company_ids)} companies to {zip_filename}")
+        
+    except Exception as e:
+        flash(f"❌ Mass Backup Failed: {e}")
     finally:
         conn.close()
         
