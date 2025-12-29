@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash
 from db import get_db
+# FIXED IMPORT BELOW: Now includes generate_password_hash
 from werkzeug.security import check_password_hash, generate_password_hash
 
 auth_bp = Blueprint('auth', __name__)
@@ -17,6 +18,7 @@ def login():
         user = cur.fetchone()
         conn.close()
 
+        # If user found AND password hash matches
         if user and check_password_hash(user[2], password):
             session['user_id'] = user[0]
             session['username'] = user[1]
@@ -51,7 +53,6 @@ def client_portal_login():
         else:
             flash("❌ Invalid Client Email or Password")
     
-    # Pointing to templates/public/login.html
     return render_template('public/login.html', active_tab='client')
 
 @auth_bp.route('/launcher')
@@ -65,7 +66,6 @@ def logout():
     session.clear()
     flash("🔒 You have been logged out securely.")
     return redirect(url_for('auth.login'))
-    from werkzeug.security import generate_password_hash
 
 # --- DIAGNOSTIC & FIX TOOL (DELETE AFTER USE) ---
 @auth_bp.route('/debug-auth-fix')
