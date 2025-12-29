@@ -33,6 +33,11 @@
             cursor: pointer; text-decoration: none; color: inherit; display: block; 
         }
         .card-menu:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        
+        /* FINANCIAL SUMMARIES */
+        .card-finance { border: none; border-radius: 10px; color: white; }
+        .bg-income { background: linear-gradient(45deg, #2ecc71, #27ae60); }
+        .bg-expense { background: linear-gradient(45deg, #e74c3c, #c0392b); }
     </style>
 </head>
 <body>
@@ -103,6 +108,21 @@
             </div>
         </div>
 
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="card card-finance bg-income p-4">
+                    <h3><i class="fas fa-arrow-up"></i> &pound;{{ total_income }}</h3>
+                    <span>Total Revenue (This Year)</span>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card card-finance bg-expense p-4">
+                    <h3><i class="fas fa-arrow-down"></i> &pound;{{ total_expense }}</h3>
+                    <span>Total Expenses (This Year)</span>
+                </div>
+            </div>
+        </div>
+
         <div class="card p-3">
             <h5 class="fw-bold mb-3">Recent Transactions</h5>
             <table class="table table-hover align-middle">
@@ -126,7 +146,7 @@
                         <td>
                             <span class="badge {{ 'bg-success' if t[2] == 'Income' else 'bg-danger' }}">{{ t[2] }}</span>
                         </td>
-                        <td class="fw-bold">£{{ t[5] }}</td>
+                        <td class="fw-bold">&pound;{{ t[5] }}</td>
                         <td>
                             <a href="/office/send-receipt/{{ t[0] }}" class="btn btn-sm btn-outline-dark"><i class="fas fa-envelope"></i> Send</a>
                         </td>
