@@ -41,7 +41,7 @@ def finance_dashboard():
     return render_template('finance/finance_dashboard.html', total_income=income, total_expense=expense, total_balance=balance, transactions=transactions, brand_color=config['color'], logo_url=config['logo'])
 
 
-# --- 2. HR & STAFF (UPDATED) ---
+# --- 2. HR & STAFF (PROFESSIONAL VERSION) ---
 @finance_bp.route('/finance/hr')
 def finance_hr():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -52,7 +52,6 @@ def finance_hr():
     # Update DB Schema (Add new columns if they don't exist)
     try:
         cur.execute("CREATE TABLE IF NOT EXISTS staff (id SERIAL PRIMARY KEY, company_id INTEGER, name TEXT, position TEXT, dept TEXT, pay_rate DECIMAL(10,2), pay_model TEXT, access_level TEXT);")
-        # Add the new columns for the detailed form
         cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS email TEXT;")
         cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS phone TEXT;")
         cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS address TEXT;")
@@ -111,53 +110,28 @@ def add_staff():
                 """, (email, email, password, access, comp_id))
                 
                 # 4. SEND EMAIL with Credentials
-                # (This uses the email engine we built earlier)
-                from email_service import send_company_email
-                subject = "Welcome to TradeCore - Your Login Details"
-                body = f"""
-                <h3>Welcome, {name}!</h3>
-                <p>You have been granted access to the TradeCore system.</p>
-                <p><strong>Login URL:</strong> https://www.drugangroup.co.uk/login</p>
-                <p><strong>Username:</strong> {email}</p>
-                <p><strong>Password:</strong> {password}</p>
-                <br>
-                <p>Please login and change your password immediately.</p>
-                """
-                send_company_email(comp_id, email, subject, body)
-                flash(f"Staff added and login details emailed to {email}")
+                # Note: This requires email_service.py to be in the root folder
+                try:
+                    from email_service import send_company_email
+                    subject = "Welcome to TradeCore - Your Login Details"
+                    body = f"""
+                    <h3>Welcome, {name}!</h3>
+                    <p>You have been granted access to the TradeCore system.</p>
+                    <p><strong>Login URL:</strong> https://www.drugangroup.co.uk/login</p>
+                    <p><strong>Username:</strong> {email}</p>
+                    <p><strong>Password:</strong> {password}</p>
+                    <br>
+                    <p>Please login and change your password immediately.</p>
+                    """
+                    send_company_email(comp_id, email, subject, body)
+                    flash(f"Staff added and login details emailed to {email}")
+                except ImportError:
+                    flash("Staff added. (Email Service not found - check file placement)")
             else:
                 flash("Staff added, but user email already exists in system.")
         else:
             flash("Staff member added successfully.")
 
-        conn.commit()
-    except Exception as e:
-        conn.rollback(); flash(f"Error: {e}")
-    finally: conn.close()
-    return redirect(url_for('finance.finance_hr'))
-
-@finance_bp.route('/finance/hr/add', methods=['POST'])
-def add_staff():
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    name = request.form.get('name')
-    position = request.form.get('position')
-    dept = request.form.get('dept')
-    rate = request.form.get('rate') or 0
-    model = request.form.get('model')
-    access = request.form.get('access_level')
-    comp_id = session.get('company_id')
-    
-    conn = get_db(); cur = conn.cursor()
-    try:
-        cur.execute("INSERT INTO staff (company_id, name, position, dept, pay_rate, pay_model, access_level) VALUES (%s, %s, %s, %s, %s, %s, %s)", (comp_id, name, position, dept, rate, model, access))
-        if access != "None":
-            username = name.split(" ")[0].lower() + f"{comp_id}"
-            email_fake = f"{username}@tradekore.com"
-            default_pass = "Password123!" 
-            cur.execute("SELECT id FROM users WHERE username=%s", (username,))
-            if not cur.fetchone():
-                cur.execute("INSERT INTO users (username, email, password_hash, role, company_id) VALUES (%s, %s, %s, %s, %s)", (username, email_fake, default_pass, access, comp_id))
-                flash(f"✅ Staff added! Login: {username} / Pass: {default_pass}")
         conn.commit()
     except Exception as e:
         conn.rollback(); flash(f"Error: {e}")
@@ -183,7 +157,7 @@ def finance_fleet():
     conn = get_db()
     cur = conn.cursor()
     
-    # 1. Ensure Table Exists
+    # Ensure Table Exists
     cur.execute("""
         CREATE TABLE IF NOT EXISTS vehicles (
             id SERIAL PRIMARY KEY, company_id INTEGER, reg_plate TEXT, make_model TEXT, 
@@ -194,7 +168,7 @@ def finance_fleet():
     """)
     conn.commit()
 
-    # 2. FIX MISSING COLUMNS (Safe Update)
+    # Fix Missing Columns
     try:
         cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tracker_url TEXT;")
         cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_notes TEXT;")
@@ -204,7 +178,6 @@ def finance_fleet():
     except Exception as e:
         conn.rollback()
 
-    # 3. Select Data
     cur.execute("SELECT id, reg_plate, make_model, daily_cost, mot_due, tax_due, service_due, status, defect_notes, tracker_url, repair_cost FROM vehicles WHERE company_id = %s", (comp_id,))
     vehicles = cur.fetchall()
     conn.close()
@@ -251,7 +224,6 @@ def delete_vehicle(id):
         conn.commit()
     except Exception as e:
         conn.rollback()
-        print(f"Error deleting vehicle: {e}")
     finally:
         conn.close()
     return redirect(url_for('finance.finance_fleet'))
@@ -340,21 +312,29 @@ def save_settings():
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
     try:
-        # 1. Save Text Fields
+        # 1. Save All Text Fields (Including API Keys & Bank Details)
         for key, value in request.form.items():
             cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, value))
         
-        # 2. Save Logo to Persistent Disk
+        # 2. Save Company LOGO
         if 'logo' in request.files:
             file = request.files['logo']
             if file and allowed_file(file.filename):
                 filename = secure_filename(f"logo_{comp_id}_{file.filename}")
                 file_path = os.path.join(UPLOAD_FOLDER, filename)
                 file.save(file_path)
-                
-                # Save the relative web path to DB
                 db_path = f"/static/uploads/logos/{filename}"
                 cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
+
+        # 3. Save Payment QR CODE
+        if 'payment_qr' in request.files:
+            file = request.files['payment_qr']
+            if file and allowed_file(file.filename):
+                filename = secure_filename(f"qr_{comp_id}_{file.filename}")
+                file_path = os.path.join(UPLOAD_FOLDER, filename)
+                file.save(file_path)
+                db_path = f"/static/uploads/logos/{filename}"
+                cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'payment_qr_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
 
         conn.commit(); flash("Configuration Saved Successfully!")
     except Exception as e: conn.rollback(); flash(f"Error saving settings: {e}")
