@@ -63,3 +63,64 @@ def send_receipt(transaction_id):
     else: flash(f"❌ Email Failed: {message}")
         
     return redirect(url_for('office.office_dashboard'))
+    
+    @office_bp.route('/office/service-desk')
+def service_desk():
+    # 1. Security Check
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Office']:
+        flash("⛔ Access Denied")
+        return redirect(url_for('auth.main_launcher'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # 2. Fetch all Service Requests for this company
+    # We join with properties and clients so we can see the Address and Client Name
+    cur.execute("""
+        SELECT 
+            r.id, 
+            p.address, 
+            r.issue_description, 
+            c.name as client_name, 
+            r.severity, 
+            r.status, 
+            r.created_at
+        FROM service_requests r
+        JOIN properties p ON r.property_id = p.id
+        JOIN clients c ON r.client_id = c.id
+        WHERE r.company_id = %s
+        ORDER BY 
+            CASE 
+                WHEN r.severity = 'Emergency' THEN 1
+                WHEN r.severity = 'Urgent' THEN 2
+                WHEN r.severity = 'Priority' THEN 3
+                WHEN r.severity = 'Scheduled' THEN 4
+                ELSE 5
+            END, 
+            r.created_at DESC
+    """, (comp_id,))
+    
+    # Format the data into a list of dictionaries for easier use in HTML
+    rows = cur.fetchall()
+    requests_list = []
+    for r in rows:
+        requests_list.append({
+            'id': r[0],
+            'property_address': r[1],
+            'issue_description': r[2],
+            'client_name': r[3],
+            'severity': r[4],
+            'status': r[5],
+            'date': r[6]
+        })
+        
+    conn.close()
+    
+    return render_template('office/service_desk.html', 
+                           requests=requests_list, 
+                           brand_color=config['color'], 
+                           logo_url=config['logo'])
