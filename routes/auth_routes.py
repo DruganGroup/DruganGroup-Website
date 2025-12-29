@@ -26,7 +26,7 @@ def login():
             flash("❌ Invalid Staff Credentials")
             
     # Default landing shows the login page (Client tab is active by default via HTML)
-    return render_template('auth/login.html', active_tab='client')
+    return render_template('login.html', active_tab='client')
 
 @auth_bp.route('/portal/login', methods=['GET', 'POST'])
 def client_portal_login():
