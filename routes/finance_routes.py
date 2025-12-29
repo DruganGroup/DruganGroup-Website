@@ -341,3 +341,30 @@ def save_settings():
     except Exception as e: conn.rollback(); flash(f"Error saving settings: {e}")
     finally: conn.close()
     return redirect(url_for('finance.finance_settings'))
+    
+    # --- TEMP FIX: JUMP COUNTERS TO 1000 ---
+@finance_bp.route('/finance/fix-ids')
+def fix_database_ids():
+    # Only allow Admins to run this
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
+    
+    conn = get_db()
+    cur = conn.cursor()
+    # List of all tables that use auto-incrementing IDs
+    tables = ['staff', 'vehicles', 'materials', 'users', 'transactions']
+    messages = []
+    
+    try:
+        for t in tables:
+            # This logic says: "Take the highest ID you see, OR 1000 - whichever is higher."
+            # This forces the system to jump over numbers 4, 5, 6... and start fresh at 1000.
+            cur.execute(f"SELECT setval(pg_get_serial_sequence('{t}', 'id'), (SELECT GREATEST(MAX(id)+1, 1000) FROM {t}), false);")
+            messages.append(f"✅ Fixed {t}: Next ID set to 1000+")
+        
+        conn.commit()
+        return f"<h1>Database Repair Complete</h1><p>We skipped over the messy low numbers.</p><br>{'<br>'.join(messages)}<br><br><a href='/finance/hr'>Go Back to HR</a>"
+    except Exception as e:
+        conn.rollback()
+        return f"<h1>Error</h1><p>{e}</p>"
+    finally:
+        conn.close()
