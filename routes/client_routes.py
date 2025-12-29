@@ -147,20 +147,46 @@ def fix_client_schema():
     conn = get_db()
     cur = conn.cursor()
     try:
-        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS site_address TEXT;")
-        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS gate_code TEXT;")
-        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS billing_address TEXT;")
-        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes TEXT;")
-        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';")
-        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT;")
-        
-        # BUMP IDS TO 5000+
-        cur.execute("SELECT setval(pg_get_serial_sequence('clients', 'id'), GREATEST(MAX(id)+1, 5000), false) FROM clients;")
-        
-        conn.commit()
+        cur.execute("""
+    CREATE TABLE IF NOT EXISTS properties (
+        id SERIAL PRIMARY KEY,
+        client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+        company_id INTEGER,
+        address TEXT NOT NULL,
+        tenant_name TEXT,
+        tenant_phone TEXT,
+        access_info TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+""")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS service_requests (
+        id SERIAL PRIMARY KEY,
+        property_id INTEGER REFERENCES properties(id) ON DELETE CASCADE,
+        client_id INTEGER,
+        company_id INTEGER,
+        issue_description TEXT,
+        severity TEXT, -- Low, Medium, High, Emergency
+        status TEXT DEFAULT 'Pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+""")
         return "<h1>✅ Database Upgraded!</h1><p>Client IDs bumped to 5000+.<br>Password column added.</p><br><a href='/clients'>Back to Clients</a>"
     except Exception as e:
         conn.rollback()
         return f"<h1>Error</h1><p>{e}</p>"
     finally:
         conn.close()
+        @client_bp.route('/portal/home')
+        
+def client_portal_home():
+    if 'client_id' not in session: return redirect(url_for('auth.client_portal_login'))
+    
+    comp_id = session.get('company_id')
+    client_id = session.get('client_id')
+    config = get_site_config(comp_id)
+    
+    return render_template('clients/portal_home.html', 
+                           client_name=session.get('client_name'),
+                           brand_color=config['color'], 
+                           logo_url=config['logo'])
