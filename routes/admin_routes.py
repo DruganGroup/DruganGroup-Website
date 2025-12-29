@@ -6,6 +6,11 @@ import re
 import json
 import os
 import zipfile
+import random
+import string
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -123,23 +128,75 @@ def super_admin_dashboard():
     return render_template('super_admin.html', companies=companies, users=users, config=system_config)
 
 
-# --- 2. HANDLE PASSWORD RESET ---
+# --- 2. SECURE PASSWORD RESET (GENERATED & EMAILED) ---
 @admin_bp.route('/admin/reset-password', methods=['POST'])
 def reset_user_password():
     if session.get('role') != 'SuperAdmin':
         return "Access Denied", 403
     
     user_id = request.form.get('user_id')
-    new_pass = request.form.get('new_password')
     
     conn = get_db()
     cur = conn.cursor()
     
     try:
-        new_hash = generate_password_hash(new_pass)
+        # 1. Get User Details
+        cur.execute("SELECT username, email FROM users WHERE id = %s", (user_id,))
+        user = cur.fetchone()
+        if not user:
+            flash("❌ User not found.")
+            return redirect(url_for('admin.super_admin_dashboard'))
+            
+        username = user[0]
+        user_email = user[1] # We send the email here
+
+        # 2. Generate a Secure Random Password (12 Chars)
+        chars = string.ascii_letters + string.digits + "!@#$%"
+        secure_pass = ''.join(random.choice(chars) for i in range(12))
+        
+        # 3. Update Database (Hash it)
+        new_hash = generate_password_hash(secure_pass)
         cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, user_id))
+        
+        # 4. Fetch System SMTP Settings
+        cur.execute("SELECT key, value FROM system_settings")
+        settings = {row[0]: row[1] for row in cur.fetchall()}
+        
+        # 5. Send Email (Only if SMTP is configured)
+        if settings.get('smtp_server') and settings.get('smtp_email'):
+            msg = MIMEMultipart()
+            msg['From'] = settings['smtp_email']
+            msg['To'] = user_email
+            msg['Subject'] = "Security Alert: Password Reset"
+            
+            body = f"""
+            Hello {username},
+            
+            Your password has been reset by the System Administrator.
+            
+            Your new Temporary Password is: {secure_pass}
+            
+            Please login and change this password immediately.
+            
+            Regards,
+            System Admin
+            """
+            msg.attach(MIMEText(body, 'plain'))
+            
+            # Connect to SMTP Server
+            server = smtplib.SMTP(settings['smtp_server'], int(settings.get('smtp_port', 587)))
+            server.starttls()
+            server.login(settings['smtp_email'], settings['smtp_password'])
+            server.send_message(msg)
+            server.quit()
+            
+            flash(f"✅ Secure password generated and EMAILED to {user_email}.")
+        else:
+            # Fallback if no email server is set up yet
+            flash(f"⚠️ Password reset to: {secure_pass} (SMTP not configured, so we showed it here).")
+
         conn.commit()
-        flash(f"✅ Password for User ID {user_id} updated successfully.")
+
     except Exception as e:
         conn.rollback()
         flash(f"❌ Error resetting password: {e}")
@@ -204,7 +261,7 @@ def update_tier():
     return redirect(url_for('admin.super_admin_dashboard'))
 
 
-# --- 5. RUN BACKUP FOR A COMPANY ---
+# --- 5. RUN BACKUP FOR A COMPANY (NAMED FILE) ---
 @admin_bp.route('/admin/backup/<int:company_id>')
 def backup_company(company_id):
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
@@ -213,11 +270,20 @@ def backup_company(company_id):
     cur = conn.cursor()
     
     try:
+        # 1. Get Company Name for the filename
+        cur.execute("SELECT name FROM companies WHERE id = %s", (company_id,))
+        res = cur.fetchone()
+        company_name = res[0] if res else f"Company{company_id}"
+        
+        # Sanitize name (Space -> Underscore, remove weird chars)
+        safe_name = re.sub(r'[^a-zA-Z0-9]', '_', company_name)
+        
+        # 2. Perform Backup
         data = perform_company_backup(company_id, cur)
         
-        # Save to JSON
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
-        filename = f"FULL_BACKUP_Co{company_id}_{timestamp}.json"
+        # 3. Save to JSON with CLEAR Name
+        timestamp = datetime.now().strftime("%Y-%m-%d")
+        filename = f"FULL_BACKUP_{safe_name}_{timestamp}.json"
         
         # Ensure backup directory exists
         backup_dir = os.path.join(os.getcwd(), 'static', 'backups')
@@ -228,7 +294,7 @@ def backup_company(company_id):
         with open(filepath, 'w') as f:
             json.dump(data, f, indent=4, default=str)
             
-        flash(f"💾 Complete Backup (inc. Logo/Fleet) saved: {filename}")
+        flash(f"💾 Backup Saved: {filename}")
         
     except Exception as e:
         flash(f"❌ Backup Failed: {e}")
@@ -315,8 +381,9 @@ def save_system_settings():
         conn.close()
         
     return redirect(url_for('admin.super_admin_dashboard'))
-    
-    # --- 8. DELETE COMPANY (THE NUCLEAR OPTION) ---
+
+
+# --- 8. DELETE COMPANY (THE NUCLEAR OPTION) ---
 @admin_bp.route('/admin/delete-tenant/<int:company_id>')
 def delete_tenant(company_id):
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
