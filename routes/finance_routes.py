@@ -41,7 +41,7 @@ def finance_dashboard():
     return render_template('finance/finance_dashboard.html', total_income=income, total_expense=expense, total_balance=balance, transactions=transactions, brand_color=config['color'], logo_url=config['logo'])
 
 
-# --- 2. HR & STAFF (PROFESSIONAL VERSION) ---
+# --- 2. HR & STAFF ---
 @finance_bp.route('/finance/hr')
 def finance_hr():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -103,14 +103,13 @@ def add_staff():
             # Check if user exists
             cur.execute("SELECT id FROM users WHERE email=%s", (email,))
             if not cur.fetchone():
-                # Create User (Store password - in real app, hash this!)
+                # Create User
                 cur.execute("""
                     INSERT INTO users (username, email, password_hash, role, company_id) 
                     VALUES (%s, %s, %s, %s, %s)
                 """, (email, email, password, access, comp_id))
                 
                 # 4. SEND EMAIL with Credentials
-                # Note: This requires email_service.py to be in the root folder
                 try:
                     from email_service import send_company_email
                     subject = "Welcome to TradeCore - Your Login Details"
