@@ -52,20 +52,33 @@ def client_portal_login():
         else:
             flash("❌ Invalid Client Email or Password")
     
-    return render_template('public/login.html', active_tab='client')
+    return render_template('public/login', active_tab='client')
 
+@auth_bp.route('/launcher')
 @auth_bp.route('/launcher')
 def main_launcher():
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
     
-    # --- SUPER ADMIN REDIRECT (User ID 1) ---
+    # --- SUPER ADMIN LOGIC (User ID 1) ---
     if session.get('user_id') == 1:
-        # Assumes the file is named 'super_admin.html' in the templates folder
-        return render_template('super_admin.html')
+        conn = get_db()
+        cur = conn.cursor()
+        
+        # 1. Fetch Companies (Fixes the blank screen)
+        cur.execute("SELECT id, name, subdomain FROM companies ORDER BY id ASC")
+        companies = cur.fetchall()
+        
+        # 2. Fetch Users (So you can reset their passwords)
+        cur.execute("SELECT id, username, role, company_id FROM users ORDER BY id ASC")
+        users = cur.fetchall()
+        
+        conn.close()
+        
+        # Pass both lists to the template
+        return render_template('super_admin.html', companies=companies, users=users)
 
-    # --- STAFF REDIRECT (Everyone else) ---
-    # Corrected to 'main_launcher.html' as per your instructions
+    # --- STAFF LOGIC (Everyone else) ---
     return render_template('main_launcher.html', role=session.get('role'))
 
 @auth_bp.route('/logout')
