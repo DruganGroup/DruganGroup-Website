@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -8,6 +9,7 @@
     <link rel="stylesheet" href="/static/style.css">
     
     <style>
+        /* ... (Keep your existing CSS exactly as it was) ... */
         body {
             background-image: linear-gradient(rgba(10,10,15,0.9), rgba(10,10,15,0.95)), url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1920&q=80');
             background-size: cover;
@@ -19,122 +21,21 @@
             overflow: hidden;
             font-family: 'Inter', sans-serif;
         }
-
-        .login-container {
-            display: flex;
-            max-width: 900px;
-            width: 90%;
-            background: #1a1a1a;
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
-        }
-
-        .login-form-side {
-            flex: 1;
-            padding: 50px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            color: #fff;
-        }
-
-        .login-visual-side {
-            flex: 1;
-            background: linear-gradient(135deg, #111 0%, #000 100%);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 40px;
-            border-left: 1px solid rgba(255,255,255,0.05);
-            text-align: center;
-        }
-
-        .input-group {
-            margin-bottom: 20px;
-            position: relative;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #aaa;
-            font-size: 0.9rem;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 12px 15px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 6px;
-            color: #fff;
-            font-family: 'Inter', sans-serif;
-            transition: 0.3s;
-            box-sizing: border-box;
-        }
-
-        .input-group input:focus {
-            outline: none;
-            border-color: #C5A059;
-            box-shadow: 0 0 10px rgba(197, 160, 89, 0.2);
-        }
-
-        .login-tabs {
-            display: flex;
-            margin-bottom: 30px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .tab {
-            padding: 10px 20px;
-            color: #666;
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-            transition: 0.3s;
-            font-weight: 600;
-        }
-
-        .tab.active {
-            color: #C5A059;
-            border-bottom: 2px solid #C5A059;
-        }
-
-        .btn-gold {
-            background: linear-gradient(135deg, #C5A059 0%, #a68545 100%);
-            color: #000;
-            font-weight: bold;
-            border: none;
-            padding: 12px;
-            width: 100%;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1rem;
-            margin-top: 10px;
-            transition: transform 0.1s;
-        }
-        .btn-gold:hover {
-            transform: scale(1.02);
-        }
-
-        .flash-error {
-            background: rgba(231, 76, 60, 0.2);
-            color: #e74c3c;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            border: 1px solid #e74c3c;
-            font-size: 0.9rem;
-        }
-
-        @media(max-width: 768px) {
-            .login-container { flex-direction: column; }
-            .login-visual-side { display: none; }
-            .login-form-side { padding: 30px; }
-            body { height: auto; min-height: 100vh; padding: 20px 0; }
-        }
+        /* ... (Rest of CSS is fine) ... */
+        .login-container { display: flex; max-width: 900px; width: 90%; background: #1a1a1a; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; overflow: hidden; box-shadow: 0 30px 60px rgba(0,0,0,0.5); }
+        .login-form-side { flex: 1; padding: 50px; display: flex; flex-direction: column; justify-content: center; color: #fff; }
+        .login-visual-side { flex: 1; background: linear-gradient(135deg, #111 0%, #000 100%); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 40px; border-left: 1px solid rgba(255,255,255,0.05); text-align: center; }
+        .input-group { margin-bottom: 20px; position: relative; }
+        .input-group label { display: block; margin-bottom: 8px; color: #aaa; font-size: 0.9rem; }
+        .input-group input { width: 100%; padding: 12px 15px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; font-family: 'Inter', sans-serif; transition: 0.3s; box-sizing: border-box; }
+        .input-group input:focus { outline: none; border-color: #C5A059; box-shadow: 0 0 10px rgba(197, 160, 89, 0.2); }
+        .login-tabs { display: flex; margin-bottom: 30px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .tab { padding: 10px 20px; color: #666; cursor: pointer; border-bottom: 2px solid transparent; transition: 0.3s; font-weight: 600; }
+        .tab.active { color: #C5A059; border-bottom: 2px solid #C5A059; }
+        .btn-gold { background: linear-gradient(135deg, #C5A059 0%, #a68545 100%); color: #000; font-weight: bold; border: none; padding: 12px; width: 100%; border-radius: 6px; cursor: pointer; font-size: 1rem; margin-top: 10px; transition: transform 0.1s; }
+        .btn-gold:hover { transform: scale(1.02); }
+        .flash-error { background: rgba(231, 76, 60, 0.2); color: #e74c3c; padding: 10px; border-radius: 5px; margin-bottom: 20px; border: 1px solid #e74c3c; font-size: 0.9rem; }
+        @media(max-width: 768px) { .login-container { flex-direction: column; } .login-visual-side { display: none; } .login-form-side { padding: 30px; } body { height: auto; min-height: 100vh; padding: 20px 0; } }
     </style>
 </head>
 <body>
@@ -160,14 +61,14 @@
             {% endwith %}
 
             <div class="login-tabs">
-                <div class="tab active" onclick="switchTab('client')">Client Portal</div>
-                <div class="tab" onclick="switchTab('staff')">Staff / TradeCore</div>
+                <div class="tab" onclick="switchTab('client')">Client Portal</div>
+                <div class="tab active" onclick="switchTab('staff')">Staff / TradeCore</div>
             </div>
 
-            <form method="POST" action="/portal/login" id="loginForm">
+            <form method="POST" action="/login" id="loginForm">
                 <div class="input-group">
                     <label>Email Address / Username</label>
-                    <input type="text" name="email" id="emailInput" placeholder="e.g. your-email@example.com" required>
+                    <input type="text" name="email" id="emailInput" placeholder="e.g. admin@drugangroup.co.uk" required>
                 </div>
                 <div class="input-group">
                     <label>Password</label>
@@ -204,16 +105,17 @@
             const form = document.getElementById('loginForm');
             const emailInput = document.getElementById('emailInput');
             
-            // Remove active class from all tabs
+            // Visual Update
             tabs.forEach(t => t.classList.remove('active'));
-            
-            // Add active class to clicked tab
             event.target.classList.add('active');
 
+            // Functional Update
             if (type === 'client') {
+                console.log("Switching to Client Portal Route");
                 form.action = "/portal/login";
                 emailInput.placeholder = "e.g. your-email@example.com";
             } else {
+                console.log("Switching to Staff Login Route");
                 form.action = "/login";
                 emailInput.placeholder = "e.g. admin@drugangroup.co.uk";
             }
