@@ -65,3 +65,48 @@ def logout():
     session.clear()
     flash("🔒 You have been logged out securely.")
     return redirect(url_for('auth.login'))
+    from werkzeug.security import generate_password_hash
+
+# --- DIAGNOSTIC & FIX TOOL (DELETE AFTER USE) ---
+@auth_bp.route('/debug-auth-fix')
+def debug_auth_fix():
+    conn = get_db()
+    if not conn:
+        return "<h1>❌ CRITICAL: Database Connection Failed. Check Render Environment Variables.</h1>"
+
+    cur = conn.cursor()
+    target_email = 'admin@drugangroup.co.uk' # CHANGE THIS IF YOUR EMAIL IS DIFFERENT
+    target_pass = 'admin123'                 # THIS WILL BE YOUR NEW PASSWORD
+    
+    # 1. Check if user exists
+    cur.execute("SELECT id, username, password_hash FROM users WHERE username = %s", (target_email,))
+    user = cur.fetchone()
+    
+    if not user:
+        conn.close()
+        return f"<h1>❌ Connected, but User '{target_email}' Not Found</h1><p>Check the spelling of the email in your database.</p>"
+
+    # 2. Show what is currently stored (Safe first few chars)
+    current_stored = user[2]
+    
+    # 3. Force Update to the correct Hash
+    new_hash = generate_password_hash(target_pass)
+    try:
+        cur.execute("UPDATE users SET password_hash = %s WHERE username = %s", (new_hash, target_email))
+        conn.commit()
+        msg = f"""
+        <h1>✅ REPAIR SUCCESSFUL</h1>
+        <p><strong>Database Connection:</strong> 100% Active</p>
+        <p><strong>User Found:</strong> Yes (ID: {user[0]})</p>
+        <p><strong>Previous Password Data:</strong> {current_stored[:15]}...</p>
+        <p><strong>Action Taken:</strong> Password reset to secure hash.</p>
+        <hr>
+        <h3>👉 <a href='/login'>Go Login Now</a></h3>
+        <p><strong>Username:</strong> {target_email}</p>
+        <p><strong>Password:</strong> {target_pass}</p>
+        """
+    except Exception as e:
+        msg = f"<h1>❌ Update Failed</h1><p>Error: {e}</p>"
+    
+    conn.close()
+    return msg
