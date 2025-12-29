@@ -82,3 +82,10 @@ def client_portal_login():
             
     # If they just 'land' here via URL, show the login page with the Client tab active
     return render_template('auth/login.html', active_tab='client')
+    
+    @auth_bp.route('/logout')
+def logout():
+    # Clear the entire session dictionary
+    session.clear()
+    flash("🔒 You have been logged out securely.")
+    return redirect(url_for('auth.login'))

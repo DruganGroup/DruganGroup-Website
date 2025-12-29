@@ -51,10 +51,8 @@
         <a href="/office-hub" class="active"><i class="fas fa-desktop me-2"></i> Dashboard</a>
 		<a href="/office/service-desk"><i class="fas fa-tools me-2"></i> Service Desk</a>
         <a href="/clients"><i class="fas fa-address-book me-2"></i> Client Database</a>
-        <a href="#"><i class="fas fa-file-invoice-dollar me-2"></i> Estimates (Soon)</a>
-        <a href="#"><i class="fas fa-file-contract me-2"></i> Invoices (Soon)</a>
-        <a href="#"><i class="fas fa-calendar-alt me-2"></i> Scheduler (Soon)</a>
-        
+		<a href="/logout" class="text-warning"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
+                
         {% if session.get('role') in ['Admin', 'SuperAdmin'] %}
         <hr style="border-color: rgba(255,255,255,0.2);">
         <a href="/finance-dashboard"><i class="fas fa-chart-line me-2"></i> Finance Admin</a>
