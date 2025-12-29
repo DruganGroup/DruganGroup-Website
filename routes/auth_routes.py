@@ -66,20 +66,19 @@ def client_portal_login():
         conn = get_db()
         cur = conn.cursor()
         
-        # Look for the email in the CLIENTS table
+        # Check the CLIENTS table
         cur.execute("SELECT id, name, company_id, password_hash FROM clients WHERE email = %s", (email,))
         client = cur.fetchone()
         conn.close()
         
         if client and check_password_hash(client[3], password):
-            # Store CLIENT specific session data
             session['client_id'] = client[0]
             session['client_name'] = client[1]
             session['company_id'] = client[2]
-            session['role'] = 'Client' # Distinguish from staff
-            
+            session['role'] = 'Client'
             return redirect(url_for('client.client_portal_home'))
         else:
-            flash("❌ Invalid Email or Password")
+            flash("❌ Invalid Client Email or Password")
             
-    return render_template('public/client_login.html')
+    # If they just 'land' here via URL, show the login page with the Client tab active
+    return render_template('auth/login.html', active_tab='client')

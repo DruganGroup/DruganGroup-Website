@@ -167,9 +167,9 @@
             {% endwith %}
 
             <div class="login-tabs">
-                <div class="tab" onclick="switchTab('client')">Client Portal</div>
-                <div class="tab active" onclick="switchTab('staff')">Staff / TradeCore</div>
-            </div>
+    <div class="tab {{ 'active' if active_tab == 'client' else '' }}" onclick="switchTab('client')">Client Portal</div>
+    <div class="tab {{ 'active' if active_tab != 'client' else '' }}" onclick="switchTab('staff')">Staff / TradeCore</div>
+</div>
 
             <form method="POST" action="/login">
                 <div class="input-group">
@@ -206,12 +206,26 @@
     </div>
 
     <script>
-        // Simple visual toggle (Functionality is handled by the server now)
         function switchTab(type) {
-            const tabs = document.querySelectorAll('.tab');
-            tabs.forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
-        }
+    const tabs = document.querySelectorAll('.tab');
+    const form = document.querySelector('form');
+    const emailInput = document.querySelector('input[name="email"]');
+    
+    // 1. Update visual active state
+    tabs.forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+
+    // 2. Change the route and help text
+    if (type === 'client') {
+        form.action = "/portal/login";
+        emailInput.placeholder = "e.g. your-email@example.com";
+        console.log("Form switched to Client Portal");
+    } else {
+        form.action = "/login";
+        emailInput.placeholder = "e.g. admin@drugangroup.co.uk";
+        console.log("Form switched to Staff Login");
+    }
+}
     </script>
 </body>
 </html>
