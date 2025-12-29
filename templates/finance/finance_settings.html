@@ -52,6 +52,7 @@
             <ul class="nav nav-tabs mb-4" id="settingTabs" role="tablist">
                 <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#general" type="button">General & Branding</button></li>
                 <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#email" type="button">📧 Email & SMTP</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#payments" type="button">💳 Payments</button></li>
                 <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#compliance" type="button">Corp. Registration</button></li>
                 <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#legal" type="button">Legal & Terms</button></li>
             </ul>
@@ -128,6 +129,56 @@
                             <div class="col-md-6 mb-3">
                                 <label class="fw-bold">Email Password (or App Password)</label>
                                 <input type="password" name="smtp_password" class="form-control" value="{{ settings.get('smtp_password', '') }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="payments">
+                    
+                    <div class="card settings-card shadow-sm">
+                        <h5 class="fw-bold mb-3 text-primary"><i class="fas fa-qrcode me-2"></i> Payment QR Code</h5>
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <label class="fw-bold">Upload Banking QR Code</label>
+                                <p class="text-muted small">Upload a screenshot of your Banking App, PayPal, or Venmo QR code. This will be displayed on client invoices.</p>
+                                <input type="file" name="payment_qr" class="form-control">
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <label class="fw-bold d-block mb-2">Current QR Code</label>
+                                {% if settings.get('payment_qr_url') %}
+                                    <img src="{{ settings.get('payment_qr_url') }}" alt="QR Code" style="max-width: 120px; border: 2px solid #ddd; border-radius: 8px; padding: 5px;">
+                                {% else %}
+                                    <div class="text-muted border rounded p-3 bg-light">No QR Set</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card settings-card shadow-sm border-primary">
+                        <h5 class="fw-bold mb-3" style="color: #6772e5;"><i class="fab fa-stripe me-2"></i> Stripe Integration</h5>
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <label class="fw-bold">Publishable Key (Public)</label>
+                                <input type="text" name="stripe_pk" class="form-control font-monospace" placeholder="pk_live_..." value="{{ settings.get('stripe_pk', '') }}">
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="fw-bold">Secret Key (Private)</label>
+                                <input type="password" name="stripe_sk" class="form-control font-monospace" placeholder="sk_live_..." value="{{ settings.get('stripe_sk', '') }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card settings-card shadow-sm border-info">
+                        <h5 class="fw-bold mb-3" style="color: #003087;"><i class="fab fa-paypal me-2"></i> PayPal API</h5>
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <label class="fw-bold">Client ID</label>
+                                <input type="text" name="paypal_client_id" class="form-control font-monospace" value="{{ settings.get('paypal_client_id', '') }}">
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="fw-bold">Secret Key</label>
+                                <input type="password" name="paypal_secret" class="form-control font-monospace" value="{{ settings.get('paypal_secret', '') }}">
                             </div>
                         </div>
                     </div>
