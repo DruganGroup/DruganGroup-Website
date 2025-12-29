@@ -68,10 +68,20 @@
                 </thead>
                 <tbody>
                     {% for v in vehicles %}
+                    
+                    {# --- 1. MOT STATUS LOGIC --- #}
                     {% set mot_status = 'text-success' %}
                     {% if v[4] %}
                         {% if v[4] < today %}{% set mot_status = 'text-danger fw-bold' %}
                         {% elif (v[4] - today).days < 30 %}{% set mot_status = 'text-warning fw-bold' %}
+                        {% endif %}
+                    {% endif %}
+
+                    {# --- 2. TAX STATUS LOGIC (NEW) --- #}
+                    {% set tax_status = 'text-success' %}
+                    {% if v[5] %}
+                        {% if v[5] < today %}{% set tax_status = 'text-danger fw-bold' %}
+                        {% elif (v[5] - today).days < 30 %}{% set tax_status = 'text-warning fw-bold' %}
                         {% endif %}
                     {% endif %}
 
@@ -98,8 +108,15 @@
                             {% elif v[3] == 'Service' %}<span class="badge bg-warning text-dark">Service</span>
                             {% else %}<span class="badge bg-secondary">{{ v[3] }}</span>{% endif %}
                         </td>
-                        <td class="{{ mot_status }}"><i class="fas fa-calendar-alt me-1"></i> {{ v[4] or 'N/A' }}</td>
-                        <td>{{ v[5] or 'N/A' }}</td>
+                        
+                        <td class="{{ mot_status }}">
+                            <i class="fas fa-calendar-alt me-1"></i> {{ v[4] or 'N/A' }}
+                        </td>
+                        
+                        <td class="{{ tax_status }}">
+                            <i class="fas fa-file-invoice-dollar me-1"></i> {{ v[5] or 'N/A' }}
+                        </td>
+
                         <td class="text-end">
                             <button class="btn btn-sm btn-outline-warning" 
                                 data-bs-toggle="modal" 
