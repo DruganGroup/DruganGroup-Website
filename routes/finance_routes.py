@@ -148,7 +148,7 @@ def delete_staff(id):
     return redirect(url_for('finance.finance_hr'))
 
 
-# --- 3. FLEET (PROFESSIONAL UPGRADE) ---
+# --- 3. FLEET (ROBUST VERSION) ---
 @finance_bp.route('/finance/fleet')
 def finance_fleet():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -158,7 +158,7 @@ def finance_fleet():
     conn = get_db()
     cur = conn.cursor()
     
-    # 1. Update Database (Add Driver Column)
+    # 1. Update Database
     try:
         cur.execute("CREATE TABLE IF NOT EXISTS vehicles (id SERIAL PRIMARY KEY, company_id INTEGER, reg_plate TEXT, make_model TEXT, daily_cost DECIMAL(10,2), mot_due DATE, tax_due DATE, service_due DATE, status TEXT, tracker_url TEXT, defect_notes TEXT, defect_image TEXT, repair_cost DECIMAL(10,2) DEFAULT 0.00);")
         cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS assigned_driver_id INTEGER;")
@@ -166,7 +166,7 @@ def finance_fleet():
     except:
         conn.rollback()
 
-    # 2. Fetch Vehicles (Joined with Staff Name)
+    # 2. Fetch Vehicles
     cur.execute("""
         SELECT v.id, v.reg_plate, v.make_model, v.status, v.mot_due, v.tax_due, v.tracker_url, s.name 
         FROM vehicles v 
@@ -174,18 +174,30 @@ def finance_fleet():
         WHERE v.company_id = %s 
         ORDER BY v.reg_plate
     """, (comp_id,))
-    vehicles = cur.fetchall()
+    raw_vehicles = cur.fetchall()
 
-    # 3. Fetch Staff List (For the Dropdown)
+    # 3. Fetch Staff List
     cur.execute("SELECT id, name FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
     staff_list = cur.fetchall()
-    
     conn.close()
+
+    # --- THE FIX: Convert String Dates to Real Dates ---
+    from datetime import datetime, date
+    processed_vehicles = []
+    for v in raw_vehicles:
+        v_list = list(v) # Convert tuple to mutable list
+        # Index 4 (MOT) and 5 (Tax) are the dates
+        for i in [4, 5]:
+            if isinstance(v_list[i], str): # If it's a string, convert it
+                try:
+                    v_list[i] = datetime.strptime(v_list[i], '%Y-%m-%d').date()
+                except:
+                    pass # If it fails (empty string), leave it alone
+        processed_vehicles.append(v_list)
+    # -------------------------------------------------
     
-    # Pass 'today' so the HTML can calculate Red/Green dates
-    from datetime import date
     return render_template('finance/finance_fleet.html', 
-                           vehicles=vehicles, 
+                           vehicles=processed_vehicles, 
                            staff=staff_list, 
                            today=date.today(),
                            brand_color=config['color'], 
@@ -198,7 +210,7 @@ def add_vehicle():
     
     reg = request.form.get('reg')
     model = request.form.get('model')
-    driver_id = request.form.get('driver_id') # New field
+    driver_id = request.form.get('driver_id')
     if driver_id == "None": driver_id = None
     
     mot = request.form.get('mot') or None
@@ -225,6 +237,11 @@ def add_vehicle():
 
 @finance_bp.route('/finance/fleet/delete/<int:id>')
 def delete_vehicle(id):
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("DELETE FROM vehicles WHERE id=%s AND company_id=%s", (id, session.get('company_id')))
+    conn.commit(); conn.close()
+    return redirect(url_for('finance.finance_fleet'))
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
     conn = get_db(); cur = conn.cursor()
     cur.execute("DELETE FROM vehicles WHERE id=%s AND company_id=%s", (id, session.get('company_id')))
