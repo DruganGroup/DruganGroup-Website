@@ -113,7 +113,7 @@ def super_admin_dashboard():
     companies = cur.fetchall()
     
     # 2. Users (For Password Reset Table)
-    cur.execute("SELECT id, username, role, company_id FROM users ORDER BY id ASC")
+    cur.execute("SELECT id, username, role, company_id FROM users WHERE role IN ('SuperAdmin', 'Admin') ORDER BY id ASC")
     users = cur.fetchall()
 
     # 3. System Settings (For SMTP Config)
