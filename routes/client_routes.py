@@ -181,46 +181,6 @@ def raise_issue():
     conn.close()
     flash("🚨 Issue reported. Our office has been notified.")
     return redirect(url_for('client.client_portal_home'))
-
-# --- DATABASE REPAIR TOOL (V2) ---
-@client_bp.route('/clients/fix-schema')
-def fix_client_schema():
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
-    
-    conn = get_db()
-    cur = conn.cursor()
-    try:
-        cur.execute("""
-    CREATE TABLE IF NOT EXISTS properties (
-        id SERIAL PRIMARY KEY,
-        client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
-        company_id INTEGER,
-        address TEXT NOT NULL,
-        tenant_name TEXT,
-        tenant_phone TEXT,
-        access_info TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-""")
-cur.execute("""
-    CREATE TABLE IF NOT EXISTS service_requests (
-        id SERIAL PRIMARY KEY,
-        property_id INTEGER REFERENCES properties(id) ON DELETE CASCADE,
-        client_id INTEGER,
-        company_id INTEGER,
-        issue_description TEXT,
-        severity TEXT, -- Low, Medium, High, Emergency
-        status TEXT DEFAULT 'Pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-""")
-        return "<h1>✅ Database Upgraded!</h1><p>Client IDs bumped to 5000+.<br>Password column added.</p><br><a href='/clients'>Back to Clients</a>"
-    except Exception as e:
-        conn.rollback()
-        return f"<h1>Error</h1><p>{e}</p>"
-    finally:
-        conn.close()
-        @client_bp.route('/portal/home')
         
 def client_portal_home():
     if 'client_id' not in session: return redirect(url_for('auth.client_portal_login'))
@@ -229,7 +189,28 @@ def client_portal_home():
     client_id = session.get('client_id')
     config = get_site_config(comp_id)
     
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # 1. Fetch this client's properties
+    cur.execute("SELECT id, client_id, company_id, address, tenant_name, tenant_phone, access_info FROM properties WHERE client_id = %s", (client_id,))
+    properties = cur.fetchall()
+    
+    # 2. Fetch this client's service requests (joining with property address for the table)
+    cur.execute("""
+        SELECT r.id, p.address, r.property_id, r.client_id, r.issue_description, r.severity, r.status, r.created_at 
+        FROM service_requests r
+        JOIN properties p ON r.property_id = p.id
+        WHERE r.client_id = %s
+        ORDER BY r.created_at DESC
+    """, (client_id,))
+    requests = cur.fetchall()
+    
+    conn.close()
+    
     return render_template('clients/portal_home.html', 
                            client_name=session.get('client_name'),
+                           properties=properties,
+                           requests=requests,
                            brand_color=config['color'], 
                            logo_url=config['logo'])
