@@ -117,7 +117,7 @@ def delete_client(id):
     conn.commit(); conn.close()
     return redirect(url_for('client.client_dashboard'))
     
-    # --- DATABASE REPAIR TOOL ---
+# --- DATABASE REPAIR TOOL (V2) ---
 @client_bp.route('/clients/fix-schema')
 def fix_client_schema():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
@@ -125,15 +125,20 @@ def fix_client_schema():
     conn = get_db()
     cur = conn.cursor()
     try:
-        # Force add the missing columns
+        # 1. Add Columns (including Password)
         cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS site_address TEXT;")
         cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS gate_code TEXT;")
         cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS billing_address TEXT;")
         cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes TEXT;")
         cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';")
+        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT;")
+        
+        # 2. FIX THE ID COUNTER (Bump to 5000)
+        # This tells Postgres: "Don't look at 1, 2, 3. Jump straight to 5000."
+        cur.execute("SELECT setval(pg_get_serial_sequence('clients', 'id'), GREATEST(MAX(id)+1, 5000), false) FROM clients;")
         
         conn.commit()
-        return "<h1>✅ Client Database Upgraded Successfully!</h1><br><a href='/clients'>Click here to view Client List</a>"
+        return "<h1>✅ Database Upgraded!</h1><p>Client IDs bumped to 5000+.<br>Password column added.</p><br><a href='/clients'>Back to Clients</a>"
     except Exception as e:
         conn.rollback()
         return f"<h1>Error</h1><p>{e}</p>"
