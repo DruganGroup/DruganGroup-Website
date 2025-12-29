@@ -138,6 +138,49 @@ def delete_client(id):
     cur.execute("DELETE FROM clients WHERE id=%s AND company_id=%s", (id, session.get('company_id')))
     conn.commit(); conn.close()
     return redirect(url_for('client.client_dashboard'))
+    
+    @client_bp.route('/portal/add-property', methods=['POST'])
+def portal_add_property():
+    if 'client_id' not in session: return redirect(url_for('auth.client_portal_login'))
+    
+    client_id = session.get('client_id')
+    comp_id = session.get('company_id')
+    address = request.form.get('address')
+    tenant = request.form.get('tenant_name')
+    phone = request.form.get('tenant_phone')
+    access = request.form.get('access_info')
+    
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO properties (client_id, company_id, address, tenant_name, tenant_phone, access_info)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (client_id, comp_id, address, tenant, phone, access))
+    conn.commit()
+    conn.close()
+    flash("✅ Property added to your portfolio.")
+    return redirect(url_for('client.client_portal_home'))
+
+@client_bp.route('/portal/raise-issue', methods=['POST'])
+def raise_issue():
+    if 'client_id' not in session: return redirect(url_for('auth.client_portal_login'))
+    
+    client_id = session.get('client_id')
+    comp_id = session.get('company_id')
+    prop_id = request.form.get('property_id')
+    desc = request.form.get('description')
+    sev = request.form.get('severity')
+    
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO service_requests (property_id, client_id, company_id, issue_description, severity)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (prop_id, client_id, comp_id, desc, sev))
+    conn.commit()
+    conn.close()
+    flash("🚨 Issue reported. Our office has been notified.")
+    return redirect(url_for('client.client_portal_home'))
 
 # --- DATABASE REPAIR TOOL (V2) ---
 @client_bp.route('/clients/fix-schema')
