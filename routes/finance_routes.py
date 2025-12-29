@@ -148,7 +148,7 @@ def delete_staff(id):
     return redirect(url_for('finance.finance_hr'))
 
 
-# --- 3. FLEET ---
+# --- 3. FLEET (PROFESSIONAL UPGRADE) ---
 @finance_bp.route('/finance/fleet')
 def finance_fleet():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -158,32 +158,38 @@ def finance_fleet():
     conn = get_db()
     cur = conn.cursor()
     
-    # Ensure Table Exists
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS vehicles (
-            id SERIAL PRIMARY KEY, company_id INTEGER, reg_plate TEXT, make_model TEXT, 
-            daily_cost DECIMAL(10,2), mot_due DATE, tax_due DATE, service_due DATE, 
-            status TEXT, tracker_url TEXT, defect_notes TEXT, defect_image TEXT, 
-            repair_cost DECIMAL(10,2) DEFAULT 0.00
-        );
-    """)
-    conn.commit()
-
-    # Fix Missing Columns
+    # 1. Update Database (Add Driver Column)
     try:
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tracker_url TEXT;")
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_notes TEXT;")
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_image TEXT;")
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS repair_cost DECIMAL(10,2) DEFAULT 0.00;")
+        cur.execute("CREATE TABLE IF NOT EXISTS vehicles (id SERIAL PRIMARY KEY, company_id INTEGER, reg_plate TEXT, make_model TEXT, daily_cost DECIMAL(10,2), mot_due DATE, tax_due DATE, service_due DATE, status TEXT, tracker_url TEXT, defect_notes TEXT, defect_image TEXT, repair_cost DECIMAL(10,2) DEFAULT 0.00);")
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS assigned_driver_id INTEGER;")
         conn.commit()
-    except Exception as e:
+    except:
         conn.rollback()
 
-    cur.execute("SELECT id, reg_plate, make_model, daily_cost, mot_due, tax_due, service_due, status, defect_notes, tracker_url, repair_cost FROM vehicles WHERE company_id = %s", (comp_id,))
+    # 2. Fetch Vehicles (Joined with Staff Name)
+    cur.execute("""
+        SELECT v.id, v.reg_plate, v.make_model, v.status, v.mot_due, v.tax_due, v.tracker_url, s.name 
+        FROM vehicles v 
+        LEFT JOIN staff s ON v.assigned_driver_id = s.id 
+        WHERE v.company_id = %s 
+        ORDER BY v.reg_plate
+    """, (comp_id,))
     vehicles = cur.fetchall()
+
+    # 3. Fetch Staff List (For the Dropdown)
+    cur.execute("SELECT id, name FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
+    staff_list = cur.fetchall()
+    
     conn.close()
     
-    return render_template('finance/finance_fleet.html', vehicles=vehicles, brand_color=config['color'], logo_url=config['logo'])
+    # Pass 'today' so the HTML can calculate Red/Green dates
+    from datetime import date
+    return render_template('finance/finance_fleet.html', 
+                           vehicles=vehicles, 
+                           staff=staff_list, 
+                           today=date.today(),
+                           brand_color=config['color'], 
+                           logo_url=config['logo'])
 
 @finance_bp.route('/finance/fleet/add', methods=['POST'])
 def add_vehicle():
@@ -192,7 +198,9 @@ def add_vehicle():
     
     reg = request.form.get('reg')
     model = request.form.get('model')
-    cost = request.form.get('cost') or 0
+    driver_id = request.form.get('driver_id') # New field
+    if driver_id == "None": driver_id = None
+    
     mot = request.form.get('mot') or None
     tax = request.form.get('tax') or None
     status = request.form.get('status')
@@ -203,9 +211,9 @@ def add_vehicle():
     try:
         cur.execute("""
             INSERT INTO vehicles 
-            (company_id, reg_plate, make_model, daily_cost, mot_due, tax_due, status, tracker_url) 
+            (company_id, reg_plate, make_model, assigned_driver_id, mot_due, tax_due, status, tracker_url) 
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (comp_id, reg, model, cost, mot, tax, status, tracker))
+        """, (comp_id, reg, model, driver_id, mot, tax, status, tracker))
         conn.commit()
         flash("Vehicle Added Successfully")
     except Exception as e:
@@ -218,17 +226,10 @@ def add_vehicle():
 @finance_bp.route('/finance/fleet/delete/<int:id>')
 def delete_vehicle(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    conn = get_db()
-    cur = conn.cursor()
-    try:
-        cur.execute("DELETE FROM vehicles WHERE id=%s AND company_id=%s", (id, session.get('company_id')))
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-    finally:
-        conn.close()
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("DELETE FROM vehicles WHERE id=%s AND company_id=%s", (id, session.get('company_id')))
+    conn.commit(); conn.close()
     return redirect(url_for('finance.finance_fleet'))
-
 
 # --- 4. MATERIALS ---
 @finance_bp.route('/finance/materials')
