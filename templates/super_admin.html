@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -37,11 +38,13 @@
         .badge-basic { background: #333; color: #aaa; border: 1px solid #555; }
         .badge-pro { background: rgba(142, 68, 173, 0.2); color: #9b59b6; border: 1px solid #9b59b6; }
         .badge-enterprise { background: rgba(197, 160, 89, 0.2); color: var(--primary-gold); border: 1px solid var(--primary-gold); }
+        .badge-danger { background: rgba(231, 76, 60, 0.2); color: #e74c3c; border: 1px solid #e74c3c; }
 
         .btn-sm { padding: 6px 12px; font-size: 0.8rem; cursor: pointer; border-radius: 4px; border: none; font-weight: bold; }
         .btn-manage { background: #3498db; color: #fff; }
         .btn-manage:hover { background: #2980b9; }
         .btn-danger { background: #e74c3c; color: #fff; }
+        .btn-gold { background: linear-gradient(135deg, #C5A059 0%, #a68545 100%); color: #000; font-weight: bold; border: none; padding: 12px; width: 100%; border-radius: 6px; cursor: pointer; }
 
         .search-box { margin-bottom: 20px; position: relative; }
         .search-box i { position: absolute; left: 15px; top: 14px; color: #888; }
@@ -55,7 +58,7 @@
         .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
         .close:hover { color: #fff; }
         
-        .modal-grid p { border-bottom: 1px solid #333; padding: 12px 0; display: flex; justify-content: space-between; margin: 0; }
+        .modal-grid p { border-bottom: 1px solid #333; padding: 12px 0; display: flex; justify-content: space-between; align-items: center; margin: 0; }
         .modal-grid strong { color: var(--primary-gold); }
     </style>
 </head>
@@ -146,8 +149,8 @@
                             </td>
                             <td>
                                 <button class="btn-sm btn-manage" 
-                                    onclick="openModal('{{ c[1] }}', '{{ c[5] }}', '{{ c[0] }}', '{{ c[2] }}', '{{ c[4] }}')">
-                                    <i class="fas fa-eye"></i> View
+                                    onclick="openModal('{{ c[1] }}', '{{ c[5] }}', '{{ c[0] }}', '{{ c[2] }}', '{{ c[4] }}', '{{ c[3] }}')">
+                                    <i class="fas fa-edit"></i> Manage
                                 </button>
                             </td>
                         </tr>
@@ -196,21 +199,42 @@
     <div id="companyModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal()">&times;</span>
-            <h2 style="color: var(--primary-gold); margin-bottom: 20px;">Tenant Details</h2>
+            <h2 style="color: var(--primary-gold); margin-bottom: 20px;">Manage Tenant</h2>
             
-            <div class="modal-grid">
-                <p>Company Name: <span id="modalName" style="color:#fff;"></span></p>
-                <p>System ID: <strong id="modalID"></strong></p>
-                <p>Subdomain: <span id="modalSub"></span>.drugangroup.co.uk</p>
-                <p>Admin Email: <span id="modalEmail"></span></p>
-                <p>Current Tier: <span id="modalTier" class="badge-status"></span></p>
-                <p>Status: <span class="badge-status badge-active">Active</span></p>
-            </div>
-            
-            <div style="margin-top: 25px; text-align: right; border-top: 1px solid #333; padding-top: 20px;">
-                <button class="btn-sm btn-danger">Suspend Access</button>
-                <button class="btn-sm btn-manage" onclick="closeModal()">Close</button>
-            </div>
+            <form method="POST" action="/admin/update-tier">
+                <input type="hidden" name="company_id" id="modalCompanyID">
+                
+                <div class="modal-grid">
+                    <p>Company: <strong id="modalName" style="color:#fff;"></strong></p>
+                    <p>Subdomain: <span id="modalSub"></span>.drugangroup.co.uk</p>
+                    <p>Admin: <span id="modalEmail"></span></p>
+                    
+                    <p>
+                        Current Tier: 
+                        <select name="plan_tier" id="modalTierSelect" class="dark-select" style="width: 150px; padding: 5px;">
+                            <option value="Basic">Basic</option>
+                            <option value="Pro">Pro</option>
+                            <option value="Enterprise">Enterprise</option>
+                        </select>
+                    </p>
+                    
+                    <p>Status: <span id="modalStatusBadge" class="badge-status"></span></p>
+                </div>
+                
+                <div style="margin-top: 25px; display: flex; justify-content: space-between; border-top: 1px solid #333; padding-top: 20px;">
+                    <div style="display: flex; gap: 10px;">
+                        <a id="btnSuspend" class="btn-sm btn-danger" style="text-decoration: none; padding-top:8px;">Suspend</a>
+                        <a id="btnBackup" class="btn-sm" style="background: #f39c12; color: #000; text-decoration: none; padding-top:8px;">
+                            <i class="fas fa-download"></i> Backup
+                        </a>
+                    </div>
+                    
+                    <div>
+                        <button type="submit" class="btn-sm btn-manage">Save Changes</button>
+                        <button type="button" class="btn-sm" style="background:#555; color:#fff;" onclick="closeModal()">Close</button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -223,7 +247,6 @@
             var tr = table.getElementsByTagName("tr");
             
             for (var i = 0; i < tr.length; i++) {
-                // Look at column 1 (Company Name)
                 var td = tr[i].getElementsByTagName("td")[1];
                 if (td) {
                     var txtValue = td.textContent || td.innerText;
@@ -236,20 +259,33 @@
             }
         }
 
-        // 2. Modal Logic
-        function openModal(name, sub, id, tier, email) {
+        // 2. UPDATED Modal Logic to handle Status & Buttons
+        function openModal(name, sub, id, tier, email, status) {
             document.getElementById('modalName').innerText = name;
             document.getElementById('modalSub').innerText = sub;
-            document.getElementById('modalID').innerText = id;
             document.getElementById('modalEmail').innerText = email;
+            document.getElementById('modalCompanyID').value = id; // IMPORTANT for form
             
-            var tierSpan = document.getElementById('modalTier');
-            tierSpan.innerText = tier;
-            // Reset classes
-            tierSpan.className = 'badge-status';
-            if(tier === 'Enterprise') tierSpan.classList.add('badge-enterprise');
-            else if(tier === 'Pro') tierSpan.classList.add('badge-pro');
-            else tierSpan.classList.add('badge-basic');
+            // Set Dropdown
+            document.getElementById('modalTierSelect').value = tier;
+            
+            // Set Status Badge
+            var statusBadge = document.getElementById('modalStatusBadge');
+            statusBadge.innerText = status;
+            
+            if (status === 'Active') {
+                statusBadge.className = 'badge-status badge-active';
+                statusBadge.style.background = ''; // Reset inline styles
+            } else {
+                statusBadge.className = 'badge-status badge-danger';
+            }
+
+            // Set Button Links
+            var btnSuspend = document.getElementById('btnSuspend');
+            btnSuspend.href = "/admin/suspend/" + id;
+            btnSuspend.innerText = (status === 'Active' ? 'Suspend Access' : 'Re-Activate Access');
+            
+            document.getElementById('btnBackup').href = "/admin/backup/" + id;
 
             document.getElementById('companyModal').style.display = "block";
         }
@@ -258,7 +294,6 @@
             document.getElementById('companyModal').style.display = "none";
         }
 
-        // Close modal if user clicks outside of it
         window.onclick = function(event) {
             if (event.target == document.getElementById('companyModal')) {
                 closeModal();

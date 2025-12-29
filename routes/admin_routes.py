@@ -1,7 +1,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from db import get_db
-from werkzeug.security import generate_password_hash # Added this import
-import re 
+from werkzeug.security import generate_password_hash
+from datetime import datetime
+import re
+
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -99,6 +101,96 @@ def reset_user_password():
     except Exception as e:
         conn.rollback()
         flash(f"❌ Error resetting password: {e}")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('admin.super_admin_dashboard'))
+    admin_bp.route('/admin/suspend/<int:company_id>')
+def toggle_suspend(company_id):
+    if session.get('role') != 'SuperAdmin': return "Access Denied", 403
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # Toggle between 'Active' and 'Suspended'
+        cur.execute("""
+            UPDATE subscriptions 
+            SET status = CASE WHEN status = 'Active' THEN 'Suspended' ELSE 'Active' END 
+            WHERE company_id = %s RETURNING status
+        """, (company_id,))
+        new_status = cur.fetchone()[0]
+        conn.commit()
+        flash(f"✅ Company ID {company_id} is now {new_status}")
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error: {e}")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('admin.super_admin_dashboard'))
+
+# --- 2. UPDATE TIER (Basic / Pro / Enterprise) ---
+@admin_bp.route('/admin/update-tier', methods=['POST'])
+def update_tier():
+    if session.get('role') != 'SuperAdmin': return "Access Denied", 403
+    
+    company_id = request.form.get('company_id')
+    new_tier = request.form.get('plan_tier')
+    
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE subscriptions SET plan_tier = %s WHERE company_id = %s", (new_tier, company_id))
+        conn.commit()
+        flash(f"✅ Company ID {company_id} upgraded to {new_tier}")
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error: {e}")
+    finally:
+        conn.close()
+    return redirect(url_for('admin.super_admin_dashboard'))
+
+# --- 3. RUN BACKUP FOR A COMPANY ---
+@admin_bp.route('/admin/backup/<int:company_id>')
+def backup_company(company_id):
+    if session.get('role') != 'SuperAdmin': return "Access Denied", 403
+    
+    conn = get_db()
+    cur = conn.cursor()
+    backup_data = {}
+    
+    try:
+        # Gather all data for this company
+        tables = ['users', 'clients', 'properties', 'service_requests', 'transactions', 'staff']
+        for table in tables:
+            # Check if table exists first to avoid errors
+            cur.execute(f"SELECT to_regclass('{table}')")
+            if cur.fetchone()[0]:
+                cur.execute(f"SELECT * FROM {table} WHERE company_id = %s", (company_id,))
+                columns = [desc[0] for desc in cur.description]
+                rows = cur.fetchall()
+                # Convert rows to list of dicts
+                backup_data[table] = [dict(zip(columns, row)) for row in rows]
+        
+        # Save to file (simulated secure storage)
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        filename = f"backup_co{company_id}_{timestamp}.json"
+        
+        # Ensure backup directory exists
+        backup_dir = os.path.join(os.getcwd(), 'static', 'backups')
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        filepath = os.path.join(backup_dir, filename)
+        
+        # Write JSON (Handle date serialization manually if needed, usually default=str works)
+        with open(filepath, 'w') as f:
+            json.dump(backup_data, f, indent=4, default=str)
+            
+        flash(f"💾 Backup successful! Saved to: static/backups/{filename}")
+        
+    except Exception as e:
+        flash(f"❌ Backup Failed: {e}")
     finally:
         conn.close()
         
