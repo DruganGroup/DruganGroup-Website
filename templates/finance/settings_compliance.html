@@ -1,0 +1,110 @@
+{% extends "finance/settings_layout.html" %}
+
+{% block settings_content %}
+<form method="POST">
+    <div class="card p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+            <h5 class="fw-bold text-dark m-0">Jurisdiction & Tax</h5>
+            <select name="country_code" id="countrySelector" class="form-select w-auto fw-bold bg-light border-dark" onchange="updateForm()">
+                <option value="UK" {% if settings.get('country_code') == 'UK' %}selected{% endif %}>🇬🇧 United Kingdom</option>
+                <option value="USA" {% if settings.get('country_code') == 'USA' %}selected{% endif %}>🇺🇸 United States</option>
+                <option value="CAN" {% if settings.get('country_code') == 'CAN' %}selected{% endif %}>🇨🇦 Canada</option>
+                <option value="AUS" {% if settings.get('country_code') == 'AUS' %}selected{% endif %}>🇦🇺 Australia</option>
+                <option value="NZ" {% if settings.get('country_code') == 'NZ' %}selected{% endif %}>🇳🇿 New Zealand</option>
+            </select>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <label class="form-label text-muted small fw-bold" id="lbl_reg">Company Reg Number</label>
+                <input type="text" name="company_reg" id="input_reg" class="form-control">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label text-muted small fw-bold" id="lbl_tax">VAT Number</label>
+                <input type="text" name="tax_id" id="input_tax" class="form-control">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label text-muted small fw-bold" id="lbl_ref">UTR Number</label>
+                <input type="text" name="tax_ref" id="input_ref" class="form-control">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label text-muted small fw-bold" id="lbl_pay">PAYE Reference</label>
+                <input type="text" name="payroll_ref" id="input_pay" class="form-control">
+            </div>
+
+            <div class="col-12 mt-4">
+                <h6 class="fw-bold text-secondary border-bottom pb-2">Construction & Subcontractors</h6>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-muted small fw-bold">CIS / Withholding Rate</label>
+                <select name="cis_rate" class="form-select">
+                    <option value="0" {% if settings.get('cis_rate')=='0' %}selected{% endif %}>0% (Gross Status)</option>
+                    <option value="20" {% if settings.get('cis_rate')=='20' %}selected{% endif %}>20% (Standard Deduction)</option>
+                    <option value="30" {% if settings.get('cis_rate')=='30' %}selected{% endif %}>30% (High / No Verify)</option>
+                </select>
+            </div>
+            
+            <div class="col-12 mt-4">
+                <h6 class="fw-bold text-secondary border-bottom pb-2">Liability Insurance</h6>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-muted small fw-bold">Public Liability Policy #</label>
+                <input type="text" name="pl_policy" class="form-control" value="{{ settings.get('pl_policy', '') }}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-muted small fw-bold">Employers Liability Policy #</label>
+                <input type="text" name="el_policy" class="form-control" value="{{ settings.get('el_policy', '') }}">
+            </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-top text-end">
+            <button type="submit" class="btn btn-primary fw-bold"><i class="fas fa-save me-2"></i> Save Compliance Data</button>
+        </div>
+    </div>
+</form>
+
+<script>
+    // PRE-LOADED DATA FROM SERVER (So we don't lose saved values)
+    const savedData = {
+        'company_reg': "{{ settings.get('company_reg', '') }}",
+        'tax_id': "{{ settings.get('tax_id', '') }}",
+        'tax_ref': "{{ settings.get('tax_ref', '') }}",
+        'payroll_ref': "{{ settings.get('payroll_ref', '') }}"
+    };
+
+    function updateForm() {
+        const country = document.getElementById('countrySelector').value;
+        const labels = {
+            'UK': ['Company Reg (CRN)', 'VAT Number', 'Unique Tax Ref (UTR)', 'PAYE Reference'],
+            'USA': ['State Entity ID', 'Sales Tax ID', 'Federal EIN', 'State Unemployment ID'],
+            'CAN': ['Corporation Number', 'GST/HST Number', 'Business Number (BN)', 'Payroll Account (RP)'],
+            'AUS': ['ACN (Company Num)', 'GST Status', 'ABN (Business Num)', 'TFN (Tax File Num)'],
+            'NZ': ['NZBN', 'GST Number', 'IRD Number', 'Employer Reg']
+        };
+
+        const current = labels[country];
+        
+        // Update Labels
+        document.getElementById('lbl_reg').innerText = current[0];
+        document.getElementById('lbl_tax').innerText = current[1];
+        document.getElementById('lbl_ref').innerText = current[2];
+        document.getElementById('lbl_pay').innerText = current[3];
+
+        // Update Input Names (To save correct Keys in DB) - Optional Advanced Step
+        // For now, we will keep generic keys (company_reg, tax_id) to simplify retrieval
+        // The Label determines the context.
+        
+        // Restore values (Simple implementation)
+        document.getElementById('input_reg').value = savedData.company_reg || '';
+        document.getElementById('input_tax').value = savedData.tax_id || '';
+        document.getElementById('input_ref').value = savedData.tax_ref || '';
+        document.getElementById('input_pay').value = savedData.payroll_ref || '';
+    }
+
+    // Init
+    document.addEventListener('DOMContentLoaded', updateForm);
+</script>
+{% endblock %}

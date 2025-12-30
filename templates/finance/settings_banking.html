@@ -1,0 +1,61 @@
+{% extends "finance/settings_layout.html" %}
+
+{% block settings_content %}
+<form method="POST">
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card p-4 h-100">
+                <h5 class="fw-bold text-secondary mb-4">Banking Details</h5>
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold">Bank Name</label>
+                    <input type="text" name="bank_name" class="form-control" value="{{ settings.get('bank_name', '') }}" placeholder="e.g. Barclays">
+                </div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label text-muted small fw-bold">Account Number</label>
+                        <input type="text" name="account_number" class="form-control" value="{{ settings.get('account_number', '') }}">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-muted small fw-bold">Sort Code / Routing</label>
+                        <input type="text" name="sort_code" class="form-control" value="{{ settings.get('sort_code', '') }}">
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <label class="form-label text-muted small fw-bold">Payment Terms (Default)</label>
+                    <textarea name="payment_terms" class="form-control" rows="3">{{ settings.get('payment_terms', 'Payment due within 14 days.') }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card p-4 h-100">
+                <h5 class="fw-bold text-secondary mb-4">Email Configuration (SMTP)</h5>
+                <p class="small text-muted mb-3">Configure the server used to send Quotes & Invoices.</p>
+                
+                <div class="mb-2">
+                    <label class="form-label text-muted small fw-bold">SMTP Host</label>
+                    <input type="text" name="smtp_host" class="form-control" value="{{ settings.get('smtp_host', '') }}" placeholder="smtp.gmail.com">
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-4">
+                        <label class="form-label text-muted small fw-bold">Port</label>
+                        <input type="text" name="smtp_port" class="form-control" value="{{ settings.get('smtp_port', '587') }}">
+                    </div>
+                    <div class="col-8">
+                        <label class="form-label text-muted small fw-bold">Sender Email</label>
+                        <input type="email" name="smtp_email" class="form-control" value="{{ settings.get('smtp_email', '') }}" placeholder="accounts@domain.com">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold">App Password / Key</label>
+                    <input type="password" name="smtp_password" class="form-control" value="{{ settings.get('smtp_password', '') }}">
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-12 text-end">
+             <button type="submit" class="btn btn-primary fw-bold"><i class="fas fa-save me-2"></i> Save Banking & Email</button>
+        </div>
+    </div>
+</form>
+{% endblock %}
