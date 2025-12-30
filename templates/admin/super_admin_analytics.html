@@ -1,0 +1,63 @@
+{% extends "admin/layout.html" %}
+
+{% block content %}
+<div class="dash-header">
+    <div>
+        <h1>Data Intelligence</h1>
+        <span style="color: #888;">Storage & Bandwidth Analysis</span>
+    </div>
+</div>
+
+<div class="form-grid" style="margin-bottom: 30px;">
+    <div class="admin-card" style="margin-bottom: 0; text-align: center;">
+        <h1 style="font-size: 3rem; color: var(--primary-gold); margin: 0;">{{ data|length }}</h1>
+        <div style="color: #888; text-transform: uppercase; font-size: 0.8rem;">Active Tenants</div>
+    </div>
+    
+    <div class="admin-card" style="margin-bottom: 0; text-align: center;">
+        {% set total_rows = 0 %}
+        {% for d in data %}{% set total_rows = total_rows + d.total_rows %}{% endfor %}
+        <h1 style="font-size: 3rem; color: #3498db; margin: 0;">{{ total_rows }}</h1>
+        <div style="color: #888; text-transform: uppercase; font-size: 0.8rem;">Total DB Rows</div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;">
+    {% for c in data %}
+    <div class="admin-card" style="margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+            <h3 style="border: none; padding: 0; margin: 0; font-size: 1.2rem;">{{ c.name }}</h3>
+            <span class="badge-status badge-basic">{{ c.est_size_mb }} MB</span>
+        </div>
+        
+        <div style="background: #333; height: 6px; border-radius: 3px; margin-bottom: 20px; overflow: hidden;">
+            <div style="background: var(--primary-gold); height: 100%; width: {{ (c.total_rows / 500) * 100 }}%;"></div>
+        </div>
+
+        <table style="width: 100%; color: #aaa; font-size: 0.9rem;">
+            <tr>
+                <td style="padding: 5px 0;"><i class="fas fa-users" style="width: 20px;"></i> Staff & Users</td>
+                <td style="text-align: right; color: #fff;">{{ c.breakdown.get('users', 0) + c.breakdown.get('staff', 0) }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 5px 0;"><i class="fas fa-truck" style="width: 20px;"></i> Fleet Vehicles</td>
+                <td style="text-align: right; color: #fff;">{{ c.breakdown.get('vehicles', 0) }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 5px 0;"><i class="fas fa-file-invoice" style="width: 20px;"></i> Financial Trans</td>
+                <td style="text-align: right; color: #fff;">{{ c.breakdown.get('transactions', 0) }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 5px 0;"><i class="fas fa-tools" style="width: 20px;"></i> Jobs & Repairs</td>
+                <td style="text-align: right; color: #fff;">{{ c.breakdown.get('jobs', 0) + c.breakdown.get('maintenance_logs', 0) }}</td>
+            </tr>
+        </table>
+        
+        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #333; font-size: 0.8rem; color: #666; display: flex; justify-content: space-between;">
+            <span><i class="fas fa-network-wired"></i> Bandwidth Est:</span>
+            <span>{{ c.bandwidth_usage }} MB/mo</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
