@@ -418,9 +418,29 @@ def delete_tenant(company_id):
         
     return redirect(url_for('admin.super_admin_dashboard'))
     
-# --- 10. SETUP CRM TABLES (Run this to fix Service Desk 500 Error) ---
-@admin_bp.route('/admin/setup-crm-db')
-def setup_crm_db():
+# --- 11. FIX STAFF TABLE (Run this to fix Service Desk Error) ---
+@admin_bp.route('/admin/fix-staff-db')
+def fix_staff_db():
+    if session.get('role') != 'SuperAdmin': return "Access Denied", 403
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Add 'role' column if missing
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS role VARCHAR(50);")
+        
+        # 2. Add 'status' column if missing (defaults to Active)
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'Active';")
+        
+        conn.commit()
+        return "<h1>✅ Staff Table Fixed!</h1><p>Added 'role' and 'status' columns.</p><a href='/office/service-desk'>Try Service Desk Now</a>"
+        
+    except Exception as e:
+        conn.rollback()
+        return f"<h1>❌ Database Error</h1><p>{e}</p>"
+    finally:
+        conn.close()
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
     
     conn = get_db()
