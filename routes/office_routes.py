@@ -52,6 +52,7 @@ def service_desk():
     cur = conn.cursor()
     
     # Fetch Requests
+    # Note: We filter by 'Active' status on staff to ensure we only dispatch to current employees
     cur.execute("""
         SELECT r.id, p.address, r.issue_description, c.name, r.severity, r.status, r.created_at
         FROM service_requests r
@@ -70,6 +71,7 @@ def service_desk():
         })
     
     # Fetch Staff for the Dispatch Dropdown
+    # Uses the 'role' column you just added via the database fix
     cur.execute("SELECT id, name, role FROM staff WHERE company_id = %s AND status='Active'", (comp_id,))
     staff_members = [dict(zip(['id', 'name', 'role'], row)) for row in cur.fetchall()]
         
@@ -123,7 +125,7 @@ def staff_list():
         role = request.form.get('role')
         
         try:
-            cur.execute("INSERT INTO staff (company_id, name, email, phone, role) VALUES (%s, %s, %s, %s, %s)", 
+            cur.execute("INSERT INTO staff (company_id, name, email, phone, role, status) VALUES (%s, %s, %s, %s, %s, 'Active')", 
                         (comp_id, name, email, phone, role))
             conn.commit()
             flash(f"✅ Staff Member {name} Added.")
@@ -139,7 +141,7 @@ def staff_list():
     
     return render_template('office/staff_management.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# --- FLEET MANAGEMENT ---
+# --- FLEET MANAGEMENT (CORRECTED COLUMNS) ---
 @office_bp.route('/office/fleet', methods=['GET', 'POST'])
 def fleet_list():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -151,14 +153,18 @@ def fleet_list():
     
     if request.method == 'POST':
         # Add New Vehicle
-        reg = request.form.get('reg_number')
-        model = request.form.get('make_model')
-        driver = request.form.get('driver_id') # Can be null
-        mot = request.form.get('mot_expiry')
+        # Mapping HTML Form names -> Database Column names
+        reg = request.form.get('reg_number')       # DB: reg_plate
+        model = request.form.get('make_model')     # DB: make_model
+        driver = request.form.get('driver_id')     # DB: assigned_driver_id
+        mot = request.form.get('mot_expiry')       # DB: mot_due
         
         try:
-            cur.execute("INSERT INTO vehicles (company_id, reg_number, make_model, driver_id, mot_expiry) VALUES (%s, %s, %s, %s, %s)", 
-                        (comp_id, reg, model, driver if driver else None, mot))
+            # We use 'reg_plate' and 'assigned_driver_id' to match Finance DB
+            cur.execute("""
+                INSERT INTO vehicles (company_id, reg_plate, make_model, assigned_driver_id, mot_due, status) 
+                VALUES (%s, %s, %s, %s, %s, 'Active')
+            """, (comp_id, reg, model, driver if driver else None, mot))
             conn.commit()
             flash(f"✅ Vehicle {reg} Added.")
         except Exception as e:
@@ -166,14 +172,26 @@ def fleet_list():
             flash(f"❌ Error: {e}")
             
     # View Fleet (Joined with Staff Name)
+    # Mapping DB Columns -> Template Variables
     cur.execute("""
-        SELECT v.*, s.name as driver_name 
+        SELECT v.id, v.reg_plate, v.make_model, v.status, v.mot_due, s.name as driver_name, v.assigned_driver_id 
         FROM vehicles v 
-        LEFT JOIN staff s ON v.driver_id = s.id 
+        LEFT JOIN staff s ON v.assigned_driver_id = s.id 
         WHERE v.company_id = %s
     """, (comp_id,))
-    cols = [desc[0] for desc in cur.description]
-    vehicles = [dict(zip(cols, row)) for row in cur.fetchall()]
+    
+    # We manually map these so the template doesn't break
+    vehicles = []
+    for row in cur.fetchall():
+        vehicles.append({
+            'id': row[0],
+            'reg_number': row[1],      # Template expects reg_number
+            'make_model': row[2],
+            'status': row[3],
+            'mot_expiry': row[4],      # Template expects mot_expiry
+            'driver_name': row[5],
+            'driver_id': row[6]
+        })
     
     # Get Staff for Dropdown
     cur.execute("SELECT id, name FROM staff WHERE company_id = %s", (comp_id,))
