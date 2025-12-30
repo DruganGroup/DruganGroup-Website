@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash
 from werkzeug.utils import secure_filename
 import os
+import csv
+from io import TextIOWrapper
 from datetime import datetime, date 
 from db import get_db, get_site_config, allowed_file, UPLOAD_FOLDER
 
@@ -126,7 +128,6 @@ def update_staff():
         conn.close()
     return redirect(url_for('finance.finance_hr'))
 
-# --- FIXED DELETE ROUTE ---
 @finance_bp.route('/finance/hr/delete/<int:id>')
 def delete_staff(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -257,7 +258,6 @@ def finance_fleet():
     
     return render_template('finance/finance_fleet.html', vehicles=vehicles, staff=staff_list, today=today, brand_color=config['color'], logo_url=config['logo'])
     
-# --- FIXED DELETE ROUTE ---
 @finance_bp.route('/finance/fleet/delete/<int:id>')
 def delete_vehicle(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -295,7 +295,63 @@ def add_material():
     finally: conn.close()
     return redirect(url_for('finance.finance_materials'))
 
-# --- FIXED DELETE ROUTE ---
+@finance_bp.route('/finance/materials/import', methods=['POST'])
+def import_materials():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    
+    if 'file' not in request.files:
+        flash('❌ No file part')
+        return redirect(url_for('finance.finance_materials'))
+        
+    file = request.files['file']
+    if file.filename == '':
+        flash('❌ No selected file')
+        return redirect(url_for('finance.finance_materials'))
+
+    if file and file.filename.endswith('.csv'):
+        company_id = session.get('company_id')
+        conn = get_db()
+        cur = conn.cursor()
+        
+        try:
+            # Parse CSV
+            csv_file = TextIOWrapper(file, encoding='utf-8')
+            csv_reader = csv.reader(csv_file, delimiter=',')
+            
+            # Skip Header Row
+            next(csv_reader, None) 
+            
+            # Loop through rows
+            count = 0
+            for row in csv_reader:
+                if len(row) >= 3: 
+                    sku = row[0].strip() if len(row) > 0 else ''
+                    name = row[1].strip() if len(row) > 1 else 'Unknown Item'
+                    category = row[2].strip() if len(row) > 2 else 'General'
+                    unit = row[3].strip() if len(row) > 3 else 'Each'
+                    cost = row[4].strip().replace('£', '').replace('$', '') if len(row) > 4 else '0'
+                    supplier = row[5].strip() if len(row) > 5 else ''
+                    
+                    cur.execute("""
+                        INSERT INTO materials (company_id, sku, name, category, unit, cost_price, supplier)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, (company_id, sku, name, category, unit, cost, supplier))
+                    count += 1
+            
+            conn.commit()
+            flash(f"✅ Successfully Imported {count} Items")
+            
+        except Exception as e:
+            conn.rollback()
+            flash(f"❌ Import Error: {e}")
+        finally:
+            conn.close()
+            
+    else:
+        flash('❌ Invalid File. Please upload a CSV.')
+        
+    return redirect(url_for('finance.finance_materials'))
+
 @finance_bp.route('/finance/materials/delete/<int:id>')
 def delete_material(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -327,6 +383,12 @@ def finance_analysis():
     total_profit = total_rev - total_cost
     avg_margin = (total_profit / total_rev * 100) if total_rev > 0 else 0
     return render_template('finance/finance_analysis.html', jobs=analyzed_jobs, total_rev=total_rev, total_cost=total_cost, total_profit=total_profit, avg_margin=avg_margin, brand_color=config['color'], logo_url=config['logo'])
+
+
+# --- 6. SETTINGS REDIRECT (Fixes 404) ---
+@finance_bp.route('/finance/settings')
+def settings_redirect():
+    return redirect(url_for('finance.settings_general'))
 
 # --- 6A. SETTINGS: GENERAL ---
 @finance_bp.route('/finance/settings/general', methods=['GET', 'POST'])
@@ -360,7 +422,7 @@ def settings_general():
     
     return render_template('finance/settings_general.html', settings=settings, active_tab='general', brand_color=config['color'], logo_url=config['logo'])
 
-# --- 6B. SETTINGS: COMPLIANCE (SMART COUNTRY LOGIC) ---
+# --- 6B. SETTINGS: COMPLIANCE ---
 @finance_bp.route('/finance/settings/compliance', methods=['GET', 'POST'])
 def settings_compliance():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -371,7 +433,6 @@ def settings_compliance():
 
     if request.method == 'POST':
         try:
-            # We save EVERYTHING sent in the form, allowing for dynamic fields per country
             for key, val in request.form.items():
                 cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, val))
             conn.commit(); flash("✅ Compliance Data Saved")
@@ -394,9 +455,18 @@ def settings_banking():
 
     if request.method == 'POST':
         try:
-            for key in ['bank_name', 'account_number', 'sort_code', 'payment_terms', 'smtp_host', 'smtp_port', 'smtp_email', 'smtp_password']:
+            for key in ['bank_name', 'account_number', 'sort_code', 'payment_terms', 'smtp_host', 'smtp_port', 'smtp_email', 'smtp_password', 'quote_footer', 'invoice_footer']:
                 val = request.form.get(key)
                 cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, val))
+            
+            if 'payment_qr' in request.files:
+                file = request.files['payment_qr']
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(f"qr_{comp_id}_{file.filename}")
+                    file.save(os.path.join(UPLOAD_FOLDER, filename))
+                    db_path = f"/static/uploads/logos/{filename}"
+                    cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'payment_qr_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
+
             conn.commit(); flash("✅ Banking & Email Settings Saved")
         except Exception as e: conn.rollback(); flash(f"Error: {e}")
 
@@ -409,107 +479,48 @@ def settings_banking():
 # --- 6D. SETTINGS: OVERHEADS ---
 @finance_bp.route('/finance/settings/overheads', methods=['GET', 'POST'])
 def settings_overheads():
-    # ... (Keep the overhead logic here, simplified) ...
-    # I will provide the full code for this in the next response if you approve this structure.
-    return "Overheads Page (Coming Next)"
-
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
-    conn = get_db()
-    cur = conn.cursor()
-    
-    # --- HANDLE FORM SUBMISSIONS ---
+    conn = get_db(); cur = conn.cursor()
+
     if request.method == 'POST':
         action = request.form.get('action')
-        
-        # 1. SAVE ALL SETTINGS (Dynamic - Saves ANY field from HTML)
-        if action == 'save_config':
-            try:
-                # Save all text/select fields
-                for key, value in request.form.items():
-                    if key != 'action' and value is not None:
-                        cur.execute("""
-                            INSERT INTO settings (company_id, key, value) 
-                            VALUES (%s, %s, %s) 
-                            ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
-                        """, (comp_id, key, value))
-                
-                # Handle Logo Upload
-                if 'logo' in request.files:
-                    file = request.files['logo']
-                    if file and allowed_file(file.filename):
-                        filename = secure_filename(f"logo_{comp_id}_{file.filename}")
-                        file.save(os.path.join(UPLOAD_FOLDER, filename))
-                        db_path = f"/static/uploads/logos/{filename}"
-                        cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
-                
-                # Handle Payment QR Upload
-                if 'payment_qr' in request.files:
-                    file = request.files['payment_qr']
-                    if file and allowed_file(file.filename):
-                        filename = secure_filename(f"qr_{comp_id}_{file.filename}")
-                        file.save(os.path.join(UPLOAD_FOLDER, filename))
-                        db_path = f"/static/uploads/logos/{filename}"
-                        cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'payment_qr_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
-
-                conn.commit()
-                flash("✅ Configuration Saved Successfully")
-            except Exception as e:
-                conn.rollback(); flash(f"❌ Error: {e}")
-
-        # 2. OVERHEADS (Category)
-        elif action == 'add_category':
-            cat_name = request.form.get('category_name')
-            if cat_name:
-                cur.execute("INSERT INTO overhead_categories (company_id, name) VALUES (%s, %s)", (comp_id, cat_name))
-                conn.commit()
-                flash(f"✅ Category '{cat_name}' Added")
-
-        # 3. OVERHEADS (Item)
-        elif action == 'add_item':
-            cat_id = request.form.get('category_id')
-            name = request.form.get('item_name')
-            amount = request.form.get('item_cost')
-            if cat_id and name and amount:
-                cur.execute("INSERT INTO overhead_items (category_id, name, amount) VALUES (%s, %s, %s)", (cat_id, name, amount))
-                conn.commit()
+        try:
+            if action == 'add_category':
+                cur.execute("INSERT INTO overhead_categories (company_id, name) VALUES (%s, %s)", (comp_id, request.form.get('category_name')))
+                flash("✅ Category Added")
+            elif action == 'add_item':
+                cur.execute("INSERT INTO overhead_items (category_id, name, amount) VALUES (%s, %s, %s)", (request.form.get('category_id'), request.form.get('item_name'), request.form.get('item_cost')))
                 flash("✅ Cost Added")
-
-        # 4. DELETE OPERATIONS
-        elif action == 'delete_item':
-            cur.execute("DELETE FROM overhead_items WHERE id = %s", (request.form.get('item_id'),))
+            elif action == 'delete_item':
+                cur.execute("DELETE FROM overhead_items WHERE id = %s", (request.form.get('item_id'),))
+                flash("🗑️ Item Removed")
+            elif action == 'delete_category':
+                cur.execute("DELETE FROM overhead_categories WHERE id = %s AND company_id = %s", (request.form.get('category_id'), comp_id))
+                flash("🗑️ Category Removed")
+            
             conn.commit()
-            flash("🗑️ Cost Removed")
+        except Exception as e:
+            conn.rollback(); flash(f"Error: {e}")
 
-        elif action == 'delete_category':
-            cur.execute("DELETE FROM overhead_categories WHERE id = %s AND company_id = %s", (request.form.get('category_id'), comp_id))
-            conn.commit()
-            flash("🗑️ Category Removed")
-
-    # --- FETCH DATA ---
+    # Fetch Data
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
-    settings_dict = {row[0]: row[1] for row in cur.fetchall()}
+    settings = {row[0]: row[1] for row in cur.fetchall()}
     
     cur.execute("SELECT id, name FROM overhead_categories WHERE company_id = %s ORDER BY id ASC", (comp_id,))
     categories_raw = cur.fetchall()
     
     overheads = []
-    total_monthly_overhead = 0.0
+    total_overhead = 0.0
     
     for cat in categories_raw:
         cur.execute("SELECT id, name, amount FROM overhead_items WHERE category_id = %s", (cat[0],))
         items = cur.fetchall()
         cat_total = sum([float(i[2]) for i in items])
-        total_monthly_overhead += cat_total
+        total_overhead += cat_total
         overheads.append({'id': cat[0], 'name': cat[1], 'items': items, 'total': cat_total})
 
     conn.close()
-    
-    return render_template('finance/finance_settings.html', 
-                           settings=settings_dict, 
-                           overheads=overheads, 
-                           total_overhead=total_monthly_overhead,
-                           brand_color=config['color'], 
-                           logo_url=config['logo'])
+    return render_template('finance/settings_overheads.html', settings=settings, overheads=overheads, total_overhead=total_overhead, active_tab='overheads', brand_color=config['color'], logo_url=config['logo'])
