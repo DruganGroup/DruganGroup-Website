@@ -1,134 +1,390 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="{{ ui_mode }}">
 <head>
     <meta charset="UTF-8">
-    <title>TradeCore | Settings</title>
+    <title>TradeKore | Settings</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
-        .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; }
-        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; }
-        .sidebar a:hover { background-color: rgba(0,0,0,0.1); }
+        body { font-family: 'Segoe UI', sans-serif; }
+        
+        /* Dynamic Sidebar Color */
+        .sidebar { 
+            height: 100vh; 
+            background-color: {{ brand_color }}; 
+            color: white; 
+            position: fixed; 
+            width: 250px; 
+            padding-top: 20px; 
+        }
+        .sidebar a { color: white; text-decoration: none; padding: 15px 25px; display: block; }
+        .sidebar a:hover { filter: brightness(0.9); background-color: rgba(0,0,0,0.1); }
+        
         .content { margin-left: 250px; padding: 30px; }
-        .card { border: none; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .settings-card { border: 1px solid rgba(0,0,0,0.1); border-radius: 10px; padding: 25px; margin-bottom: 20px; }
+        .form-check-input:checked { background-color: {{ brand_color }}; border-color: {{ brand_color }}; }
+        
+        /* Hide tax sections by default; JS will show the right one */
+        .tax-section { display: none; }
     </style>
 </head>
 <body>
 
-<div class="sidebar">
-    <div class="text-center mb-4"><img src="{{ logo_url }}" width="150" style="border-radius:10px;"></div>
-    <a href="/finance-dashboard"><i class="fas fa-tachometer-alt me-2"></i> Overview</a>
-    <a href="/finance/hr"><i class="fas fa-users me-2"></i> HR & Staff</a>
-    <a href="/finance/fleet"><i class="fas fa-truck me-2"></i> Fleet & Gangs</a>
-    <a href="/finance/materials"><i class="fas fa-cubes me-2"></i> Materials</a>
-    <a href="/finance/analysis"><i class="fas fa-chart-pie me-2"></i> Analysis</a>
-    <a href="/finance/settings" style="background-color: rgba(255,255,255,0.2); border-left: 5px solid white;"><i class="fas fa-cogs me-2"></i> Settings</a>
-    <a href="/launcher" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
-</div>
-
-<div class="content">
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}<div class="alert alert-success">{{ messages[0] }}</div>{% endif %}
-    {% endwith %}
-
-    <div class="row">
-        <div class="col-lg-5 mb-4">
-            <h4 class="fw-bold mb-3">General Configuration</h4>
-            <div class="card p-4">
-                <form method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="action" value="save_general">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Company Name</label>
-                        <input type="text" name="company_name" class="form-control" value="{{ settings.get('company_name', '') }}">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Brand Color (Hex)</label>
-                        <input type="color" name="brand_color" class="form-control form-control-color w-100" value="{{ settings.get('brand_color', '#2c3e50') }}">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Update Logo</label>
-                        <input type="file" name="logo" class="form-control">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Payment QR (Upload Image)</label>
-                        <input type="file" name="payment_qr" class="form-control">
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Save Configuration</button>
-                </form>
-            </div>
+    <div class="sidebar">
+        <div class="text-center mb-4">
+            <img src="{{ logo_url }}" alt="Logo" style="max-width: 180px; height: auto; padding: 10px; border-radius: 10px;">
+            <div class="fw-bold fs-5 text-uppercase mt-2">Finance Admin</div>
         </div>
-
-        <div class="col-lg-7">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="fw-bold m-0">Monthly Running Costs</h4>
-                <div class="bg-dark text-white px-3 py-1 rounded">
-                    Total: <span class="fw-bold text-warning">£{{ "%.2f"|format(total_overhead) }} / mo</span>
-                </div>
-            </div>
-
-            <div class="card p-3 mb-4 bg-light border-dashed">
-                <form method="POST" class="d-flex gap-2">
-                    <input type="hidden" name="action" value="add_category">
-                    <input type="text" name="category_name" class="form-control" placeholder="Create New Title (e.g. Advertising)..." required>
-                    <button type="submit" class="btn btn-dark"><i class="fas fa-plus"></i> Add Title</button>
-                </form>
-            </div>
-
-            {% for cat in overheads %}
-            <div class="card mb-3">
-                <div class="card-header d-flex justify-content-between align-items-center bg-white">
-                    <h5 class="m-0 fw-bold text-uppercase text-secondary">{{ cat.name }}</h5>
-                    <div>
-                        <span class="badge bg-secondary me-2">Subtotal: £{{ "%.2f"|format(cat.total) }}</span>
-                        <form method="POST" style="display:inline;" onsubmit="return confirm('Delete this entire category?');">
-                            <input type="hidden" name="action" value="delete_category">
-                            <input type="hidden" name="category_id" value="{{ cat.id }}">
-                            <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fas fa-times"></i></button>
-                        </form>
-                    </div>
-                </div>
-                
-                <div class="card-body p-0">
-                    <table class="table table-striped mb-0">
-                        {% for item in cat.items %}
-                        <tr>
-                            <td class="ps-4">{{ item[1] }}</td>
-                            <td class="fw-bold text-end">£{{ item[2] }}</td>
-                            <td style="width: 50px;">
-                                <form method="POST">
-                                    <input type="hidden" name="action" value="delete_item">
-                                    <input type="hidden" name="item_id" value="{{ item[0] }}">
-                                    <button type="submit" class="btn btn-sm text-danger"><i class="fas fa-trash-alt"></i></button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </table>
-
-                    <div class="p-3 bg-light border-top">
-                        <form method="POST" class="row g-2">
-                            <input type="hidden" name="action" value="add_item">
-                            <input type="hidden" name="category_id" value="{{ cat.id }}">
-                            <div class="col-7">
-                                <input type="text" name="item_name" class="form-control form-control-sm" placeholder="Add Item (e.g. Fleet Ins)" required>
-                            </div>
-                            <div class="col-3">
-                                <input type="number" step="0.01" name="item_cost" class="form-control form-control-sm" placeholder="£ Cost" required>
-                            </div>
-                            <div class="col-2">
-                                <button type="submit" class="btn btn-sm btn-success w-100"><i class="fas fa-plus"></i></button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-
-        </div>
+        <a href="/finance-dashboard"><i class="fas fa-tachometer-alt me-2"></i> Overview</a>
+        <a href="/finance/hr"><i class="fas fa-users me-2"></i> HR & Staff</a>
+        <a href="/finance/fleet"><i class="fas fa-truck me-2"></i> Fleet & Gangs</a>
+        <a href="/finance/materials"><i class="fas fa-cubes me-2"></i> Materials</a>
+        <a href="/finance/analysis"><i class="fas fa-chart-pie me-2"></i> Analysis</a>
+        <a href="/finance/settings" style="background-color: rgba(255,255,255,0.2); border-left: 5px solid white;"><i class="fas fa-cogs me-2"></i> Settings</a>
+        <a href="/launcher" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
+		<a href="/logout" class="text-warning"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
     </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <div class="content">
+        <h2 class="fw-bold mb-4">System Configuration</h2>
+
+        <form action="/finance/settings/save" method="POST" enctype="multipart/form-data">
+            
+            <ul class="nav nav-tabs mb-4" id="settingTabs" role="tablist">
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#general" type="button">General & Branding</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#email" type="button">📧 Email & SMTP</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#payments" type="button">💳 Payments</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#compliance" type="button">Corp. Registration</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#legal" type="button">Legal & Terms</button></li>
+            </ul>
+
+            <div class="tab-content">
+                
+                <div class="tab-pane fade show active" id="general">
+                    <div class="card settings-card shadow-sm">
+                        <h5 class="fw-bold mb-3 text-primary">🎨 Brand Identity</h5>
+                        <div class="row align-items-center">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Primary Brand Color</label>
+                                <div class="input-group">
+                                    <input type="color" class="form-control form-control-color" name="brand_color" value="{{ brand_color }}" title="Choose your color">
+                                    <input type="text" class="form-control" value="{{ brand_color }}" readonly>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">UI Theme Mode</label>
+                                <select name="ui_mode" class="form-select">
+                                    <option value="light" {% if ui_mode == 'light' %}selected{% endif %}>☀️ Light Mode</option>
+                                    <option value="dark" {% if ui_mode == 'dark' %}selected{% endif %}>🌙 Dark Mode</option>
+                                </select>
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold">Company Logo</label>
+                                <input type="file" name="logo" class="form-control">
+                                <small class="text-muted">Current Path: {{ logo_url }}</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card settings-card shadow-sm">
+                        <h5 class="fw-bold mb-3 text-primary">🏢 Company Details</h5>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Company Name</label>
+                                <input type="text" name="company_name" class="form-control" value="{{ settings.get('company_name', '') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Phone Number</label>
+                                <input type="text" name="phone" class="form-control" value="{{ settings.get('phone', '') }}">
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label>Head Office Address</label>
+                                <input type="text" name="address_1" class="form-control mb-2" placeholder="Line 1 / Street" value="{{ settings.get('address_1', '') }}">
+                                <input type="text" name="address_2" class="form-control" placeholder="City / Postcode / Zip" value="{{ settings.get('address_2', '') }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="email">
+                    <div class="card settings-card shadow-sm border-warning">
+                        <h5 class="fw-bold mb-3 text-warning"><i class="fas fa-envelope-open-text me-2"></i> Email Server Configuration</h5>
+                        <div class="alert alert-light border">
+                            <small class="text-muted">
+                                <strong>Note:</strong> Used for sending Quotes, Invoices, and Receipts from YOUR domain.
+                            </small>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label class="fw-bold">SMTP Server Host</label>
+                                <input type="text" name="smtp_server" class="form-control" placeholder="e.g. smtp.gmail.com" value="{{ settings.get('smtp_server', '') }}">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="fw-bold">SMTP Port</label>
+                                <input type="number" name="smtp_port" class="form-control" placeholder="587" value="{{ settings.get('smtp_port', '587') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold">Email Address (Username)</label>
+                                <input type="email" name="smtp_email" class="form-control" placeholder="accounts@yourcompany.com" value="{{ settings.get('smtp_email', '') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold">Email Password (or App Password)</label>
+                                <input type="password" name="smtp_password" class="form-control" value="{{ settings.get('smtp_password', '') }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="payments">
+                    
+                    <div class="card settings-card shadow-sm">
+                        <h5 class="fw-bold mb-3 text-primary"><i class="fas fa-qrcode me-2"></i> Payment QR Code</h5>
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <label class="fw-bold">Upload Banking QR Code</label>
+                                <p class="text-muted small">Upload a screenshot of your Banking App, PayPal, or Venmo QR code. This will be displayed on client invoices.</p>
+                                <input type="file" name="payment_qr" class="form-control">
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <label class="fw-bold d-block mb-2">Current QR Code</label>
+                                {% if settings.get('payment_qr_url') %}
+                                    <img src="{{ settings.get('payment_qr_url') }}" alt="QR Code" style="max-width: 120px; border: 2px solid #ddd; border-radius: 8px; padding: 5px;">
+                                {% else %}
+                                    <div class="text-muted border rounded p-3 bg-light">No QR Set</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card settings-card shadow-sm border-primary">
+                        <h5 class="fw-bold mb-3" style="color: #6772e5;"><i class="fab fa-stripe me-2"></i> Stripe Integration</h5>
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <label class="fw-bold">Publishable Key (Public)</label>
+                                <input type="text" name="stripe_pk" class="form-control font-monospace" placeholder="pk_live_..." value="{{ settings.get('stripe_pk', '') }}">
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="fw-bold">Secret Key (Private)</label>
+                                <input type="password" name="stripe_sk" class="form-control font-monospace" placeholder="sk_live_..." value="{{ settings.get('stripe_sk', '') }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card settings-card shadow-sm border-info">
+                        <h5 class="fw-bold mb-3" style="color: #003087;"><i class="fab fa-paypal me-2"></i> PayPal API</h5>
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <label class="fw-bold">Client ID</label>
+                                <input type="text" name="paypal_client_id" class="form-control font-monospace" value="{{ settings.get('paypal_client_id', '') }}">
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="fw-bold">Secret Key</label>
+                                <input type="password" name="paypal_secret" class="form-control font-monospace" value="{{ settings.get('paypal_secret', '') }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="compliance">
+                    
+                    <div class="col-12 mb-4 bg-light p-3 rounded border">
+                        <label class="fw-bold text-dark">Incorporation Jurisdiction</label>
+                        <select name="country_code" id="countrySelector" class="form-select form-select-lg fw-bold text-primary">
+                            <option value="UK" data-currency="£" {% if settings.get('country_code') == 'UK' %}selected{% endif %}>🇬🇧 United Kingdom (Ltd / PLC)</option>
+                            <option value="US" data-currency="$" {% if settings.get('country_code') == 'US' %}selected{% endif %}>🇺🇸 United States (LLC / Inc)</option>
+                            <option value="CA" data-currency="$" {% if settings.get('country_code') == 'CA' %}selected{% endif %}>🇨🇦 Canada (Corp)</option>
+                            <option value="AU" data-currency="$" {% if settings.get('country_code') == 'AU' %}selected{% endif %}>🇦🇺 Australia (Pty Ltd)</option>
+                            <option value="NZ" data-currency="$" {% if settings.get('country_code') == 'NZ' %}selected{% endif %}>🇳🇿 New Zealand (Ltd)</option>
+                            <option value="ZA" data-currency="R" {% if settings.get('country_code') == 'ZA' %}selected{% endif %}>🇿🇦 South Africa (Pty Ltd)</option>
+                        </select>
+                    </div>
+
+                    <div id="tax-UK" class="tax-section">
+                        <div class="card settings-card shadow-sm border-primary">
+                            <h5 class="fw-bold mb-3 text-primary">🇬🇧 UK Limited Company Details</h5>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="fw-bold">Company Registration No (CRN)</label>
+                                    <input type="text" name="crn_number" class="form-control" placeholder="e.g. 12345678" value="{{ settings.get('crn_number', '') }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="fw-bold">VAT Registration Number</label>
+                                    <input type="text" name="vat_number" class="form-control" placeholder="GB 123 4567 89" value="{{ settings.get('vat_number', '') }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="fw-bold">UTR (Corporation Tax)</label>
+                                    <input type="text" name="utr_number" class="form-control" value="{{ settings.get('utr_number', '') }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tax-US" class="tax-section">
+                        <div class="card settings-card shadow-sm border-danger">
+                            <h5 class="fw-bold mb-3 text-danger">🇺🇸 US Corporate Details</h5>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="fw-bold">Federal EIN (Tax ID)</label>
+                                    <input type="text" name="ein_number" class="form-control" placeholder="XX-XXXXXXX" value="{{ settings.get('ein_number', '') }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="fw-bold">State Entity Number</label>
+                                    <input type="text" name="state_entity_no" class="form-control" placeholder="Secretary of State ID" value="{{ settings.get('state_entity_no', '') }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="fw-bold">State of Incorporation</label>
+                                    <input type="text" name="inc_state" class="form-control" placeholder="e.g. Delaware" value="{{ settings.get('inc_state', '') }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tax-AU" class="tax-section">
+                        <div class="card settings-card shadow-sm border-success">
+                            <h5 class="fw-bold mb-3 text-success">🇦🇺 Australian Business Details</h5>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="fw-bold">ABN (Australian Business No)</label>
+                                    <input type="text" name="abn_number" class="form-control" placeholder="XX XXX XXX XXX" value="{{ settings.get('abn_number', '') }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="fw-bold">ACN (Australian Company No)</label>
+                                    <input type="text" name="acn_number" class="form-control" placeholder="XXX XXX XXX" value="{{ settings.get('acn_number', '') }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tax-NZ" class="tax-section">
+                        <div class="card settings-card shadow-sm border-dark">
+                            <h5 class="fw-bold mb-3">🇳🇿 New Zealand Company Details</h5>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="fw-bold">NZBN (NZ Business Number)</label>
+                                    <input type="text" name="nzbn_number" class="form-control" placeholder="13 digits" value="{{ settings.get('nzbn_number', '') }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="fw-bold">IRD Number (Tax)</label>
+                                    <input type="text" name="ird_number" class="form-control" placeholder="XXX-XXX-XXX" value="{{ settings.get('ird_number', '') }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tax-ZA" class="tax-section">
+                        <div class="card settings-card shadow-sm border-warning">
+                            <h5 class="fw-bold mb-3 text-warning">🇿🇦 South Africa CIPC Details</h5>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="fw-bold">CIPC Registration Number</label>
+                                    <input type="text" name="cipc_number" class="form-control" placeholder="YYYY/NNNNNN/NN" value="{{ settings.get('cipc_number', '') }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="fw-bold">Tax Reference Number</label>
+                                    <input type="text" name="za_tax_ref" class="form-control" value="{{ settings.get('za_tax_ref', '') }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="fw-bold">VAT Number</label>
+                                    <input type="text" name="za_vat" class="form-control" value="{{ settings.get('za_vat', '') }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tax-CA" class="tax-section">
+                        <div class="card settings-card shadow-sm border-danger">
+                            <h5 class="fw-bold mb-3 text-danger">🇨🇦 Canada Corporate Details</h5>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="fw-bold">Corporation Number</label>
+                                    <input type="text" name="ca_corp_no" class="form-control" placeholder="Federal/Provincial ID" value="{{ settings.get('ca_corp_no', '') }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="fw-bold">Business Number (BN/GST)</label>
+                                    <input type="text" name="business_number" class="form-control" placeholder="9 digits + RC0001" value="{{ settings.get('business_number', '') }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card settings-card shadow-sm mt-3">
+                        <h5 class="fw-bold mb-3 text-secondary">🏦 Corporate Bank Details</h5>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold">Account Name</label>
+                                <input type="text" name="bank_account_name" class="form-control" placeholder="e.g. Drugan Group Ltd" value="{{ settings.get('bank_account_name', '') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold">Bank Name</label>
+                                <input type="text" name="bank_name" class="form-control" placeholder="e.g. Barclays" value="{{ settings.get('bank_name', '') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold">Account Number</label>
+                                <input type="text" name="bank_account_number" class="form-control" value="{{ settings.get('bank_account_number', '') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold">Sort Code / Routing / BSB</label>
+                                <input type="text" name="bank_sort_code" class="form-control" placeholder="XX-XX-XX" value="{{ settings.get('bank_sort_code', '') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold">IBAN (International)</label>
+                                <input type="text" name="bank_iban" class="form-control" value="{{ settings.get('bank_iban', '') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold">SWIFT / BIC Code</label>
+                                <input type="text" name="bank_swift" class="form-control" value="{{ settings.get('bank_swift', '') }}">
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="tab-pane fade" id="legal">
+                    <div class="card settings-card shadow-sm">
+                        <h5 class="fw-bold mb-3 text-primary">📜 Terms & Conditions</h5>
+                        <div class="mb-4">
+                            <label class="fw-bold">Quote Footer</label>
+                            <textarea name="quote_terms" class="form-control" rows="5">{{ settings.get('quote_terms', '') }}</textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="fw-bold">Invoice Footer</label>
+                            <textarea name="invoice_terms" class="form-control" rows="5">{{ settings.get('invoice_terms', '') }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="fixed-bottom p-3 bg-white border-top shadow-lg" style="left: 250px;">
+                <button type="submit" class="btn btn-primary btn-lg fw-bold w-100">💾 SAVE CONFIGURATION</button>
+            </div>
+            
+        </form>
+        <br><br><br>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const selector = document.getElementById("countrySelector");
+            
+            function updateSystem() {
+                const country = selector.value;
+                const option = selector.options[selector.selectedIndex];
+                const symbol = option.getAttribute('data-currency');
+
+                // 1. Show correct Tax Section
+                document.querySelectorAll('.tax-section').forEach(el => el.style.display = 'none');
+                const target = document.getElementById('tax-' + country);
+                if (target) target.style.display = 'block';
+
+                console.log("System Switched to: " + country + " | Currency: " + symbol);
+            }
+
+            selector.addEventListener("change", updateSystem);
+            updateSystem(); // Run on load
+        });
+    </script>
 </body>
 </html>
