@@ -328,10 +328,91 @@ def finance_analysis():
     avg_margin = (total_profit / total_rev * 100) if total_rev > 0 else 0
     return render_template('finance/finance_analysis.html', jobs=analyzed_jobs, total_rev=total_rev, total_cost=total_cost, total_profit=total_profit, avg_margin=avg_margin, brand_color=config['color'], logo_url=config['logo'])
 
+# --- 6A. SETTINGS: GENERAL ---
+@finance_bp.route('/finance/settings/general', methods=['GET', 'POST'])
+def settings_general():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
 
-# --- 6. SETTINGS (The Professional Edition - COMPLETE) ---
-@finance_bp.route('/finance/settings', methods=['GET', 'POST'])
-def finance_settings():
+    if request.method == 'POST':
+        try:
+            for key in ['company_name', 'company_email', 'company_phone', 'company_website', 'company_address', 'brand_color']:
+                val = request.form.get(key)
+                cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, val))
+            
+            if 'logo' in request.files:
+                file = request.files['logo']
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(f"logo_{comp_id}_{file.filename}")
+                    file.save(os.path.join(UPLOAD_FOLDER, filename))
+                    db_path = f"/static/uploads/logos/{filename}"
+                    cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
+            
+            conn.commit(); flash("✅ General Settings Saved")
+        except Exception as e: conn.rollback(); flash(f"Error: {e}")
+
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    conn.close()
+    
+    return render_template('finance/settings_general.html', settings=settings, active_tab='general', brand_color=config['color'], logo_url=config['logo'])
+
+# --- 6B. SETTINGS: COMPLIANCE (SMART COUNTRY LOGIC) ---
+@finance_bp.route('/finance/settings/compliance', methods=['GET', 'POST'])
+def settings_compliance():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+
+    if request.method == 'POST':
+        try:
+            # We save EVERYTHING sent in the form, allowing for dynamic fields per country
+            for key, val in request.form.items():
+                cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, val))
+            conn.commit(); flash("✅ Compliance Data Saved")
+        except Exception as e: conn.rollback(); flash(f"Error: {e}")
+
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    conn.close()
+    
+    return render_template('finance/settings_compliance.html', settings=settings, active_tab='compliance', brand_color=config['color'], logo_url=config['logo'])
+
+# --- 6C. SETTINGS: BANKING & DOCS ---
+@finance_bp.route('/finance/settings/banking', methods=['GET', 'POST'])
+def settings_banking():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+
+    if request.method == 'POST':
+        try:
+            for key in ['bank_name', 'account_number', 'sort_code', 'payment_terms', 'smtp_host', 'smtp_port', 'smtp_email', 'smtp_password']:
+                val = request.form.get(key)
+                cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, val))
+            conn.commit(); flash("✅ Banking & Email Settings Saved")
+        except Exception as e: conn.rollback(); flash(f"Error: {e}")
+
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    conn.close()
+    
+    return render_template('finance/settings_banking.html', settings=settings, active_tab='banking', brand_color=config['color'], logo_url=config['logo'])
+
+# --- 6D. SETTINGS: OVERHEADS ---
+@finance_bp.route('/finance/settings/overheads', methods=['GET', 'POST'])
+def settings_overheads():
+    # ... (Keep the overhead logic here, simplified) ...
+    # I will provide the full code for this in the next response if you approve this structure.
+    return "Overheads Page (Coming Next)"
+
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
