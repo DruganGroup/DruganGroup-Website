@@ -141,9 +141,145 @@ def staff_list():
     
     return render_template('office/staff_management.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# --- FLEET & GANG MANAGEMENT ---
+# --- FLEET MANAGEMENT (FULL DASHBOARD) ---
 @office_bp.route('/office/fleet', methods=['GET', 'POST'])
 def fleet_list():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # --- HANDLE FORM SUBMISSIONS ---
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'add_vehicle':
+            reg = request.form.get('reg_number')
+            model = request.form.get('make_model')
+            driver = request.form.get('driver_id')
+            mot = request.form.get('mot_expiry')
+            tax = request.form.get('tax_due')
+            ins = request.form.get('insurance_due')
+            serv = request.form.get('service_due')
+            tracker = request.form.get('tracker_url')
+            cost = request.form.get('daily_cost') or 0
+            
+            try:
+                cur.execute("""
+                    INSERT INTO vehicles (company_id, reg_plate, make_model, assigned_driver_id, mot_due, tax_due, insurance_due, service_due, tracker_url, daily_cost, status) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')
+                """, (comp_id, reg, model, driver if driver else None, mot, tax, ins, serv, tracker, cost))
+                conn.commit()
+                flash(f"✅ Vehicle {reg} Added.")
+            except Exception as e:
+                conn.rollback(); flash(f"❌ Error: {e}")
+
+        elif action == 'assign_crew':
+            vehicle_id = request.form.get('vehicle_id')
+            crew_ids = request.form.getlist('crew_ids')
+            try:
+                cur.execute("DELETE FROM vehicle_crews WHERE vehicle_id = %s", (vehicle_id,))
+                for s_id in crew_ids:
+                    cur.execute("INSERT INTO vehicle_crews (company_id, vehicle_id, staff_id) VALUES (%s, %s, %s)", (comp_id, vehicle_id, s_id))
+                conn.commit()
+                flash("✅ Gang Assigned Successfully")
+            except Exception as e:
+                conn.rollback(); flash(f"❌ Error: {e}")
+
+        elif action == 'add_log': # Add Service/Repair Record
+            v_id = request.form.get('vehicle_id')
+            l_type = request.form.get('log_type')
+            desc = request.form.get('description')
+            date = request.form.get('date')
+            cost = request.form.get('cost') or 0
+            try:
+                cur.execute("""
+                    INSERT INTO maintenance_logs (company_id, vehicle_id, type, description, date, cost)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (comp_id, v_id, l_type, desc, date, cost))
+                conn.commit()
+                flash("✅ Maintenance Record Added")
+            except Exception as e:
+                conn.rollback(); flash(f"❌ Error: {e}")
+                
+        elif action == 'update_defects': # Update Notes/Tracker
+            v_id = request.form.get('vehicle_id')
+            notes = request.form.get('defect_notes')
+            tracker = request.form.get('tracker_url')
+            try:
+                cur.execute("UPDATE vehicles SET defect_notes = %s, tracker_url = %s WHERE id = %s", (notes, tracker, v_id))
+                conn.commit()
+                flash("✅ Vehicle Details Updated")
+            except Exception as e:
+                conn.rollback(); flash(f"❌ Error: {e}")
+
+    # --- FETCH FLEET DATA ---
+    cur.execute("""
+        SELECT 
+            v.id, v.reg_plate, v.make_model, v.status, 
+            v.mot_due, v.tax_due, v.insurance_due, v.service_due, 
+            v.tracker_url, v.defect_notes,
+            s.name as driver_name, v.assigned_driver_id, 
+            COALESCE(v.daily_cost, 0) as van_cost,
+            COALESCE(s.pay_rate, 0) as driver_cost
+        FROM vehicles v 
+        LEFT JOIN staff s ON v.assigned_driver_id = s.id 
+        WHERE v.company_id = %s
+        ORDER BY v.reg_plate
+    """, (comp_id,))
+    
+    raw_vehicles = cur.fetchall()
+    vehicles = []
+    
+    from datetime import date # Need this for date calculations
+    today = date.today()
+
+    for row in raw_vehicles:
+        v_id = row[0]
+        
+        # 1. Fetch Maintenance History
+        cur.execute("SELECT date, type, description, cost FROM maintenance_logs WHERE vehicle_id = %s ORDER BY date DESC", (v_id,))
+        history = [{'date': r[0], 'type': r[1], 'desc': r[2], 'cost': r[3]} for r in cur.fetchall()]
+        
+        # 2. Fetch Crew
+        cur.execute("""
+            SELECT s.id, s.name, s.role, COALESCE(s.pay_rate, 0)
+            FROM vehicle_crews vc
+            JOIN staff s ON vc.staff_id = s.id
+            WHERE vc.vehicle_id = %s
+        """, (v_id,))
+        crew = cur.fetchall()
+        
+        crew_list = []
+        crew_total_cost = 0
+        for c in crew:
+            crew_list.append({'name': c[1], 'role': c[2]})
+            crew_total_cost += float(c[3])
+            
+        # 3. Cost Calc
+        labor_cost = (float(row[13]) + crew_total_cost) * 8 
+        total_day_cost = float(row[12]) + labor_cost
+
+        vehicles.append({
+            'id': row[0],
+            'reg_number': row[1], 'make_model': row[2], 'status': row[3],
+            'mot_expiry': row[4], 'tax_expiry': row[5], 'ins_expiry': row[6], 'service_due': row[7],
+            'tracker_url': row[8], 'defect_notes': row[9],
+            'driver_name': row[10], 'driver_id': row[11],
+            'daily_cost': row[12],
+            'crew': crew_list,
+            'total_gang_cost': total_day_cost,
+            'history': history
+        })
+    
+    cur.execute("SELECT id, name, role FROM staff WHERE company_id = %s AND status='Active'", (comp_id,))
+    all_staff = [dict(zip(['id', 'name', 'role'], row)) for row in cur.fetchall()]
+    
+    conn.close()
+    
+    return render_template('office/fleet_management.html', vehicles=vehicles, staff=all_staff, today=today, brand_color=config['color'], logo_url=config['logo'])
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
