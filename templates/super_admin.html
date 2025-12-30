@@ -3,28 +3,29 @@
 {% block content %}
 
 <style>
-    /* New Grid Layout for Top Section */
-    .top-grid {
-        display: grid;
-        grid-template-columns: 2fr 1fr; /* Deploy is wider, Config is narrower */
-        gap: 30px;
-        margin-bottom: 40px;
-    }
+    /* Top Grid Layout */
+    .top-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; margin-bottom: 40px; }
     @media (max-width: 992px) { .top-grid { grid-template-columns: 1fr; } }
     
     .metric-small { font-size: 0.75rem; color: #888; }
     .val-storage { color: #3498db; font-weight: bold; }
     .val-bandwidth { color: #e67e22; font-weight: bold; }
+    
+    /* Internal Apps Bar */
+    .internal-apps-bar { display: flex; gap: 10px; margin-bottom: 30px; padding: 15px; background: #1a1a1a; border-radius: 8px; border: 1px solid #333; }
 </style>
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; border-bottom: 1px solid #333; padding-bottom: 20px;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 20px;">
     <div>
         <h1 style="color: var(--primary-gold); font-family: 'Montserrat', sans-serif; text-transform: uppercase; font-size: 1.8rem; margin: 0;">Command Center</h1>
         <span style="color: #888; font-size: 0.9rem;">SaaS Management Console</span>
     </div>
-    <div style="display: flex; gap: 15px; align-items: center;">
-        <a href="/admin/backup/all" class="btn-sm" style="background: #f39c12; color: #000; text-decoration: none; padding: 10px 20px; border-radius: 5px;">
-            <i class="fas fa-database"></i> Backup All Companies
+    <div style="display: flex; gap: 10px;">
+        <a href="/launcher" class="btn-sm" style="background: #333; color: white; text-decoration: none; padding: 10px 15px;"><i class="fas fa-rocket me-2"></i> Site Hub</a>
+        <a href="/office-hub" class="btn-sm" style="background: #2980b9; color: white; text-decoration: none; padding: 10px 15px;"><i class="fas fa-desktop me-2"></i> Office</a>
+        <a href="/finance-dashboard" class="btn-sm" style="background: #27ae60; color: white; text-decoration: none; padding: 10px 15px;"><i class="fas fa-coins me-2"></i> Finance</a>
+        <a href="/admin/backup/all" class="btn-sm" style="background: #f39c12; color: #000; text-decoration: none; padding: 10px 15px; border-radius: 5px;">
+            <i class="fas fa-database"></i> Backup All
         </a>
     </div>
 </div>
@@ -59,14 +60,8 @@
                 <input type="text" name="smtp_server" class="dark-input" placeholder="smtp.gmail.com" value="{{ config.get('smtp_server', '') }}">
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-                <div>
-                    <label>Port</label>
-                    <input type="text" name="smtp_port" class="dark-input" placeholder="587" value="{{ config.get('smtp_port', '587') }}">
-                </div>
-                <div>
-                    <label>Password</label>
-                    <input type="password" name="smtp_password" class="dark-input" placeholder="••••" value="{{ config.get('smtp_password', '') }}">
-                </div>
+                <div><label>Port</label><input type="text" name="smtp_port" class="dark-input" placeholder="587" value="{{ config.get('smtp_port', '587') }}"></div>
+                <div><label>Password</label><input type="password" name="smtp_password" class="dark-input" placeholder="••••" value="{{ config.get('smtp_password', '') }}"></div>
             </div>
             <div style="margin-bottom: 15px;">
                 <label>System Email</label>
@@ -77,6 +72,16 @@
                 <input type="text" name="global_alert" class="dark-input" placeholder="e.g. Maintenance at 10pm..." value="{{ config.get('global_alert', '') }}">
             </div>
             <button type="submit" class="btn-manage" style="width: 100%; padding: 10px;">Save Config</button>
+            
+            <hr style="border-color: #333; margin: 20px 0;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <a href="/admin/setup-fleet-db" class="btn-sm" style="background: #2980b9; color: white; text-align: center; text-decoration: none; padding: 10px;">
+                    <i class="fas fa-truck"></i> Fleet DB
+                </a>
+                <a href="/admin/setup-overheads-db" class="btn-sm" style="background: #27ae60; color: white; text-align: center; text-decoration: none; padding: 10px;">
+                    <i class="fas fa-coins"></i> Finance DB
+                </a>
+            </div>
         </form>
     </div>
 </div>
@@ -104,40 +109,10 @@
         </thead>
         <tbody>
             {% for c in companies %}
-            {% for c in companies %}
             <tr>
                 <td style="color: #666;">#{{ c.id }}</td>
-                
                 <td><strong style="color: #fff;">{{ c.name }}</strong></td>
-                
                 <td><span style="color:#888;">{{ c.subdomain }}</span>.drugangroup.co.uk</td>
-                
-                <td>
-                    <span class="badge-status {{ 'badge-enterprise' if c.plan == 'Enterprise' else 'badge-pro' if c.plan == 'Pro' else 'badge-basic' }}">
-                        {{ c.plan }}
-                    </span>
-                </td>
-                
-                <td>
-                    <span class="badge-status {{ 'badge-active' if c.status == 'Active' else 'badge-danger' }}">
-                        {{ c.status }}
-                    </span>
-                </td>
-                
-                <td class="val-storage">{{ c.storage }} <span class="metric-small">MB</span></td>
-                <td class="val-bandwidth">{{ c.bandwidth }} <span class="metric-small">MB/mo</span></td>
-                
-                <td>
-                    <button class="btn-sm btn-manage" 
-                        onclick="openModal('{{ c.name }}', '{{ c.subdomain }}', '{{ c.id }}', '{{ c.plan }}', '{{ c.email }}', '{{ c.status }}')">
-                        <i class="fas fa-edit"></i> Manage
-                    </button>
-                </td>
-            </tr>
-            {% endfor %}
-                <td style="color: #666;">#{{ c.id }}</td>
-                <td><strong style="color: #fff;">{{ c.name }}</strong></td>
-                <td><span style="color:#888;">{{ c.subdomain }}</span></td>
                 <td>
                     <span class="badge-status {{ 'badge-enterprise' if c.plan == 'Enterprise' else 'badge-pro' if c.plan == 'Pro' else 'badge-basic' }}">
                         {{ c.plan }}
@@ -248,15 +223,13 @@
                         <i class="fas fa-download"></i> Backup
                     </a>
                     <button type="submit" class="btn-sm btn-manage">Save</button>
+                    <button type="button" class="btn-sm" style="background:#555; color:#fff;" onclick="closeModal()">Close</button>
                 </div>
             </div>
         </form>
     </div>
 </div>
 
-{% endblock %}
-
-{% block scripts %}
 <script>
     function filterTable() {
         var input = document.getElementById("companySearch");
