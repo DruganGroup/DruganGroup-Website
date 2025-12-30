@@ -7,36 +7,52 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         .dot { height: 12px; width: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
-        .bg-Emergency { background-color: #dc3545; box-shadow: 0 0 8px #dc3545; } /* Red Glow */
-        .bg-Urgent { background-color: #fd7e14; }    /* Orange */
-        .bg-Priority { background-color: #ffc107; }  /* Yellow */
-        .bg-Scheduled { background-color: #0dcaf0; } /* Blue */
-        .bg-Resolved { background-color: #198754; }  /* Green */
+        .bg-Emergency { background-color: #dc3545; box-shadow: 0 0 8px #dc3545; } 
+        .bg-Urgent { background-color: #fd7e14; }
+        .bg-Priority { background-color: #ffc107; }
+        .bg-Scheduled { background-color: #0dcaf0; }
+        .bg-Resolved { background-color: #198754; }
         
-        .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; }
+        .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; z-index: 1000; }
         .content { margin-left: 250px; padding: 30px; }
+
+        /* Modal Styles */
+        .modal-header { background-color: #f8f9fa; border-bottom: 1px solid #eee; }
     </style>
 </head>
 <body>
 
 <div class="sidebar">
-    <div class="text-center mb-4"><img src="{{ logo_url }}" width="150"></div>
+    <div class="text-center mb-4">
+        <img src="{{ logo_url }}" alt="Logo" style="max-width: 150px; border-radius: 10px;">
+    </div>
     <a href="/office-hub" class="nav-link text-white p-3"><i class="fas fa-desktop me-2"></i> Overview</a>
     <a href="/office/service-desk" class="nav-link text-white p-3 active bg-white bg-opacity-25"><i class="fas fa-tools me-2"></i> Service Desk</a>
     <a href="/clients" class="nav-link text-white p-3"><i class="fas fa-users me-2"></i> Clients</a>
+    <a href="/dashboard-menu" class="nav-link text-white p-3 mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
 </div>
 
 <div class="content">
-    <h2 class="fw-bold mb-4">Service Desk</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">Service Desk (Incoming Tickets)</h2>
+        <button class="btn btn-dark"><i class="fas fa-plus"></i> New Ticket</button>
+    </div>
     
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="alert alert-success">{{ messages[0] }}</div>
+      {% endif %}
+    {% endwith %}
+
     <div class="card p-3 shadow-sm">
         <table class="table table-hover align-middle">
             <thead class="table-light">
                 <tr>
-                    <th>Level</th>
-                    <th>Property</th>
-                    <th>Issue Description</th>
-                    <th>Reported By</th>
+                    <th>ID</th>
+                    <th>Severity</th>
+                    <th>Property / Location</th>
+                    <th>Issue</th>
+                    <th>Client</th>
                     <th>Status</th>
                     <th>Action</th>
                 </tr>
@@ -44,6 +60,7 @@
             <tbody>
                 {% for r in requests %}
                 <tr>
+                    <td class="text-muted">#{{ r.id }}</td>
                     <td>
                         <span class="dot bg-{{ r.severity }}"></span>
                         <strong>{{ r.severity }}</strong>
@@ -51,16 +68,95 @@
                     <td>{{ r.property_address }}</td>
                     <td class="small">{{ r.issue_description }}</td>
                     <td>{{ r.client_name }}</td>
-                    <td><span class="badge bg-light text-dark border">{{ r.status }}</span></td>
                     <td>
-                        <button class="btn btn-sm btn-primary">Create Work Order</button>
+                        <span class="badge bg-light text-dark border">{{ r.status }}</span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" 
+                            onclick="openDispatchModal('{{ r.id }}', '{{ r.property_address }}', '{{ r.issue_description }}')">
+                            <i class="fas fa-hard-hat"></i> Dispatch
+                        </button>
                     </td>
                 </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center p-4">No pending service requests.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
 
+<div class="modal fade" id="dispatchModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="/office/create-work-order" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-hard-hat me-2"></i>Create Work Order</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="request_id" id="modalRequestID">
+                    
+                    <div class="mb-3">
+                        <label class="fw-bold text-muted small">LOCATION</label>
+                        <input type="text" class="form-control-plaintext fw-bold" id="modalAddress" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="fw-bold text-muted small">ISSUE</label>
+                        <p id="modalIssue" class="text-dark border p-2 rounded bg-light"></p>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold">Assign Staff / Gang</label>
+                            <select name="assigned_staff_id" class="form-select" required>
+                                <option value="" selected disabled>Select Worker...</option>
+                                {% for s in staff %}
+                                    <option value="{{ s.id }}">{{ s.name }} ({{ s.role }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold">Scheduled Date</label>
+                            <input type="date" name="schedule_date" class="form-control" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="fw-bold">Job Type</label>
+                        <select name="job_type" class="form-select">
+                            <option value="Repair">Repair</option>
+                            <option value="Installation">Installation</option>
+                            <option value="Inspection">Inspection</option>
+                            <option value="Maintenance">Maintenance</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="fw-bold">Admin Notes (Visible to Worker)</label>
+                        <textarea name="admin_notes" class="form-control" rows="2" placeholder="e.g. Key under mat, beware of dog..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success fw-bold">🚀 Dispatch Job</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    function openDispatchModal(id, address, issue) {
+        document.getElementById('modalRequestID').value = id;
+        document.getElementById('modalAddress').value = address;
+        document.getElementById('modalIssue').innerText = issue;
+        
+        var myModal = new bootstrap.Modal(document.getElementById('dispatchModal'));
+        myModal.show();
+    }
+</script>
 </body>
 </html>

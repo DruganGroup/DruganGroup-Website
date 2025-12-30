@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Office | Fleet Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; }
+        .content { margin-left: 250px; padding: 30px; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="text-center mb-4"><img src="{{ logo_url }}" width="150" style="border-radius:10px;"></div>
+    <a href="/office-hub" class="nav-link text-white p-3"><i class="fas fa-desktop me-2"></i> Overview</a>
+    <a href="/office/service-desk" class="nav-link text-white p-3"><i class="fas fa-tools me-2"></i> Service Desk</a>
+    <a href="/office/staff" class="nav-link text-white p-3"><i class="fas fa-users me-2"></i> Staff (HR)</a>
+    <a href="/office/fleet" class="nav-link text-white p-3 active bg-white bg-opacity-25"><i class="fas fa-truck me-2"></i> Fleet</a>
+</div>
+
+<div class="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">Fleet Management</h2>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addVehicleModal"><i class="fas fa-plus"></i> Add Vehicle</button>
+    </div>
+
+    <div class="card p-3 shadow-sm">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Reg Number</th>
+                    <th>Make / Model</th>
+                    <th>Assigned Driver</th>
+                    <th>MOT Due</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in vehicles %}
+                <tr>
+                    <td class="fw-bold text-uppercase">{{ v.reg_number }}</td>
+                    <td>{{ v.make_model }}</td>
+                    <td>
+                        {% if v.driver_name %}
+                            <i class="fas fa-user-circle text-muted"></i> {{ v.driver_name }}
+                        {% else %}
+                            <span class="text-muted small">Unassigned</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ v.mot_expiry }}</td>
+                    <td><span class="badge bg-success">Active</span></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-center">No vehicles in fleet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="addVehicleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Vehicle</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3"><label>Registration (Plate)</label><input type="text" name="reg_number" class="form-control text-uppercase" required></div>
+                    <div class="mb-3"><label>Make & Model</label><input type="text" name="make_model" class="form-control" placeholder="e.g. Ford Transit" required></div>
+                    <div class="mb-3"><label>MOT Expiry</label><input type="date" name="mot_expiry" class="form-control"></div>
+                    <div class="mb-3">
+                        <label>Assign Driver</label>
+                        <select name="driver_id" class="form-select">
+                            <option value="">-- No Driver --</option>
+                            {% for d in drivers %}
+                                <option value="{{ d[0] }}">{{ d[1] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success">Save Vehicle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

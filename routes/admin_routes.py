@@ -417,3 +417,62 @@ def delete_tenant(company_id):
         conn.close()
         
     return redirect(url_for('admin.super_admin_dashboard'))
+    
+    # --- 9. DATABASE SETUP (Run this once to create Office Tables) ---
+@admin_bp.route('/admin/setup-office-db')
+def setup_office_db():
+    if session.get('role') != 'SuperAdmin': return "Access Denied", 403
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Create JOBS Table (For the Dispatcher)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS jobs (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER NOT NULL,
+                request_id INTEGER,  -- Links back to the service ticket
+                staff_id INTEGER,    -- Who is doing the job?
+                scheduled_date TIMESTAMP,
+                type VARCHAR(50),    -- Repair, Install, etc.
+                notes TEXT,
+                status VARCHAR(50) DEFAULT 'Scheduled',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        
+        # 2. Create STAFF Table (If it doesn't exist yet)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS staff (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER NOT NULL,
+                name VARCHAR(100),
+                email VARCHAR(100),
+                phone VARCHAR(20),
+                role VARCHAR(50),
+                status VARCHAR(20) DEFAULT 'Active'
+            );
+        """)
+
+        # 3. Create VEHICLES Table (If it doesn't exist yet)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS vehicles (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER NOT NULL,
+                reg_number VARCHAR(20),
+                make_model VARCHAR(100),
+                driver_id INTEGER,
+                mot_expiry DATE,
+                status VARCHAR(20) DEFAULT 'Active'
+            );
+        """)
+        
+        conn.commit()
+        return "<h1>✅ Database Update Successful!</h1><p>The 'jobs', 'staff', and 'vehicles' tables are ready.</p><a href='/super-admin'>Back to Dashboard</a>"
+        
+    except Exception as e:
+        conn.rollback()
+        return f"<h1>❌ Database Error</h1><p>{e}</p>"
+    finally:
+        conn.close()

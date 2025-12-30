@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Office | HR & Staff</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; }
+        .content { margin-left: 250px; padding: 30px; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="text-center mb-4"><img src="{{ logo_url }}" width="150" style="border-radius:10px;"></div>
+    <a href="/office-hub" class="nav-link text-white p-3"><i class="fas fa-desktop me-2"></i> Overview</a>
+    <a href="/office/service-desk" class="nav-link text-white p-3"><i class="fas fa-tools me-2"></i> Service Desk</a>
+    <a href="/office/staff" class="nav-link text-white p-3 active bg-white bg-opacity-25"><i class="fas fa-users me-2"></i> Staff (HR)</a>
+    <a href="/office/fleet" class="nav-link text-white p-3"><i class="fas fa-truck me-2"></i> Fleet</a>
+</div>
+
+<div class="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">Staff Directory</h2>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStaffModal"><i class="fas fa-plus"></i> Add Staff</button>
+    </div>
+
+    <div class="card p-3 shadow-sm">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Contact</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in staff %}
+                <tr>
+                    <td class="fw-bold">{{ s.name }}</td>
+                    <td><span class="badge bg-secondary">{{ s.role }}</span></td>
+                    <td class="small">
+                        <div><i class="fas fa-envelope text-muted"></i> {{ s.email }}</div>
+                        <div><i class="fas fa-phone text-muted"></i> {{ s.phone }}</div>
+                    </td>
+                    <td><span class="badge bg-success">Active</span></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center">No staff records found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="addStaffModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Employee</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3"><label>Full Name</label><input type="text" name="name" class="form-control" required></div>
+                    <div class="mb-3"><label>Email</label><input type="email" name="email" class="form-control"></div>
+                    <div class="mb-3"><label>Phone</label><input type="text" name="phone" class="form-control"></div>
+                    <div class="mb-3">
+                        <label>Role</label>
+                        <select name="role" class="form-select">
+                            <option value="Office">Office Admin</option>
+                            <option value="Site Manager">Site Manager</option>
+                            <option value="Laborer">Laborer</option>
+                            <option value="Driver">Driver</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success">Save Employee</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
