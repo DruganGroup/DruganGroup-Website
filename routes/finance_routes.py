@@ -1,10 +1,20 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash
 from werkzeug.utils import secure_filename
 import os
-from datetime import datetime, date 
+from datetime import datetime, date
 from db import get_db, get_site_config, allowed_file, UPLOAD_FOLDER
 
 finance_bp = Blueprint('finance', __name__)
+
+# --- HELPER: FORCE DATE OBJECT ---
+def parse_date(d):
+    """Converts string dates from DB into Python Date objects for math"""
+    if isinstance(d, str):
+        try:
+            return datetime.strptime(d, '%Y-%m-%d').date()
+        except:
+            return None
+    return d
 
 # --- 1. OVERVIEW ---
 @finance_bp.route('/finance-dashboard')
@@ -50,18 +60,6 @@ def finance_hr():
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
     
-    # Update DB Schema
-    try:
-        cur.execute("CREATE TABLE IF NOT EXISTS staff (id SERIAL PRIMARY KEY, company_id INTEGER, name TEXT, position TEXT, dept TEXT, pay_rate DECIMAL(10,2), pay_model TEXT, access_level TEXT);")
-        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS email TEXT;")
-        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS phone TEXT;")
-        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS address TEXT;")
-        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS employment_type TEXT;")
-        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS tax_id TEXT;")
-        conn.commit()
-    except:
-        conn.rollback()
-
     cur.execute("""
         SELECT id, name, position, dept, pay_rate, pay_model, access_level, email, phone, employment_type, address, tax_id 
         FROM staff WHERE company_id = %s ORDER BY name
@@ -93,13 +91,7 @@ def add_staff():
             cur.execute("SELECT id FROM users WHERE email=%s", (email,))
             if not cur.fetchone():
                 cur.execute("INSERT INTO users (username, email, password_hash, role, company_id) VALUES (%s, %s, %s, %s, %s)", (email, email, password, access, comp_id))
-                try:
-                    from email_service import send_company_email
-                    subject = "Welcome to TradeCore - Your Login Details"
-                    body = f"<h3>Welcome, {name}!</h3><p>Login URL: https://www.drugangroup.co.uk/login</p><p>Username: {email}</p><p>Password: {password}</p>"
-                    send_company_email(comp_id, email, subject, body)
-                    flash(f"✅ Staff added and login emailed to {email}")
-                except: flash("✅ Staff added. (Email Service not found)")
+                flash(f"✅ Staff added and login created for {email}")
             else: flash("⚠️ Staff added, but user email already exists.")
         else: flash("✅ Staff member added successfully.")
         conn.commit()
@@ -107,7 +99,6 @@ def add_staff():
     finally: conn.close()
     return redirect(url_for('finance.finance_hr'))
 
-# --- NEW: UPDATE STAFF ROUTE ---
 @finance_bp.route('/finance/hr/update', methods=['POST'])
 def update_staff():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -143,7 +134,7 @@ def delete_staff(id):
     return redirect(url_for('finance.finance_hr'))
 
 
-# --- 3. FINANCE FLEET (Cost Tracking Edition) ---
+# --- 3. FINANCE FLEET (Cost Tracking Edition - FIXED) ---
 @finance_bp.route('/finance/fleet', methods=['GET', 'POST'])
 def finance_fleet():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -153,39 +144,82 @@ def finance_fleet():
     conn = get_db()
     cur = conn.cursor()
     
-    # --- HANDLE ADDING COSTS (Fuel, Insurance, etc) ---
+    # --- HANDLE ADDING COSTS ---
     if request.method == 'POST':
         action = request.form.get('action')
         
         if action == 'add_log':
             v_id = request.form.get('vehicle_id')
-            l_type = request.form.get('log_type') # e.g. Insurance, Fuel, Repair
+            l_type = request.form.get('log_type') 
             desc = request.form.get('description')
-            date = request.form.get('date')
+            log_date = request.form.get('date')
             cost = request.form.get('cost') or 0
             
             try:
                 cur.execute("""
                     INSERT INTO maintenance_logs (company_id, vehicle_id, type, description, date, cost)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                """, (comp_id, v_id, l_type, desc, date, cost))
+                """, (comp_id, v_id, l_type, desc, log_date, cost))
                 conn.commit()
                 flash("✅ Cost Recorded Successfully")
             except Exception as e:
                 conn.rollback(); flash(f"❌ Error: {e}")
                 
+        elif action == 'add_vehicle':
+             # Allow Finance to add basic vehicles if needed
+            reg = request.form.get('reg')
+            model = request.form.get('model')
+            driver = request.form.get('driver_id')
+            cost = request.form.get('daily_cost') or 0
+            mot = request.form.get('mot')
+            tax = request.form.get('tax')
+            ins = request.form.get('ins')
+            serv = request.form.get('serv')
+            tracker = request.form.get('tracker_url')
+            
+            try:
+                cur.execute("""
+                    INSERT INTO vehicles (company_id, reg_plate, make_model, assigned_driver_id, daily_cost, mot_due, tax_due, insurance_due, service_due, tracker_url, status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')
+                """, (comp_id, reg, model, driver if driver != 'None' else None, cost, mot, tax, ins, serv, tracker))
+                conn.commit()
+                flash("✅ Vehicle Added")
+            except Exception as e:
+                conn.rollback(); flash(f"❌ Error: {e}")
+        
         elif action == 'update_vehicle':
-             # (Keep your existing update logic here if you have it, or rely on the Office Hub for editing details)
-             pass
+            # Handle Updates
+            v_id = request.form.get('vehicle_id')
+            reg = request.form.get('reg')
+            model = request.form.get('model')
+            driver = request.form.get('driver_id')
+            status = request.form.get('status')
+            mot = request.form.get('mot')
+            tax = request.form.get('tax')
+            ins = request.form.get('ins')
+            serv = request.form.get('serv')
+            tracker = request.form.get('tracker_url')
+            
+            try:
+                cur.execute("""
+                    UPDATE vehicles SET reg_plate=%s, make_model=%s, assigned_driver_id=%s, status=%s, 
+                    mot_due=%s, tax_due=%s, insurance_due=%s, service_due=%s, tracker_url=%s
+                    WHERE id=%s AND company_id=%s
+                """, (reg, model, driver if driver != 'None' else None, status, mot, tax, ins, serv, tracker, v_id, comp_id))
+                conn.commit()
+                flash("✅ Vehicle Updated")
+            except Exception as e:
+                conn.rollback(); flash(f"❌ Error: {e}")
+
 
     # --- FETCH VEHICLES WITH FINANCIAL TOTALS ---
-    # We join with maintenance_logs to calculate total spend
     cur.execute("""
         SELECT 
             v.id, v.reg_plate, v.make_model, v.status, 
             v.mot_due, v.tax_due, v.insurance_due,
             s.name as driver_name,
-            COALESCE(SUM(l.cost), 0) as total_spend
+            COALESCE(SUM(l.cost), 0) as total_spend,
+            v.assigned_driver_id, v.tracker_url, v.service_due
         FROM vehicles v 
         LEFT JOIN staff s ON v.assigned_driver_id = s.id 
         LEFT JOIN maintenance_logs l ON v.id = l.vehicle_id
@@ -197,13 +231,12 @@ def finance_fleet():
     raw_vehicles = cur.fetchall()
     vehicles = []
     
-    from datetime import date
     today = date.today()
 
     for row in raw_vehicles:
         v_id = row[0]
         
-        # Fetch Breakdown of Costs
+        # Fetch Breakdown
         cur.execute("SELECT date, type, description, cost FROM maintenance_logs WHERE vehicle_id = %s ORDER BY date DESC", (v_id,))
         history = [{'date': r[0], 'type': r[1], 'desc': r[2], 'cost': r[3]} for r in cur.fetchall()]
 
@@ -212,62 +245,25 @@ def finance_fleet():
             'reg_number': row[1],
             'make_model': row[2],
             'status': row[3],
-            'mot_due': row[4],
-            'tax_due': row[5],
-            'ins_due': row[6],
+            'mot_due': parse_date(row[4]),   # FIXED with parse_date
+            'tax_due': parse_date(row[5]),   # FIXED with parse_date
+            'ins_due': parse_date(row[6]),   # FIXED with parse_date
             'driver': row[7],
             'total_spend': row[8],
+            'assigned_driver_id': row[9],
+            'tracker_url': row[10],
+            'service_due': parse_date(row[11]), # FIXED with parse_date
             'history': history
         })
+        
+    # Get Staff for Dropdowns
+    cur.execute("SELECT id, name FROM staff WHERE company_id = %s", (comp_id,))
+    staff_list = cur.fetchall()
 
     conn.close()
     
-    return render_template('finance/finance_fleet.html', vehicles=vehicles, today=today, brand_color=config['color'], logo_url=config['logo'])
+    return render_template('finance/finance_fleet.html', vehicles=vehicles, staff=staff_list, today=today, brand_color=config['color'], logo_url=config['logo'])
     
-@finance_bp.route('/finance/fleet/add', methods=['POST'])
-def add_vehicle():
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    comp_id = session.get('company_id')
-    reg = request.form.get('reg'); model = request.form.get('model')
-    driver_id = request.form.get('driver_id')
-    if driver_id == "None": driver_id = None
-    mot = request.form.get('mot') or None; tax = request.form.get('tax') or None
-    status = request.form.get('status'); tracker = request.form.get('tracker_url')
-    
-    conn = get_db(); cur = conn.cursor()
-    try:
-        cur.execute("""
-            INSERT INTO vehicles (company_id, reg_plate, make_model, assigned_driver_id, mot_due, tax_due, status, tracker_url) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (comp_id, reg, model, driver_id, mot, tax, status, tracker))
-        conn.commit(); flash("✅ Vehicle Added Successfully")
-    except Exception as e: conn.rollback(); flash(f"Error: {e}")
-    finally: conn.close()
-    return redirect(url_for('finance.finance_fleet'))
-
-# --- NEW: UPDATE VEHICLE ROUTE ---
-@finance_bp.route('/finance/fleet/update', methods=['POST'])
-def update_vehicle():
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    
-    vehicle_id = request.form.get('vehicle_id')
-    reg = request.form.get('reg'); model = request.form.get('model')
-    driver_id = request.form.get('driver_id')
-    if driver_id == "None": driver_id = None
-    mot = request.form.get('mot') or None; tax = request.form.get('tax') or None
-    status = request.form.get('status'); tracker = request.form.get('tracker_url')
-    
-    conn = get_db(); cur = conn.cursor()
-    try:
-        cur.execute("""
-            UPDATE vehicles SET reg_plate=%s, make_model=%s, assigned_driver_id=%s, mot_due=%s, tax_due=%s, status=%s, tracker_url=%s
-            WHERE id=%s AND company_id=%s
-        """, (reg, model, driver_id, mot, tax, status, tracker, vehicle_id, session.get('company_id')))
-        conn.commit(); flash("✅ Vehicle Details Updated")
-    except Exception as e: conn.rollback(); flash(f"❌ Error updating vehicle: {e}")
-    finally: conn.close()
-    return redirect(url_for('finance.finance_fleet'))
-
 @finance_bp.route('/finance/fleet/delete/<int:id>')
 def delete_vehicle(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -388,74 +384,3 @@ def save_settings():
     except Exception as e: conn.rollback(); flash(f"Error saving settings: {e}")
     finally: conn.close()
     return redirect(url_for('finance.finance_settings'))
-
-# --- TEMP FIX: JUMP COUNTERS TO 1000 (KEPT FOR SAFETY) ---
-@finance_bp.route('/finance/fix-ids')
-def fix_database_ids():
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
-    conn = get_db(); cur = conn.cursor()
-    tables = ['staff', 'vehicles', 'materials', 'users', 'transactions']
-    messages = []
-    try:
-        for t in tables:
-            cur.execute(f"SELECT setval(pg_get_serial_sequence('{t}', 'id'), (SELECT GREATEST(MAX(id)+1, 1000) FROM {t}), false);")
-            messages.append(f"✅ Fixed {t}: Next ID set to 1000+")
-        conn.commit()
-        return f"<h1>Database Repair Complete</h1><br>{'<br>'.join(messages)}<br><br><a href='/finance/hr'>Go Back to HR</a>"
-    except Exception as e:
-        conn.rollback(); return f"<h1>Error</h1><p>{e}</p>"
-    finally: conn.close()
-    
-    # --- TEMP TOOL: GENERATE SUBDOMAINS FOR EXISTING COMPANIES ---
-@finance_bp.route('/finance/fix-subdomains')
-def fix_subdomains():
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
-    
-    conn = get_db()
-    cur = conn.cursor()
-    import re
-
-    messages = []
-    try:
-        # 1. Add the Column if it doesn't exist
-        cur.execute("ALTER TABLE companies ADD COLUMN IF NOT EXISTS subdomain TEXT UNIQUE;")
-        conn.commit()
-        messages.append("✅ 'subdomain' column confirmed.")
-
-        # 2. Fetch all companies that don't have a subdomain yet
-        cur.execute("SELECT id, name FROM companies WHERE subdomain IS NULL OR subdomain = ''")
-        companies = cur.fetchall()
-
-        for comp in companies:
-            c_id = comp[0]
-            c_name = comp[1]
-            
-            # 3. Create "Slug" (Lowercase, remove special chars, spaces to hyphens)
-            # e.g. "Nick's Construction Ltd." -> "nicks-construction-ltd"
-            base_slug = re.sub(r'[^a-z0-9-]', '', c_name.lower().replace(' ', '-'))
-            # Remove double hyphens caused by weird symbols
-            base_slug = re.sub(r'-+', '-', base_slug).strip('-')
-            
-            # 4. Duplicate Defender
-            # Check if this slug exists. If so, add -1, -2, etc.
-            final_slug = base_slug
-            counter = 1
-            while True:
-                cur.execute("SELECT id FROM companies WHERE subdomain = %s AND id != %s", (final_slug, c_id))
-                if not cur.fetchone():
-                    break # Unique!
-                final_slug = f"{base_slug}-{counter}"
-                counter += 1
-            
-            # 5. Save it
-            cur.execute("UPDATE companies SET subdomain = %s WHERE id = %s", (final_slug, c_id))
-            messages.append(f"✅ Generated subdomain for {c_name}: <strong>{final_slug}</strong>")
-
-        conn.commit()
-        return f"<h1>Subdomain Generation Complete</h1><br>{'<br>'.join(messages)}<br><br><a href='/finance-dashboard'>Back to Dashboard</a>"
-
-    except Exception as e:
-        conn.rollback()
-        return f"<h1>Error</h1><p>{e}</p>"
-    finally:
-        conn.close()
