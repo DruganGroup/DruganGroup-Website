@@ -19,30 +19,33 @@ def perform_company_backup(company_id, cur):
     backup_data = {}
     
     # THE COMPLETE LIST OF TABLES
-    # We include 'companies' and 'subscriptions' to ensure we capture the core account info
     tables = [
         'companies', 'subscriptions', 'settings',  # Core & Branding
         'users', 'staff',                          # People
         'vehicles', 'materials',                   # Assets
         'clients', 'properties',                   # CRM
-        'service_requests', 'transactions'         # Data
+        'service_requests', 'transactions',        # Data
+        'maintenance_logs', 'overhead_categories', 'overhead_items' # NEW TABLES
     ]
     
     for table in tables:
         # Check if table exists first (Safety check)
-        cur.execute(f"SELECT to_regclass('{table}')")
-        if cur.fetchone()[0]:
-            # Fetch data strictly for this company
-            if table == 'companies':
-                cur.execute(f"SELECT * FROM {table} WHERE id = %s", (company_id,))
-            else:
-                cur.execute(f"SELECT * FROM {table} WHERE company_id = %s", (company_id,))
-            
-            if cur.description:
-                columns = [desc[0] for desc in cur.description]
-                rows = cur.fetchall()
-                # Convert rows to list of dicts
-                backup_data[table] = [dict(zip(columns, row)) for row in rows]
+        try:
+            cur.execute(f"SELECT to_regclass('{table}')")
+            if cur.fetchone()[0]:
+                # Fetch data strictly for this company
+                if table == 'companies':
+                    cur.execute(f"SELECT * FROM {table} WHERE id = %s", (company_id,))
+                else:
+                    cur.execute(f"SELECT * FROM {table} WHERE company_id = %s", (company_id,))
+                
+                if cur.description:
+                    columns = [desc[0] for desc in cur.description]
+                    rows = cur.fetchall()
+                    # Convert rows to list of dicts
+                    backup_data[table] = [dict(zip(columns, row)) for row in rows]
+        except:
+            pass # Skip table if error
 
     return backup_data
 
@@ -94,6 +97,9 @@ def super_admin_dashboard():
             cur.execute("INSERT INTO users (username, password_hash, email, role, company_id) VALUES (%s, %s, %s, 'Admin', %s)", 
                         (owner_email, secure_pass, owner_email, new_company_id))
             
+            # Initialize Default Brand Color
+            cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'brand_color', '#2c3e50')", (new_company_id,))
+            
             conn.commit()
             flash(f"✅ Success! {comp_name} created at: {final_slug}.drugangroup.co.uk")
         except Exception as e:
@@ -125,10 +131,47 @@ def super_admin_dashboard():
     conn.close()
     
     # Pass all data to the template
-    return render_template('super_admin.html', companies=companies, users=users, config=system_config)
+    return render_template('admin/super_admin_overview.html', companies=companies, users=users, config=system_config)
 
 
-# --- 2. SECURE PASSWORD RESET (GENERATED & EMAILED) ---
+# --- 2. ANALYTICS (The Data Probe) ---
+@admin_bp.route('/super-admin/analytics')
+def super_admin_analytics():
+    if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, name FROM companies")
+    companies = cur.fetchall()
+    
+    analytics_data = []
+    tables_to_check = ['users', 'staff', 'vehicles', 'clients', 'jobs', 'transactions', 'maintenance_logs']
+    
+    for comp in companies:
+        c_id = comp[0]
+        c_name = comp[1]
+        stat = {'name': c_name, 'total_rows': 0, 'breakdown': {}}
+        
+        for table in tables_to_check:
+            try:
+                cur.execute(f"SELECT to_regclass('{table}')")
+                if cur.fetchone()[0]:
+                    cur.execute(f"SELECT COUNT(*) FROM {table} WHERE company_id = %s", (c_id,))
+                    count = cur.fetchone()[0]
+                    stat['breakdown'][table] = count
+                    stat['total_rows'] += count
+            except: pass
+        
+        stat['est_size_mb'] = round((stat['total_rows'] * 0.5) / 1024, 2)
+        stat['bandwidth_usage'] = round(stat['total_rows'] * 0.05, 2)
+        analytics_data.append(stat)
+    
+    analytics_data.sort(key=lambda x: x['total_rows'], reverse=True)
+    conn.close()
+    return render_template('admin/super_admin_analytics.html', data=analytics_data)
+
+
+# --- 3. SECURE PASSWORD RESET (GENERATED & EMAILED) ---
 @admin_bp.route('/admin/reset-password', methods=['POST'])
 def reset_user_password():
     if session.get('role') != 'SuperAdmin':
@@ -206,7 +249,7 @@ def reset_user_password():
     return redirect(url_for('admin.super_admin_dashboard'))
 
 
-# --- 3. SUSPEND / ACTIVATE COMPANY ---
+# --- 4. SUSPEND / ACTIVATE COMPANY ---
 @admin_bp.route('/admin/suspend/<int:company_id>')
 def toggle_suspend(company_id):
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
@@ -239,7 +282,7 @@ def toggle_suspend(company_id):
     return redirect(url_for('admin.super_admin_dashboard'))
 
 
-# --- 4. UPDATE TIER (Basic / Pro / Enterprise) ---
+# --- 5. UPDATE TIER (Basic / Pro / Enterprise) ---
 @admin_bp.route('/admin/update-tier', methods=['POST'])
 def update_tier():
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
@@ -261,7 +304,7 @@ def update_tier():
     return redirect(url_for('admin.super_admin_dashboard'))
 
 
-# --- 5. RUN BACKUP FOR A COMPANY (NAMED FILE) ---
+# --- 6. RUN BACKUP FOR A COMPANY (NAMED FILE) ---
 @admin_bp.route('/admin/backup/<int:company_id>')
 def backup_company(company_id):
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
@@ -275,7 +318,7 @@ def backup_company(company_id):
         res = cur.fetchone()
         company_name = res[0] if res else f"Company{company_id}"
         
-        # Sanitize name (Space -> Underscore, remove weird chars)
+        # Sanitize name
         safe_name = re.sub(r'[^a-zA-Z0-9]', '_', company_name)
         
         # 2. Perform Backup
@@ -285,7 +328,6 @@ def backup_company(company_id):
         timestamp = datetime.now().strftime("%Y-%m-%d")
         filename = f"FULL_BACKUP_{safe_name}_{timestamp}.json"
         
-        # Ensure backup directory exists
         backup_dir = os.path.join(os.getcwd(), 'static', 'backups')
         os.makedirs(backup_dir, exist_ok=True)
         
@@ -304,7 +346,7 @@ def backup_company(company_id):
     return redirect(url_for('admin.super_admin_dashboard'))
 
 
-# --- 6. MASS BACKUP (ALL COMPANIES) ---
+# --- 7. MASS BACKUP (ALL COMPANIES) ---
 @admin_bp.route('/admin/backup/all')
 def backup_all_companies():
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
@@ -313,7 +355,6 @@ def backup_all_companies():
     cur = conn.cursor()
     
     try:
-        # 1. Get all Company IDs
         cur.execute("SELECT id FROM companies")
         company_ids = [row[0] for row in cur.fetchall()]
         
@@ -321,16 +362,12 @@ def backup_all_companies():
         backup_dir = os.path.join(os.getcwd(), 'static', 'backups')
         os.makedirs(backup_dir, exist_ok=True)
         
-        # 2. Create a ZIP file to hold all backups
         zip_filename = f"MASS_BACKUP_{timestamp}.zip"
         zip_path = os.path.join(backup_dir, zip_filename)
         
         with zipfile.ZipFile(zip_path, 'w') as zipf:
             for c_id in company_ids:
-                # Generate data for this company
                 data = perform_company_backup(c_id, cur)
-                
-                # Write individual JSON inside the ZIP
                 json_name = f"Company_{c_id}_Data.json"
                 zipf.writestr(json_name, json.dumps(data, indent=4, default=str))
         
@@ -344,7 +381,7 @@ def backup_all_companies():
     return redirect(url_for('admin.super_admin_dashboard'))
 
 
-# --- 7. SYSTEM SETTINGS & SMTP ---
+# --- 8. SYSTEM SETTINGS & SMTP ---
 @admin_bp.route('/admin/settings', methods=['POST'])
 def save_system_settings():
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
@@ -383,7 +420,7 @@ def save_system_settings():
     return redirect(url_for('admin.super_admin_dashboard'))
 
 
-# --- 8. DELETE COMPANY (THE NUCLEAR OPTION) ---
+# --- 9. DELETE COMPANY (THE NUCLEAR OPTION) ---
 @admin_bp.route('/admin/delete-tenant/<int:company_id>')
 def delete_tenant(company_id):
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
@@ -417,8 +454,31 @@ def delete_tenant(company_id):
         conn.close()
         
     return redirect(url_for('admin.super_admin_dashboard'))
-    
-# --- 15. SETUP RECURRING COSTS (Fixed Overheads) ---
+
+# --- 10. IMPERSONATION (God Mode) ---
+@admin_bp.route('/admin/assign-me/<int:company_id>')
+def assign_super_admin(company_id):
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    user_id = session.get('user_id')
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("UPDATE users SET company_id = %s WHERE id = %s", (company_id, user_id))
+    session['company_id'] = company_id
+    conn.commit(); conn.close()
+    flash(f"👻 Now viewing as Company ID {company_id}")
+    return redirect(url_for('auth.main_launcher'))
+
+@admin_bp.route('/admin/reset-me')
+def reset_super_admin():
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    user_id = session.get('user_id')
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("UPDATE users SET company_id = 0 WHERE id = %s", (user_id,))
+    session['company_id'] = 0
+    conn.commit(); conn.close()
+    flash("🛡️ Returned to Super Admin Mode")
+    return redirect(url_for('admin.super_admin_dashboard'))
+
+# --- 11. SETUP RECURRING COSTS (Fixed Overheads) ---
 @admin_bp.route('/admin/setup-overheads-db')
 def setup_overheads_db():
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
@@ -427,70 +487,52 @@ def setup_overheads_db():
     cur = conn.cursor()
     
     try:
-        # 1. Categories (e.g. "Insurances", "Vehicle Rental")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS overhead_categories (
-                id SERIAL PRIMARY KEY,
-                company_id INTEGER NOT NULL,
-                name VARCHAR(100) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                id SERIAL PRIMARY KEY, company_id INTEGER NOT NULL,
+                name VARCHAR(100) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
-
-        # 2. Items (e.g. "Public Liability", "Google Ads")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS overhead_items (
-                id SERIAL PRIMARY KEY,
-                category_id INTEGER NOT NULL,
-                name VARCHAR(100) NOT NULL,
-                amount DECIMAL(10,2) DEFAULT 0.00,
+                id SERIAL PRIMARY KEY, category_id INTEGER NOT NULL,
+                name VARCHAR(100) NOT NULL, amount DECIMAL(10,2) DEFAULT 0.00,
                 frequency VARCHAR(20) DEFAULT 'Monthly',
                 FOREIGN KEY (category_id) REFERENCES overhead_categories(id) ON DELETE CASCADE
             );
         """)
-        
         conn.commit()
-        return "<h1>✅ Overheads DB Ready!</h1><p>You can now track monthly running costs.</p><a href='/finance/settings'>Go to Settings</a>"
-        
+        return "<h1>✅ Overheads DB Ready!</h1><p>You can now track monthly running costs.</p><a href='/finance/settings/overheads'>Go to Settings</a>"
     except Exception as e:
-        conn.rollback()
-        return f"<h1>❌ Database Error</h1><p>{e}</p>"
-    finally:
-        conn.close()
+        conn.rollback(); return f"<h1>❌ Database Error</h1><p>{e}</p>"
+    finally: conn.close()
+
+# --- 12. SETUP FLEET DB (Fixed Logic) ---
+@admin_bp.route('/admin/setup-fleet-db')
+def setup_fleet_db():
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
     
     conn = get_db()
     cur = conn.cursor()
     
     try:
-        # 1. Add missing columns to VEHICLES
-        # We use IF NOT EXISTS to prevent errors if you ran previous scripts
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tax_due DATE;")
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS insurance_due DATE;")
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS service_due DATE;")
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tracker_url TEXT;") # For the map iframe
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_notes TEXT;")
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_image_url TEXT;") 
+        # Add columns
+        cols = ["tax_due DATE", "insurance_due DATE", "service_due DATE", "tracker_url TEXT", "defect_notes TEXT", "defect_image_url TEXT"]
+        for c in cols:
+            try: cur.execute(f"ALTER TABLE vehicles ADD COLUMN {c};")
+            except: pass # Ignore if exists
         
-        # 2. Create MAINTENANCE LOGS Table (For Service/Repair History)
+        # Create Maintenance Table
         cur.execute("""
             CREATE TABLE IF NOT EXISTS maintenance_logs (
-                id SERIAL PRIMARY KEY,
-                company_id INTEGER NOT NULL,
-                vehicle_id INTEGER NOT NULL,
-                date DATE DEFAULT CURRENT_DATE,
-                type VARCHAR(50),  -- 'Service', 'Repair', 'MOT', 'Tyres'
-                description TEXT,
-                cost DECIMAL(10,2) DEFAULT 0.00,
+                id SERIAL PRIMARY KEY, company_id INTEGER NOT NULL,
+                vehicle_id INTEGER NOT NULL, date DATE DEFAULT CURRENT_DATE,
+                type VARCHAR(50), description TEXT, cost DECIMAL(10,2) DEFAULT 0.00,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
-
         conn.commit()
-        return "<h1>✅ Fleet Database Upgraded!</h1><p>Added Tax, Insurance, Tracker, and Maintenance Logs.</p><a href='/office/fleet'>Go to Fleet Dashboard</a>"
-        
+        return "<h1>✅ Fleet Database Upgraded!</h1><p>Added Tax, Insurance, Tracker, and Maintenance Logs.</p><a href='/finance/fleet'>Go to Fleet Dashboard</a>"
     except Exception as e:
-        conn.rollback()
-        return f"<h1>❌ Database Error</h1><p>{e}</p>"
-    finally:
-        conn.close()
+        conn.rollback(); return f"<h1>❌ Database Error</h1><p>{e}</p>"
+    finally: conn.close()
