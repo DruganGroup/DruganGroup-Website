@@ -50,15 +50,9 @@
         
         <a href="/office-hub" class="active"><i class="fas fa-desktop me-2"></i> Dashboard</a>
 		<a href="/office/service-desk"><i class="fas fa-tools me-2"></i> Service Desk</a>
-        <a href="/clients"><i class="fas fa-address-book me-2"></i> Client Database</a>
+        <a href="/clients"><i class="fas fa-address-book me-2"></i> Client Database</a>        
+        <a href="/launcher" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
 		<a href="/logout" class="text-warning"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
-                
-        {% if session.get('role') in ['Admin', 'SuperAdmin'] %}
-        <hr style="border-color: rgba(255,255,255,0.2);">
-        <a href="/finance-dashboard"><i class="fas fa-chart-line me-2"></i> Finance Admin</a>
-        {% endif %}
-        
-        <a href="/dashboard-menu" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
     </div>
 
     <div class="content">
