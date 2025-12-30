@@ -1,337 +1,431 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>TradeCore | Finance Settings</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
-        .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; z-index:1000;}
-        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; }
-        .sidebar a:hover { background-color: rgba(0,0,0,0.1); }
-        .content { margin-left: 250px; padding: 30px; }
+from flask import Blueprint, render_template, session, redirect, url_for, request, flash
+from werkzeug.utils import secure_filename
+import os
+from datetime import datetime, date  # Required for date math
+from db import get_db, get_site_config, allowed_file, UPLOAD_FOLDER
+
+finance_bp = Blueprint('finance', __name__)
+
+# --- HELPER: FORCE DATE OBJECT ---
+def parse_date(d):
+    """Converts string dates from DB into Python Date objects for math"""
+    if isinstance(d, str):
+        try:
+            return datetime.strptime(d, '%Y-%m-%d').date()
+        except:
+            return None
+    return d
+
+# --- 1. OVERVIEW ---
+@finance_bp.route('/finance-dashboard')
+def finance_dashboard():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+
+    company_id = session.get('company_id')
+    config = get_site_config(company_id)
+    
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Ensure Transactions Table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS transactions (
+            id SERIAL PRIMARY KEY, company_id INTEGER, date DATE,
+            type TEXT, category TEXT, description TEXT, amount DECIMAL(10,2), reference TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    conn.commit()
+
+    # Financial Calcs
+    cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Income'", (company_id,))
+    income = cur.fetchone()[0] or 0.0
+    cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Expense'", (company_id,))
+    expense = cur.fetchone()[0] or 0.0
+    balance = income - expense
+
+    cur.execute("SELECT date, type, category, description, amount, reference FROM transactions WHERE company_id = %s ORDER BY date DESC LIMIT 20", (company_id,))
+    transactions = cur.fetchall()
+    
+    conn.close()
+    return render_template('finance/finance_dashboard.html', total_income=income, total_expense=expense, total_balance=balance, transactions=transactions, brand_color=config['color'], logo_url=config['logo'])
+
+
+# --- 2. HR & STAFF ---
+@finance_bp.route('/finance/hr')
+def finance_hr():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+    
+    cur.execute("""
+        SELECT id, name, position, dept, pay_rate, pay_model, access_level, email, phone, employment_type, address, tax_id 
+        FROM staff WHERE company_id = %s ORDER BY name
+    """, (comp_id,))
+    staff = cur.fetchall()
+    conn.close()
+    return render_template('finance/finance_hr.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
+
+@finance_bp.route('/finance/hr/add', methods=['POST'])
+def add_staff():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    
+    name = request.form.get('name'); position = request.form.get('position')
+    email = request.form.get('email'); phone = request.form.get('phone')
+    address = request.form.get('address'); emp_type = request.form.get('employment_type')
+    dept = request.form.get('dept'); rate = request.form.get('rate') or 0
+    model = request.form.get('model'); tax_id = request.form.get('tax_id')
+    access = request.form.get('access_level'); password = request.form.get('password')
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO staff (company_id, name, position, dept, pay_rate, pay_model, access_level, email, phone, address, employment_type, tax_id) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (comp_id, name, position, dept, rate, model, access, email, phone, address, emp_type, tax_id))
         
-        .nav-tabs .nav-link { color: #555; font-weight: 600; border: none; padding: 12px 20px; }
-        .nav-tabs .nav-link.active { color: {{ brand_color }}; border-bottom: 3px solid {{ brand_color }}; background: transparent; }
-        .card { border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-radius: 8px; }
+        if access != "None" and email and password:
+            cur.execute("SELECT id FROM users WHERE email=%s", (email,))
+            if not cur.fetchone():
+                from werkzeug.security import generate_password_hash
+                hashed_pw = generate_password_hash(password)
+                cur.execute("INSERT INTO users (username, email, password_hash, role, company_id) VALUES (%s, %s, %s, %s, %s)", (email, email, hashed_pw, access, comp_id))
+                flash(f"✅ Staff added and login created for {email}")
+            else: flash("⚠️ Staff added, but user email already exists.")
+        else: flash("✅ Staff member added successfully.")
+        conn.commit()
+    except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
+    finally: conn.close()
+    return redirect(url_for('finance.finance_hr'))
+
+@finance_bp.route('/finance/hr/update', methods=['POST'])
+def update_staff():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    
+    staff_id = request.form.get('staff_id')
+    name = request.form.get('name'); position = request.form.get('position')
+    email = request.form.get('email'); phone = request.form.get('phone')
+    address = request.form.get('address'); emp_type = request.form.get('employment_type')
+    dept = request.form.get('dept'); rate = request.form.get('rate') or 0
+    model = request.form.get('model'); tax_id = request.form.get('tax_id')
+    access = request.form.get('access_level')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("""
+            UPDATE staff SET name=%s, position=%s, email=%s, phone=%s, address=%s, employment_type=%s, dept=%s, pay_rate=%s, pay_model=%s, tax_id=%s, access_level=%s 
+            WHERE id=%s AND company_id=%s
+        """, (name, position, email, phone, address, emp_type, dept, rate, model, tax_id, access, staff_id, session.get('company_id')))
+        conn.commit()
+        flash("✅ Staff Details Updated")
+    except Exception as e:
+        conn.rollback(); flash(f"❌ Error updating staff: {e}")
+    finally:
+        conn.close()
+    return redirect(url_for('finance.finance_hr'))
+
+@finance_bp.route('/finance/hr/delete/<int:id>')
+def delete_staff(id):
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("DELETE FROM staff WHERE id = %s AND company_id = %s", (id, session.get('company_id')))
+    conn.commit(); conn.close()
+    return redirect(url_for('finance.finance_hr'))
+
+
+# --- 3. FINANCE FLEET ---
+@finance_bp.route('/finance/fleet', methods=['GET', 'POST'])
+def finance_fleet():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db()
+    cur = conn.cursor()
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
         
-        .form-label { font-size: 0.8rem; text-transform: uppercase; color: #666; font-weight: 700; letter-spacing: 0.5px; }
-        .form-control, .form-select { padding: 10px; border: 1px solid #ddd; }
-        .form-control:focus, .form-select:focus { border-color: {{ brand_color }}; box-shadow: none; }
-        
-        .section-header { border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; margin-bottom: 20px; color: #333; font-weight: 700; }
-    </style>
-</head>
-<body>
-
-<div class="sidebar">
-    <div class="text-center mb-4"><img src="{{ logo_url }}" width="150" style="border-radius:10px;"></div>
-    <a href="/finance-dashboard"><i class="fas fa-tachometer-alt me-2"></i> Overview</a>
-    <a href="/finance/hr"><i class="fas fa-users me-2"></i> HR & Staff</a>
-    <a href="/finance/fleet"><i class="fas fa-truck me-2"></i> Fleet & Gangs</a>
-    <a href="/finance/materials"><i class="fas fa-cubes me-2"></i> Materials</a>
-    <a href="/finance/analysis"><i class="fas fa-chart-pie me-2"></i> Analysis</a>
-    <a href="/finance/settings" style="background-color: rgba(255,255,255,0.2); border-left: 5px solid white;"><i class="fas fa-cogs me-2"></i> Settings</a>
-    <a href="/launcher" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
-</div>
-
-<div class="content">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold">Configuration Center</h2>
-            <p class="text-muted mb-0">Manage multi-national tax compliance and overheads.</p>
-        </div>
-        <button type="submit" form="configForm" class="btn btn-primary fw-bold px-4 shadow-sm">
-            <i class="fas fa-save me-2"></i> Save Changes
-        </button>
-    </div>
-
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}<div class="alert alert-success shadow-sm">{{ messages[0] }}</div>{% endif %}
-    {% endwith %}
-
-    <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
-        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#general">🏢 Company & Branding</button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#finance">⚖️ Tax & Banking</button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#overheads">📉 Running Costs</button></li>
-    </ul>
-
-    <div class="tab-content">
-        
-        <div class="tab-pane fade show active" id="general">
-            <form id="configForm" method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="action" value="save_config">
-                
-                <div class="row g-4">
-                    <div class="col-md-8">
-                        <div class="card p-4 h-100">
-                            <h5 class="section-header">Business Details</h5>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Primary Country of Operation</label>
-                                    <select name="country_code" id="countrySelector" class="form-select bg-light border-secondary" onchange="updateLabels()">
-                                        <option value="UK" {% if settings.get('country_code') == 'UK' %}selected{% endif %}>🇬🇧 United Kingdom</option>
-                                        <option value="USA" {% if settings.get('country_code') == 'USA' %}selected{% endif %}>🇺🇸 United States</option>
-                                        <option value="CAN" {% if settings.get('country_code') == 'CAN' %}selected{% endif %}>🇨🇦 Canada</option>
-                                        <option value="AUS" {% if settings.get('country_code') == 'AUS' %}selected{% endif %}>🇦🇺 Australia</option>
-                                        <option value="NZ" {% if settings.get('country_code') == 'NZ' %}selected{% endif %}>🇳🇿 New Zealand</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Currency</label>
-                                    <select name="currency_symbol" class="form-select">
-                                        <option value="£" {% if settings.get('currency_symbol') == '£' %}selected{% endif %}>£ (GBP)</option>
-                                        <option value="$" {% if settings.get('currency_symbol') == '$' %}selected{% endif %}>$ (USD/AUD/CAD/NZD)</option>
-                                        <option value="€" {% if settings.get('currency_symbol') == '€' %}selected{% endif %}>€ (EUR)</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Company Name</label>
-                                    <input type="text" name="company_name" class="form-control" value="{{ settings.get('company_name', '') }}">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label" id="lbl_reg">Company Reg Number</label>
-                                    <input type="text" name="company_reg_number" class="form-control" value="{{ settings.get('company_reg_number', '') }}">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Contact Email</label>
-                                    <input type="email" name="company_email" class="form-control" value="{{ settings.get('company_email', '') }}">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Phone Number</label>
-                                    <input type="text" name="company_phone" class="form-control" value="{{ settings.get('company_phone', '') }}">
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Registered Address</label>
-                                    <textarea name="company_address" class="form-control" rows="2">{{ settings.get('company_address', '') }}</textarea>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-4">
-                        <div class="card p-4 h-100">
-                            <h5 class="section-header">Branding</h5>
-                            <div class="mb-3">
-                                <label class="form-label">Brand Color</label>
-                                <input type="color" name="brand_color" class="form-control form-control-color w-100" value="{{ settings.get('brand_color', '#2c3e50') }}">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Company Logo</label>
-                                <input type="file" name="logo" class="form-control">
-                                <small class="text-muted">Updates invoices & header</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        if action == 'add_log':
+            v_id = request.form.get('vehicle_id')
+            l_type = request.form.get('log_type') 
+            desc = request.form.get('description')
+            log_date = request.form.get('date')
+            cost = request.form.get('cost') or 0
             
-        </div>
-
-        <div class="tab-pane fade" id="finance">
-            <div class="row g-4">
+            try:
+                cur.execute("""
+                    INSERT INTO maintenance_logs (company_id, vehicle_id, type, description, date, cost)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (comp_id, v_id, l_type, desc, log_date, cost))
+                conn.commit()
+                flash("✅ Cost Recorded Successfully")
+            except Exception as e:
+                conn.rollback(); flash(f"❌ Error: {e}")
                 
-                <div class="col-md-6">
-                    <div class="card p-4 h-100">
-                        <h5 class="section-header">Tax & Government Compliance</h5>
-                        
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label" id="lbl_tax_id">Tax / VAT ID</label>
-                                <input type="text" name="tax_id" class="form-control" value="{{ settings.get('tax_id', '') }}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label" id="lbl_utr">Unique Tax Ref (UTR)</label>
-                                <input type="text" name="utr_number" class="form-control" value="{{ settings.get('utr_number', '') }}">
-                            </div>
-                            
-                            <div class="col-md-6">
-                                <label class="form-label" id="lbl_paye">Employer / PAYE Ref</label>
-                                <input type="text" name="paye_ref" class="form-control" value="{{ settings.get('paye_ref', '') }}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Subcontractor Tax Rate (%)</label>
-                                <select name="cis_rate" class="form-select">
-                                    <option value="0" {% if settings.get('cis_rate') == '0' %}selected{% endif %}>0% (Gross)</option>
-                                    <option value="20" {% if settings.get('cis_rate') == '20' %}selected{% endif %}>20% (Standard)</option>
-                                    <option value="30" {% if settings.get('cis_rate') == '30' %}selected{% endif %}>30% (Higher)</option>
-                                    <option value="custom" {% if settings.get('cis_rate') == 'custom' %}selected{% endif %}>Custom / N/A</option>
-                                </select>
-                            </div>
+        elif action == 'add_vehicle':
+            reg = request.form.get('reg')
+            model = request.form.get('model')
+            driver = request.form.get('driver_id')
+            cost = request.form.get('daily_cost') or 0
+            mot = request.form.get('mot')
+            tax = request.form.get('tax')
+            ins = request.form.get('ins')
+            serv = request.form.get('serv')
+            tracker = request.form.get('tracker_url')
+            
+            try:
+                cur.execute("""
+                    INSERT INTO vehicles (company_id, reg_plate, make_model, assigned_driver_id, daily_cost, mot_due, tax_due, insurance_due, service_due, tracker_url, status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')
+                """, (comp_id, reg, model, driver if driver != 'None' else None, cost, mot, tax, ins, serv, tracker))
+                conn.commit()
+                flash("✅ Vehicle Added")
+            except Exception as e:
+                conn.rollback(); flash(f"❌ Error: {e}")
+        
+        elif action == 'update_vehicle':
+            v_id = request.form.get('vehicle_id')
+            reg = request.form.get('reg')
+            model = request.form.get('model')
+            driver = request.form.get('driver_id')
+            status = request.form.get('status')
+            mot = request.form.get('mot')
+            tax = request.form.get('tax')
+            ins = request.form.get('ins')
+            serv = request.form.get('serv')
+            tracker = request.form.get('tracker_url')
+            
+            try:
+                cur.execute("""
+                    UPDATE vehicles SET reg_plate=%s, make_model=%s, assigned_driver_id=%s, status=%s, 
+                    mot_due=%s, tax_due=%s, insurance_due=%s, service_due=%s, tracker_url=%s
+                    WHERE id=%s AND company_id=%s
+                """, (reg, model, driver if driver != 'None' else None, status, mot, tax, ins, serv, tracker, v_id, comp_id))
+                conn.commit()
+                flash("✅ Vehicle Updated")
+            except Exception as e:
+                conn.rollback(); flash(f"❌ Error: {e}")
 
-                            <div class="col-12 mt-3">
-                                <h6 class="fw-bold text-secondary border-bottom pb-2">Liability Insurance Data</h6>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Public Liability Policy #</label>
-                                <input type="text" name="public_liability_policy" class="form-control" value="{{ settings.get('public_liability_policy', '') }}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Employers Liability Policy #</label>
-                                <input type="text" name="employers_liability_policy" class="form-control" value="{{ settings.get('employers_liability_policy', '') }}">
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    # Fetch Data
+    cur.execute("""
+        SELECT 
+            v.id, v.reg_plate, v.make_model, v.status, 
+            v.mot_due, v.tax_due, v.insurance_due,
+            s.name as driver_name,
+            COALESCE(SUM(l.cost), 0) as total_spend,
+            v.assigned_driver_id, v.tracker_url, v.service_due
+        FROM vehicles v 
+        LEFT JOIN staff s ON v.assigned_driver_id = s.id 
+        LEFT JOIN maintenance_logs l ON v.id = l.vehicle_id
+        WHERE v.company_id = %s
+        GROUP BY v.id, s.name
+        ORDER BY v.reg_plate
+    """, (comp_id,))
+    
+    raw_vehicles = cur.fetchall()
+    vehicles = []
+    today = date.today()
 
-                <div class="col-md-6">
-                    <div class="card p-4 h-100">
-                        <h5 class="section-header">Banking & Invoicing</h5>
-                        <div class="mb-3">
-                            <label class="form-label">Bank Name</label>
-                            <input type="text" name="bank_name" class="form-control" value="{{ settings.get('bank_name', '') }}" placeholder="e.g. Chase / Barclays">
-                        </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-6">
-                                <label class="form-label">Account Number</label>
-                                <input type="text" name="account_number" class="form-control" value="{{ settings.get('account_number', '') }}">
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label" id="lbl_sort">Sort Code / Routing</label>
-                                <input type="text" name="sort_code" class="form-control" value="{{ settings.get('sort_code', '') }}">
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">Default Invoice Payment Terms</label>
-                            <textarea name="payment_terms" class="form-control" rows="3" placeholder="e.g. Payment due within 14 days...">{{ settings.get('payment_terms', '') }}</textarea>
-                        </div>
+    for row in raw_vehicles:
+        v_id = row[0]
+        cur.execute("SELECT date, type, description, cost FROM maintenance_logs WHERE vehicle_id = %s ORDER BY date DESC", (v_id,))
+        history = [{'date': r[0], 'type': r[1], 'desc': r[2], 'cost': r[3]} for r in cur.fetchall()]
 
-                        <div class="mt-3">
-                            <label class="form-label">Payment QR Code (Upload)</label>
-                            <input type="file" name="payment_qr" class="form-control">
-                        </div>
-                    </div>
-                </div>
-            </div>
-            </form> </div>
+        vehicles.append({
+            'id': row[0],
+            'reg_number': row[1],
+            'make_model': row[2],
+            'status': row[3],
+            'mot_due': parse_date(row[4]),
+            'tax_due': parse_date(row[5]),
+            'ins_due': parse_date(row[6]),
+            'driver': row[7],
+            'total_spend': row[8],
+            'assigned_driver_id': row[9],
+            'tracker_url': row[10],
+            'service_due': parse_date(row[11]),
+            'history': history
+        })
+        
+    cur.execute("SELECT id, name FROM staff WHERE company_id = %s", (comp_id,))
+    staff_list = cur.fetchall()
+    conn.close()
+    
+    return render_template('finance/finance_fleet.html', vehicles=vehicles, staff=staff_list, today=today, brand_color=config['color'], logo_url=config['logo'])
+    
+@finance_bp.route('/finance/fleet/delete/<int:id>')
+def delete_vehicle(id):
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("DELETE FROM vehicles WHERE id=%s AND company_id=%s", (id, session.get('company_id')))
+    conn.commit(); conn.close()
+    return redirect(url_for('finance.finance_fleet'))
 
-        <div class="tab-pane fade" id="overheads">
-            <div class="row">
-                <div class="col-md-4 mb-4">
-                    <div class="card p-4 bg-dark text-white text-center">
-                        <h6 class="text-uppercase text-white-50">Total Monthly Fixed Cost</h6>
-                        <h1 class="fw-bold text-warning mb-0">{{ settings.get('currency_symbol', '£') }}{{ "%.2f"|format(total_overhead) }}</h1>
-                        <small class="text-white-50">Excludes variable fleet costs</small>
-                    </div>
-                    
-                    <div class="card p-3 mt-3 bg-light border-dashed">
-                        <h6 class="fw-bold small text-uppercase mb-2">Create New Category</h6>
-                        <form method="POST">
-                            <input type="hidden" name="action" value="add_category">
-                            <div class="input-group">
-                                <input type="text" name="category_name" class="form-control" placeholder="e.g. Subscriptions, Rent..." required>
-                                <button type="submit" class="btn btn-dark"><i class="fas fa-plus"></i></button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
 
-                <div class="col-md-8">
-                    {% for cat in overheads %}
-                    <div class="card mb-3">
-                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                            <strong class="text-uppercase">{{ cat.name }}</strong>
-                            <div>
-                                <span class="badge bg-secondary me-2">{{ settings.get('currency_symbol', '£') }}{{ "%.2f"|format(cat.total) }}</span>
-                                <form method="POST" style="display:inline;" onsubmit="return confirm('Delete Category?');">
-                                    <input type="hidden" name="action" value="delete_category">
-                                    <input type="hidden" name="category_id" value="{{ cat.id }}">
-                                    <button type="submit" class="btn btn-sm text-danger border-0"><i class="fas fa-times"></i></button>
-                                </form>
-                            </div>
-                        </div>
-                        <div class="card-body p-0">
-                            <table class="table table-striped mb-0">
-                                {% for item in cat.items %}
-                                <tr>
-                                    <td class="ps-3">{{ item[1] }}</td>
-                                    <td class="fw-bold text-end">{{ settings.get('currency_symbol', '£') }}{{ item[2] }}</td>
-                                    <td style="width:40px;">
-                                        <form method="POST">
-                                            <input type="hidden" name="action" value="delete_item">
-                                            <input type="hidden" name="item_id" value="{{ item[0] }}">
-                                            <button type="submit" class="btn btn-sm text-danger p-0"><i class="fas fa-trash"></i></button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </table>
-                            <div class="p-2 border-top bg-light">
-                                <form method="POST" class="row g-1">
-                                    <input type="hidden" name="action" value="add_item">
-                                    <input type="hidden" name="category_id" value="{{ cat.id }}">
-                                    <div class="col-7"><input type="text" name="item_name" class="form-control form-control-sm" placeholder="Item Name" required></div>
-                                    <div class="col-3"><input type="number" step="0.01" name="item_cost" class="form-control form-control-sm" placeholder="Cost" required></div>
-                                    <div class="col-2"><button type="submit" class="btn btn-sm btn-success w-100"><i class="fas fa-plus"></i></button></div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="text-center text-muted py-5 border rounded bg-light">
-                        <i class="fas fa-chart-line fa-2x mb-2"></i>
-                        <p>No overheads tracked yet. Add a category on the left.</p>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
+# --- 4. MATERIALS ---
+@finance_bp.route('/finance/materials')
+def finance_materials():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("CREATE TABLE IF NOT EXISTS materials (id SERIAL PRIMARY KEY, company_id INTEGER, sku TEXT, name TEXT, category TEXT, unit TEXT, cost_price DECIMAL(10,2), supplier TEXT);")
+    conn.commit()
+    cur.execute("SELECT id, sku, name, category, unit, cost_price, supplier FROM materials WHERE company_id = %s ORDER BY name", (comp_id,))
+    materials = cur.fetchall()
+    conn.close()
+    return render_template('finance/finance_materials.html', materials=materials, brand_color=config['color'], logo_url=config['logo'])
 
-    </div>
-</div>
+@finance_bp.route('/finance/materials/add', methods=['POST'])
+def add_material():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    supplier = request.form.get('supplier'); sku = request.form.get('sku')
+    name = request.form.get('name'); cat = request.form.get('category')
+    unit = request.form.get('unit'); cost = request.form.get('cost') or 0
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("INSERT INTO materials (company_id, sku, name, category, unit, cost_price, supplier) VALUES (%s, %s, %s, %s, %s, %s, %s)", (session.get('company_id'), sku, name, cat, unit, cost, supplier))
+        conn.commit(); flash("Item Added")
+    except Exception as e: conn.rollback(); flash(f"Error: {e}")
+    finally: conn.close()
+    return redirect(url_for('finance.finance_materials'))
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+@finance_bp.route('/finance/materials/delete/<int:id>')
+def delete_material(id):
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("DELETE FROM materials WHERE id=%s AND company_id=%s", (id, session.get('company_id')))
+    conn.commit(); conn.close()
+    return redirect(url_for('finance.finance_materials'))
 
-<script>
-    function updateLabels() {
-        const country = document.getElementById('countrySelector').value;
-        const lblReg = document.getElementById('lbl_reg');
-        const lblTax = document.getElementById('lbl_tax_id');
-        const lblRef = document.getElementById('lbl_utr');
-        const lblPaye = document.getElementById('lbl_paye');
-        const lblSort = document.getElementById('lbl_sort');
 
-        if (country === 'UK') {
-            lblReg.innerText = "Company Reg Number (CRN)";
-            lblTax.innerText = "VAT Registration Number";
-            lblRef.innerText = "Unique Tax Ref (UTR)";
-            lblPaye.innerText = "Employer PAYE Reference";
-            lblSort.innerText = "Sort Code";
-        } 
-        else if (country === 'USA') {
-            lblReg.innerText = "State Registration ID";
-            lblTax.innerText = "Sales Tax ID / Reseller Cert";
-            lblRef.innerText = "Federal EIN (Employer ID)";
-            lblPaye.innerText = "State Unemployment ID";
-            lblSort.innerText = "Routing Number (ABA)";
-        }
-        else if (country === 'CAN') {
-            lblReg.innerText = "Provincial Corp Number";
-            lblTax.innerText = "GST / HST Number";
-            lblRef.innerText = "Business Number (BN)";
-            lblPaye.innerText = "Payroll Program Account (RP)";
-            lblSort.innerText = "Transit Number";
-        }
-        else if (country === 'AUS') {
-            lblReg.innerText = "ACN (Australian Company Number)";
-            lblTax.innerText = "GST Registration";
-            lblRef.innerText = "ABN (Australian Business Number)";
-            lblPaye.innerText = "TFN (Tax File Number)";
-            lblSort.innerText = "BSB Number";
-        }
-        else if (country === 'NZ') {
-            lblReg.innerText = "NZBN (New Zealand Business Num)";
-            lblTax.innerText = "GST Number";
-            lblRef.innerText = "IRD Number";
-            lblPaye.innerText = "Employer Registration (IRD)";
-            lblSort.innerText = "Bank Branch Number";
-        }
-    }
+# --- 5. ANALYSIS ---
+@finance_bp.route('/finance/analysis')
+def finance_analysis():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT reference, description, amount FROM transactions WHERE company_id = %s AND type = 'Income' ORDER BY date DESC LIMIT 50", (comp_id,))
+    raw_jobs = cur.fetchall()
+    
+    analyzed_jobs = []; total_rev = 0; total_cost = 0
+    for j in raw_jobs:
+        rev = float(j[2])
+        est_cost = rev / 1.2
+        profit = rev - est_cost
+        margin = (profit / rev * 100) if rev > 0 else 0
+        total_rev += rev; total_cost += est_cost
+        analyzed_jobs.append({"ref": j[0], "client": j[1], "status": "Completed", "rev": rev, "cost": est_cost, "profit": profit, "margin": margin})
+    conn.close()
+    total_profit = total_rev - total_cost
+    avg_margin = (total_profit / total_rev * 100) if total_rev > 0 else 0
+    return render_template('finance/finance_analysis.html', jobs=analyzed_jobs, total_rev=total_rev, total_cost=total_cost, total_profit=total_profit, avg_margin=avg_margin, brand_color=config['color'], logo_url=config['logo'])
 
-    // Run on load to set initial state
-    document.addEventListener('DOMContentLoaded', updateLabels);
-</script>
 
-</body>
-</html>
+# --- 6. SETTINGS (The Professional Edition - COMPLETE) ---
+@finance_bp.route('/finance/settings', methods=['GET', 'POST'])
+def finance_settings():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # --- HANDLE FORM SUBMISSIONS ---
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        # 1. SAVE ALL SETTINGS (Dynamic - Saves ANY field from HTML)
+        if action == 'save_config':
+            try:
+                # Save all text/select fields
+                for key, value in request.form.items():
+                    if key != 'action' and value is not None:
+                        cur.execute("""
+                            INSERT INTO settings (company_id, key, value) 
+                            VALUES (%s, %s, %s) 
+                            ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+                        """, (comp_id, key, value))
+                
+                # Handle Logo Upload
+                if 'logo' in request.files:
+                    file = request.files['logo']
+                    if file and allowed_file(file.filename):
+                        filename = secure_filename(f"logo_{comp_id}_{file.filename}")
+                        file.save(os.path.join(UPLOAD_FOLDER, filename))
+                        db_path = f"/static/uploads/logos/{filename}"
+                        cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
+                
+                # Handle Payment QR Upload
+                if 'payment_qr' in request.files:
+                    file = request.files['payment_qr']
+                    if file and allowed_file(file.filename):
+                        filename = secure_filename(f"qr_{comp_id}_{file.filename}")
+                        file.save(os.path.join(UPLOAD_FOLDER, filename))
+                        db_path = f"/static/uploads/logos/{filename}"
+                        cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'payment_qr_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
+
+                conn.commit()
+                flash("✅ Configuration Saved Successfully")
+            except Exception as e:
+                conn.rollback(); flash(f"❌ Error: {e}")
+
+        # 2. OVERHEADS (Category)
+        elif action == 'add_category':
+            cat_name = request.form.get('category_name')
+            if cat_name:
+                cur.execute("INSERT INTO overhead_categories (company_id, name) VALUES (%s, %s)", (comp_id, cat_name))
+                conn.commit()
+                flash(f"✅ Category '{cat_name}' Added")
+
+        # 3. OVERHEADS (Item)
+        elif action == 'add_item':
+            cat_id = request.form.get('category_id')
+            name = request.form.get('item_name')
+            amount = request.form.get('item_cost')
+            if cat_id and name and amount:
+                cur.execute("INSERT INTO overhead_items (category_id, name, amount) VALUES (%s, %s, %s)", (cat_id, name, amount))
+                conn.commit()
+                flash("✅ Cost Added")
+
+        # 4. DELETE OPERATIONS
+        elif action == 'delete_item':
+            cur.execute("DELETE FROM overhead_items WHERE id = %s", (request.form.get('item_id'),))
+            conn.commit()
+            flash("🗑️ Cost Removed")
+
+        elif action == 'delete_category':
+            cur.execute("DELETE FROM overhead_categories WHERE id = %s AND company_id = %s", (request.form.get('category_id'), comp_id))
+            conn.commit()
+            flash("🗑️ Category Removed")
+
+    # --- FETCH DATA ---
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings_dict = {row[0]: row[1] for row in cur.fetchall()}
+    
+    cur.execute("SELECT id, name FROM overhead_categories WHERE company_id = %s ORDER BY id ASC", (comp_id,))
+    categories_raw = cur.fetchall()
+    
+    overheads = []
+    total_monthly_overhead = 0.0
+    
+    for cat in categories_raw:
+        cur.execute("SELECT id, name, amount FROM overhead_items WHERE category_id = %s", (cat[0],))
+        items = cur.fetchall()
+        cat_total = sum([float(i[2]) for i in items])
+        total_monthly_overhead += cat_total
+        overheads.append({'id': cat[0], 'name': cat[1], 'items': items, 'total': cat_total})
+
+    conn.close()
+    
+    return render_template('finance/finance_settings.html', 
+                           settings=settings_dict, 
+                           overheads=overheads, 
+                           total_overhead=total_monthly_overhead,
+                           brand_color=config['color'], 
+                           logo_url=config['logo'])
