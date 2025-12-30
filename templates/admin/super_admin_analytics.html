@@ -36,20 +36,48 @@
 
         <table style="width: 100%; color: #aaa; font-size: 0.9rem;">
             <tr>
-                <td style="padding: 5px 0;"><i class="fas fa-users" style="width: 20px;"></i> Staff & Users</td>
-                <td style="text-align: right; color: #fff;">{{ c.breakdown.get('users', 0) + c.breakdown.get('staff', 0) }}</td>
+                <td style="padding: 5px 0; border-bottom: 1px solid #333;">
+                    <i class="fas fa-hard-hat" style="width: 20px; color: #e67e22;"></i> Staff & Gangs
+                </td>
+                <td style="text-align: right; color: #fff; border-bottom: 1px solid #333;">
+                    {{ c.breakdown.get('staff', 0) }}
+                </td>
             </tr>
+
             <tr>
-                <td style="padding: 5px 0;"><i class="fas fa-truck" style="width: 20px;"></i> Fleet Vehicles</td>
-                <td style="text-align: right; color: #fff;">{{ c.breakdown.get('vehicles', 0) }}</td>
+                <td style="padding: 5px 0; border-bottom: 1px solid #333;">
+                    <i class="fas fa-briefcase" style="width: 20px; color: #3498db;"></i> Client Base
+                </td>
+                <td style="text-align: right; color: #fff; border-bottom: 1px solid #333;">
+                    {{ c.breakdown.get('clients', 0) }}
+                </td>
             </tr>
+
             <tr>
-                <td style="padding: 5px 0;"><i class="fas fa-file-invoice" style="width: 20px;"></i> Financial Trans</td>
-                <td style="text-align: right; color: #fff;">{{ c.breakdown.get('transactions', 0) }}</td>
+                <td style="padding: 5px 0; border-bottom: 1px solid #333;">
+                    <i class="fas fa-truck" style="width: 20px; color: #9b59b6;"></i> Fleet Vehicles
+                </td>
+                <td style="text-align: right; color: #fff; border-bottom: 1px solid #333;">
+                    {{ c.breakdown.get('vehicles', 0) }}
+                </td>
             </tr>
+
             <tr>
-                <td style="padding: 5px 0;"><i class="fas fa-tools" style="width: 20px;"></i> Jobs & Repairs</td>
-                <td style="text-align: right; color: #fff;">{{ c.breakdown.get('jobs', 0) + c.breakdown.get('maintenance_logs', 0) }}</td>
+                <td style="padding: 5px 0; border-bottom: 1px solid #333;">
+                    <i class="fas fa-tools" style="width: 20px; color: #2ecc71;"></i> Active Jobs
+                </td>
+                <td style="text-align: right; color: #fff; border-bottom: 1px solid #333;">
+                    {{ c.breakdown.get('jobs', 0) + c.breakdown.get('maintenance_logs', 0) }}
+                </td>
+            </tr>
+            
+            <tr>
+                <td style="padding: 5px 0;">
+                    <i class="fas fa-file-invoice-dollar" style="width: 20px; color: var(--primary-gold);"></i> Transactions
+                </td>
+                <td style="text-align: right; color: #fff;">
+                    {{ c.breakdown.get('transactions', 0) }}
+                </td>
             </tr>
         </table>
         
