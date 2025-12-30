@@ -123,13 +123,20 @@ def super_admin_dashboard():
             
     # --- FETCH DATA & CALCULATE USAGE (New Logic) ---
     cur.execute("""
-        SELECT c.id, c.name, s.plan_tier, s.status, u.email, c.subdomain 
+        SELECT 
+            c.id, 
+            c.name, 
+            MAX(s.plan_tier) as plan_tier, 
+            MAX(s.status) as status, 
+            MAX(u.email) as email, 
+            c.subdomain 
         FROM companies c 
         LEFT JOIN subscriptions s ON c.id = s.company_id 
         LEFT JOIN users u ON c.id = u.company_id AND u.role = 'Admin' 
+        GROUP BY c.id
         ORDER BY c.id DESC
     """)
-    raw_companies = cur.fetchall()
+    raw_companies = cur.fetchall())
     
     # Convert tuples to Dictionaries and add Storage/Bandwidth data
     companies = []
