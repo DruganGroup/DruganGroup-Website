@@ -40,7 +40,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold">Configuration Center</h2>
-            <p class="text-muted mb-0">Manage company details, tax compliance, and overheads.</p>
+            <p class="text-muted mb-0">Manage multi-national tax compliance and overheads.</p>
         </div>
         <button type="submit" form="configForm" class="btn btn-primary fw-bold px-4 shadow-sm">
             <i class="fas fa-save me-2"></i> Save Changes
@@ -53,7 +53,7 @@
 
     <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
         <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#general">🏢 Company & Branding</button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#finance">⚖️ Tax, Banking & CIS</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#finance">⚖️ Tax & Banking</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#overheads">📉 Running Costs</button></li>
     </ul>
 
@@ -69,16 +69,30 @@
                             <h5 class="section-header">Business Details</h5>
                             <div class="row g-3">
                                 <div class="col-md-6">
+                                    <label class="form-label">Primary Country of Operation</label>
+                                    <select name="country_code" id="countrySelector" class="form-select bg-light border-secondary" onchange="updateLabels()">
+                                        <option value="UK" {% if settings.get('country_code') == 'UK' %}selected{% endif %}>🇬🇧 United Kingdom</option>
+                                        <option value="USA" {% if settings.get('country_code') == 'USA' %}selected{% endif %}>🇺🇸 United States</option>
+                                        <option value="CAN" {% if settings.get('country_code') == 'CAN' %}selected{% endif %}>🇨🇦 Canada</option>
+                                        <option value="AUS" {% if settings.get('country_code') == 'AUS' %}selected{% endif %}>🇦🇺 Australia</option>
+                                        <option value="NZ" {% if settings.get('country_code') == 'NZ' %}selected{% endif %}>🇳🇿 New Zealand</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Currency</label>
+                                    <select name="currency_symbol" class="form-select">
+                                        <option value="£" {% if settings.get('currency_symbol') == '£' %}selected{% endif %}>£ (GBP)</option>
+                                        <option value="$" {% if settings.get('currency_symbol') == '$' %}selected{% endif %}>$ (USD/AUD/CAD/NZD)</option>
+                                        <option value="€" {% if settings.get('currency_symbol') == '€' %}selected{% endif %}>€ (EUR)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
                                     <label class="form-label">Company Name</label>
                                     <input type="text" name="company_name" class="form-control" value="{{ settings.get('company_name', '') }}">
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">Regional Currency</label>
-                                    <select name="currency_symbol" class="form-select">
-                                        <option value="£" {% if settings.get('currency_symbol') == '£' %}selected{% endif %}>GBP (£) - United Kingdom</option>
-                                        <option value="€" {% if settings.get('currency_symbol') == '€' %}selected{% endif %}>EUR (€) - Ireland / Europe</option>
-                                        <option value="$" {% if settings.get('currency_symbol') == '$' %}selected{% endif %}>USD ($) - International</option>
-                                    </select>
+                                    <label class="form-label" id="lbl_reg">Company Reg Number</label>
+                                    <input type="text" name="company_reg_number" class="form-control" value="{{ settings.get('company_reg_number', '') }}">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Contact Email</label>
@@ -91,14 +105,6 @@
                                 <div class="col-12">
                                     <label class="form-label">Registered Address</label>
                                     <textarea name="company_address" class="form-control" rows="2">{{ settings.get('company_address', '') }}</textarea>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Company Reg Number (CRN)</label>
-                                    <input type="text" name="company_reg_number" class="form-control" value="{{ settings.get('company_reg_number', '') }}">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Website</label>
-                                    <input type="text" name="company_website" class="form-control" value="{{ settings.get('company_website', '') }}">
                                 </div>
                             </div>
                         </div>
@@ -127,28 +133,29 @@
                 
                 <div class="col-md-6">
                     <div class="card p-4 h-100">
-                        <h5 class="section-header">Tax & Compliance (HMRC / Revenue)</h5>
+                        <h5 class="section-header">Tax & Government Compliance</h5>
                         
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label">UTR Number (Unique Tax Ref)</label>
-                                <input type="text" name="utr_number" class="form-control" value="{{ settings.get('utr_number', '') }}" placeholder="12345 67890">
+                                <label class="form-label" id="lbl_tax_id">Tax / VAT ID</label>
+                                <input type="text" name="tax_id" class="form-control" value="{{ settings.get('tax_id', '') }}">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">VAT Registration Number</label>
-                                <input type="text" name="tax_id" class="form-control" value="{{ settings.get('tax_id', '') }}">
+                                <label class="form-label" id="lbl_utr">Unique Tax Ref (UTR)</label>
+                                <input type="text" name="utr_number" class="form-control" value="{{ settings.get('utr_number', '') }}">
                             </div>
                             
                             <div class="col-md-6">
-                                <label class="form-label">PAYE Reference</label>
-                                <input type="text" name="paye_ref" class="form-control" value="{{ settings.get('paye_ref', '') }}" placeholder="123/AB456">
+                                <label class="form-label" id="lbl_paye">Employer / PAYE Ref</label>
+                                <input type="text" name="paye_ref" class="form-control" value="{{ settings.get('paye_ref', '') }}">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">CIS Deduction Rate (%)</label>
+                                <label class="form-label">Subcontractor Tax Rate (%)</label>
                                 <select name="cis_rate" class="form-select">
-                                    <option value="0" {% if settings.get('cis_rate') == '0' %}selected{% endif %}>0% (Gross Status)</option>
-                                    <option value="20" {% if settings.get('cis_rate') == '20' %}selected{% endif %}>20% (Net Status)</option>
-                                    <option value="30" {% if settings.get('cis_rate') == '30' %}selected{% endif %}>30% (Unverified)</option>
+                                    <option value="0" {% if settings.get('cis_rate') == '0' %}selected{% endif %}>0% (Gross)</option>
+                                    <option value="20" {% if settings.get('cis_rate') == '20' %}selected{% endif %}>20% (Standard)</option>
+                                    <option value="30" {% if settings.get('cis_rate') == '30' %}selected{% endif %}>30% (Higher)</option>
+                                    <option value="custom" {% if settings.get('cis_rate') == 'custom' %}selected{% endif %}>Custom / N/A</option>
                                 </select>
                             </div>
 
@@ -172,22 +179,22 @@
                         <h5 class="section-header">Banking & Invoicing</h5>
                         <div class="mb-3">
                             <label class="form-label">Bank Name</label>
-                            <input type="text" name="bank_name" class="form-control" value="{{ settings.get('bank_name', '') }}" placeholder="e.g. Barclays">
+                            <input type="text" name="bank_name" class="form-control" value="{{ settings.get('bank_name', '') }}" placeholder="e.g. Chase / Barclays">
                         </div>
                         <div class="row g-2 mb-3">
                             <div class="col-6">
-                                <label class="form-label">Account Number / IBAN</label>
+                                <label class="form-label">Account Number</label>
                                 <input type="text" name="account_number" class="form-control" value="{{ settings.get('account_number', '') }}">
                             </div>
                             <div class="col-6">
-                                <label class="form-label">Sort Code / BIC</label>
+                                <label class="form-label" id="lbl_sort">Sort Code / Routing</label>
                                 <input type="text" name="sort_code" class="form-control" value="{{ settings.get('sort_code', '') }}">
                             </div>
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label">Default Invoice Payment Terms</label>
-                            <textarea name="payment_terms" class="form-control" rows="3" placeholder="e.g. Payment due within 14 days of invoice date...">{{ settings.get('payment_terms', '') }}</textarea>
+                            <textarea name="payment_terms" class="form-control" rows="3" placeholder="e.g. Payment due within 14 days...">{{ settings.get('payment_terms', '') }}</textarea>
                         </div>
 
                         <div class="mt-3">
@@ -204,8 +211,8 @@
                 <div class="col-md-4 mb-4">
                     <div class="card p-4 bg-dark text-white text-center">
                         <h6 class="text-uppercase text-white-50">Total Monthly Fixed Cost</h6>
-                        <h1 class="fw-bold text-warning mb-0">£{{ "%.2f"|format(total_overhead) }}</h1>
-                        <small class="text-white-50">Fixed recurring costs only</small>
+                        <h1 class="fw-bold text-warning mb-0">{{ settings.get('currency_symbol', '£') }}{{ "%.2f"|format(total_overhead) }}</h1>
+                        <small class="text-white-50">Excludes variable fleet costs</small>
                     </div>
                     
                     <div class="card p-3 mt-3 bg-light border-dashed">
@@ -226,7 +233,7 @@
                         <div class="card-header bg-white d-flex justify-content-between align-items-center">
                             <strong class="text-uppercase">{{ cat.name }}</strong>
                             <div>
-                                <span class="badge bg-secondary me-2">£{{ "%.2f"|format(cat.total) }}</span>
+                                <span class="badge bg-secondary me-2">{{ settings.get('currency_symbol', '£') }}{{ "%.2f"|format(cat.total) }}</span>
                                 <form method="POST" style="display:inline;" onsubmit="return confirm('Delete Category?');">
                                     <input type="hidden" name="action" value="delete_category">
                                     <input type="hidden" name="category_id" value="{{ cat.id }}">
@@ -239,7 +246,7 @@
                                 {% for item in cat.items %}
                                 <tr>
                                     <td class="ps-3">{{ item[1] }}</td>
-                                    <td class="fw-bold text-end">£{{ item[2] }}</td>
+                                    <td class="fw-bold text-end">{{ settings.get('currency_symbol', '£') }}{{ item[2] }}</td>
                                     <td style="width:40px;">
                                         <form method="POST">
                                             <input type="hidden" name="action" value="delete_item">
@@ -255,7 +262,7 @@
                                     <input type="hidden" name="action" value="add_item">
                                     <input type="hidden" name="category_id" value="{{ cat.id }}">
                                     <div class="col-7"><input type="text" name="item_name" class="form-control form-control-sm" placeholder="Item Name" required></div>
-                                    <div class="col-3"><input type="number" step="0.01" name="item_cost" class="form-control form-control-sm" placeholder="£ Cost" required></div>
+                                    <div class="col-3"><input type="number" step="0.01" name="item_cost" class="form-control form-control-sm" placeholder="Cost" required></div>
                                     <div class="col-2"><button type="submit" class="btn btn-sm btn-success w-100"><i class="fas fa-plus"></i></button></div>
                                 </form>
                             </div>
@@ -275,5 +282,56 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    function updateLabels() {
+        const country = document.getElementById('countrySelector').value;
+        const lblReg = document.getElementById('lbl_reg');
+        const lblTax = document.getElementById('lbl_tax_id');
+        const lblRef = document.getElementById('lbl_utr');
+        const lblPaye = document.getElementById('lbl_paye');
+        const lblSort = document.getElementById('lbl_sort');
+
+        if (country === 'UK') {
+            lblReg.innerText = "Company Reg Number (CRN)";
+            lblTax.innerText = "VAT Registration Number";
+            lblRef.innerText = "Unique Tax Ref (UTR)";
+            lblPaye.innerText = "Employer PAYE Reference";
+            lblSort.innerText = "Sort Code";
+        } 
+        else if (country === 'USA') {
+            lblReg.innerText = "State Registration ID";
+            lblTax.innerText = "Sales Tax ID / Reseller Cert";
+            lblRef.innerText = "Federal EIN (Employer ID)";
+            lblPaye.innerText = "State Unemployment ID";
+            lblSort.innerText = "Routing Number (ABA)";
+        }
+        else if (country === 'CAN') {
+            lblReg.innerText = "Provincial Corp Number";
+            lblTax.innerText = "GST / HST Number";
+            lblRef.innerText = "Business Number (BN)";
+            lblPaye.innerText = "Payroll Program Account (RP)";
+            lblSort.innerText = "Transit Number";
+        }
+        else if (country === 'AUS') {
+            lblReg.innerText = "ACN (Australian Company Number)";
+            lblTax.innerText = "GST Registration";
+            lblRef.innerText = "ABN (Australian Business Number)";
+            lblPaye.innerText = "TFN (Tax File Number)";
+            lblSort.innerText = "BSB Number";
+        }
+        else if (country === 'NZ') {
+            lblReg.innerText = "NZBN (New Zealand Business Num)";
+            lblTax.innerText = "GST Number";
+            lblRef.innerText = "IRD Number";
+            lblPaye.innerText = "Employer Registration (IRD)";
+            lblSort.innerText = "Bank Branch Number";
+        }
+    }
+
+    // Run on load to set initial state
+    document.addEventListener('DOMContentLoaded', updateLabels);
+</script>
+
 </body>
 </html>
