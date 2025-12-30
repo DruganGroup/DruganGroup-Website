@@ -336,9 +336,108 @@ def finance_analysis():
     return render_template('finance/finance_analysis.html', jobs=analyzed_jobs, total_rev=total_rev, total_cost=total_cost, total_profit=total_profit, avg_margin=avg_margin, brand_color=config['color'], logo_url=config['logo'])
 
 
-# --- 6. SETTINGS ---
-@finance_bp.route('/finance/settings')
+# --- 6. SETTINGS & OVERHEADS ---
+@finance_bp.route('/finance/settings', methods=['GET', 'POST'])
 def finance_settings():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # --- HANDLE FORM SUBMISSIONS ---
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        # 1. Standard Settings (Logo, Text, etc)
+        if action == 'save_general':
+            try:
+                # Text Fields
+                for key, value in request.form.items():
+                    if key != 'action':
+                        cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, value))
+                
+                # File Uploads (Logo)
+                if 'logo' in request.files:
+                    file = request.files['logo']
+                    if file and allowed_file(file.filename):
+                        filename = secure_filename(f"logo_{comp_id}_{file.filename}")
+                        file.save(os.path.join(UPLOAD_FOLDER, filename))
+                        db_path = f"/static/uploads/logos/{filename}"
+                        cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
+                
+                conn.commit()
+                flash("✅ Configuration Saved")
+            except Exception as e:
+                conn.rollback(); flash(f"Error: {e}")
+
+        # 2. Add New Cost Category (e.g. "Insurances")
+        elif action == 'add_category':
+            cat_name = request.form.get('category_name')
+            if cat_name:
+                cur.execute("INSERT INTO overhead_categories (company_id, name) VALUES (%s, %s)", (comp_id, cat_name))
+                conn.commit()
+                flash(f"✅ Category '{cat_name}' Added")
+
+        # 3. Add Cost Item (e.g. "Fleet Insurance - £230")
+        elif action == 'add_item':
+            cat_id = request.form.get('category_id')
+            name = request.form.get('item_name')
+            amount = request.form.get('item_cost')
+            if cat_id and name and amount:
+                cur.execute("INSERT INTO overhead_items (category_id, name, amount) VALUES (%s, %s, %s)", (cat_id, name, amount))
+                conn.commit()
+                flash("✅ Cost Added")
+
+        # 4. Delete Item
+        elif action == 'delete_item':
+            item_id = request.form.get('item_id')
+            cur.execute("DELETE FROM overhead_items WHERE id = %s", (item_id,))
+            conn.commit()
+            flash("🗑️ Cost Removed")
+
+        # 5. Delete Category
+        elif action == 'delete_category':
+            cat_id = request.form.get('category_id')
+            cur.execute("DELETE FROM overhead_categories WHERE id = %s AND company_id = %s", (cat_id, comp_id))
+            conn.commit()
+            flash("🗑️ Category Removed")
+
+    # --- FETCH DATA FOR PAGE ---
+    # 1. Get Settings
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings_dict = {row[0]: row[1] for row in cur.fetchall()}
+    
+    # 2. Get Overheads (Grouped)
+    cur.execute("SELECT id, name FROM overhead_categories WHERE company_id = %s ORDER BY id ASC", (comp_id,))
+    categories_raw = cur.fetchall()
+    
+    overheads = []
+    total_monthly_overhead = 0.0
+    
+    for cat in categories_raw:
+        cur.execute("SELECT id, name, amount FROM overhead_items WHERE category_id = %s", (cat[0],))
+        items = cur.fetchall()
+        cat_total = sum([float(i[2]) for i in items])
+        total_monthly_overhead += cat_total
+        
+        overheads.append({
+            'id': cat[0],
+            'name': cat[1],
+            'items': items, # List of (id, name, amount)
+            'total': cat_total
+        })
+
+    conn.close()
+    
+    return render_template('finance/finance_settings.html', 
+                           settings=settings_dict, 
+                           overheads=overheads, 
+                           total_overhead=total_monthly_overhead,
+                           brand_color=config['color'], 
+                           logo_url=config['logo'])
+                           
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)

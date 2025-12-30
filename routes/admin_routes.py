@@ -418,9 +418,45 @@ def delete_tenant(company_id):
         
     return redirect(url_for('admin.super_admin_dashboard'))
     
-# --- 14. FLEET UPGRADE (Tax, Insurance, Service History, Defects) ---
-@admin_bp.route('/admin/upgrade-fleet-db')
-def upgrade_fleet_db():
+# --- 15. SETUP RECURRING COSTS (Fixed Overheads) ---
+@admin_bp.route('/admin/setup-overheads-db')
+def setup_overheads_db():
+    if session.get('role') != 'SuperAdmin': return "Access Denied", 403
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Categories (e.g. "Insurances", "Vehicle Rental")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS overhead_categories (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER NOT NULL,
+                name VARCHAR(100) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+        # 2. Items (e.g. "Public Liability", "Google Ads")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS overhead_items (
+                id SERIAL PRIMARY KEY,
+                category_id INTEGER NOT NULL,
+                name VARCHAR(100) NOT NULL,
+                amount DECIMAL(10,2) DEFAULT 0.00,
+                frequency VARCHAR(20) DEFAULT 'Monthly',
+                FOREIGN KEY (category_id) REFERENCES overhead_categories(id) ON DELETE CASCADE
+            );
+        """)
+        
+        conn.commit()
+        return "<h1>✅ Overheads DB Ready!</h1><p>You can now track monthly running costs.</p><a href='/finance/settings'>Go to Settings</a>"
+        
+    except Exception as e:
+        conn.rollback()
+        return f"<h1>❌ Database Error</h1><p>{e}</p>"
+    finally:
+        conn.close()
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
     
     conn = get_db()
