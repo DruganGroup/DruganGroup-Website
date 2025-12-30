@@ -51,6 +51,14 @@
         </div>
 
         <div class="card-grid">
+		
+			{% if session['role'] == 'SuperAdmin' %}
+    <div class="text-center mb-4">
+        <a href="/super-admin" class="btn btn-danger shadow-sm">
+            <i class="fas fa-user-shield me-2"></i> Return to Super Admin
+        </a>
+    </div>
+{% endif %}
             
             {% if role in ['Admin', 'SuperAdmin', 'Office', 'Manager'] %}
             <a href="/office-hub" class="module-card office-card">
