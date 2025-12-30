@@ -141,9 +141,117 @@ def staff_list():
     
     return render_template('office/staff_management.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# --- FLEET MANAGEMENT (CORRECTED COLUMNS) ---
+# --- FLEET & GANG MANAGEMENT ---
 @office_bp.route('/office/fleet', methods=['GET', 'POST'])
 def fleet_list():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # --- HANDLE CREW ASSIGNMENT ---
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'add_vehicle':
+            # (Your existing add vehicle code...)
+            reg = request.form.get('reg_number')
+            model = request.form.get('make_model')
+            driver = request.form.get('driver_id')
+            mot = request.form.get('mot_expiry')
+            cost = request.form.get('daily_cost') or 0
+            try:
+                cur.execute("""
+                    INSERT INTO vehicles (company_id, reg_plate, make_model, assigned_driver_id, mot_due, daily_cost, status) 
+                    VALUES (%s, %s, %s, %s, %s, %s, 'Active')
+                """, (comp_id, reg, model, driver if driver else None, mot, cost))
+                conn.commit()
+                flash(f"✅ Vehicle {reg} Added.")
+            except Exception as e:
+                conn.rollback(); flash(f"❌ Error: {e}")
+
+        elif action == 'assign_crew':
+            vehicle_id = request.form.get('vehicle_id')
+            crew_ids = request.form.getlist('crew_ids') # List of selected staff
+            
+            try:
+                # 1. Clear existing crew for this vehicle
+                cur.execute("DELETE FROM vehicle_crews WHERE vehicle_id = %s", (vehicle_id,))
+                
+                # 2. Add new crew
+                for s_id in crew_ids:
+                    cur.execute("INSERT INTO vehicle_crews (company_id, vehicle_id, staff_id) VALUES (%s, %s, %s)", (comp_id, vehicle_id, s_id))
+                
+                conn.commit()
+                flash("✅ Gang Assigned Successfully")
+            except Exception as e:
+                conn.rollback(); flash(f"❌ Error: {e}")
+
+    # --- FETCH FLEET DATA WITH COSTS ---
+    # We join everything to calculate the daily cost dynamically
+    cur.execute("""
+        SELECT 
+            v.id, v.reg_plate, v.make_model, v.status, v.mot_due, 
+            s.name as driver_name, v.assigned_driver_id, 
+            COALESCE(v.daily_cost, 0) as van_cost,
+            COALESCE(s.pay_rate, 0) as driver_cost
+        FROM vehicles v 
+        LEFT JOIN staff s ON v.assigned_driver_id = s.id 
+        WHERE v.company_id = %s
+        ORDER BY v.reg_plate
+    """, (comp_id,))
+    
+    raw_vehicles = cur.fetchall()
+    vehicles = []
+    
+    for row in raw_vehicles:
+        v_id = row[0]
+        van_cost = float(row[7])
+        driver_cost = float(row[8]) # Assuming hourly rate * 8 or similar? For now, we sum the rate.
+        
+        # Fetch Crew Members for this van
+        cur.execute("""
+            SELECT s.id, s.name, s.role, COALESCE(s.pay_rate, 0)
+            FROM vehicle_crews vc
+            JOIN staff s ON vc.staff_id = s.id
+            WHERE vc.vehicle_id = %s
+        """, (v_id,))
+        crew = cur.fetchall()
+        
+        crew_list = []
+        crew_total_cost = 0
+        for c in crew:
+            crew_list.append({'name': c[1], 'role': c[2]})
+            crew_total_cost += float(c[3])
+            
+        # TOTAL DAY COST = Van + (Driver Rate * 8 hours) + (Crew Rate * 8 hours)
+        # We assume 'pay_rate' is HOURLY. So we multiply labor by 8.
+        # If pay_rate is Daily, remove the * 8.
+        labor_cost = (driver_cost + crew_total_cost) * 8 
+        total_day_cost = van_cost + labor_cost
+
+        vehicles.append({
+            'id': row[0],
+            'reg_number': row[1],
+            'make_model': row[2],
+            'status': row[3],
+            'mot_expiry': row[4],
+            'driver_name': row[5],
+            'driver_id': row[6],
+            'daily_cost': row[7],
+            'crew': crew_list,
+            'total_gang_cost': total_day_cost
+        })
+    
+    # Get Staff for Dropdowns
+    cur.execute("SELECT id, name, role FROM staff WHERE company_id = %s AND status='Active'", (comp_id,))
+    all_staff = [dict(zip(['id', 'name', 'role'], row)) for row in cur.fetchall()]
+    
+    conn.close()
+    
+    return render_template('office/fleet_management.html', vehicles=vehicles, staff=all_staff, brand_color=config['color'], logo_url=config['logo'])
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')

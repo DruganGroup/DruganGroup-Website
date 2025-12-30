@@ -2,12 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Office | Fleet Management</title>
+    <title>Office | Gangs & Fleet</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; }
+        .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; z-index:1000;}
         .content { margin-left: 250px; padding: 30px; }
+        .vehicle-card { border-left: 5px solid {{ brand_color }}; transition: transform 0.2s; }
+        .vehicle-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .cost-badge { background: #e8f5e9; color: #2e7d32; font-weight: bold; padding: 5px 10px; border-radius: 5px; font-size: 0.9rem; }
     </style>
 </head>
 <body>
@@ -16,79 +19,134 @@
     <div class="text-center mb-4"><img src="{{ logo_url }}" width="150" style="border-radius:10px;"></div>
     <a href="/office-hub" class="nav-link text-white p-3"><i class="fas fa-desktop me-2"></i> Overview</a>
     <a href="/office/service-desk" class="nav-link text-white p-3"><i class="fas fa-tools me-2"></i> Service Desk</a>
-    <a href="/office/staff" class="nav-link text-white p-3"><i class="fas fa-users me-2"></i> Staff (HR)</a>
-    <a href="/office/fleet" class="nav-link text-white p-3 active bg-white bg-opacity-25"><i class="fas fa-truck me-2"></i> Fleet</a>
-	<a href="/launcher" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
-	<a href="/logout" class="text-warning"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
+    <a href="/office/staff" class="nav-link text-white p-3"><i class="fas fa-users-cog me-2"></i> Staff Manager</a>
+    <a href="/office/fleet" class="nav-link text-white p-3 active bg-white bg-opacity-25"><i class="fas fa-truck me-2"></i> Fleet & Gangs</a>
+    <a href="/launcher" class="nav-link text-white p-3 mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
 </div>
 
 <div class="content">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold">Fleet Management</h2>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addVehicleModal"><i class="fas fa-plus"></i> Add Vehicle</button>
+        <h2 class="fw-bold">Fleet & Gang Management</h2>
+        <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addVehicleModal">
+            <i class="fas fa-plus me-2"></i> Add Vehicle
+        </button>
     </div>
 
-    <div class="card p-3 shadow-sm">
-        <table class="table table-hover align-middle">
-            <thead class="table-light">
-                <tr>
-                    <th>Reg Number</th>
-                    <th>Make / Model</th>
-                    <th>Assigned Driver</th>
-                    <th>MOT Due</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for v in vehicles %}
-                <tr>
-                    <td class="fw-bold text-uppercase">{{ v.reg_number }}</td>
-                    <td>{{ v.make_model }}</td>
-                    <td>
-                        {% if v.driver_name %}
-                            <i class="fas fa-user-circle text-muted"></i> {{ v.driver_name }}
-                        {% else %}
-                            <span class="text-muted small">Unassigned</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ v.mot_expiry }}</td>
-                    <td><span class="badge bg-success">Active</span></td>
-                </tr>
-                {% else %}
-                <tr><td colspan="5" class="text-center">No vehicles in fleet.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="alert alert-success">{{ messages[0] }}</div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="row g-4">
+        {% for v in vehicles %}
+        <div class="col-xl-6">
+            <div class="card p-3 shadow-sm vehicle-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h4 class="fw-bold mb-0">{{ v.reg_number }} <span class="text-muted fs-6">{{ v.make_model }}</span></h4>
+                        <span class="badge {{ 'bg-success' if v.status == 'Active' else 'bg-danger' }}">{{ v.status }}</span>
+                        <div class="mt-2 text-muted small"><i class="fas fa-calendar-check me-1"></i> MOT Due: {{ v.mot_expiry }}</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-muted small text-uppercase">Est. Daily Cost</div>
+                        <div class="fs-4 fw-bold text-success">£{{ "%.2f"|format(v.total_gang_cost) }}</div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="row">
+                    <div class="col-md-6 border-end">
+                        <label class="small text-muted fw-bold text-uppercase">Designated Driver</label>
+                        <div class="d-flex align-items-center mt-2">
+                            <div class="bg-dark text-white rounded-circle d-flex align-items-center justify-content-center" style="width:35px; height:35px;"><i class="fas fa-steering-wheel"></i></div>
+                            <div class="ms-3">
+                                {% if v.driver_name %}
+                                    <strong>{{ v.driver_name }}</strong>
+                                {% else %}
+                                    <span class="text-danger">No Driver Assigned</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 ps-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label class="small text-muted fw-bold text-uppercase">Assigned Crew</label>
+                            <button class="btn btn-sm btn-link p-0" data-bs-toggle="modal" data-bs-target="#crewModal{{ v.id }}">Manage</button>
+                        </div>
+                        
+                        <div class="mt-2">
+                            {% if v.crew %}
+                                {% for c in v.crew %}
+                                    <span class="badge bg-secondary me-1 mb-1">{{ c.name }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted small fst-italic">No additional workers.</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="crewModal{{ v.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <form method="POST" class="modal-content">
+                    <input type="hidden" name="action" value="assign_crew">
+                    <input type="hidden" name="vehicle_id" value="{{ v.id }}">
+                    
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold">Assign Gang to {{ v.reg_number }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted small">Select workers who travel in this van. This calculates the daily labor cost.</p>
+                        
+                        <div class="list-group">
+                            {% for s in staff %}
+                                {% if s.id != v.driver_id %} <label class="list-group-item d-flex gap-2">
+                                    <input class="form-check-input flex-shrink-0" type="checkbox" name="crew_ids" value="{{ s.id }}" 
+                                    {% if s.name in v.crew|map(attribute='name')|list %}checked{% endif %}>
+                                    <span>
+                                        {{ s.name }} 
+                                        <small class="text-muted ms-2">({{ s.role }})</small>
+                                    </span>
+                                </label>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Save Gang</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% endfor %}
     </div>
 </div>
 
 <div class="modal fade" id="addVehicleModal" tabindex="-1">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="POST">
-                <div class="modal-header">
-                    <h5 class="modal-title">Add New Vehicle</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <form method="POST" class="modal-content">
+            <input type="hidden" name="action" value="add_vehicle">
+            <div class="modal-header"><h5 class="modal-title">Add Vehicle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3"><label>Reg Plate</label><input type="text" name="reg_number" class="form-control" required></div>
+                <div class="mb-3"><label>Make/Model</label><input type="text" name="make_model" class="form-control" required></div>
+                <div class="mb-3"><label>Daily Asset Cost (£)</label><input type="number" step="0.01" name="daily_cost" class="form-control" placeholder="Fuel + Lease + Insurance / 30"></div>
+                <div class="mb-3"><label>Driver</label>
+                    <select name="driver_id" class="form-select">
+                        <option value="">-- None --</option>
+                        {% for s in staff %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                    </select>
                 </div>
-                <div class="modal-body">
-                    <div class="mb-3"><label>Registration (Plate)</label><input type="text" name="reg_number" class="form-control text-uppercase" required></div>
-                    <div class="mb-3"><label>Make & Model</label><input type="text" name="make_model" class="form-control" placeholder="e.g. Ford Transit" required></div>
-                    <div class="mb-3"><label>MOT Expiry</label><input type="date" name="mot_expiry" class="form-control"></div>
-                    <div class="mb-3">
-                        <label>Assign Driver</label>
-                        <select name="driver_id" class="form-select">
-                            <option value="">-- No Driver --</option>
-                            {% for d in drivers %}
-                                <option value="{{ d[0] }}">{{ d[1] }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-success">Save Vehicle</button>
-                </div>
-            </form>
-        </div>
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-primary">Add Vehicle</button></div>
+        </form>
     </div>
 </div>
 
