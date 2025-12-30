@@ -97,14 +97,70 @@ def super_admin_dashboard():
             cur.execute("INSERT INTO users (username, password_hash, email, role, company_id) VALUES (%s, %s, %s, 'Admin', %s)", 
                         (owner_email, secure_pass, owner_email, new_company_id))
             
-            # Initialize Default Brand Color
+            # Initialize Settings
             cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'brand_color', '#2c3e50')", (new_company_id,))
-            
+
             conn.commit()
             flash(f"✅ Success! {comp_name} created at: {final_slug}.drugangroup.co.uk")
         except Exception as e:
             conn.rollback()
             flash(f"❌ Error: {e}")
+            
+    # --- FETCH DATA FOR DASHBOARD ---
+    
+    # 1. Fetch Companies
+    cur.execute("""
+        SELECT c.id, c.name, s.plan_tier, s.status, u.email, c.subdomain 
+        FROM companies c 
+        LEFT JOIN subscriptions s ON c.id = s.company_id 
+        LEFT JOIN users u ON c.id = u.company_id AND u.role = 'Admin' 
+        ORDER BY c.id DESC
+    """)
+    raw_companies = cur.fetchall()
+    
+    # 2. ENRICH COMPANIES WITH DATA USAGE STATS
+    companies = []
+    tables_to_check = ['users', 'staff', 'vehicles', 'clients', 'jobs', 'transactions', 'maintenance_logs', 'materials']
+    
+    for c in raw_companies:
+        c_id = c[0]
+        total_rows = 0
+        for table in tables_to_check:
+            try:
+                # Check if table exists to prevent crashes
+                cur.execute(f"SELECT to_regclass('{table}')")
+                if cur.fetchone()[0]:
+                    cur.execute(f"SELECT COUNT(*) FROM {table} WHERE company_id = %s", (c_id,))
+                    total_rows += cur.fetchone()[0]
+            except: pass
+            
+        # Estimate: 0.5KB per row average
+        est_size_mb = round((total_rows * 0.5) / 1024, 2)
+        # Estimate: Bandwidth is roughly 10% of total data accessed monthly
+        est_bandwidth = round(total_rows * 0.05, 2)
+        
+        # Create a dictionary for the template
+        comp_dict = {
+            'id': c[0], 'name': c[1], 'plan': c[2], 'status': c[3], 
+            'email': c[4], 'subdomain': c[5],
+            'storage': est_size_mb, 'bandwidth': est_bandwidth
+        }
+        companies.append(comp_dict)
+    
+    # 3. Users (For Password Reset Table)
+    cur.execute("SELECT id, username, role, company_id FROM users WHERE role IN ('SuperAdmin', 'Admin') ORDER BY id ASC")
+    users = cur.fetchall()
+
+    # 4. System Settings (For SMTP Config)
+    cur.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)") # Safety check
+    cur.execute("SELECT key, value FROM system_settings")
+    settings_rows = cur.fetchall()
+    system_config = {row[0]: row[1] for row in settings_rows}
+    
+    conn.close()
+    
+    # Pass all data to the template
+    return render_template('super_admin.html', companies=companies, users=users, config=system_config)
             
     # --- FETCH DATA FOR DASHBOARD ---
     
