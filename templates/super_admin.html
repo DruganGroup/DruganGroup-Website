@@ -64,323 +64,78 @@
 </head>
 <body>
 
-    <nav class="navbar">
-        <div class="container nav-container">
-            <div class="brand">
-                <a href="/">
-                    <img src="/static/images/logo.png" alt="Drugan Group" class="main-logo-img">
-                </a> 
-                DRUGAN <span class="tagline">GROUP</span>
-            </div>
-            <ul class="nav-links">
-                <li><a href="/">Home</a></li>
-				<div class="card mb-4 border-0 shadow-sm bg-light">
-    <div class="card-body p-2">
-        <p class="small text-muted text-center fw-bold mb-2 text-uppercase">Run My Internal Company</p>
-        <div class="row g-2">
-            <div class="col-6">
-                <a href="/finance-dashboard" class="btn btn-success w-100 btn-sm fw-bold">
-                    <i class="fas fa-coins"></i> Finance
-                </a>
-            </div>
-            <div class="col-6">
-                <a href="/office-hub" class="btn btn-primary w-100 btn-sm fw-bold">
-                    <i class="fas fa-desktop"></i> Office
-                </a>
+    <div class="sidebar">
+        <a href="/" class="brand">
+            <img src="/static/images/logo.png" alt="DG">
+            <div>DRUGAN <span>GROUP</span></div>
+        </a>
+
+        <div class="nav-section">System Management</div>
+        <a href="/super-admin" class="nav-item {{ 'active' if request.path == '/super-admin' else '' }}">
+            <i class="fas fa-th-large" style="width:20px"></i> Tenants Overview
+        </a>
+        <a href="/super-admin/analytics" class="nav-item {{ 'active' if 'analytics' in request.path else '' }}">
+            <i class="fas fa-chart-line" style="width:20px"></i> Data Analytics
+        </a>
+
+        <div class="mx-2 mt-4">
+            <div class="card border-0 bg-dark text-white" style="border: 1px solid #333 !important;">
+                <div class="card-body p-2">
+                    <p class="small text-secondary text-center fw-bold mb-2 text-uppercase" style="font-size: 0.65rem; letter-spacing: 1px;">Run My Business</p>
+                    
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <a href="/finance-dashboard" class="btn btn-outline-success w-100 btn-sm p-2 border-secondary text-success hover-white">
+                                <i class="fas fa-coins d-block mb-1" style="font-size: 1.1rem;"></i> 
+                                <span style="font-size: 0.75rem;">Finance</span>
+                            </a>
+                        </div>
+
+                        <div class="col-6">
+                            <a href="/office-hub" class="btn btn-outline-primary w-100 btn-sm p-2 border-secondary text-primary hover-white">
+                                <i class="fas fa-desktop d-block mb-1" style="font-size: 1.1rem;"></i> 
+                                <span style="font-size: 0.75rem;">Office</span>
+                            </a>
+                        </div>
+
+                        <div class="col-12">
+                            <a href="/launcher" class="btn btn-secondary w-100 btn-sm fw-bold" style="background-color: #333; border-color: #444;">
+                                <i class="fas fa-rocket me-2"></i> Site Hub
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
-                <li><a href="/logout" style="color: #e74c3c;">Logout</a></li>
-            </ul>
-        </div>
-    </nav>
 
-    <div class="dashboard-wrapper">
-        <div class="dashboard-container">
-            
-            <div class="dash-header">
-                <div>
-                    <h1>Command Center</h1>
-                    <span style="color: #888; font-size: 0.9rem;">SaaS Management Console</span>
-                </div>
-                <div style="display: flex; gap: 15px; align-items: center;">
-                    <a href="/admin/backup/all" class="btn-sm" style="background: #f39c12; color: #000; text-decoration: none; padding: 8px 15px; border-radius: 5px; font-weight: bold;">
-                        <i class="fas fa-database"></i> Backup All Companies
-                    </a>
-                    <span class="badge-status badge-enterprise">System Secure</span>
-                </div>
+        {% if session.get('role') == 'SuperAdmin' and session.get('company_id') != 0 %}
+            <div class="mt-3 px-2">
+                <a href="/admin/reset-me" class="btn btn-danger w-100 btn-sm fw-bold shadow">
+                    <i class="fas fa-user-secret me-2"></i> EXIT CLIENT VIEW
+                </a>
             </div>
+        {% endif %}
 
-            {% with messages = get_flashed_messages() %}
-              {% if messages %}
-                <div style="background: rgba(197, 160, 89, 0.15); border-left: 4px solid var(--primary-gold); color: #fff; padding: 15px; margin-bottom: 30px;">
-                    {{ messages[0] }}
-                </div>
-              {% endif %}
-            {% endwith %}
-
-            <div class="admin-card">
-                <h3><i class="fas fa-bolt"></i> Deploy New Company</h3>
-                <form method="POST">
-                    <div class="form-grid">
-                        <div><label>Company Name</label><input type="text" name="company_name" class="dark-input" placeholder="e.g. Apex Roofing" required></div>
-                        <div><label>Owner Email (Login)</label><input type="text" name="owner_email" class="dark-input" placeholder="admin@client.com" required></div>
-                        <div><label>Initial Password</label><input type="text" name="owner_pass" class="dark-input" placeholder="Secure Password" required></div>
-                        <div>
-                            <label>Tier</label>
-                            <select name="plan" class="dark-select">
-                                <option value="Basic">Basic</option>
-                                <option value="Pro">Pro</option>
-                                <option value="Enterprise" selected>Enterprise</option>
-                            </select>
-                        </div>
-                        <div><label>&nbsp;</label><button type="submit" class="btn-gold" style="width: 100%;">Create Company</button></div>
-                    </div>
-                </form>
-            </div>
-
-            <div class="admin-card" style="border-left: 3px solid #3498db;">
-                <h3><i class="fas fa-cogs"></i> System Configuration</h3>
-                <form method="POST" action="/admin/settings">
-                    <div class="form-grid">
-                        
-                        <div style="grid-column: span 2;">
-                            <h4 style="color: #3498db; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 5px;">
-                                <i class="fas fa-envelope"></i> Outgoing Mail Server (SMTP)
-                            </h4>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                                <div>
-                                    <label>SMTP Server Host</label>
-                                    <input type="text" name="smtp_server" class="dark-input" placeholder="smtp.gmail.com" value="{{ config.get('smtp_server', '') }}">
-                                </div>
-                                <div>
-                                    <label>SMTP Port</label>
-                                    <input type="text" name="smtp_port" class="dark-input" placeholder="587" value="{{ config.get('smtp_port', '') }}">
-                                </div>
-                                <div>
-                                    <label>System Email Address</label>
-                                    <input type="text" name="smtp_email" class="dark-input" placeholder="system@drugangroup.co.uk" value="{{ config.get('smtp_email', '') }}">
-                                </div>
-                                <div>
-                                    <label>Email Password / App Key</label>
-                                    <input type="password" name="smtp_password" class="dark-input" placeholder="••••••••" value="{{ config.get('smtp_password', '') }}">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <h4 style="color: #e74c3c; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 5px;">
-                                <i class="fas fa-bullhorn"></i> Global Broadcast
-                            </h4>
-                            <label>System Alert Message</label>
-                            <input type="text" name="global_alert" class="dark-input" placeholder="e.g. System Maintenance at 10PM..." value="{{ config.get('global_alert', '') }}">
-                            <p style="font-size: 0.75rem; color: #888; margin-top: 5px;">Leave empty to disable. If set, ALL users will see this banner.</p>
-                        </div>
-
-                        <div style="display: flex; align-items: end;">
-                            <button type="submit" class="btn-manage" style="width: 100%; padding: 12px;">
-                                <i class="fas fa-save"></i> Save System Config
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-
-            <div class="admin-card">
-                <h3><i class="fas fa-building"></i> Active Companies</h3>
-                
-                <div class="search-box">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="companySearch" class="dark-input" placeholder="Search Companies or Emails..." onkeyup="filterTable()">
-                </div>
-
-                <table class="admin-table" id="tenantTable">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Company</th>
-                            <th>Subdomain</th>
-                            <th>Tier</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for c in companies %}
-                        <tr>
-                            <td style="color: #666;">#{{ c[0] }}</td>
-                            <td><strong style="color: #fff;">{{ c[1] }}</strong></td>
-                            <td><span style="color:#888;">{{ c[5] }}</span>.drugangroup.co.uk</td>
-                            <td>
-                                <span class="badge-status {{ 'badge-enterprise' if c[2] == 'Enterprise' else 'badge-pro' if c[2] == 'Pro' else 'badge-basic' }}">
-                                    {{ c[2] }}
-                                </span>
-                            </td>
-                            <td>
-                                <button class="btn-sm btn-manage" 
-                                    onclick="openModal('{{ c[1] }}', '{{ c[5] }}', '{{ c[0] }}', '{{ c[2] }}', '{{ c[4] }}', '{{ c[3] }}')">
-                                    <i class="fas fa-edit"></i> Manage
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="admin-card">
-                <h3><i class="fas fa-user-shield"></i> Company Admin Security</h3>
-                <p style="color: #888; margin-bottom: 20px;">
-                    Manage login credentials for <strong>Company Owners</strong> only. <br>
-                    <small>Note: Staff and Site Worker passwords must be managed by the Company Owner.</small>
-                </p>
-                
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>User ID</th>
-                            <th>Username / Email</th>
-                            <th>Role</th>
-                            <th>Company</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for u in users %}
-                        <tr>
-                            <td style="color: #666;">#{{ u[0] }}</td>
-                            <td>{{ u[1] }}</td>
-                            <td>
-                                {% if u[2] == 'SuperAdmin' %}
-                                    <span class="badge-status" style="background: gold; color: black; border:none;">Master Admin</span>
-                                {% else %}
-                                    <span class="badge-status badge-enterprise">Company Owner</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if u[2] == 'SuperAdmin' %}
-                                    <span style="color: #666;">-</span>
-                                {% else %}
-                                    <strong style="color: #ccc;">ID: {{ u[3] }}</strong>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <form method="POST" action="/admin/reset-password">
-                                    <input type="hidden" name="user_id" value="{{ u[0] }}">
-                                    <button type="submit" class="btn-sm" style="background: #3498db; color: white; border: none; padding: 6px 12px;">
-                                        <i class="fas fa-envelope"></i> Reset & Email Owner
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-    <div id="companyModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h2 style="color: var(--primary-gold); margin-bottom: 20px;">Manage Company</h2>
-            
-            <form method="POST" action="/admin/update-tier">
-                <input type="hidden" name="company_id" id="modalCompanyID">
-                
-                <div class="modal-grid">
-                    <p>Company: <strong id="modalName" style="color:#fff;"></strong></p>
-                    <p>Subdomain: <span id="modalSub"></span>.drugangroup.co.uk</p>
-                    <p>Admin: <span id="modalEmail"></span></p>
-                    
-                    <p>
-                        Current Tier: 
-                        <select name="plan_tier" id="modalTierSelect" class="dark-select" style="width: 150px; padding: 5px;">
-                            <option value="Basic">Basic</option>
-                            <option value="Pro">Pro</option>
-                            <option value="Enterprise">Enterprise</option>
-                        </select>
-                    </p>
-                    
-                    <p>Status: <span id="modalStatusBadge" class="badge-status"></span></p>
-                </div>
-                
-                <div style="margin-top: 25px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #333; padding-top: 20px;">
-                    
-                    <div>
-                        <a id="btnDelete" class="btn-sm" style="background: transparent; color: #e74c3c; border: 1px solid #e74c3c; text-decoration: none; padding: 6px 12px;" onclick="return confirm('⚠️ WARNING: This will permanently DELETE this company and ALL their data (Invoices, Clients, Staff). This cannot be undone.\n\nAre you sure?')">
-                            <i class="fas fa-trash"></i> Delete
-                        </a>
-                    </div>
-
-                    <div style="display: flex; gap: 10px;">
-                        <a id="btnSuspend" class="btn-sm btn-danger" style="text-decoration: none; padding-top:8px;">Suspend</a>
-                        <a id="btnBackup" class="btn-sm" style="background: #f39c12; color: #000; text-decoration: none; padding-top:8px;">
-                            <i class="fas fa-download"></i> Backup
-                        </a>
-                        <button type="submit" class="btn-sm btn-manage">Save</button>
-                        <button type="button" class="btn-sm" style="background:#555; color:#fff;" onclick="closeModal()">Close</button>
-                    </div>
-                </div>
-            </form>
+        <div style="margin-top: auto;">
+            <a href="/logout" class="nav-item" style="color: #e74c3c;">
+                <i class="fas fa-sign-out-alt" style="width:20px"></i> Logout
+            </a>
         </div>
     </div>
 
-    <script>
-        function filterTable() {
-            var input = document.getElementById("companySearch");
-            var filter = input.value.toUpperCase();
-            var table = document.getElementById("tenantTable");
-            var tr = table.getElementsByTagName("tr");
-            for (var i = 0; i < tr.length; i++) {
-                var td = tr[i].getElementsByTagName("td")[1];
-                if (td) {
-                    var txtValue = td.textContent || td.innerText;
-                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                        tr[i].style.display = "";
-                    } else {
-                        tr[i].style.display = "none";
-                    }
-                }       
-            }
-        }
+    <div class="main-content">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div style="background: rgba(197, 160, 89, 0.15); border-left: 4px solid var(--primary-gold); color: #fff; padding: 15px; margin-bottom: 30px; border-radius: 4px;">
+                    <i class="fas fa-info-circle me-2"></i> {{ messages[0] }}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </div>
 
-        function openModal(name, sub, id, tier, email, status) {
-            document.getElementById('modalName').innerText = name;
-            document.getElementById('modalSub').innerText = sub;
-            document.getElementById('modalEmail').innerText = email;
-            document.getElementById('modalCompanyID').value = id;
-            
-            document.getElementById('modalTierSelect').value = tier;
-            
-            var statusBadge = document.getElementById('modalStatusBadge');
-            statusBadge.innerText = status;
-            
-            if (status === 'Active') {
-                statusBadge.className = 'badge-status badge-active';
-                statusBadge.style.background = ''; 
-            } else {
-                statusBadge.className = 'badge-status badge-danger';
-            }
-
-            var btnSuspend = document.getElementById('btnSuspend');
-            btnSuspend.href = "/admin/suspend/" + id;
-            btnSuspend.innerText = (status === 'Active' ? 'Suspend Access' : 'Re-Activate Access');
-            
-            document.getElementById('btnBackup').href = "/admin/backup/" + id;
-            document.getElementById('btnDelete').href = "/admin/delete-tenant/" + id;
-
-            document.getElementById('companyModal').style.display = "block";
-        }
-
-        function closeModal() {
-            document.getElementById('companyModal').style.display = "none";
-        }
-
-        window.onclick = function(event) {
-            if (event.target == document.getElementById('companyModal')) {
-                closeModal();
-            }
-        }
-    </script>
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    {% block scripts %}{% endblock %}
 </body>
-</html>
