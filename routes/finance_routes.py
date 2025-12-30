@@ -143,46 +143,87 @@ def delete_staff(id):
     return redirect(url_for('finance.finance_hr'))
 
 
-# --- 3. FLEET ---
-@finance_bp.route('/finance/fleet')
+# --- 3. FINANCE FLEET (Cost Tracking Edition) ---
+@finance_bp.route('/finance/fleet', methods=['GET', 'POST'])
 def finance_fleet():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     
-    try:
-        cur.execute("CREATE TABLE IF NOT EXISTS vehicles (id SERIAL PRIMARY KEY, company_id INTEGER, reg_plate TEXT, make_model TEXT, daily_cost DECIMAL(10,2), mot_due DATE, tax_due DATE, service_due DATE, status TEXT, tracker_url TEXT, defect_notes TEXT, defect_image TEXT, repair_cost DECIMAL(10,2) DEFAULT 0.00);")
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS assigned_driver_id INTEGER;")
-        conn.commit()
-    except: conn.rollback()
+    # --- HANDLE ADDING COSTS (Fuel, Insurance, etc) ---
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'add_log':
+            v_id = request.form.get('vehicle_id')
+            l_type = request.form.get('log_type') # e.g. Insurance, Fuel, Repair
+            desc = request.form.get('description')
+            date = request.form.get('date')
+            cost = request.form.get('cost') or 0
+            
+            try:
+                cur.execute("""
+                    INSERT INTO maintenance_logs (company_id, vehicle_id, type, description, date, cost)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (comp_id, v_id, l_type, desc, date, cost))
+                conn.commit()
+                flash("✅ Cost Recorded Successfully")
+            except Exception as e:
+                conn.rollback(); flash(f"❌ Error: {e}")
+                
+        elif action == 'update_vehicle':
+             # (Keep your existing update logic here if you have it, or rely on the Office Hub for editing details)
+             pass
 
-    # Query with driver_id included for editing
+    # --- FETCH VEHICLES WITH FINANCIAL TOTALS ---
+    # We join with maintenance_logs to calculate total spend
     cur.execute("""
-        SELECT v.id, v.reg_plate, v.make_model, v.status, v.mot_due, v.tax_due, v.tracker_url, s.name, v.assigned_driver_id 
+        SELECT 
+            v.id, v.reg_plate, v.make_model, v.status, 
+            v.mot_due, v.tax_due, v.insurance_due,
+            s.name as driver_name,
+            COALESCE(SUM(l.cost), 0) as total_spend
         FROM vehicles v 
         LEFT JOIN staff s ON v.assigned_driver_id = s.id 
-        WHERE v.company_id = %s 
+        LEFT JOIN maintenance_logs l ON v.id = l.vehicle_id
+        WHERE v.company_id = %s
+        GROUP BY v.id, s.name
         ORDER BY v.reg_plate
     """, (comp_id,))
-    raw_vehicles = cur.fetchall()
-
-    cur.execute("SELECT id, name FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
-    staff_list = cur.fetchall()
-    conn.close()
-
-    # Date Fixer logic
-    processed_vehicles = []
-    for v in raw_vehicles:
-        v_list = list(v)
-        for i in [4, 5]: 
-            if isinstance(v_list[i], str):
-                try: v_list[i] = datetime.strptime(v_list[i], '%Y-%m-%d').date()
-                except: pass
-        processed_vehicles.append(v_list)
     
-    return render_template('finance/finance_fleet.html', vehicles=processed_vehicles, staff=staff_list, today=date.today(), brand_color=config['color'], logo_url=config['logo'])
+    raw_vehicles = cur.fetchall()
+    vehicles = []
+    
+    from datetime import date
+    today = date.today()
 
+    for row in raw_vehicles:
+        v_id = row[0]
+        
+        # Fetch Breakdown of Costs
+        cur.execute("SELECT date, type, description, cost FROM maintenance_logs WHERE vehicle_id = %s ORDER BY date DESC", (v_id,))
+        history = [{'date': r[0], 'type': r[1], 'desc': r[2], 'cost': r[3]} for r in cur.fetchall()]
+
+        vehicles.append({
+            'id': row[0],
+            'reg_number': row[1],
+            'make_model': row[2],
+            'status': row[3],
+            'mot_due': row[4],
+            'tax_due': row[5],
+            'ins_due': row[6],
+            'driver': row[7],
+            'total_spend': row[8],
+            'history': history
+        })
+
+    conn.close()
+    
+    return render_template('finance/finance_fleet.html', vehicles=vehicles, today=today, brand_color=config['color'], logo_url=config['logo'])
+    
 @finance_bp.route('/finance/fleet/add', methods=['POST'])
 def add_vehicle():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
