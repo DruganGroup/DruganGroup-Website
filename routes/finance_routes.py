@@ -422,27 +422,9 @@ def settings_general():
     
     return render_template('finance/settings_general.html', settings=settings, active_tab='general', brand_color=config['color'], logo_url=config['logo'])
 
-# --- 6B. SETTINGS: COMPLIANCE (Updated) ---
+# --- 6B. SETTINGS: COMPLIANCE (Updated with VAT Logic) ---
 @finance_bp.route('/finance/settings/compliance', methods=['GET', 'POST'])
 def settings_compliance():
-    # ... existing setup code ...
-
-    if request.method == 'POST':
-        try:
-            # Handle Checkbox: If missing, set to 'no'
-            vat_val = 'yes' if request.form.get('vat_registered') else 'no'
-            
-            # Save VAT Status manually first
-            cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'vat_registered', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, vat_val))
-
-            # Save the rest of the form
-            for key, val in request.form.items():
-                if key != 'vat_registered': # Skip because we handled it above
-                    cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, val))
-            
-            conn.commit(); flash("✅ Compliance & VAT Settings Saved")
-        except Exception as e: conn.rollback(); flash(f"Error: {e}")
-        
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
@@ -451,9 +433,18 @@ def settings_compliance():
 
     if request.method == 'POST':
         try:
+            # Handle Checkbox: If missing in form, it means "no"
+            vat_val = 'yes' if request.form.get('vat_registered') else 'no'
+            
+            # Save VAT Status manually
+            cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'vat_registered', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, vat_val))
+
+            # Save the rest
             for key, val in request.form.items():
-                cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, val))
-            conn.commit(); flash("✅ Compliance Data Saved")
+                if key != 'vat_registered': 
+                    cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, val))
+            
+            conn.commit(); flash("✅ Compliance & VAT Settings Saved")
         except Exception as e: conn.rollback(); flash(f"Error: {e}")
 
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
@@ -462,25 +453,36 @@ def settings_compliance():
     
     return render_template('finance/settings_compliance.html', settings=settings, active_tab='compliance', brand_color=config['color'], logo_url=config['logo'])
 
-# --- 6C. SETTINGS: BANKING (Updated) ---
+# --- 6C. SETTINGS: BANKING (Updated with Markup Logic) ---
 @finance_bp.route('/finance/settings/banking', methods=['GET', 'POST'])
 def settings_banking():
-    # ... setup ...
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
 
     if request.method == 'POST':
         try:
-            # Added 'default_markup' and 'default_profit_margin' to this list vvv
+            # We explicitly list keys to save, INCLUDING the new markup fields
             keys_to_save = ['bank_name', 'account_number', 'sort_code', 'payment_terms', 
                             'smtp_host', 'smtp_port', 'smtp_email', 'smtp_password', 
                             'quote_footer', 'invoice_footer', 
-                            'default_markup', 'default_profit_margin'] # <--- ADDED HERE
+                            'default_markup', 'default_profit_margin'] 
             
             for key in keys_to_save:
                 val = request.form.get(key)
-                if val is not None: # Only save if it exists in form
+                if val is not None:
                     cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, val))
             
-            # ... QR code logic remains the same ...
+            # QR Code Logic
+            if 'payment_qr' in request.files:
+                file = request.files['payment_qr']
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(f"qr_{comp_id}_{file.filename}")
+                    file.save(os.path.join(UPLOAD_FOLDER, filename))
+                    db_path = f"/static/uploads/logos/{filename}"
+                    cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'payment_qr_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
 
             conn.commit(); flash("✅ Banking & Financial Defaults Saved")
         except Exception as e: conn.rollback(); flash(f"Error: {e}")
