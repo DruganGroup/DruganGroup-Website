@@ -418,58 +418,57 @@ def delete_tenant(company_id):
         
     return redirect(url_for('admin.super_admin_dashboard'))
     
-    # --- 9. DATABASE SETUP (Run this once to create Office Tables) ---
-@admin_bp.route('/admin/setup-office-db')
-def setup_office_db():
+# --- 10. SETUP CRM TABLES (Run this to fix Service Desk 500 Error) ---
+@admin_bp.route('/admin/setup-crm-db')
+def setup_crm_db():
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
     
     conn = get_db()
     cur = conn.cursor()
     
     try:
-        # 1. Create JOBS Table (For the Dispatcher)
+        # 1. CLIENTS Table
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS jobs (
+            CREATE TABLE IF NOT EXISTS clients (
                 id SERIAL PRIMARY KEY,
                 company_id INTEGER NOT NULL,
-                request_id INTEGER,  -- Links back to the service ticket
-                staff_id INTEGER,    -- Who is doing the job?
-                scheduled_date TIMESTAMP,
-                type VARCHAR(50),    -- Repair, Install, etc.
-                notes TEXT,
-                status VARCHAR(50) DEFAULT 'Scheduled',
+                name VARCHAR(100) NOT NULL,
+                email VARCHAR(100),
+                phone VARCHAR(20),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+        # 2. PROPERTIES Table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS properties (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER NOT NULL,
+                client_id INTEGER,
+                address TEXT NOT NULL,
+                postcode VARCHAR(20),
+                access_codes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+        # 3. SERVICE REQUESTS Table (The "Tickets")
+        # Note: We use 'issue_description' to match your python code
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS service_requests (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER NOT NULL,
+                client_id INTEGER,
+                property_id INTEGER,
+                issue_description TEXT, 
+                severity VARCHAR(20) DEFAULT 'Normal',
+                status VARCHAR(20) DEFAULT 'Open',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
         
-        # 2. Create STAFF Table (If it doesn't exist yet)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS staff (
-                id SERIAL PRIMARY KEY,
-                company_id INTEGER NOT NULL,
-                name VARCHAR(100),
-                email VARCHAR(100),
-                phone VARCHAR(20),
-                role VARCHAR(50),
-                status VARCHAR(20) DEFAULT 'Active'
-            );
-        """)
-
-        # 3. Create VEHICLES Table (If it doesn't exist yet)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS vehicles (
-                id SERIAL PRIMARY KEY,
-                company_id INTEGER NOT NULL,
-                reg_number VARCHAR(20),
-                make_model VARCHAR(100),
-                driver_id INTEGER,
-                mot_expiry DATE,
-                status VARCHAR(20) DEFAULT 'Active'
-            );
-        """)
-        
         conn.commit()
-        return "<h1>✅ Database Update Successful!</h1><p>The 'jobs', 'staff', and 'vehicles' tables are ready.</p><a href='/super-admin'>Back to Dashboard</a>"
+        return "<h1>✅ CRM Tables Created!</h1><p>Clients, Properties, and Service Requests are ready.</p><a href='/super-admin'>Back to Dashboard</a>"
         
     except Exception as e:
         conn.rollback()
