@@ -418,9 +418,37 @@ def delete_tenant(company_id):
         
     return redirect(url_for('admin.super_admin_dashboard'))
     
-# --- 11. FIX STAFF TABLE (Run this to fix Service Desk Error) ---
-@admin_bp.route('/admin/fix-staff-db')
-def fix_staff_db():
+# --- 13. SETUP CREWS (Run this for Gang Management) ---
+@admin_bp.route('/admin/setup-crews-db')
+def setup_crews_db():
+    if session.get('role') != 'SuperAdmin': return "Access Denied", 403
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Create CREWS Table (Links multiple Staff to one Vehicle)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS vehicle_crews (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER NOT NULL,
+                vehicle_id INTEGER NOT NULL,
+                staff_id INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+        # 2. Ensure Vehicles has a base cost column
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS daily_cost DECIMAL(10,2) DEFAULT 0.00;")
+        
+        conn.commit()
+        return "<h1>✅ Gang Management Ready!</h1><p>Crew table created.</p><a href='/office/fleet'>Go to Fleet</a>"
+        
+    except Exception as e:
+        conn.rollback()
+        return f"<h1>❌ Database Error</h1><p>{e}</p>"
+    finally:
+        conn.close()
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
     
     conn = get_db()
