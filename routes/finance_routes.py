@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash
 from werkzeug.utils import secure_filename
 import os
-from datetime import datetime, date
+from datetime import datetime, date 
 from db import get_db, get_site_config, allowed_file, UPLOAD_FOLDER
 
 finance_bp = Blueprint('finance', __name__)
@@ -19,8 +19,7 @@ def parse_date(d):
 # --- 1. OVERVIEW ---
 @finance_bp.route('/finance-dashboard')
 def finance_dashboard():
-    if 'user_id' not in session: return redirect(url_for('auth.login'))
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
 
     company_id = session.get('company_id')
     config = get_site_config(company_id)
@@ -90,7 +89,9 @@ def add_staff():
         if access != "None" and email and password:
             cur.execute("SELECT id FROM users WHERE email=%s", (email,))
             if not cur.fetchone():
-                cur.execute("INSERT INTO users (username, email, password_hash, role, company_id) VALUES (%s, %s, %s, %s, %s)", (email, email, password, access, comp_id))
+                from werkzeug.security import generate_password_hash
+                hashed_pw = generate_password_hash(password)
+                cur.execute("INSERT INTO users (username, email, password_hash, role, company_id) VALUES (%s, %s, %s, %s, %s)", (email, email, hashed_pw, access, comp_id))
                 flash(f"✅ Staff added and login created for {email}")
             else: flash("⚠️ Staff added, but user email already exists.")
         else: flash("✅ Staff member added successfully.")
@@ -125,6 +126,7 @@ def update_staff():
         conn.close()
     return redirect(url_for('finance.finance_hr'))
 
+# --- FIXED DELETE ROUTE ---
 @finance_bp.route('/finance/hr/delete/<int:id>')
 def delete_staff(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -134,7 +136,7 @@ def delete_staff(id):
     return redirect(url_for('finance.finance_hr'))
 
 
-# --- 3. FINANCE FLEET (Cost Tracking Edition - FIXED) ---
+# --- 3. FINANCE FLEET ---
 @finance_bp.route('/finance/fleet', methods=['GET', 'POST'])
 def finance_fleet():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -144,7 +146,6 @@ def finance_fleet():
     conn = get_db()
     cur = conn.cursor()
     
-    # --- HANDLE ADDING COSTS ---
     if request.method == 'POST':
         action = request.form.get('action')
         
@@ -166,7 +167,6 @@ def finance_fleet():
                 conn.rollback(); flash(f"❌ Error: {e}")
                 
         elif action == 'add_vehicle':
-             # Allow Finance to add basic vehicles if needed
             reg = request.form.get('reg')
             model = request.form.get('model')
             driver = request.form.get('driver_id')
@@ -188,7 +188,6 @@ def finance_fleet():
                 conn.rollback(); flash(f"❌ Error: {e}")
         
         elif action == 'update_vehicle':
-            # Handle Updates
             v_id = request.form.get('vehicle_id')
             reg = request.form.get('reg')
             model = request.form.get('model')
@@ -211,8 +210,7 @@ def finance_fleet():
             except Exception as e:
                 conn.rollback(); flash(f"❌ Error: {e}")
 
-
-    # --- FETCH VEHICLES WITH FINANCIAL TOTALS ---
+    # Fetch Data
     cur.execute("""
         SELECT 
             v.id, v.reg_plate, v.make_model, v.status, 
@@ -230,13 +228,10 @@ def finance_fleet():
     
     raw_vehicles = cur.fetchall()
     vehicles = []
-    
     today = date.today()
 
     for row in raw_vehicles:
         v_id = row[0]
-        
-        # Fetch Breakdown
         cur.execute("SELECT date, type, description, cost FROM maintenance_logs WHERE vehicle_id = %s ORDER BY date DESC", (v_id,))
         history = [{'date': r[0], 'type': r[1], 'desc': r[2], 'cost': r[3]} for r in cur.fetchall()]
 
@@ -245,25 +240,24 @@ def finance_fleet():
             'reg_number': row[1],
             'make_model': row[2],
             'status': row[3],
-            'mot_due': parse_date(row[4]),   # FIXED with parse_date
-            'tax_due': parse_date(row[5]),   # FIXED with parse_date
-            'ins_due': parse_date(row[6]),   # FIXED with parse_date
+            'mot_due': parse_date(row[4]),
+            'tax_due': parse_date(row[5]),
+            'ins_due': parse_date(row[6]),
             'driver': row[7],
             'total_spend': row[8],
             'assigned_driver_id': row[9],
             'tracker_url': row[10],
-            'service_due': parse_date(row[11]), # FIXED with parse_date
+            'service_due': parse_date(row[11]),
             'history': history
         })
         
-    # Get Staff for Dropdowns
     cur.execute("SELECT id, name FROM staff WHERE company_id = %s", (comp_id,))
     staff_list = cur.fetchall()
-
     conn.close()
     
     return render_template('finance/finance_fleet.html', vehicles=vehicles, staff=staff_list, today=today, brand_color=config['color'], logo_url=config['logo'])
     
+# --- FIXED DELETE ROUTE ---
 @finance_bp.route('/finance/fleet/delete/<int:id>')
 def delete_vehicle(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -301,6 +295,7 @@ def add_material():
     finally: conn.close()
     return redirect(url_for('finance.finance_materials'))
 
+# --- FIXED DELETE ROUTE ---
 @finance_bp.route('/finance/materials/delete/<int:id>')
 def delete_material(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -316,7 +311,6 @@ def finance_analysis():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
-    
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT reference, description, amount FROM transactions WHERE company_id = %s AND type = 'Income' ORDER BY date DESC LIMIT 50", (comp_id,))
     raw_jobs = cur.fetchall()
@@ -324,19 +318,18 @@ def finance_analysis():
     analyzed_jobs = []; total_rev = 0; total_cost = 0
     for j in raw_jobs:
         rev = float(j[2])
-        est_cost = rev / 1.2 # Simple assumption for now
+        est_cost = rev / 1.2
         profit = rev - est_cost
         margin = (profit / rev * 100) if rev > 0 else 0
         total_rev += rev; total_cost += est_cost
         analyzed_jobs.append({"ref": j[0], "client": j[1], "status": "Completed", "rev": rev, "cost": est_cost, "profit": profit, "margin": margin})
     conn.close()
-    
     total_profit = total_rev - total_cost
     avg_margin = (total_profit / total_rev * 100) if total_rev > 0 else 0
     return render_template('finance/finance_analysis.html', jobs=analyzed_jobs, total_rev=total_rev, total_cost=total_cost, total_profit=total_profit, avg_margin=avg_margin, brand_color=config['color'], logo_url=config['logo'])
 
 
-# --- 6. SETTINGS & OVERHEADS ---
+# --- 6. SETTINGS (The Professional Edition - COMPLETE) ---
 @finance_bp.route('/finance/settings', methods=['GET', 'POST'])
 def finance_settings():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -350,15 +343,19 @@ def finance_settings():
     if request.method == 'POST':
         action = request.form.get('action')
         
-        # 1. Standard Settings (Logo, Text, etc)
-        if action == 'save_general':
+        # 1. SAVE ALL SETTINGS (Dynamic - Saves ANY field from HTML)
+        if action == 'save_config':
             try:
-                # Text Fields
+                # Save all text/select fields
                 for key, value in request.form.items():
-                    if key != 'action':
-                        cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, value))
+                    if key != 'action' and value is not None:
+                        cur.execute("""
+                            INSERT INTO settings (company_id, key, value) 
+                            VALUES (%s, %s, %s) 
+                            ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+                        """, (comp_id, key, value))
                 
-                # File Uploads (Logo)
+                # Handle Logo Upload
                 if 'logo' in request.files:
                     file = request.files['logo']
                     if file and allowed_file(file.filename):
@@ -367,12 +364,21 @@ def finance_settings():
                         db_path = f"/static/uploads/logos/{filename}"
                         cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
                 
-                conn.commit()
-                flash("✅ Configuration Saved")
-            except Exception as e:
-                conn.rollback(); flash(f"Error: {e}")
+                # Handle Payment QR Upload
+                if 'payment_qr' in request.files:
+                    file = request.files['payment_qr']
+                    if file and allowed_file(file.filename):
+                        filename = secure_filename(f"qr_{comp_id}_{file.filename}")
+                        file.save(os.path.join(UPLOAD_FOLDER, filename))
+                        db_path = f"/static/uploads/logos/{filename}"
+                        cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'payment_qr_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
 
-        # 2. Add New Cost Category (e.g. "Insurances")
+                conn.commit()
+                flash("✅ Configuration Saved Successfully")
+            except Exception as e:
+                conn.rollback(); flash(f"❌ Error: {e}")
+
+        # 2. OVERHEADS (Category)
         elif action == 'add_category':
             cat_name = request.form.get('category_name')
             if cat_name:
@@ -380,7 +386,7 @@ def finance_settings():
                 conn.commit()
                 flash(f"✅ Category '{cat_name}' Added")
 
-        # 3. Add Cost Item (e.g. "Fleet Insurance - £230")
+        # 3. OVERHEADS (Item)
         elif action == 'add_item':
             cat_id = request.form.get('category_id')
             name = request.form.get('item_name')
@@ -390,26 +396,21 @@ def finance_settings():
                 conn.commit()
                 flash("✅ Cost Added")
 
-        # 4. Delete Item
+        # 4. DELETE OPERATIONS
         elif action == 'delete_item':
-            item_id = request.form.get('item_id')
-            cur.execute("DELETE FROM overhead_items WHERE id = %s", (item_id,))
+            cur.execute("DELETE FROM overhead_items WHERE id = %s", (request.form.get('item_id'),))
             conn.commit()
             flash("🗑️ Cost Removed")
 
-        # 5. Delete Category
         elif action == 'delete_category':
-            cat_id = request.form.get('category_id')
-            cur.execute("DELETE FROM overhead_categories WHERE id = %s AND company_id = %s", (cat_id, comp_id))
+            cur.execute("DELETE FROM overhead_categories WHERE id = %s AND company_id = %s", (request.form.get('category_id'), comp_id))
             conn.commit()
             flash("🗑️ Category Removed")
 
-    # --- FETCH DATA FOR PAGE ---
-    # 1. Get Settings
+    # --- FETCH DATA ---
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings_dict = {row[0]: row[1] for row in cur.fetchall()}
     
-    # 2. Get Overheads (Grouped)
     cur.execute("SELECT id, name FROM overhead_categories WHERE company_id = %s ORDER BY id ASC", (comp_id,))
     categories_raw = cur.fetchall()
     
@@ -421,13 +422,7 @@ def finance_settings():
         items = cur.fetchall()
         cat_total = sum([float(i[2]) for i in items])
         total_monthly_overhead += cat_total
-        
-        overheads.append({
-            'id': cat[0],
-            'name': cat[1],
-            'items': items, # List of (id, name, amount)
-            'total': cat_total
-        })
+        overheads.append({'id': cat[0], 'name': cat[1], 'items': items, 'total': cat_total})
 
     conn.close()
     
@@ -437,49 +432,3 @@ def finance_settings():
                            total_overhead=total_monthly_overhead,
                            brand_color=config['color'], 
                            logo_url=config['logo'])
-                           
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    comp_id = session.get('company_id')
-    config = get_site_config(comp_id)
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("CREATE TABLE IF NOT EXISTS settings (company_id INTEGER, key TEXT, value TEXT, PRIMARY KEY (company_id, key));")
-    conn.commit()
-    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
-    rows = cur.fetchall(); conn.close()
-    settings_dict = {row[0]: row[1] for row in rows}
-    return render_template('finance/finance_settings.html', settings=settings_dict, brand_color=config['color'], logo_url=config['logo'])
-
-@finance_bp.route('/finance/settings/save', methods=['POST'])
-def save_settings():
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    comp_id = session.get('company_id')
-    conn = get_db(); cur = conn.cursor()
-    try:
-        # 1. Save All Text Fields
-        for key, value in request.form.items():
-            cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, value))
-        
-        # 2. Save Company LOGO
-        if 'logo' in request.files:
-            file = request.files['logo']
-            if file and allowed_file(file.filename):
-                filename = secure_filename(f"logo_{comp_id}_{file.filename}")
-                file_path = os.path.join(UPLOAD_FOLDER, filename)
-                file.save(file_path)
-                db_path = f"/static/uploads/logos/{filename}"
-                cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
-
-        # 3. Save Payment QR CODE
-        if 'payment_qr' in request.files:
-            file = request.files['payment_qr']
-            if file and allowed_file(file.filename):
-                filename = secure_filename(f"qr_{comp_id}_{file.filename}")
-                file_path = os.path.join(UPLOAD_FOLDER, filename)
-                file.save(file_path)
-                db_path = f"/static/uploads/logos/{filename}"
-                cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'payment_qr_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
-
-        conn.commit(); flash("Configuration Saved Successfully!")
-    except Exception as e: conn.rollback(); flash(f"Error saving settings: {e}")
-    finally: conn.close()
-    return redirect(url_for('finance.finance_settings'))
