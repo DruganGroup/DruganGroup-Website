@@ -418,105 +418,40 @@ def delete_tenant(company_id):
         
     return redirect(url_for('admin.super_admin_dashboard'))
     
-# --- 13. SETUP CREWS (Run this for Gang Management) ---
-@admin_bp.route('/admin/setup-crews-db')
-def setup_crews_db():
+# --- 14. FLEET UPGRADE (Tax, Insurance, Service History, Defects) ---
+@admin_bp.route('/admin/upgrade-fleet-db')
+def upgrade_fleet_db():
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
     
     conn = get_db()
     cur = conn.cursor()
     
     try:
-        # 1. Create CREWS Table (Links multiple Staff to one Vehicle)
+        # 1. Add missing columns to VEHICLES
+        # We use IF NOT EXISTS to prevent errors if you ran previous scripts
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tax_due DATE;")
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS insurance_due DATE;")
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS service_due DATE;")
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tracker_url TEXT;") # For the map iframe
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_notes TEXT;")
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_image_url TEXT;") 
+        
+        # 2. Create MAINTENANCE LOGS Table (For Service/Repair History)
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS vehicle_crews (
+            CREATE TABLE IF NOT EXISTS maintenance_logs (
                 id SERIAL PRIMARY KEY,
                 company_id INTEGER NOT NULL,
                 vehicle_id INTEGER NOT NULL,
-                staff_id INTEGER NOT NULL,
+                date DATE DEFAULT CURRENT_DATE,
+                type VARCHAR(50),  -- 'Service', 'Repair', 'MOT', 'Tyres'
+                description TEXT,
+                cost DECIMAL(10,2) DEFAULT 0.00,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
 
-        # 2. Ensure Vehicles has a base cost column
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS daily_cost DECIMAL(10,2) DEFAULT 0.00;")
-        
         conn.commit()
-        return "<h1>✅ Gang Management Ready!</h1><p>Crew table created.</p><a href='/office/fleet'>Go to Fleet</a>"
-        
-    except Exception as e:
-        conn.rollback()
-        return f"<h1>❌ Database Error</h1><p>{e}</p>"
-    finally:
-        conn.close()
-    if session.get('role') != 'SuperAdmin': return "Access Denied", 403
-    
-    conn = get_db()
-    cur = conn.cursor()
-    
-    try:
-        # 1. Add 'role' column if missing
-        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS role VARCHAR(50);")
-        
-        # 2. Add 'status' column if missing (defaults to Active)
-        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'Active';")
-        
-        conn.commit()
-        return "<h1>✅ Staff Table Fixed!</h1><p>Added 'role' and 'status' columns.</p><a href='/office/service-desk'>Try Service Desk Now</a>"
-        
-    except Exception as e:
-        conn.rollback()
-        return f"<h1>❌ Database Error</h1><p>{e}</p>"
-    finally:
-        conn.close()
-    if session.get('role') != 'SuperAdmin': return "Access Denied", 403
-    
-    conn = get_db()
-    cur = conn.cursor()
-    
-    try:
-        # 1. CLIENTS Table
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS clients (
-                id SERIAL PRIMARY KEY,
-                company_id INTEGER NOT NULL,
-                name VARCHAR(100) NOT NULL,
-                email VARCHAR(100),
-                phone VARCHAR(20),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
-
-        # 2. PROPERTIES Table
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS properties (
-                id SERIAL PRIMARY KEY,
-                company_id INTEGER NOT NULL,
-                client_id INTEGER,
-                address TEXT NOT NULL,
-                postcode VARCHAR(20),
-                access_codes TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
-
-        # 3. SERVICE REQUESTS Table (The "Tickets")
-        # Note: We use 'issue_description' to match your python code
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS service_requests (
-                id SERIAL PRIMARY KEY,
-                company_id INTEGER NOT NULL,
-                client_id INTEGER,
-                property_id INTEGER,
-                issue_description TEXT, 
-                severity VARCHAR(20) DEFAULT 'Normal',
-                status VARCHAR(20) DEFAULT 'Open',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
-        
-        conn.commit()
-        return "<h1>✅ CRM Tables Created!</h1><p>Clients, Properties, and Service Requests are ready.</p><a href='/super-admin'>Back to Dashboard</a>"
+        return "<h1>✅ Fleet Database Upgraded!</h1><p>Added Tax, Insurance, Tracker, and Maintenance Logs.</p><a href='/office/fleet'>Go to Fleet Dashboard</a>"
         
     except Exception as e:
         conn.rollback()
