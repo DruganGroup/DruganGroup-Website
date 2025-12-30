@@ -1,0 +1,226 @@
+{% extends "admin/layout.html" %}
+
+{% block content %}
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; border-bottom: 1px solid #333; padding-bottom: 20px;">
+    <div>
+        <h1 style="color: var(--primary-gold); font-family: 'Montserrat', sans-serif; text-transform: uppercase; font-size: 1.8rem; margin: 0;">Command Center</h1>
+        <span style="color: #888; font-size: 0.9rem;">SaaS Management Console</span>
+    </div>
+    <div style="display: flex; gap: 15px; align-items: center;">
+        <a href="/admin/backup/all" class="btn-sm" style="background: #f39c12; color: #000; text-decoration: none; padding: 10px 20px; border-radius: 5px;">
+            <i class="fas fa-database"></i> Backup All Companies
+        </a>
+    </div>
+</div>
+
+<div class="admin-card">
+    <h3><i class="fas fa-bolt"></i> Deploy New Company</h3>
+    <form method="POST" action="/super-admin/create">
+        <div class="form-grid">
+            <div><label>Company Name</label><input type="text" name="company_name" class="dark-input" placeholder="e.g. Apex Roofing" required></div>
+            <div><label>Owner Email (Login)</label><input type="text" name="owner_email" class="dark-input" placeholder="admin@client.com" required></div>
+            <div><label>Initial Password</label><input type="text" name="owner_pass" class="dark-input" placeholder="Secure Password" required></div>
+            <div>
+                <label>Tier</label>
+                <select name="plan" class="dark-select">
+                    <option value="Basic">Basic</option>
+                    <option value="Pro">Pro</option>
+                    <option value="Enterprise" selected>Enterprise</option>
+                </select>
+            </div>
+            <div><label>&nbsp;</label><button type="submit" class="btn-gold">Create Company</button></div>
+        </div>
+    </form>
+</div>
+
+<div class="admin-card">
+    <h3><i class="fas fa-building"></i> Active Companies</h3>
+    
+    <div style="margin-bottom: 20px; position: relative;">
+        <i class="fas fa-search" style="position: absolute; left: 15px; top: 14px; color: #888;"></i>
+        <input type="text" id="companySearch" class="dark-input" style="padding-left: 40px;" placeholder="Search Companies..." onkeyup="filterTable()">
+    </div>
+
+    <table class="admin-table" id="tenantTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Company</th>
+                <th>Subdomain</th>
+                <th>Tier</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in companies %}
+            <tr>
+                <td style="color: #666;">#{{ c[0] }}</td>
+                <td><strong style="color: #fff;">{{ c[1] }}</strong></td>
+                <td><span style="color:#888;">{{ c[5] }}</span>.drugangroup.co.uk</td>
+                <td>
+                    <span class="badge-status {{ 'badge-enterprise' if c[2] == 'Enterprise' else 'badge-pro' if c[2] == 'Pro' else 'badge-basic' }}">
+                        {{ c[2] }}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge-status {{ 'badge-active' if c[3] == 'Active' else 'badge-danger' }}">
+                        {{ c[3] }}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn-sm btn-manage" 
+                        onclick="openModal('{{ c[1] }}', '{{ c[5] }}', '{{ c[0] }}', '{{ c[2] }}', '{{ c[4] }}', '{{ c[3] }}')">
+                        <i class="fas fa-edit"></i> Manage
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="admin-card">
+    <h3><i class="fas fa-user-shield"></i> Company Admin Security</h3>
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>User ID</th>
+                <th>Username / Email</th>
+                <th>Role</th>
+                <th>Company</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td style="color: #666;">#{{ u[0] }}</td>
+                <td>{{ u[1] }}</td>
+                <td>
+                    {% if u[2] == 'SuperAdmin' %}
+                        <span class="badge-status" style="background: gold; color: black; border:none;">Master Admin</span>
+                    {% else %}
+                        <span class="badge-status badge-enterprise">Company Owner</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if u[2] == 'SuperAdmin' %}
+                        <span style="color: #666;">-</span>
+                    {% else %}
+                        <strong style="color: #ccc;">ID: {{ u[3] }}</strong>
+                    {% endif %}
+                </td>
+                <td>
+                    <form method="POST" action="/admin/reset-password" style="display:inline;">
+                        <input type="hidden" name="user_id" value="{{ u[0] }}">
+                        <button type="submit" class="btn-sm" style="background: #3498db; color: white; border: none; padding: 6px 12px;">
+                            <i class="fas fa-envelope"></i> Reset Pass
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="companyModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h2 style="color: var(--primary-gold); margin-bottom: 20px;">Manage Company</h2>
+        
+        <form method="POST" action="/admin/update-tier">
+            <input type="hidden" name="company_id" id="modalCompanyID">
+            
+            <div style="display: grid; gap: 15px;">
+                <p style="border-bottom: 1px solid #333; padding: 10px 0; margin:0; display:flex; justify-content:space-between;">
+                    <span>Company:</span> <strong id="modalName" style="color:#fff;"></strong>
+                </p>
+                <p style="border-bottom: 1px solid #333; padding: 10px 0; margin:0; display:flex; justify-content:space-between;">
+                    <span>Subdomain:</span> <span id="modalSub" style="color: var(--primary-gold);"></span>
+                </p>
+                <p style="border-bottom: 1px solid #333; padding: 10px 0; margin:0; display:flex; justify-content:space-between;">
+                    <span>Admin Email:</span> <span id="modalEmail" style="color: #fff;"></span>
+                </p>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0;">
+                    <span>Plan Tier:</span>
+                    <select name="plan_tier" id="modalTierSelect" class="dark-select" style="width: 150px; padding: 5px;">
+                        <option value="Basic">Basic</option>
+                        <option value="Pro">Pro</option>
+                        <option value="Enterprise">Enterprise</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="margin-top: 25px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #333; padding-top: 20px;">
+                <div>
+                    <a id="btnDelete" class="btn-sm" style="background: transparent; color: #e74c3c; border: 1px solid #e74c3c; text-decoration: none; padding: 6px 12px;" onclick="return confirm('⚠️ WARNING: This will permanently DELETE this company. Are you sure?')">
+                        <i class="fas fa-trash"></i> Delete
+                    </a>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <a id="btnAssign" class="btn-sm" style="background: #333; color: #fff; text-decoration: none; padding-top:8px;">Login As</a>
+                    <a id="btnSuspend" class="btn-sm btn-danger" style="text-decoration: none; padding-top:8px;">Suspend</a>
+                    <a id="btnBackup" class="btn-sm" style="background: #f39c12; color: #000; text-decoration: none; padding-top:8px;">
+                        <i class="fas fa-download"></i> Backup
+                    </a>
+                    <button type="submit" class="btn-sm btn-manage">Save</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function filterTable() {
+        var input = document.getElementById("companySearch");
+        var filter = input.value.toUpperCase();
+        var table = document.getElementById("tenantTable");
+        var tr = table.getElementsByTagName("tr");
+        for (var i = 0; i < tr.length; i++) {
+            var td = tr[i].getElementsByTagName("td")[1];
+            if (td) {
+                var txtValue = td.textContent || td.innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }       
+        }
+    }
+
+    function openModal(name, sub, id, tier, email, status) {
+        document.getElementById('modalName').innerText = name;
+        document.getElementById('modalSub').innerText = sub;
+        document.getElementById('modalEmail').innerText = email;
+        document.getElementById('modalCompanyID').value = id;
+        document.getElementById('modalTierSelect').value = tier;
+        
+        var btnSuspend = document.getElementById('btnSuspend');
+        btnSuspend.href = "/admin/suspend/" + id;
+        btnSuspend.innerText = (status === 'Active' ? 'Suspend Access' : 'Re-Activate Access');
+        
+        document.getElementById('btnBackup').href = "/admin/backup/" + id;
+        document.getElementById('btnDelete').href = "/admin/delete-tenant/" + id;
+        document.getElementById('btnAssign').href = "/admin/assign-me/" + id;
+
+        document.getElementById('companyModal').style.display = "block";
+    }
+
+    function closeModal() {
+        document.getElementById('companyModal').style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('companyModal')) {
+            closeModal();
+        }
+    }
+</script>
+{% endblock %}
