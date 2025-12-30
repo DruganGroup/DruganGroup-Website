@@ -385,14 +385,47 @@ def finance_analysis():
     return render_template('finance/finance_analysis.html', jobs=analyzed_jobs, total_rev=total_rev, total_cost=total_cost, total_profit=total_profit, avg_margin=avg_margin, brand_color=config['color'], logo_url=config['logo'])
 
 
-# --- 6. SETTINGS REDIRECT (Fixes 404) ---
+# --- 6. SETTINGS REDIRECT ---
 @finance_bp.route('/finance/settings')
 def settings_redirect():
     return redirect(url_for('finance.settings_general'))
 
-# --- 6A. SETTINGS: GENERAL ---
+# --- 6A. SETTINGS: GENERAL (Updated to include SMTP) ---
 @finance_bp.route('/finance/settings/general', methods=['GET', 'POST'])
 def settings_general():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+
+    if request.method == 'POST':
+        try:
+            # NOW INCLUDES SMTP SETTINGS HERE
+            keys = ['company_name', 'company_email', 'company_phone', 'company_website', 'company_address', 'brand_color',
+                    'smtp_host', 'smtp_port', 'smtp_email', 'smtp_password'] # <--- Moved here
+            
+            for key in keys:
+                val = request.form.get(key)
+                cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, val))
+            
+            # Logo Logic
+            if 'logo' in request.files:
+                file = request.files['logo']
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(f"logo_{comp_id}_{file.filename}")
+                    file.save(os.path.join(UPLOAD_FOLDER, filename))
+                    db_path = f"/static/uploads/logos/{filename}"
+                    cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
+            
+            conn.commit(); flash("✅ Profile & Email Settings Saved")
+        except Exception as e: conn.rollback(); flash(f"Error: {e}")
+
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    conn.close()
+    
+    return render_template('finance/settings_general.html', settings=settings, active_tab='general', brand_color=config['color'], logo_url=config['logo'])
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
@@ -421,6 +454,7 @@ def settings_general():
     conn.close()
     
     return render_template('finance/settings_general.html', settings=settings, active_tab='general', brand_color=config['color'], logo_url=config['logo'])
+
 
 # --- 6B. SETTINGS: COMPLIANCE (Updated with VAT Logic) ---
 @finance_bp.route('/finance/settings/compliance', methods=['GET', 'POST'])
@@ -453,7 +487,7 @@ def settings_compliance():
     
     return render_template('finance/settings_compliance.html', settings=settings, active_tab='compliance', brand_color=config['color'], logo_url=config['logo'])
 
-# --- 6C. SETTINGS: BANKING (Updated with Markup Logic) ---
+# --- 6C. SETTINGS: BANKING (Updated to remove SMTP, Keep Markup) ---
 @finance_bp.route('/finance/settings/banking', methods=['GET', 'POST'])
 def settings_banking():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -464,10 +498,10 @@ def settings_banking():
 
     if request.method == 'POST':
         try:
-            # We explicitly list keys to save, INCLUDING the new markup fields
+            # REMOVED SMTP KEYS from here
+            # KEPT Banking, Footer, and Profit Drivers
             keys_to_save = ['bank_name', 'account_number', 'sort_code', 'payment_terms', 
-                            'smtp_host', 'smtp_port', 'smtp_email', 'smtp_password', 
-                            'quote_footer', 'invoice_footer', 
+                            'invoice_footer', 'quote_footer', 
                             'default_markup', 'default_profit_margin'] 
             
             for key in keys_to_save:
@@ -484,7 +518,7 @@ def settings_banking():
                     db_path = f"/static/uploads/logos/{filename}"
                     cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'payment_qr_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
 
-            conn.commit(); flash("✅ Banking & Financial Defaults Saved")
+            conn.commit(); flash("✅ Banking & Defaults Saved")
         except Exception as e: conn.rollback(); flash(f"Error: {e}")
 
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))

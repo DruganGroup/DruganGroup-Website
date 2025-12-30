@@ -28,30 +28,55 @@
                         <textarea name="company_address" class="form-control" rows="3">{{ settings.get('company_address', '') }}</textarea>
                     </div>
                 </div>
-                <div class="mt-4 text-end">
-                    <button type="submit" class="btn btn-primary fw-bold"><i class="fas fa-save me-2"></i> Save Profile</button>
-                </div>
             </div>
         </div>
 
         <div class="col-md-4">
-            <div class="card p-4 h-100 bg-light border-0">
-                <h5 class="fw-bold text-secondary mb-4">Branding</h5>
-                <div class="mb-4">
+            <div class="card p-4 mb-4 bg-light border-0">
+                <h5 class="fw-bold text-secondary mb-3">Branding</h5>
+                <div class="mb-3">
                     <label class="form-label text-muted small fw-bold">Brand Color (Theme)</label>
                     <input type="color" name="brand_color" class="form-control form-control-color w-100" value="{{ settings.get('brand_color', '#2c3e50') }}">
                 </div>
-                <div class="mb-3">
+                <div class="mb-2">
                     <label class="form-label text-muted small fw-bold">Company Logo</label>
                     <input type="file" name="logo" class="form-control mb-2">
                     {% if logo_url %}
-                        <div class="p-3 bg-white border rounded text-center">
-                            <img src="{{ logo_url }}" style="max-width: 100px; height: auto;">
+                        <div class="p-2 bg-white border rounded text-center">
+                            <img src="{{ logo_url }}" style="max-width: 80px; height: auto;">
                             <div class="small text-muted mt-1">Current Logo</div>
                         </div>
                     {% endif %}
                 </div>
             </div>
+
+            <div class="card p-4 border-0 shadow-sm">
+                <h5 class="fw-bold text-secondary mb-3">Email System (SMTP)</h5>
+                <p class="small text-muted mb-2">Used to send Quotes & Invoices.</p>
+                
+                <div class="mb-2">
+                    <label class="form-label text-muted small fw-bold">SMTP Host</label>
+                    <input type="text" name="smtp_host" class="form-control form-control-sm" value="{{ settings.get('smtp_host', '') }}" placeholder="smtp.gmail.com">
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-4">
+                        <label class="form-label text-muted small fw-bold">Port</label>
+                        <input type="text" name="smtp_port" class="form-control form-control-sm" value="{{ settings.get('smtp_port', '587') }}">
+                    </div>
+                    <div class="col-8">
+                        <label class="form-label text-muted small fw-bold">Sender Email</label>
+                        <input type="email" name="smtp_email" class="form-control form-control-sm" value="{{ settings.get('smtp_email', '') }}" placeholder="billing@yourco.com">
+                    </div>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label text-muted small fw-bold">App Password / Key</label>
+                    <input type="password" name="smtp_password" class="form-control form-control-sm" value="{{ settings.get('smtp_password', '') }}">
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-12 text-end">
+            <button type="submit" class="btn btn-primary fw-bold px-4"><i class="fas fa-save me-2"></i> Save Profile & Email</button>
         </div>
     </div>
 </form>
