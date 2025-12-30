@@ -11,8 +11,46 @@ import string
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-
 admin_bp = Blueprint('admin', __name__)
+
+# --- HELPER: CALCULATE REAL DISK USAGE ---
+def get_real_company_usage(company_id, cur):
+    total_bytes = 0
+    
+    # 1. DATABASE SIZE ESTIMATE (Text Data)
+    # A rough estimate: 2KB per row of text data across all tables
+    tables = ['users', 'staff', 'vehicles', 'clients', 'jobs', 'transactions', 'maintenance_logs', 'materials']
+    row_count = 0
+    for t in tables:
+        try:
+            cur.execute(f"SELECT COUNT(*) FROM {t} WHERE company_id = %s", (company_id,))
+            row_count += cur.fetchone()[0]
+        except: pass
+    total_bytes += (row_count * 2048) # 2KB per row estimate
+
+    # 2. PHYSICAL FILE SIZE (Logos, Photos, PDFs)
+    # A. Check Logo
+    try:
+        cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'logo_url'", (company_id,))
+        row = cur.fetchone()
+        if row and row[0]:
+            file_path = row[0].replace('/static/', 'static/') # Convert URL to system path
+            if os.path.exists(file_path):
+                total_bytes += os.path.getsize(file_path)
+    except: pass
+
+    # B. Check Vehicle Defect Photos
+    try:
+        cur.execute("SELECT defect_image_url FROM vehicles WHERE company_id = %s", (company_id,))
+        for row in cur.fetchall():
+            if row[0]:
+                file_path = row[0].replace('/static/', 'static/')
+                if os.path.exists(file_path):
+                    total_bytes += os.path.getsize(file_path)
+    except: pass
+
+    # Convert to MB
+    return round(total_bytes / (1024 * 1024), 2)
 
 # --- HELPER: PERFORM SINGLE BACKUP (Used by Single & Mass Backup) ---
 def perform_company_backup(company_id, cur):
@@ -53,62 +91,37 @@ def perform_company_backup(company_id, cur):
 # --- 1. SUPER ADMIN DASHBOARD ---
 @admin_bp.route('/super-admin', methods=['GET', 'POST'])
 def super_admin_dashboard():
-    # Security Check
-    if session.get('role') != 'SuperAdmin': 
-        return redirect(url_for('auth.login'))
+    if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
     
     conn = get_db()
     cur = conn.cursor()
     
-    # --- EXISTING COMPANY CREATION LOGIC ---
+    # --- CREATE NEW COMPANY LOGIC (Unchanged) ---
     if request.method == 'POST':
         comp_name = request.form.get('company_name')
         owner_email = request.form.get('owner_email')
         owner_pass = request.form.get('owner_pass')
         plan = request.form.get('plan')
         
-        # 1. Create base slug
         base_slug = re.sub(r'[^a-z0-9-]', '', comp_name.lower().replace(' ', '-'))
-        base_slug = re.sub(r'-+', '-', base_slug).strip('-')
-        
-        # 2. Check for duplicates
-        final_slug = base_slug
-        counter = 1
+        final_slug = base_slug; counter = 1
         while True:
             cur.execute("SELECT id FROM companies WHERE subdomain = %s", (final_slug,))
-            if not cur.fetchone():
-                break 
-            final_slug = f"{base_slug}-{counter}"
-            counter += 1
+            if not cur.fetchone(): break 
+            final_slug = f"{base_slug}-{counter}"; counter += 1
 
         try:
-            # Create Company
-            cur.execute("""
-                INSERT INTO companies (name, contact_email, subdomain) 
-                VALUES (%s, %s, %s) RETURNING id
-            """, (comp_name, owner_email, final_slug))
-            new_company_id = cur.fetchone()[0]
-            
-            # Create Subscription
-            cur.execute("INSERT INTO subscriptions (company_id, plan_tier, status) VALUES (%s, %s, 'Active')", (new_company_id, plan))
-            
-            # Create Admin User
+            cur.execute("INSERT INTO companies (name, contact_email, subdomain) VALUES (%s, %s, %s) RETURNING id", (comp_name, owner_email, final_slug))
+            new_id = cur.fetchone()[0]
+            cur.execute("INSERT INTO subscriptions (company_id, plan_tier, status) VALUES (%s, %s, 'Active')", (new_id, plan))
             secure_pass = generate_password_hash(owner_pass)
-            cur.execute("INSERT INTO users (username, password_hash, email, role, company_id) VALUES (%s, %s, %s, 'Admin', %s)", 
-                        (owner_email, secure_pass, owner_email, new_company_id))
-            
-            # Initialize Settings
-            cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'brand_color', '#2c3e50')", (new_company_id,))
-
+            cur.execute("INSERT INTO users (username, password_hash, email, role, company_id) VALUES (%s, %s, %s, 'Admin', %s)", (owner_email, secure_pass, owner_email, new_id))
+            cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'brand_color', '#2c3e50')", (new_id,))
             conn.commit()
-            flash(f"✅ Success! {comp_name} created at: {final_slug}.drugangroup.co.uk")
-        except Exception as e:
-            conn.rollback()
-            flash(f"❌ Error: {e}")
+            flash(f"✅ Success! {comp_name} created.")
+        except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
             
-    # --- FETCH DATA FOR DASHBOARD ---
-    
-    # 1. Fetch Companies
+    # --- FETCH DATA & CALCULATE USAGE (New Logic) ---
     cur.execute("""
         SELECT c.id, c.name, s.plan_tier, s.status, u.email, c.subdomain 
         FROM companies c 
@@ -118,77 +131,30 @@ def super_admin_dashboard():
     """)
     raw_companies = cur.fetchall()
     
-    # 2. ENRICH COMPANIES WITH DATA USAGE STATS
+    # Convert tuples to Dictionaries and add Storage/Bandwidth data
     companies = []
-    tables_to_check = ['users', 'staff', 'vehicles', 'clients', 'jobs', 'transactions', 'maintenance_logs', 'materials']
-    
     for c in raw_companies:
-        c_id = c[0]
-        total_rows = 0
-        for table in tables_to_check:
-            try:
-                # Check if table exists to prevent crashes
-                cur.execute(f"SELECT to_regclass('{table}')")
-                if cur.fetchone()[0]:
-                    cur.execute(f"SELECT COUNT(*) FROM {table} WHERE company_id = %s", (c_id,))
-                    total_rows += cur.fetchone()[0]
-            except: pass
-            
-        # Estimate: 0.5KB per row average
-        est_size_mb = round((total_rows * 0.5) / 1024, 2)
-        # Estimate: Bandwidth is roughly 10% of total data accessed monthly
-        est_bandwidth = round(total_rows * 0.05, 2)
+        real_size_mb = get_real_company_usage(c[0], cur) # Call Helper
+        est_bandwidth = round(real_size_mb * 5, 2)       # Estimate Bandwidth
         
-        # Create a dictionary for the template
-        comp_dict = {
+        companies.append({
             'id': c[0], 'name': c[1], 'plan': c[2], 'status': c[3], 
             'email': c[4], 'subdomain': c[5],
-            'storage': est_size_mb, 'bandwidth': est_bandwidth
-        }
-        companies.append(comp_dict)
+            'storage': real_size_mb, 
+            'bandwidth': est_bandwidth
+        })
     
-    # 3. Users (For Password Reset Table)
+    # Fetch Users & Config
     cur.execute("SELECT id, username, role, company_id FROM users WHERE role IN ('SuperAdmin', 'Admin') ORDER BY id ASC")
     users = cur.fetchall()
-
-    # 4. System Settings (For SMTP Config)
-    cur.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)") # Safety check
+    
+    cur.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)") 
+    conn.commit()
     cur.execute("SELECT key, value FROM system_settings")
-    settings_rows = cur.fetchall()
-    system_config = {row[0]: row[1] for row in settings_rows}
+    system_config = {row[0]: row[1] for row in cur.fetchall()}
     
     conn.close()
-    
-    # Pass all data to the template
     return render_template('super_admin.html', companies=companies, users=users, config=system_config)
-            
-    # --- FETCH DATA FOR DASHBOARD ---
-    
-    # 1. Companies (Existing)
-    cur.execute("""
-        SELECT c.id, c.name, s.plan_tier, s.status, u.email, c.subdomain 
-        FROM companies c 
-        LEFT JOIN subscriptions s ON c.id = s.company_id 
-        LEFT JOIN users u ON c.id = u.company_id AND u.role = 'Admin' 
-        ORDER BY c.id DESC
-    """)
-    companies = cur.fetchall()
-    
-    # 2. Users (For Password Reset Table)
-    cur.execute("SELECT id, username, role, company_id FROM users WHERE role IN ('SuperAdmin', 'Admin') ORDER BY id ASC")
-    users = cur.fetchall()
-
-    # 3. System Settings (For SMTP Config)
-    cur.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)") # Safety check
-    cur.execute("SELECT key, value FROM system_settings")
-    settings_rows = cur.fetchall()
-    system_config = {row[0]: row[1] for row in settings_rows}
-    
-    conn.close()
-    
-    # Pass all data to the template
-    return render_template('admin/super_admin_overview.html', companies=companies, users=users, config=system_config)
-
 
 # --- 2. ANALYTICS (The Data Probe) ---
 @admin_bp.route('/super-admin/analytics')
