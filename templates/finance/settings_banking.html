@@ -26,7 +26,28 @@
                 </div>
             </div>
         </div>
-
+		<div class="card p-4 mt-4">
+                <h5 class="fw-bold text-secondary mb-3">Profit Drivers</h5>
+                <p class="small text-muted mb-3">Default percentages for new Quotes.</p>
+                
+                <div class="row g-3">
+                    <div class="col-6">
+                        <label class="form-label text-muted small fw-bold">Material Markup</label>
+                        <div class="input-group">
+                            <input type="number" name="default_markup" class="form-control" value="{{ settings.get('default_markup', '20') }}">
+                            <span class="input-group-text">%</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-muted small fw-bold">Net Margin Target</label>
+                        <div class="input-group">
+                            <input type="number" name="default_profit_margin" class="form-control" value="{{ settings.get('default_profit_margin', '15') }}">
+                            <span class="input-group-text">%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+			
         <div class="col-md-6">
             <div class="card p-4 h-100">
                 <h5 class="fw-bold text-secondary mb-4">Email Configuration (SMTP)</h5>
