@@ -56,3 +56,30 @@ def site_dashboard():
                            pending_req_count=pending_count,
                            active_gangs_count=active_gangs,
                            recent_jobs=recent_jobs)
+                           
+                           # --- VIEW SINGLE JOB DETAILS ---
+@site_bp.route('/site/job/<int:job_id>')
+def view_job(job_id):
+    if not session.get('user_id'): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. Fetch Job Details (Joined with Client & Request info)
+    cur.execute("""
+        SELECT j.id, j.reference, j.status, j.scheduled_date, j.notes,
+               c.name, c.phone, c.address,
+               sr.issue_description, sr.severity
+        FROM jobs j
+        LEFT JOIN service_requests sr ON j.request_id = sr.id
+        LEFT JOIN clients c ON sr.client_id = c.id
+        WHERE j.id = %s AND j.company_id = %s
+    """, (job_id, comp_id))
+    job = cur.fetchone()
+    
+    conn.close()
+    
+    if not job:
+        return "Job not found", 404
+        
+    return render_template('site/job_details.html', job=job)
