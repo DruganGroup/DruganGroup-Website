@@ -87,10 +87,11 @@ def client_portal_login():
     return render_template('public/login', active_tab='client')
 
 @auth_bp.route('/launcher')
-@auth_bp.route('/launcher')
 def main_launcher():
-    if 'user_id' not in session:
+    # 1. Security Check
+    if 'user_id' not in session: 
         return redirect(url_for('auth.login'))
+    return render_template('main_launcher.html', role=session.get('role'))
     
     # --- SUPER ADMIN LOGIC (User ID 1) ---
     if session.get('user_id') == 1:
