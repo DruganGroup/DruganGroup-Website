@@ -311,6 +311,81 @@ def toggle_suspend(company_id):
 @admin_bp.route('/admin/delete-tenant/<int:company_id>')
 def delete_tenant(company_id):
     if session.get('role') != 'SuperAdmin': return "Access Denied"
+    
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # STEP 1: Delete "Grandchildren" (Data that relies on other data)
+        # These tables must go first or they will block the deletion of their parents
+        grandchildren = [
+            'invoice_items',   # Links to invoices
+            'quote_items',     # Links to quotes
+            'overhead_items',  # Links to overhead_categories
+            'vehicle_crews',   # Links to vehicles/staff
+            'job_logs'         # (If you have this table)
+        ]
+        
+        for t in grandchildren:
+            try:
+                # We check if table exists to prevent crashes on old DB versions
+                cur.execute(f"DELETE FROM {t} USING companies WHERE {t}.company_id = companies.id AND companies.id = %s", (company_id,))
+            except Exception:
+                # If table doesn't exist or column differs, we safely ignore but ROLLBACK the mini-error
+                conn.rollback() 
+
+        # STEP 2: Delete "Children" (The main operational data)
+        children = [
+            'maintenance_logs',
+            'materials',
+            'overhead_categories',
+            'transactions',
+            'service_requests',
+            'invoices',
+            'quotes',
+            'jobs'
+        ]
+        
+        for t in children:
+            try:
+                cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
+            except Exception:
+                conn.rollback()
+
+        # STEP 3: Delete "Direct Dependents" (Assets and People)
+        dependents = [
+            'vehicles',
+            'staff',
+            'properties',
+            'clients',
+            'users',
+            'settings',
+            'subscriptions'
+        ]
+        
+        for t in dependents:
+            try:
+                cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
+            except Exception:
+                conn.rollback()
+
+        # STEP 4: Finally, delete the Company itself
+        cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
+        
+        conn.commit()
+        flash("✅ Company and all associated data deleted permanently.")
+        
+    except Exception as e:
+        conn.rollback()
+        # This will now show the REAL error instead of "transaction aborted"
+        flash(f"❌ Error deleting company: {e}")
+        print(f"DEBUG ERROR: {e}") # Check your Render logs if this happens again
+        
+    finally:
+        conn.close()
+        
+    return redirect(url_for('admin.super_admin_dashboard'))
+    
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
     conn = get_db(); cur = conn.cursor()
     try:
         # 1. Manually delete children first to prevent Foreign Key errors
