@@ -137,7 +137,7 @@ def delete_staff(id):
     return redirect(url_for('finance.finance_hr'))
 
 
-# --- 3. FINANCE FLEET ---
+# --- 3. FINANCE FLEET (FIXED) ---
 @finance_bp.route('/finance/fleet', methods=['GET', 'POST'])
 def finance_fleet():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -147,6 +147,7 @@ def finance_fleet():
     conn = get_db()
     cur = conn.cursor()
     
+    # --- HANDLE POST REQUESTS ---
     if request.method == 'POST':
         action = request.form.get('action')
         
@@ -211,12 +212,13 @@ def finance_fleet():
             except Exception as e:
                 conn.rollback(); flash(f"❌ Error: {e}")
 
+    # --- FETCH VEHICLES (Safe Logic) ---
+    # We use a separate cursor for the inner loop to prevent any "cursor conflict" issues
     cur.execute("""
         SELECT 
             v.id, v.reg_plate, v.make_model, v.status, 
             v.mot_due, v.tax_due, v.insurance_due,
             s.name as driver_name,
-            (SELECT COALESCE(SUM(cost), 0) FROM maintenance_logs WHERE vehicle_id = v.id) as total_spend,
             v.assigned_driver_id, v.tracker_url, v.service_due
         FROM vehicles v 
         LEFT JOIN staff s ON v.assigned_driver_id = s.id 
@@ -226,12 +228,20 @@ def finance_fleet():
     
     raw_vehicles = cur.fetchall()
     vehicles = []
-    today = date.today()
+    
+    # Create secondary cursor for maintenance calculations
+    cur2 = conn.cursor()
 
     for row in raw_vehicles:
         v_id = row[0]
-        cur.execute("SELECT date, type, description, cost FROM maintenance_logs WHERE vehicle_id = %s ORDER BY date DESC", (v_id,))
-        history = [{'date': r[0], 'type': r[1], 'desc': r[2], 'cost': r[3]} for r in cur.fetchall()]
+        
+        # Calculate Total Spend safely
+        cur2.execute("SELECT COALESCE(SUM(cost), 0) FROM maintenance_logs WHERE vehicle_id = %s", (v_id,))
+        total_spend = cur2.fetchone()[0]
+
+        # Get History
+        cur2.execute("SELECT date, type, description, cost FROM maintenance_logs WHERE vehicle_id = %s ORDER BY date DESC", (v_id,))
+        history = [{'date': r[0], 'type': r[1], 'desc': r[2], 'cost': r[3]} for r in cur2.fetchall()]
 
         vehicles.append({
             'id': row[0],
@@ -242,18 +252,20 @@ def finance_fleet():
             'tax_due': parse_date(row[5]),
             'ins_due': parse_date(row[6]),
             'driver': row[7],
-            'total_spend': row[8],
-            'assigned_driver_id': row[9],
-            'tracker_url': row[10],
-            'service_due': parse_date(row[11]),
+            'total_spend': total_spend,
+            'assigned_driver_id': row[8],
+            'tracker_url': row[9],
+            'service_due': parse_date(row[10]),
             'history': history
         })
         
-    cur.execute("SELECT id, name FROM staff WHERE company_id = %s", (comp_id,))
+    cur.execute("SELECT id, name FROM staff WHERE company_id = %s ORDER BY name ASC", (comp_id,))
     staff_list = cur.fetchall()
+    
+    cur2.close()
     conn.close()
     
-    return render_template('finance/finance_fleet.html', vehicles=vehicles, staff=staff_list, today=today, brand_color=config['color'], logo_url=config['logo'])
+    return render_template('finance/finance_fleet.html', vehicles=vehicles, staff=staff_list, today=date.today(), brand_color=config['color'], logo_url=config['logo'])
     
 @finance_bp.route('/finance/fleet/delete/<int:id>')
 def delete_vehicle(id):
@@ -416,34 +428,6 @@ def settings_general():
                     cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
             
             conn.commit(); flash("✅ Profile & Email Settings Saved")
-        except Exception as e: conn.rollback(); flash(f"Error: {e}")
-
-    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
-    settings = {row[0]: row[1] for row in cur.fetchall()}
-    conn.close()
-    
-    return render_template('finance/settings_general.html', settings=settings, active_tab='general', brand_color=config['color'], logo_url=config['logo'])
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    
-    comp_id = session.get('company_id')
-    config = get_site_config(comp_id)
-    conn = get_db(); cur = conn.cursor()
-
-    if request.method == 'POST':
-        try:
-            for key in ['company_name', 'company_email', 'company_phone', 'company_website', 'company_address', 'brand_color']:
-                val = request.form.get(key)
-                cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, key, val))
-            
-            if 'logo' in request.files:
-                file = request.files['logo']
-                if file and allowed_file(file.filename):
-                    filename = secure_filename(f"logo_{comp_id}_{file.filename}")
-                    file.save(os.path.join(UPLOAD_FOLDER, filename))
-                    db_path = f"/static/uploads/logos/{filename}"
-                    cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, db_path))
-            
-            conn.commit(); flash("✅ General Settings Saved")
         except Exception as e: conn.rollback(); flash(f"Error: {e}")
 
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
