@@ -490,6 +490,75 @@ def company_details(company_id):
 @admin_bp.route('/admin/cleanup-my-data')
 def cleanup_super_admin_data():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. FIND THE CORRECT ID
+        # First, try to get it from the session
+        target_id = session.get('company_id')
+        
+        # If session is None (because you unlinked yourself), find "Drugan Group" by name
+        if not target_id:
+            cur.execute("SELECT id FROM companies WHERE name ILIKE 'Drugan Group' LIMIT 1")
+            row = cur.fetchone()
+            if row:
+                target_id = row[0]
+            else:
+                # Fallback to ID 1 if all else fails
+                target_id = 1
+        
+        # 2. DELETE IN CORRECT ORDER (Grandchildren -> Children -> Parents)
+        
+        # Group A: The "Grandchildren" (Must go first)
+        grandchildren = [
+            'invoice_items', 'quote_items', 'overhead_items', 
+            'vehicle_crews', 'job_logs'
+        ]
+        for t in grandchildren:
+            try:
+                # Using specific delete syntax to be safe
+                cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (target_id,))
+            except Exception: 
+                conn.rollback() # If table missing, ignore
+
+        # Group B: The "Children" (Operational Data)
+        children = [
+            'maintenance_logs', 'materials', 'overhead_categories', 'transactions', 
+            'service_requests', 'invoices', 'quotes', 'jobs'
+        ]
+        for t in children:
+            try:
+                cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (target_id,))
+            except Exception: 
+                conn.rollback()
+
+        # Group C: The "Parents" (Assets & People)
+        parents = [
+            'vehicles', 'staff', 'properties', 'clients'
+        ]
+        for t in parents:
+            try:
+                cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (target_id,))
+            except Exception: 
+                conn.rollback()
+
+        # 3. Log and Finish
+        conn.commit()
+        log_audit("WIPE DATA", f"Company ID {target_id}", "Super Admin wiped test data")
+        flash(f"✅ Success: All test data for Company ID {target_id} (Drugan Group) has been wiped.")
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error during wipe: {e}")
+        
+    finally:
+        conn.close()
+        
+    return redirect(url_for('admin.super_admin_dashboard'))
+    
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
     target_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
     try:
