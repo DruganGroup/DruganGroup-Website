@@ -2,173 +2,182 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TradeCore | Site Hub</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Site Hub | TradeCore</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; overflow-x: hidden; }
+        body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; padding-bottom: 80px; }
         
-        /* CONSISTENT SIDEBAR */
-        .sidebar { 
-            height: 100vh; 
-            background-color: {{ brand_color }}; 
-            color: white; 
-            position: fixed; 
-            width: 250px; 
-            padding-top: 20px; 
-            z-index: 1000; 
+        /* MOBILE TOP BAR */
+        .mobile-header {
+            background-color: {{ brand_color }}; color: white;
+            padding: 20px; border-radius: 0 0 20px 20px;
+            margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
-        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; transition: 0.2s; }
-        .sidebar a:hover { background-color: rgba(0,0,0,0.1); }
-        .sidebar a.active { background-color: rgba(255,255,255,0.2); border-left: 5px solid white; }
         
-        .content { margin-left: 250px; padding: 30px; }
-        
-        /* METRIC CARDS */
-        .card { border: none; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .bg-gradient-blue { background: linear-gradient(45deg, #3498db, #2980b9); color: white; }
-        .bg-gradient-orange { background: linear-gradient(45deg, #e67e22, #d35400); color: white; }
-        .bg-gradient-purple { background: linear-gradient(45deg, #9b59b6, #8e44ad); color: white; }
-        
-        /* STATUS BADGES */
-        .badge-pending { background-color: #f1c40f; color: #000; }
-        .badge-active { background-color: #3498db; color: #fff; }
-        .badge-complete { background-color: #2ecc71; color: #fff; }
+        /* APP TILES */
+        .app-tile {
+            border: none; border-radius: 15px;
+            transition: transform 0.1s; cursor: pointer;
+            text-decoration: none; color: white;
+            height: 140px; display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .app-tile:active { transform: scale(0.98); }
+        .tile-icon { font-size: 2.5rem; margin-bottom: 10px; opacity: 0.9; }
+        .tile-label { font-weight: 700; font-size: 1.1rem; }
+
+        /* COLORS */
+        .bg-jobs { background: linear-gradient(135deg, #0d6efd, #0a58ca); }
+        .bg-quote { background: linear-gradient(135deg, #ffc107, #fd7e14); color: #333 !important; }
+        .bg-van { background: linear-gradient(135deg, #198754, #146c43); }
+        .bg-request { background: linear-gradient(135deg, #6f42c1, #59359a); }
+
+        /* JOB CARD */
+        .job-card { border-left: 5px solid {{ brand_color }}; background: white; margin-bottom: 15px; border-radius: 10px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body>
 
-    <div class="sidebar">
-        <div class="text-center mb-4">
-            <img src="{{ logo_url }}" alt="Logo" style="max-width: 180px; height: auto; padding: 10px; border-radius: 10px;">
-            <div class="fw-bold fs-5 text-uppercase mt-2">Site Operations</div>
+    <div class="mobile-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <small class="opacity-75 text-uppercase fw-bold">Welcome back,</small>
+                <h2 class="m-0 fw-bold">{{ staff_name }}</h2>
+            </div>
+            {% if logo_url %}
+            <img src="{{ logo_url }}" style="height: 50px; background: white; padding: 5px; border-radius: 8px;">
+            {% else %}
+            <i class="fas fa-hard-hat fa-2x"></i>
+            {% endif %}
         </div>
-        
-        <a href="/site-hub" class="active"><i class="fas fa-hard-hat me-2"></i> Dashboard</a>
-        <a href="/site/jobs"><i class="fas fa-map-marked-alt me-2"></i> Active Jobs</a>
-        <a href="/site/schedule"><i class="fas fa-calendar-alt me-2"></i> Gang Schedule</a>
-        <a href="/site/requests"><i class="fas fa-clipboard-list me-2"></i> Service Requests</a>
-        <a href="/site/defects"><i class="fas fa-exclamation-triangle me-2"></i> Vehicle Defects</a>
-        
-        <a href="/office/quote/new"><i class="fas fa-file-invoice-dollar me-2"></i> Create Quote</a>
-        
-        <a href="/launcher" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
-        <a href="/logout" class="text-warning"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
     </div>
 
-    <div class="content">
+    <div class="container">
         
         {% with messages = get_flashed_messages() %}
             {% if messages %}
-                <div class="alert alert-info shadow-sm mb-4">{{ messages[0] }}</div>
+                <div class="alert alert-success shadow-sm rounded-4 mb-4">{{ messages[0] }}</div>
             {% endif %}
         {% endwith %}
 
-        <h2 class="mb-4 fw-bold text-secondary">Field Operations Overview</h2>
+        <h6 class="fw-bold text-muted text-uppercase mb-3 px-1">Quick Actions</h6>
+        <div class="row g-3 mb-4">
+            
+            <div class="col-6 col-md-3">
+                <a href="/office/quote/new" class="card app-tile bg-quote">
+                    <i class="fas fa-file-invoice-dollar tile-icon"></i>
+                    <span class="tile-label">Quote</span>
+                </a>
+            </div>
 
-        <div class="row g-4 mb-4">
-            <div class="col-md-3">
-                <div class="card p-4 bg-gradient-blue h-100">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h2 class="fw-bold m-0">{{ active_jobs_count }}</h2>
-                            <span>Live Jobs</span>
-                        </div>
-                        <i class="fas fa-tools fa-3x opacity-50"></i>
-                    </div>
+            <div class="col-6 col-md-3">
+                <div class="card app-tile bg-van" data-bs-toggle="modal" data-bs-target="#vanCheckModal">
+                    <i class="fas fa-truck tile-icon"></i>
+                    <span class="tile-label">Van Check</span>
                 </div>
             </div>
 
-            <div class="col-md-3">
-                <div class="card p-4 bg-gradient-orange h-100">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h2 class="fw-bold m-0">{{ pending_req_count }}</h2>
-                            <span>New Requests</span>
-                        </div>
-                        <i class="fas fa-bell fa-3x opacity-50"></i>
-                    </div>
-                </div>
+            <div class="col-6 col-md-3">
+                <a href="/site/requests" class="card app-tile bg-request">
+                    <i class="fas fa-clipboard-list tile-icon"></i>
+                    <span class="tile-label">Requests</span>
+                </a>
             </div>
 
-            <div class="col-md-3">
-                <div class="card p-4 bg-gradient-purple h-100">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h2 class="fw-bold m-0">{{ active_gangs_count }}</h2>
-                            <span>Gangs Deployed</span>
-                        </div>
-                        <i class="fas fa-users fa-3x opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-3">
-                <a href="/office/quote/new" class="text-decoration-none">
-                    <div class="card p-4 bg-white border-warning h-100 shadow-sm" style="border-left: 5px solid #ffc107;">
-                        <div class="d-flex justify-content-between align-items-center text-dark">
-                            <div>
-                                <h3 class="fw-bold m-0"><i class="fas fa-plus-circle text-warning"></i></h3>
-                                <span class="fw-bold">Create Quote</span>
-                            </div>
-                            <i class="fas fa-file-invoice-dollar fa-3x text-warning opacity-50"></i>
-                        </div>
-                    </div>
+            <div class="col-6 col-md-3">
+                <a href="/logout" class="card app-tile bg-dark">
+                    <i class="fas fa-sign-out-alt tile-icon"></i>
+                    <span class="tile-label">Logout</span>
                 </a>
             </div>
         </div>
 
-        <div class="card p-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="fw-bold m-0">Todays Schedule & Activity</h5>
-                <a href="/site/jobs" class="btn btn-sm btn-outline-primary">View All Jobs</a>
+        <h6 class="fw-bold text-muted text-uppercase mb-3 px-1 mt-4">My Schedule ({{ my_jobs|length }})</h6>
+        
+        {% for job in my_jobs %}
+        <div class="job-card">
+            <div class="d-flex justify-content-between">
+                <span class="badge bg-primary mb-2">{{ job.status }}</span>
+                <small class="text-muted fw-bold">{{ job.reference }}</small>
             </div>
+            <h5 class="fw-bold mb-1">{{ job.address }}</h5>
+            <p class="text-muted small mb-2">{{ job.postcode }}</p>
             
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>Job Ref</th>
-                        <th>Site Address</th>
-                        <th>Assigned Gang</th>
-                        <th>Status</th>
-                        <th class="text-end">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for job in recent_jobs %}
-                    <tr>
-                        <td class="fw-bold">{{ job.reference }}</td>
-                        <td>
-                            <div>{{ job.address }}</div>
-                            <small class="text-muted">{{ job.postcode }}</small>
-                        </td>
-                        <td>
-                            {% if job.gang_name %}
-                                <span class="badge bg-secondary"><i class="fas fa-user-hard-hat me-1"></i> {{ job.gang_name }}</span>
-                            {% else %}
-                                <span class="text-muted small">Unassigned</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if job.status == 'Pending' %}
-                                <span class="badge badge-pending">Pending</span>
-                            {% elif job.status == 'Active' %}
-                                <span class="badge badge-active">In Progress</span>
-                            {% else %}
-                                <span class="badge badge-complete">Complete</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-end">
-                            <a href="/site/job/{{ job.id }}" class="btn btn-sm btn-light border">Manage</a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="5" class="text-center py-4 text-muted">No active jobs scheduled for today.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+            {% if job.notes %}
+                <div class="alert alert-secondary p-2 small mb-2"><i class="fas fa-info-circle me-1"></i> {{ job.notes }}</div>
+            {% endif %}
 
+            <div class="d-flex gap-2 mt-3">
+                <a href="https://maps.google.com/?q={{ job.address }} {{ job.postcode }}" target="_blank" class="btn btn-outline-primary btn-sm flex-fill fw-bold">
+                    <i class="fas fa-map-marker-alt me-1"></i> Map
+                </a>
+                <a href="/site/job/{{ job.id }}" class="btn btn-dark btn-sm flex-fill fw-bold">
+                    View Details
+                </a>
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-coffee fa-3x mb-3 opacity-25"></i>
+            <p>No jobs assigned to you today.</p>
+        </div>
+        {% endfor %}
+
+    </div>
+
+    <div class="modal fade" id="vanCheckModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-check-circle me-2"></i>Daily Van Check</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="van_check">
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="fw-bold small">Vehicle Reg</label>
+                            <select name="reg_plate" class="form-select form-select-lg fw-bold" required>
+                                {% for v in vehicles %}
+                                    <option value="{{ v }}">{{ v }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold small">Current Mileage</label>
+                            <input type="number" name="mileage" class="form-control form-control-lg" placeholder="e.g. 45000">
+                        </div>
+                        
+                        <div class="mb-3 p-3 bg-light rounded border text-center">
+                            <label class="fw-bold d-block mb-2">Is the vehicle safe to drive?</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="is_safe" id="safeYes" value="yes" checked>
+                                <label class="btn btn-outline-success fw-bold py-3" for="safeYes">YES - Safe</label>
+
+                                <input type="radio" class="btn-check" name="is_safe" id="safeNo" value="no">
+                                <label class="btn btn-outline-danger fw-bold py-3" for="safeNo">NO - Defects</label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="fw-bold small">Defects / Issues</label>
+                            <textarea name="defects" class="form-control" rows="3" placeholder="Describe any issues..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="fw-bold small">Upload Photo (Defects)</label>
+                            <input type="file" name="photo" class="form-control" accept="image/*" capture="environment">
+                            <small class="text-muted">Tap to open camera.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer p-3">
+                        <button type="submit" class="btn btn-success w-100 btn-lg fw-bold">Sign & Submit Check</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
