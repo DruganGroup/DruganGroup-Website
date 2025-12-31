@@ -24,10 +24,11 @@
 
 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;">
     {% for c in data %}
-    <div class="admin-card" style="margin-bottom: 0;">
+    <a href="/super-admin/company/{{ c.id }}" class="admin-card" style="margin-bottom: 0; text-decoration: none; display: block; transition: transform 0.2s;">
+    <style> .admin-card:hover { transform: translateY(-5px); border-color: var(--primary-gold); } </style>
         <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
             <h3 style="border: none; padding: 0; margin: 0; font-size: 1.2rem;">{{ c.name }}</h3>
-            <span class="badge-status badge-basic">{{ c.est_size_mb }} MB</span>
+            <span class="badge-status badge-basic">{{ c.est_size_mb }} MB</span></a>
         </div>
         
         <div style="background: #333; height: 6px; border-radius: 3px; margin-bottom: 20px; overflow: hidden;">
