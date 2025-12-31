@@ -4,6 +4,7 @@ from db import get_db, get_site_config
 site_bp = Blueprint('site', __name__)
 
 @site_bp.route('/site-hub')
+@site_bp.route('/site-companion', methods=['GET', 'POST'])
 def site_dashboard():
     if not session.get('user_id'): return redirect(url_for('auth.login'))
     
