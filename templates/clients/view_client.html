@@ -6,6 +6,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        :root { --brand-color: {{ brand_color or '#c5a059' }}; }
         body { background-color: #1a1a1a; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; }
         
         .sidebar { width: 260px; height: 100vh; position: fixed; background: #111; padding: 20px; border-right: 1px solid #333; }
@@ -13,197 +14,105 @@
         
         .client-header { 
             background: #252525; padding: 30px; border-radius: 15px; margin-bottom: 30px; 
-            border: 1px solid #333; display: flex; justify-content: space-between; align-items: center;
+            border: 1px solid #333; border-left: 5px solid var(--brand-color);
+            display: flex; justify-content: space-between; align-items: center;
         }
         
         .prop-card {
-            background: #252525; border: 1px solid #333; border-radius: 10px; margin-bottom: 15px; transition: 0.2s;
+            background: #252525; border: 1px solid #333; border-radius: 12px; margin-bottom: 15px; transition: 0.3s;
         }
-        .prop-card:hover { border-color: #c5a059; }
+        .prop-card:hover { border-color: var(--brand-color); transform: translateX(5px); }
         
-        .btn-gold { background: #c5a059; color: black; font-weight: bold; border: none; }
-        .btn-gold:hover { background: white; color: black; }
+        .btn-brand { background: var(--brand-color); color: #000; font-weight: bold; border: none; }
+        .btn-brand:hover { background: white; color: black; }
         
-        .badge-compliance { font-size: 0.7rem; padding: 5px 8px; border-radius: 4px; background: #333; color: #aaa; border: 1px solid #444; margin-right: 5px; }
-        .badge-compliance.active { border-color: #2ecc71; color: #2ecc71; background: rgba(46, 204, 113, 0.1); }
-        .badge-compliance.expired { border-color: #e74c3c; color: #e74c3c; background: rgba(231, 76, 60, 0.1); }
+        .badge-compliance { font-size: 0.75rem; padding: 6px 12px; border-radius: 6px; background: #111; color: #666; border: 1px solid #333; }
+        /* Active/Safe state */
+        .badge-compliance.active { border-color: #2ecc71; color: #2ecc71; background: rgba(46, 204, 113, 0.05); }
+        /* Urgent/Expired state - you can trigger this with logic in the template */
+        .badge-compliance.danger { border-color: #e74c3c; color: #e74c3c; background: rgba(231, 76, 60, 0.1); font-weight: bold; }
         
-        /* FORM STYLES */
         .form-control, .form-select { background: #111; border: 1px solid #444; color: white; }
-        .form-control:focus { background: #111; color: white; border-color: #c5a059; box-shadow: none; }
-        .form-label { font-size: 0.8rem; text-transform: uppercase; color: #888; letter-spacing: 1px; }
     </style>
 </head>
 <body>
 
     <div class="sidebar">
-        <h4 class="fw-bold mb-4 text-white">Business<span style="color:#c5a059">Better</span></h4>
-        <a href="/office-hub" class="btn btn-outline-light w-100 mb-3"><i class="fas fa-arrow-left me-2"></i> Back to Office</a>
-        <div class="text-muted small text-uppercase mt-4 mb-2">Client Actions</div>
-        <button class="btn btn-dark w-100 text-start mb-2" data-bs-toggle="modal" data-bs-target="#editClientModal"><i class="fas fa-edit me-2"></i> Edit Details</button>
-        <a href="mailto:{{ client.email }}" class="btn btn-dark w-100 text-start mb-2"><i class="fas fa-envelope me-2"></i> Email Client</a>
+        <h4 class="fw-bold mb-4 text-white">Business<span style="color: var(--brand-color)">Better</span></h4>
+        <a href="/clients" class="btn btn-outline-light w-100 mb-3 shadow-sm">
+            <i class="fas fa-arrow-left me-2"></i> Back to Directory
+        </a>
+        <hr class="border-secondary">
+        <div class="text-muted small text-uppercase mb-2">Management</div>
+        <button class="btn btn-dark w-100 text-start mb-2" data-bs-toggle="modal" data-bs-target="#editClientModal"><i class="fas fa-edit me-2"></i> Edit Account</button>
+        <button class="btn btn-dark w-100 text-start mb-2" onclick="window.print()"><i class="fas fa-print me-2"></i> Export PDF</button>
     </div>
 
     <div class="content">
         
-        <div class="client-header">
+        <div class="client-header shadow-lg">
             <div>
-                <h6 class="text-uppercase text-muted mb-1">Client Profile</h6>
+                <h6 class="text-uppercase text-muted mb-1" style="letter-spacing: 2px;">Account Overview</h6>
                 <h1 class="fw-bold text-white m-0">{{ client.name }}</h1>
-                <div class="mt-2 text-muted">
-                    <i class="fas fa-envelope me-2"></i> {{ client.email }} &nbsp;|&nbsp; 
-                    <i class="fas fa-phone me-2"></i> {{ client.phone }}
+                <div class="mt-2">
+                    <span class="me-3"><i class="fas fa-envelope text-muted me-2"></i>{{ client.email }}</span>
+                    <span><i class="fas fa-phone text-muted me-2"></i>{{ client.phone }}</span>
                 </div>
             </div>
             <div class="text-end">
-                <button class="btn btn-gold px-4 py-2" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
-                    <i class="fas fa-plus me-2"></i> Add Property
+                <button class="btn btn-brand px-4 py-2 shadow" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
+                    <i class="fas fa-plus-circle me-2"></i> Add Managed Property
                 </button>
             </div>
         </div>
 
-        <h5 class="mb-4 border-bottom border-secondary pb-2">Properties & Compliance</h5>
-        
-        {% for p in properties %}
-        <div class="prop-card p-3">
-            <div class="row align-items-center">
-                <div class="col-md-5">
-                    <h5 class="fw-bold text-white mb-1"><i class="fas fa-home me-2 text-muted"></i> {{ p[1] }}</h5> <span class="text-muted small">{{ p[2] }}</span> {% if p[3] %}
-                    <div class="text-info small mt-1"><i class="fas fa-user me-1"></i> Tenant: {{ p[3] }}</div>
-                    {% endif %}
-                </div>
+        <div class="row">
+            <div class="col-lg-12">
+                <h5 class="mb-4 d-flex align-items-center">
+                    <i class="fas fa-building me-2 text-muted"></i> 
+                    Property Portfolio & Compliance
+                    <span class="badge bg-dark ms-3 fs-6 border border-secondary">{{ properties|length }} Units</span>
+                </h5>
                 
-                <div class="col-md-5">
-                    <div class="d-flex flex-wrap gap-2">
-                        <span class="badge-compliance {{ 'active' if p[4] else '' }}" title="Gas Safety Due: {{ p[4] or 'Not Set' }}">
-                            <i class="fas fa-burn me-1"></i> GAS
-                        </span>
-                        <span class="badge-compliance {{ 'active' if p[5] else '' }}" title="EICR Due: {{ p[5] or 'Not Set' }}">
-                            <i class="fas fa-bolt me-1"></i> EICR
-                        </span>
-                        <span class="badge-compliance {{ 'active' if p[6] else '' }}" title="PAT Due: {{ p[6] or 'Not Set' }}">
-                            <i class="fas fa-plug me-1"></i> PAT
-                        </span>
-                        <span class="badge-compliance {{ 'active' if p[7] else '' }}" title="Fire Risk Due: {{ p[7] or 'Not Set' }}">
-                            <i class="fas fa-fire-extinguisher me-1"></i> FIRE
-                        </span>
-                        <span class="badge-compliance {{ 'active' if p[8] else '' }}" title="EPC Expiry: {{ p[8] or 'Not Set' }}">
-                            <i class="fas fa-leaf me-1"></i> EPC
-                        </span>
-                    </div>
-                </div>
-
-                <div class="col-md-2 text-end">
-                    <a href="#" class="btn btn-sm btn-outline-light">Manage</a>
-                </div>
-            </div>
-        </div>
-        {% else %}
-        <div class="text-center text-muted py-5">
-            <i class="fas fa-city fa-3x mb-3" style="opacity: 0.3;"></i>
-            <p>No properties found for this client.</p>
-        </div>
-        {% endfor %}
-
-    </div>
-
-    <div class="modal fade" id="addPropertyModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content bg-dark border-secondary text-white">
-                <div class="modal-header border-secondary">
-                    <h5 class="modal-title fw-bold">Add Property</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <form action="{{ url_for('client.add_property', client_id=client.id) }}" method="POST">
-                    <div class="modal-body">
+                {% for p in properties %}
+                <div class="prop-card p-4 shadow-sm">
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <h5 class="fw-bold text-white mb-1">{{ p[1] }}</h5> <span class="text-muted small text-uppercase" style="letter-spacing: 1px;">{{ p[2] }}</span> {% if p[3] %}
+                            <div class="mt-2 small" style="color: #3498DB;"><i class="fas fa-user-tag me-1"></i> Tenant: {{ p[3] }}</div>
+                            {% endif %}
+                        </div>
                         
-                        <h6 class="text-white border-bottom border-secondary pb-2 mb-3">Address Details</h6>
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-8">
-                                <label class="form-label">Address Line 1</label>
-                                <input type="text" name="address_line1" class="form-control" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Postcode</label>
-                                <input type="text" name="postcode" class="form-control" required>
-                            </div>
-                        </div>
-
-                        <h6 class="text-warning border-bottom border-secondary pb-2 mb-3">
-                            <i class="fas fa-shield-alt me-2"></i> Compliance & Safety Dates
-                        </h6>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label">Gas Safety Due</label>
-                                <input type="date" name="gas_safety_due" class="form-control">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">EICR (Electric) Due</label>
-                                <input type="date" name="eicr_due" class="form-control">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Fire Risk Due</label>
-                                <input type="date" name="fire_risk_due" class="form-control">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">PAT Test Due</label>
-                                <input type="date" name="pat_test_due" class="form-control">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">EPC Expiry</label>
-                                <input type="date" name="epc_expiry" class="form-control">
+                        <div class="col-md-6">
+                            <div class="d-flex flex-wrap gap-2 justify-content-center">
+                                <div class="badge-compliance {{ 'active' if p[4] else '' }}" title="Gas Safety Due">
+                                    <i class="fas fa-burn me-1"></i> GAS: {{ p[4].strftime('%d/%m/%y') if p[4] else 'N/A' }}
+                                </div>
+                                <div class="badge-compliance {{ 'active' if p[5] else '' }}" title="EICR Due">
+                                    <i class="fas fa-bolt me-1"></i> EICR: {{ p[5].strftime('%d/%m/%y') if p[5] else 'N/A' }}
+                                </div>
+                                <div class="badge-compliance {{ 'active' if p[6] else '' }}" title="PAT Due">
+                                    <i class="fas fa-plug me-1"></i> PAT: {{ p[6].strftime('%d/%m/%y') if p[6] else 'N/A' }}
+                                </div>
+                                <div class="badge-compliance {{ 'active' if p[7] else '' }}" title="Fire Risk Due">
+                                    <i class="fas fa-fire-extinguisher me-1"></i> FIRE: {{ p[7].strftime('%d/%m/%y') if p[7] else 'N/A' }}
+                                </div>
                             </div>
                         </div>
 
+                        <div class="col-md-2 text-end">
+                            <a href="/office/create-job?property_id={{ p[0] }}" class="btn btn-sm btn-outline-light w-100">
+                                <i class="fas fa-calendar-plus me-1"></i> Book Job
+                            </a>
+                        </div>
                     </div>
-                    <div class="modal-footer border-secondary">
-                        <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-gold">Save Property</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="editClientModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content bg-dark border-secondary text-white">
-                <div class="modal-header border-secondary">
-                    <h5 class="modal-title">Edit Client</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <form action="{{ url_for('client.update_client') }}" method="POST">
-                    <input type="hidden" name="client_id" value="{{ client.id }}">
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label">Name</label>
-                            <input type="text" name="name" class="form-control" value="{{ client.name }}" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Email</label>
-                            <input type="email" name="email" class="form-control" value="{{ client.email }}">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Phone</label>
-                            <input type="text" name="phone" class="form-control" value="{{ client.phone }}">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Notes</label>
-                            <textarea name="notes" class="form-control" rows="3">{{ client.notes }}</textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Status</label>
-                            <select name="status" class="form-select">
-                                <option value="Active" {% if client.status == 'Active' %}selected{% endif %}>Active</option>
-                                <option value="Inactive" {% if client.status == 'Inactive' %}selected{% endif %}>Inactive</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-secondary">
-                        <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-primary">Update Details</button>
-                    </div>
-                </form>
+                {% else %}
+                <div class="text-center py-5 rounded-4" style="background: #222; border: 2px dashed #333;">
+                    <i class="fas fa-folder-open fa-3x mb-3 text-muted"></i>
+                    <p class="text-muted">No properties found. Start by adding the first managed asset.</p>
+                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
