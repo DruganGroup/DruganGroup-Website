@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, session, redirect, url_for, flash, request
+from flask import Blueprint, render_template, session, redirect, url_for, flash, request, jsonify
 from db import get_db, get_site_config
 from email_service import send_company_email
 from datetime import datetime, date
@@ -575,8 +575,55 @@ def office_calendar():
     config = get_site_config(comp_id)
     return render_template('office/calendar.html', brand_color=config['color'], logo_url=config['logo'])
 
+# --- CORRECTED CALENDAR DATA FEED ---
 @office_bp.route('/office/calendar/data')
 def get_calendar_data():
+    if not check_office_access(): return jsonify([]) # Return empty list if denied
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    events = []
+
+    # 1. Fetch JOBS (Blue)
+    # Note: Added LEFT JOIN so jobs from Quotes (which have NULL request_id) still appear
+    try:
+        cur.execute("""
+            SELECT j.id, j.reference, j.scheduled_date, c.name, j.status
+            FROM jobs j 
+            LEFT JOIN clients c ON j.client_id = c.id
+            WHERE j.company_id = %s AND j.scheduled_date IS NOT NULL
+        """, (comp_id,))
+        jobs = cur.fetchall()
+        
+        for j in jobs:
+            events.append({
+                'title': f"{j[1]} - {j[3] or 'Client'}", # Handle missing client name
+                'start': str(j[2]),
+                'color': '#3788d8' if j[4] != 'Completed' else '#28a745', # Blue/Green
+                'url': f"/site/job/{j[0]}",
+                'allDay': True
+            })
+    except Exception as e:
+        print(f"Calendar Job Error: {e}")
+
+    # 2. Fetch VEHICLE DATES (Red/Orange/Yellow)
+    try:
+        cur.execute("SELECT reg_plate, mot_due, tax_due, insurance_due, service_due FROM vehicles WHERE company_id = %s", (comp_id,))
+        vehicles = cur.fetchall()
+        
+        for v in vehicles:
+            reg = v[0]
+            if v[1]: events.append({'title': f"MOT Due: {reg}", 'start': str(v[1]), 'color': '#dc3545', 'allDay': True})
+            if v[2]: events.append({'title': f"Tax Due: {reg}", 'start': str(v[2]), 'color': '#ffc107', 'textColor': 'black', 'allDay': True})
+            if v[3]: events.append({'title': f"Ins Due: {reg}", 'start': str(v[3]), 'color': '#fd7e14', 'allDay': True})
+            if v[4]: events.append({'title': f"Service: {reg}", 'start': str(v[4]), 'color': '#6f42c1', 'allDay': True})
+    except Exception as e:
+        print(f"Calendar Fleet Error: {e}")
+
+    conn.close()
+    
+    # CRITICAL FIX: Return JSON List directly
+    return jsonify(events)
     if not check_office_access(): return []
     
     comp_id = session.get('company_id')
