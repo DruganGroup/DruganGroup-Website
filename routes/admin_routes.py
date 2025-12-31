@@ -294,7 +294,7 @@ def assign_super_admin(company_id):
 @admin_bp.route('/admin/reset-me')
 def reset_super_admin():
     conn = get_db(); cur = conn.cursor()
-    cur.execute("UPDATE users SET company_id = 0 WHERE id = %s", (session.get('user_id'),))
+    cur.execute("UPDATE users SET company_id = 1 WHERE id = %s", (session.get('user_id'),))
     session['company_id'] = 0
     conn.commit(); conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
