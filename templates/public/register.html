@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Started | Business Better</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #0f0f0f; color: #ffffff; font-family: 'Inter', sans-serif; }
+        .navbar-brand { font-weight: 800; font-size: 1.5rem; }
+        .pricing-card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 20px;
+            transition: 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        .pricing-card:hover { border-color: #3498DB; transform: translateY(-5px); }
+        .pricing-card.selected { border-color: #3498DB; background: #202020; box-shadow: 0 0 20px rgba(52, 152, 219, 0.2); }
+        .price-tag { font-size: 2.5rem; font-weight: 700; }
+        .btn-checkout { background-color: #3498DB; border: none; font-weight: 700; padding: 15px; border-radius: 10px; width: 100%; transition: 0.3s; }
+        .btn-checkout:hover { background-color: #2980b9; transform: scale(1.02); }
+        .form-control { background: #1a1a1a; border: 1px solid #333; color: white; padding: 12px; }
+        .form-control:focus { background: #222; border-color: #3498DB; color: white; box-shadow: none; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark py-4">
+    <div class="container justify-content-center">
+        <span class="navbar-brand">Business<span style="color:#3498DB">Better</span></span>
+    </div>
+</nav>
+
+<div class="container mb-5">
+    <div class="text-center mb-5">
+        <h1 class="display-5 fw-bold">Select Your <span style="color:#3498DB">Plan</span></h1>
+        <p class="text-muted">Professional tools for professional trades.</p>
+    </div>
+
+    <form action="/create-checkout-session" method="POST" id="registration-form">
+        <div class="row g-4 mb-5">
+            <div class="col-lg-3">
+                <div class="pricing-card p-4 text-center h-100" onclick="selectPlan('sole-trader', '15')">
+                    <h4 class="fw-bold">Sole Trader</h4>
+                    <div class="price-tag">£15<small class="fs-6 text-muted">/mo</small></div>
+                    <ul class="list-unstyled mt-3 mb-4 text-start small">
+                        <li><i class="fas fa-check text-success me-2"></i> 1 User Account</li>
+                        <li><i class="fas fa-check text-success me-2"></i> Basic Job Tracking</li>
+                        <li><i class="fas fa-check text-success me-2"></i> Compliance Alerts</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-lg-3">
+                <div class="pricing-card p-4 text-center h-100" onclick="selectPlan('basic', '70')">
+                    <h4 class="fw-bold">Basic</h4>
+                    <div class="price-tag">£70<small class="fs-6 text-muted">/mo</small></div>
+                    <ul class="list-unstyled mt-3 mb-4 text-start small">
+                        <li><i class="fas fa-check text-success me-2"></i> 5 User Accounts</li>
+                        <li><i class="fas fa-check text-success me-2"></i> Full CRM Suite</li>
+                        <li><i class="fas fa-check text-success me-2"></i> Document Storage</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-lg-3">
+                <div class="pricing-card p-4 text-center h-100" onclick="selectPlan('basic-plus', '120')">
+                    <h4 class="fw-bold">Basic +</h4>
+                    <div class="price-tag">£120<small class="fs-6 text-muted">/mo</small></div>
+                    <ul class="list-unstyled mt-3 mb-4 text-start small">
+                        <li><i class="fas fa-check text-success me-2"></i> 15 User Accounts</li>
+                        <li><i class="fas fa-check text-success me-2"></i> Finance Hub</li>
+                        <li><i class="fas fa-check text-success me-2"></i> Staff/Fleet Tracking</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-lg-3">
+                <div class="pricing-card p-4 text-center h-100 border-primary" onclick="selectPlan('pro', '250')">
+                    <div class="badge bg-primary mb-2">Most Popular</div>
+                    <h4 class="fw-bold">Pro</h4>
+                    <div class="price-tag">£250<small class="fs-6 text-muted">/mo</small></div>
+                    <ul class="list-unstyled mt-3 mb-4 text-start small">
+                        <li><i class="fas fa-check text-success me-2"></i> Unlimited Users</li>
+                        <li><i class="fas fa-check text-success me-2"></i> Advanced Analytics</li>
+                        <li><i class="fas fa-check text-success me-2"></i> Priority Support</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <input type="hidden" name="plan_id" id="selected-plan-id" required>
+
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card bg-dark border-secondary p-4 rounded-4">
+                    <h5 class="fw-bold mb-4">Enter Company Details</h5>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted text-uppercase">Company Name</label>
+                        <input type="text" name="company_name" class="form-control" placeholder="e.g. Drugan Construction Ltd" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label small text-muted text-uppercase">Admin Email Address</label>
+                        <input type="email" name="owner_email" class="form-control" placeholder="e.g. hello@yourcompany.co.uk" required>
+                    </div>
+                    <button type="submit" class="btn-checkout">
+                        Proceed to Secure Payment <i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                    <p class="text-center text-muted small mt-3">Account setup begins automatically after payment.</p>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    function selectPlan(planId, price) {
+        document.querySelectorAll('.pricing-card').forEach(card => card.classList.remove('selected'));
+        event.currentTarget.classList.add('selected');
+        document.getElementById('selected-plan-id').value = planId;
+    }
+</script>
+</body>
+</html>
