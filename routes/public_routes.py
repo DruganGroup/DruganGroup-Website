@@ -18,7 +18,7 @@ def about():
 def services():
     return render_template('public/services.html')
 
-@public_bp.route('/tradecore')
+@public_bp.route('/businessbetter')
 @public_bp.route('/businessbetter.html')
 def tradecore():
     return render_template('public/businessbetter.html')
