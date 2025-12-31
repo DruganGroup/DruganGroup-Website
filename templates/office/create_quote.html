@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>New Quote | TradeCore</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
+        .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; }
+        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; }
+        .content { margin-left: 250px; padding: 30px; }
+        .card { border: none; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="text-center mb-4">
+            {% if logo_url %}<img src="{{ logo_url }}" style="max-width: 150px; padding: 10px; background:white; border-radius:5px;">{% else %}<h3>OFFICE</h3>{% endif %}
+        </div>
+        <a href="/office-hub"><i class="fas fa-arrow-left me-2"></i> Back to Dashboard</a>
+    </div>
+
+    <div class="content">
+        <form method="POST">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="fw-bold">New Quote Builder</h2>
+                <button type="submit" class="btn btn-success fw-bold px-4"><i class="fas fa-save me-2"></i> Save Quote</button>
+            </div>
+
+            <div class="card p-4 mb-4">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="small text-muted text-uppercase fw-bold">Select Client</label>
+                        <select name="client_id" class="form-select" required>
+                            <option value="" disabled selected>-- Choose Client --</option>
+                            {% for c in clients %}
+                                <option value="{{ c[0] }}">{{ c[1] }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="mt-2"><a href="/clients" class="small text-decoration-none">+ Add New Client</a></div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="small text-muted text-uppercase fw-bold">Quote Reference</label>
+                        <input type="text" name="reference" class="form-control fw-bold" value="{{ new_ref }}" readonly>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="small text-muted text-uppercase fw-bold">Date</label>
+                        <input type="text" class="form-control" value="{{ today }}" readonly>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-4">
+                <table class="table">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="50%">Description</th>
+                            <th width="15%">Quantity</th>
+                            <th width="15%">Unit Price</th>
+                            <th width="15%" class="text-end">Total</th>
+                            <th width="5%"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsBody">
+                        <tr>
+                            <td><input type="text" name="desc[]" class="form-control" placeholder="Item description..." required></td>
+                            <td><input type="number" name="qty[]" class="form-control qty" value="1" min="1" oninput="calcRow(this)"></td>
+                            <td><input type="number" name="price[]" class="form-control price" value="0.00" step="0.01" oninput="calcRow(this)"></td>
+                            <td class="text-end fw-bold align-middle row-total">0.00</td>
+                            <td class="text-center align-middle"><i class="fas fa-trash text-danger" style="cursor:pointer;" onclick="deleteRow(this)"></i></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addRow()">
+                    <i class="fas fa-plus me-1"></i> Add Line Item
+                </button>
+            </div>
+
+            <div class="row mt-4 justify-content-end">
+                <div class="col-md-4">
+                    <div class="card p-3 bg-white text-end">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal:</span>
+                            <span class="fw-bold">£<span id="subtotalDisplay">0.00</span></span>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mb-2 text-muted" id="taxRow" style="{% if tax_rate == 0 %}display:none !important;{% endif %}">
+                            <span>VAT / Tax ({{ (tax_rate * 100)|int }}%):</span>
+                            <span>£<span id="taxDisplay">0.00</span></span>
+                        </div>
+                        
+                        <hr>
+                        <div class="d-flex justify-content-between fs-4 fw-bold text-success">
+                            <span>Total:</span>
+                            <span>£<span id="totalDisplay">0.00</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <label class="fw-bold text-muted">Notes / Footer</label>
+                <textarea name="notes" class="form-control" rows="3">{{ settings.get('quote_footer', '') }}</textarea>
+            </div>
+
+        </form>
+    </div>
+
+    <script>
+        // Get Tax Rate from Python
+        var taxRate = {{ tax_rate }};
+
+        function addRow() {
+            var table = document.getElementById("itemsBody");
+            var row = table.insertRow(-1);
+            row.innerHTML = `
+                <td><input type="text" name="desc[]" class="form-control" placeholder="Description..."></td>
+                <td><input type="number" name="qty[]" class="form-control qty" value="1" min="1" oninput="calcRow(this)"></td>
+                <td><input type="number" name="price[]" class="form-control price" value="0.00" step="0.01" oninput="calcRow(this)"></td>
+                <td class="text-end fw-bold align-middle row-total">0.00</td>
+                <td class="text-center align-middle"><i class="fas fa-trash text-danger" style="cursor:pointer;" onclick="deleteRow(this)"></i></td>
+            `;
+        }
+
+        function deleteRow(btn) {
+            var row = btn.parentNode.parentNode;
+            row.parentNode.removeChild(row);
+            calcTotals();
+        }
+
+        function calcRow(input) {
+            var row = input.parentNode.parentNode;
+            var qty = row.querySelector('.qty').value;
+            var price = row.querySelector('.price').value;
+            var total = (qty * price).toFixed(2);
+            row.querySelector('.row-total').innerText = total;
+            calcTotals();
+        }
+
+        function calcTotals() {
+            var subtotal = 0;
+            var rows = document.querySelectorAll('#itemsBody tr');
+            rows.forEach(row => {
+                var val = parseFloat(row.querySelector('.row-total').innerText);
+                if (!isNaN(val)) subtotal += val;
+            });
+
+            var tax = subtotal * taxRate;
+            var total = subtotal + tax;
+
+            document.getElementById('subtotalDisplay').innerText = subtotal.toFixed(2);
+            
+            if (taxRate > 0) {
+                document.getElementById('taxDisplay').innerText = tax.toFixed(2);
+            }
+            
+            document.getElementById('totalDisplay').innerText = total.toFixed(2);
+        }
+    </script>
+
+</body>
+</html>
