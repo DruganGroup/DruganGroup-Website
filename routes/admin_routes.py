@@ -5,7 +5,7 @@ import zipfile
 import random
 import string
 import smtplib
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
@@ -62,9 +62,100 @@ def perform_company_backup(company_id, cur):
         except: pass
     return backup_data
 
-# --- 1. SUPER ADMIN DASHBOARD ---
+# --- 1. SUPER ADMIN DASHBOARD (UPDATED WITH DATES) ---
 @admin_bp.route('/super-admin', methods=['GET', 'POST'])
 def super_admin_dashboard():
+    if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # --- CREATE NEW COMPANY ---
+    if request.method == 'POST':
+        comp_name = request.form.get('company_name')
+        owner_email = request.form.get('owner_email')
+        owner_pass = request.form.get('owner_pass')
+        plan = request.form.get('plan')
+        
+        base_slug = re.sub(r'[^a-z0-9-]', '', comp_name.lower().replace(' ', '-'))
+        final_slug = base_slug; counter = 1
+        while True:
+            cur.execute("SELECT id FROM companies WHERE subdomain = %s", (final_slug,))
+            if not cur.fetchone(): break 
+            final_slug = f"{base_slug}-{counter}"; counter += 1
+
+        try:
+            cur.execute("INSERT INTO companies (name, contact_email, subdomain) VALUES (%s, %s, %s) RETURNING id", (comp_name, owner_email, final_slug))
+            new_id = cur.fetchone()[0]
+            # Default Start Date = Today
+            cur.execute("INSERT INTO subscriptions (company_id, plan_tier, status, start_date) VALUES (%s, %s, 'Active', CURRENT_DATE)", (new_id, plan))
+            secure_pass = generate_password_hash(owner_pass)
+            cur.execute("INSERT INTO users (username, password_hash, email, role, company_id) VALUES (%s, %s, %s, 'Admin', %s)", (owner_email, secure_pass, owner_email, new_id))
+            cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'brand_color', '#2c3e50')", (new_id,))
+            conn.commit(); flash(f"✅ Success! {comp_name} created.")
+        except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
+            
+    # --- FETCH DATA WITH DATES ---
+    cur.execute("""
+        SELECT 
+            c.id, c.name, c.subdomain,
+            s.plan_tier, s.status, s.start_date,
+            u.email
+        FROM companies c
+        LEFT JOIN subscriptions s ON c.id = s.company_id
+        LEFT JOIN users u ON c.id = u.company_id AND u.role = 'Admin'
+        ORDER BY c.id DESC
+    """)
+    raw_companies = cur.fetchall()
+    
+    companies = []
+    today = date.today()
+
+    for c in raw_companies:
+        # Calculate Next Bill
+        created_date = c[5] if c[5] else today
+        next_bill = "Unknown"
+        
+        if created_date:
+            # If created on the 15th, bill is due on the 15th of this month or next
+            try:
+                # Logic: Find this month's "Bill Day"
+                this_month_bill = date(today.year, today.month, created_date.day)
+                if today > this_month_bill:
+                    # If we passed it, it's next month
+                    if today.month == 12: next_bill = date(today.year + 1, 1, created_date.day)
+                    else: next_bill = date(today.year, today.month + 1, created_date.day)
+                else:
+                    next_bill = this_month_bill
+            except:
+                # Fallback for end-of-month edge cases (e.g. created on 31st)
+                next_bill = created_date + timedelta(days=30)
+
+        real_size_mb = get_real_company_usage(c[0], cur)
+        est_bandwidth = round(real_size_mb * 5, 2)
+        
+        companies.append({
+            'id': c[0], 'name': c[1], 'subdomain': c[2],
+            'plan': c[3] if c[3] else 'Basic', 
+            'status': c[4] if c[4] else 'Active', 
+            'email': c[6] if c[6] else 'No Admin',
+            'created': created_date,
+            'next_bill': next_bill,
+            'storage': real_size_mb, 
+            'bandwidth': est_bandwidth
+        })
+    
+    cur.execute("SELECT id, username, role, company_id FROM users WHERE role IN ('SuperAdmin', 'Admin') ORDER BY id ASC")
+    users = cur.fetchall()
+    
+    cur.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)") 
+    conn.commit()
+    cur.execute("SELECT key, value FROM system_settings")
+    system_config = {row[0]: row[1] for row in cur.fetchall()}
+    
+    conn.close()
+    return render_template('super_admin.html', companies=companies, users=users, config=system_config)
+    
     if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
     
     conn = get_db()
@@ -240,8 +331,29 @@ def toggle_suspend(company_id):
     conn.commit(); conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
 
+# --- ROBUST DELETE COMPANY ---
 @admin_bp.route('/admin/delete-tenant/<int:company_id>')
 def delete_tenant(company_id):
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # 1. Manually delete children first to prevent Foreign Key errors
+        tables = ['jobs', 'quotes', 'invoices', 'staff', 'vehicles', 'clients', 'properties', 'service_requests', 'transactions', 'maintenance_logs', 'settings', 'subscriptions', 'users']
+        for t in tables:
+            try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
+            except: pass # Ignore if table doesn't exist
+            
+        # 2. Finally delete the company
+        cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
+        conn.commit()
+        flash("✅ Company and all associated data deleted permanently.")
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error deleting company: {e}")
+    finally:
+        conn.close()
+    return redirect(url_for('admin.super_admin_dashboard'))
+    
     if session.get('role') != 'SuperAdmin': return "Access Denied"
     conn = get_db(); cur = conn.cursor()
     cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
@@ -339,3 +451,32 @@ def company_details(company_id):
     conn.close()
     
     return render_template('admin/company_details.html', company=company, stats=stats, settings=settings)
+    
+    # --- NUKE SUPER ADMIN JUNK DATA ---
+@admin_bp.route('/admin/cleanup-my-data')
+def cleanup_super_admin_data():
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    
+    # Double check: Only delete data for the currently logged in company ID (likely ID 1)
+    target_id = session.get('company_id')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Delete OPERATIONAL data only. Keep Users, Settings, Company.
+        tables = ['jobs', 'quotes', 'invoices', 'quote_items', 'invoice_items', 
+                  'staff', 'vehicles', 'vehicle_crews', 'maintenance_logs', 
+                  'clients', 'properties', 'service_requests', 'transactions', 'materials']
+        
+        for t in tables:
+            try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (target_id,))
+            except: pass
+            
+        conn.commit()
+        flash("✅ Your testing data (Jobs, Staff, Clients, etc.) has been wiped. Admin account remains.")
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error: {e}")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('admin.super_admin_dashboard'))
