@@ -617,3 +617,39 @@ def get_calendar_data():
 
     conn.close()
     return {'events': events}
+    
+    # --- 6. CONVERT QUOTE -> JOB ---
+@office_bp.route('/office/quote/convert-job', methods=['POST'])
+def convert_quote_to_job():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    quote_id = request.form.get('quote_id')
+    staff_id = request.form.get('staff_id')
+    schedule_date = request.form.get('schedule_date')
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    try:
+        # 1. Get Quote Details
+        cur.execute("SELECT client_id, reference, notes FROM quotes WHERE id = %s", (quote_id,))
+        quote = cur.fetchone()
+        
+        # 2. Create the Job
+        # We link it to the client. request_id is NULL because it came from a Quote, not a Service Request.
+        cur.execute("""
+            INSERT INTO jobs (company_id, staff_id, client_id, scheduled_date, type, status, reference, notes)
+            VALUES (%s, %s, %s, %s, 'Quote Work', 'Scheduled', %s, %s)
+        """, (session['company_id'], staff_id, quote[0], schedule_date, f"Ref: {quote[1]}", quote[2]))
+        
+        # 3. Update Quote Status
+        cur.execute("UPDATE quotes SET status = 'Converted' WHERE id = %s", (quote_id,))
+        
+        conn.commit()
+        flash(f"✅ Job Created from Quote {quote[1]}!")
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error: {e}")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('office.office_dashboard'))
