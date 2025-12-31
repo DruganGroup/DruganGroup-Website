@@ -79,6 +79,24 @@ def debug_files():
         for f in files:
             output += f"{subindent}{f}<br>"
     return output
+    
+    # --- NEW: SYSTEM BROADCAST CONTEXT PROCESSOR ---
+@app.context_processor
+def inject_global_alert():
+    alert_msg = None
+    try:
+        # Check if we have a global alert saved in the database
+        conn = get_db()
+        if conn:
+            cur = conn.cursor()
+            cur.execute("SELECT value FROM system_settings WHERE key = 'global_alert'")
+            row = cur.fetchone()
+            if row and row[0]: # If there is text in the setting
+                alert_msg = row[0]
+            conn.close()
+    except: pass
+    
+    return dict(global_system_alert=alert_msg)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))

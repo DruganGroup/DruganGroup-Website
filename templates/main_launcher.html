@@ -6,95 +6,193 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background-color: #1a1a1a; color: white; height: 100vh; display: flex; align-items: center; justify-content: center; font-family: 'Segoe UI', sans-serif; }
+        body { 
+            background-color: #1a1a1a; 
+            color: white; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            font-family: 'Segoe UI', sans-serif; 
+            margin: 0;
+            overflow-x: hidden; /* Prevent body scroll */
+        }
         
-        .launcher-container { text-align: center; }
-        .welcome-text { color: gray; margin-bottom: 40px; }
-        
-        .card-grid { display: flex; gap: 30px; justify-content: center; flex-wrap: wrap; }
+        .launcher-wrapper {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            width: 100%;
+        }
 
-        /* THE BIG CARDS */
+        .header-bar {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto 40px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        /* BRANDING TYPOGRAPHY */
+        .brand-container { line-height: 1; }
+        .brand-title { font-size: 2rem; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
+        .brand-sub { 
+            color: #888; 
+            font-size: 0.75rem; 
+            text-transform: uppercase; 
+            letter-spacing: 3px; 
+            font-weight: 600; 
+            margin-top: 5px;
+            margin-left: 2px;
+        }
+
+        /* CARD GRID (Desktop Default) */
+        .card-scroller { 
+            display: flex; 
+            gap: 30px; 
+            justify-content: center; 
+            flex-wrap: wrap; 
+            padding: 20px;
+        }
+
+        /* MODULE CARD STYLING */
         .module-card {
-            width: 280px; height: 300px;
+            width: 280px; height: 350px; 
             border-radius: 20px;
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
             text-decoration: none;
-            transition: transform 0.2s, opacity 0.2s;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             cursor: pointer;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
         }
-        .module-card:hover { transform: translateY(-5px); filter: brightness(1.1); }
         
-        .card-icon { font-size: 60px; margin-bottom: 20px; }
-        .card-title { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
-        .card-sub { font-size: 14px; opacity: 0.8; }
+        .module-card:hover { transform: translateY(-10px) scale(1.02); filter: brightness(1.1); }
+        
+        .card-icon { font-size: 70px; margin-bottom: 25px; transition: 0.3s; }
+        .module-card:hover .card-icon { transform: scale(1.1); }
+        
+        .card-title { font-size: 24px; font-weight: 800; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        .card-sub { font-size: 14px; opacity: 0.8; font-weight: 500; }
 
-        /* COLORS MATCHING YOUR APP */
-        .office-card { background-color: #3498DB; color: white; } /* Blue */
-        .site-card { background-color: #E67E22; color: white; }   /* Orange */
-        .finance-card { background-color: #27AE60; color: white; } /* Green */
+        /* COLORS */
+        .site-card { background: linear-gradient(145deg, #E67E22, #d35400); color: white; }   /* Orange */
+        .office-card { background: linear-gradient(145deg, #3498DB, #2980b9); color: white; } /* Blue */
+        .finance-card { background: linear-gradient(145deg, #27AE60, #219150); color: white; } /* Green */
+        .disabled { background: #333 !important; cursor: not-allowed; opacity: 0.5; filter: grayscale(1); pointer-events: none; }
 
-        /* DISABLED STATE */
-        .disabled { background-color: #444 !important; cursor: not-allowed; opacity: 0.6; pointer-events: none; }
+        /* MOBILE OPTIMIZATIONS */
+        @media (max-width: 768px) {
+            .header-bar { 
+                flex-direction: column; 
+                align-items: flex-start; 
+                margin-top: 20px;
+            }
+            
+            /* Enable Horizontal Scrolling on Mobile */
+            .card-scroller {
+                justify-content: flex-start;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch; 
+                padding-bottom: 40px; 
+                width: 100%;
+                scroll-snap-type: x mandatory; 
+            }
+            
+            .module-card {
+                scroll-snap-align: center;
+                width: 85vw; 
+                height: 60vh; 
+                margin-right: 15px;
+            }
+
+            .card-scroller::-webkit-scrollbar { display: none; }
+            .card-scroller { -ms-overflow-style: none; scrollbar-width: none; }
+        }
     </style>
 </head>
 <body>
 
-    <div class="launcher-container">
-        <div class="d-flex justify-content-between align-items-center mb-5" style="width: 900px; margin: 0 auto;">
-            <h2 class="fw-bold">Business<span style="color:#3498DB">Better</span></h2>
-            <div>
-                <span class="me-3">👤 {{ session.get('user_name', 'User') }} ({{ session.get('role', 'Guest') }})</span>
-                <a href="/logout" class="btn btn-outline-danger btn-sm">Logout</a>
+    {% if global_system_alert %}
+    <div style="background: #e74c3c; color: white; text-align: center; padding: 12px; font-weight: bold; width: 100%; position: relative; z-index: 100;">
+        <i class="fas fa-bullhorn me-2"></i> {{ global_system_alert }}
+    </div>
+    {% endif %}
+
+    <div class="launcher-wrapper">
+        
+        <div class="header-bar">
+            <div class="brand-container">
+                <h1 class="brand-title">Business<span style="color:#3498DB">Better</span></h1>
+                <div class="brand-sub">by Drugan Group</div>
+            </div>
+
+            <div class="d-flex gap-2 align-items-center">
+                
+                <div class="text-end me-3 d-none d-md-block">
+                    <div style="font-weight: 600;">{{ session.get('user_name', 'User') }}</div>
+                    <small class="text-muted">{{ session.get('role', 'Guest') }}</small>
+                </div>
+
+                {% if session['role'] == 'SuperAdmin' %}
+                <a href="/super-admin" class="btn btn-danger d-flex align-items-center gap-2 shadow-sm" style="font-weight: 600;">
+                    <i class="fas fa-user-shield"></i> <span class="d-none d-md-inline">Super Admin</span>
+                </a>
+                {% endif %}
+                
+                <a href="/logout" class="btn btn-outline-light btn-sm px-3">Logout</a>
             </div>
         </div>
 
-        <div class="card-grid">
-		
-			{% if session['role'] == 'SuperAdmin' %}
-    <div class="text-center mb-4">
-        <a href="/super-admin" class="btn btn-danger shadow-sm">
-            <i class="fas fa-user-shield me-2"></i> Return to Super Admin
-        </a>
-    </div>
-{% endif %}
+        <div class="card-scroller">
             
+            <a href="/site-companion" class="module-card site-card">
+                <i class="fas fa-hard-hat card-icon"></i>
+                <div class="card-title">Site Companion</div>
+                <div class="card-sub">Field App</div>
+            </a>
+
             {% if role in ['Admin', 'SuperAdmin', 'Office', 'Manager'] %}
             <a href="/office-hub" class="module-card office-card">
                 <i class="fas fa-briefcase card-icon"></i>
-                <div class="card-title">OFFICE HUB</div>
+                <div class="card-title">Office Hub</div>
                 <div class="card-sub">Quotes & Jobs</div>
             </a>
             {% else %}
             <div class="module-card office-card disabled">
                 <i class="fas fa-lock card-icon"></i>
-                <div class="card-title">OFFICE HUB</div>
+                <div class="card-title">Office Hub</div>
                 <div class="card-sub">Access Denied</div>
             </div>
             {% endif %}
 
-            <a href="/site-companion" class="module-card site-card">
-                <i class="fas fa-hard-hat card-icon"></i>
-                <div class="card-title">SITE COMPANION</div>
-                <div class="card-sub">Field App</div>
-            </a>
-
             {% if role in ['Admin', 'SuperAdmin'] %}
             <a href="/finance-dashboard" class="module-card finance-card">
                 <i class="fas fa-chart-line card-icon"></i>
-                <div class="card-title">FINANCE ADMIN</div>
+                <div class="card-title">Finance Admin</div>
                 <div class="card-sub">Accounts & HR</div>
             </a>
             {% else %}
             <div class="module-card finance-card disabled">
                 <i class="fas fa-lock card-icon"></i>
-                <div class="card-title">FINANCE ADMIN</div>
+                <div class="card-title">Finance Admin</div>
                 <div class="card-sub">Restricted Area</div>
             </div>
             {% endif %}
 
         </div>
+        
+        <div class="d-md-none text-center text-muted mt-2" style="font-size: 0.8rem; opacity: 0.6;">
+            <i class="fas fa-arrows-left-right me-1"></i> Swipe to explore apps
+        </div>
+
     </div>
 
 </body>
