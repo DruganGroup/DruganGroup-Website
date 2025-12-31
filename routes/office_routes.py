@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request
 from db import get_db, get_site_config
 from email_service import send_company_email
-from datetime import datetime, date # <--- IMPORTED DATETIME
+from datetime import datetime, date
 
 office_bp = Blueprint('office', __name__)
 
@@ -36,20 +36,137 @@ def office_dashboard():
     conn = get_db()
     cur = conn.cursor()
     
-    # Financials
+    # 1. Ensure Quote Tables Exist (Run Once)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS quotes (
+            id SERIAL PRIMARY KEY, company_id INTEGER, client_id INTEGER,
+            date DATE DEFAULT CURRENT_DATE, reference TEXT, status TEXT DEFAULT 'Draft',
+            subtotal DECIMAL(10,2), tax DECIMAL(10,2), total DECIMAL(10,2),
+            notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS quote_items (
+            id SERIAL PRIMARY KEY, quote_id INTEGER, description TEXT,
+            quantity DECIMAL(10,2), unit_price DECIMAL(10,2), total DECIMAL(10,2),
+            FOREIGN KEY (quote_id) REFERENCES quotes(id) ON DELETE CASCADE
+        );
+    """)
+    conn.commit()
+
+    # 2. Financials
     cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Income'", (company_id,))
     income = cur.fetchone()[0] or 0.0
     cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Expense'", (company_id,))
     expense = cur.fetchone()[0] or 0.0
     
-    # Recent Transactions
+    # 3. Recent Transactions
     cur.execute("SELECT id, date, type, category, description, amount, reference FROM transactions WHERE company_id = %s ORDER BY date DESC LIMIT 10", (company_id,))
     transactions = cur.fetchall()
+
+    # 4. Recent Quotes (Added this so they appear on the dashboard)
+    cur.execute("""
+        SELECT q.id, c.name, q.reference, q.date, q.total, q.status 
+        FROM quotes q LEFT JOIN clients c ON q.client_id = c.id
+        WHERE q.company_id = %s ORDER BY q.id DESC LIMIT 10
+    """, (company_id,))
+    recent_quotes = cur.fetchall()
+
     conn.close()
 
     return render_template('office/office_dashboard.html', 
-                           total_income=income, total_expense=expense, transactions=transactions,
-                           brand_color=config['color'], logo_url=config['logo'])
+                           total_income=income, 
+                           total_expense=expense, 
+                           transactions=transactions,
+                           quotes=recent_quotes, # Passed to template
+                           brand_color=config['color'], 
+                           logo_url=config['logo'])
+
+# --- CREATE QUOTE (NEW ADDITION) ---
+@office_bp.route('/office/quote/new', methods=['GET', 'POST'])
+def create_quote():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+    
+    # Fetch Settings for VAT Logic
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings_rows = cur.fetchall()
+    settings = {row[0]: row[1] for row in settings_rows}
+
+    # Calculate Tax Rate (Default 0.20 if registered, else 0)
+    if settings.get('vat_registered', 'no') == 'yes':
+        # Default to 20 if tax_rate is missing, divide by 100 for math (20 -> 0.20)
+        tax_rate = float(settings.get('tax_rate', '20')) / 100
+    else:
+        tax_rate = 0.0
+
+    if request.method == 'POST':
+        try:
+            client_id = request.form.get('client_id')
+            ref = request.form.get('reference')
+            notes = request.form.get('notes')
+            
+            # Insert Header
+            cur.execute("""
+                INSERT INTO quotes (company_id, client_id, reference, status, notes, date)
+                VALUES (%s, %s, %s, 'Draft', %s, CURRENT_DATE) RETURNING id
+            """, (comp_id, client_id, ref, notes))
+            quote_id = cur.fetchone()[0]
+            
+            # Process Line Items
+            descriptions = request.form.getlist('desc[]')
+            quantities = request.form.getlist('qty[]')
+            prices = request.form.getlist('price[]')
+            
+            grand_subtotal = 0
+            
+            for i in range(len(descriptions)):
+                if descriptions[i]: 
+                    d = descriptions[i]
+                    q = float(quantities[i]) if quantities[i] else 0
+                    p = float(prices[i]) if prices[i] else 0
+                    row_total = q * p
+                    grand_subtotal += row_total
+                    
+                    cur.execute("""
+                        INSERT INTO quote_items (quote_id, description, quantity, unit_price, total) 
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (quote_id, d, q, p, row_total))
+            
+            # Calculate Final Totals
+            tax_amount = grand_subtotal * tax_rate
+            final_total = grand_subtotal + tax_amount
+            
+            cur.execute("UPDATE quotes SET subtotal=%s, tax=%s, total=%s WHERE id=%s", (grand_subtotal, tax_amount, final_total, quote_id))
+            conn.commit()
+            
+            flash(f"✅ Quote {ref} Created!")
+            return redirect(url_for('office.view_quote', quote_id=quote_id))
+            
+        except Exception as e: conn.rollback(); flash(f"Error: {e}")
+            
+    # GET Request: Prepare Form
+    # Generate Reference (e.g., Q-1001)
+    cur.execute("SELECT COUNT(*) FROM quotes WHERE company_id = %s", (comp_id,))
+    count = cur.fetchone()[0]
+    new_ref = f"Q-{1000 + count + 1}"
+    
+    # Get Clients
+    cur.execute("SELECT id, name FROM clients WHERE company_id = %s ORDER BY name", (comp_id,))
+    clients = cur.fetchall()
+    
+    conn.close()
+    return render_template('office/create_quote.html', 
+                           clients=clients, 
+                           new_ref=new_ref, 
+                           today=date.today(), 
+                           tax_rate=tax_rate, # Pass calculated rate to JS
+                           settings=settings,
+                           brand_color=config['color'], 
+                           logo_url=config['logo'])
 
 # --- SERVICE DESK ---
 @office_bp.route('/office/service-desk')
@@ -79,7 +196,6 @@ def service_desk():
             'client_name': r[3], 'severity': r[4], 'status': r[5], 'date': r[6]
         })
     
-    # Ensure role column exists (handled by previous DB fix)
     cur.execute("SELECT id, name, role FROM staff WHERE company_id = %s AND status='Active'", (comp_id,))
     staff_members = [dict(zip(['id', 'name', 'role'], row)) for row in cur.fetchall()]
         
@@ -239,7 +355,7 @@ def fleet_list():
     raw_vehicles = cur.fetchall()
     vehicles = []
     
-    today = date.today() # Get today's date for comparison
+    today = date.today()
 
     for row in raw_vehicles:
         v_id = row[0]
@@ -267,14 +383,14 @@ def fleet_list():
         labor_cost = (float(row[13]) + crew_total_cost) * 8 
         total_day_cost = float(row[12]) + labor_cost
 
-        # 4. BUILD OBJECT & PARSE DATES (The Fix)
+        # 4. BUILD OBJECT & PARSE DATES
         vehicles.append({
             'id': row[0],
             'reg_number': row[1], 'make_model': row[2], 'status': row[3],
-            'mot_expiry': parse_date(row[4]),     # FIXED
-            'tax_expiry': parse_date(row[5]),     # FIXED
-            'ins_expiry': parse_date(row[6]),     # FIXED
-            'service_due': parse_date(row[7]),    # FIXED
+            'mot_expiry': parse_date(row[4]),
+            'tax_expiry': parse_date(row[5]),
+            'ins_expiry': parse_date(row[6]),
+            'service_due': parse_date(row[7]),
             'tracker_url': row[8], 'defect_notes': row[9],
             'driver_name': row[10], 'driver_id': row[11],
             'daily_cost': row[12],
@@ -308,7 +424,7 @@ def send_receipt(transaction_id):
         
     return redirect(url_for('office.office_dashboard'))
     
-    # --- 3. VIEW QUOTE (Handles Dashboard & PDF Generation) ---
+# --- 3. VIEW QUOTE (Handles Dashboard & PDF Generation) ---
 @office_bp.route('/office/quote/<int:quote_id>')
 def view_quote(quote_id):
     if not session.get('user_id'): return redirect(url_for('auth.login'))
