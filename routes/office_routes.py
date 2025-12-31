@@ -495,3 +495,73 @@ def view_quote(quote_id):
     else:
         # Render the Dashboard Wrapper (Buttons + Iframe)
         return render_template('office/view_quote_dashboard.html', quote=quote, settings=settings)
+        
+        # --- 4. CONVERT QUOTE TO INVOICE ---
+@office_bp.route('/office/quote/<int:quote_id>/convert')
+def convert_to_invoice(quote_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+
+    # 1. Fetch Quote Data
+    cur.execute("SELECT client_id, reference, subtotal, tax, total, notes FROM quotes WHERE id = %s AND company_id = %s", (quote_id, comp_id))
+    quote = cur.fetchone()
+    
+    if not quote: return "Quote not found", 404
+    
+    # 2. Check if already converted
+    cur.execute("SELECT id FROM invoices WHERE quote_ref = %s AND company_id = %s", (quote[1], comp_id))
+    if cur.fetchone():
+        flash("⚠️ This quote has already been converted to an invoice.")
+        return redirect(url_for('office.view_quote', quote_id=quote_id))
+
+    # 3. Generate New Invoice Reference (INV-1001, etc.)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS invoices (
+            id SERIAL PRIMARY KEY, company_id INTEGER, client_id INTEGER, quote_ref TEXT,
+            reference TEXT, date DATE DEFAULT CURRENT_DATE, due_date DATE,
+            status TEXT DEFAULT 'Unpaid', subtotal DECIMAL(10,2), tax DECIMAL(10,2), total DECIMAL(10,2),
+            notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS invoice_items (
+            id SERIAL PRIMARY KEY, invoice_id INTEGER, description TEXT,
+            quantity DECIMAL(10,2), unit_price DECIMAL(10,2), total DECIMAL(10,2),
+            FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
+        );
+    """)
+    
+    cur.execute("SELECT COUNT(*) FROM invoices WHERE company_id = %s", (comp_id,))
+    count = cur.fetchone()[0]
+    new_inv_ref = f"INV-{1000 + count + 1}"
+
+    # 4. Insert Invoice Header
+    # Default due date = Today + 14 days (You can change this logic later)
+    cur.execute("""
+        INSERT INTO invoices (company_id, client_id, quote_ref, reference, date, due_date, status, subtotal, tax, total, notes)
+        VALUES (%s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE + 14, 'Unpaid', %s, %s, %s, %s)
+        RETURNING id
+    """, (comp_id, quote[0], quote[1], new_inv_ref, quote[2], quote[3], quote[4], quote[5]))
+    inv_id = cur.fetchone()[0]
+
+    # 5. Copy Line Items
+    cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
+    items = cur.fetchall()
+    
+    for item in items:
+        cur.execute("""
+            INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (inv_id, item[0], item[1], item[2], item[3]))
+
+    # 6. Mark Quote as Accepted
+    cur.execute("UPDATE quotes SET status = 'Accepted' WHERE id = %s", (quote_id,))
+    
+    conn.commit()
+    conn.close()
+    
+    flash(f"✅ Quote Converted! Invoice {new_inv_ref} Created.")
+    # For now, we redirect back to the quote, or we can build an Invoice View next.
+    return redirect(url_for('office.office_dashboard'))
