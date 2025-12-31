@@ -1,87 +1,218 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Search Results: {{ query }}</title>
+    <meta charset="UTF-8">
+    <title>Search Results | Business Better</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-gold: #c5a059;
+            --bg-dark: #121212;
+            --bg-panel: #1f1f1f;
+            --text-main: #e0e0e0;
+            --border-light: #333;
+        }
 
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>🔍 Search Results for "<b>{{ query }}</b>"</h2>
-        <a href="{{ url_for('admin.super_admin_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+        body { 
+            background-color: var(--bg-dark); 
+            color: var(--text-main); 
+            font-family: 'Inter', sans-serif; 
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            color: #ffffff !important;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        /* SIDEBAR */
+        .sidebar { 
+            width: 280px; height: 100vh; position: fixed; 
+            background: var(--bg-panel); padding: 30px; 
+            border-right: 1px solid var(--border-light); 
+        }
+
+        .brand {
+            font-size: 1.2rem; font-weight: 700; color: #fff; 
+            letter-spacing: 1px; margin-bottom: 40px; 
+            display: flex; align-items: center; gap: 10px;
+        }
+        .brand img { height: 35px; width: auto; }
+        .tagline { color: var(--primary-gold); font-weight: 400; }
+
+        .sidebar-btn {
+            display: flex; align-items: center; padding: 12px 15px;
+            color: #aaa; text-decoration: none; border-radius: 8px;
+            margin-bottom: 5px; transition: 0.3s; font-weight: 600;
+        }
+        .sidebar-btn:hover { background: rgba(197, 160, 89, 0.1); color: var(--primary-gold); }
+        .sidebar-btn i { width: 25px; }
+
+        .content { margin-left: 280px; padding: 50px; }
+
+        /* RESULTS CARDS */
+        .result-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+
+        .result-header {
+            padding: 15px 20px;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        
+        .header-company { background: rgba(197, 160, 89, 0.15); color: var(--primary-gold); border-bottom: 1px solid rgba(197, 160, 89, 0.3); }
+        .header-user { background: rgba(52, 152, 219, 0.15); color: #3498db; border-bottom: 1px solid rgba(52, 152, 219, 0.3); }
+        .header-invoice { background: rgba(46, 204, 113, 0.15); color: #2ecc71; border-bottom: 1px solid rgba(46, 204, 113, 0.3); }
+        .header-vehicle { background: rgba(155, 89, 182, 0.15); color: #9b59b6; border-bottom: 1px solid rgba(155, 89, 182, 0.3); }
+
+        .table-dark { --bs-table-bg: transparent; --bs-table-border-color: var(--border-light); margin-bottom: 0; }
+        .table-dark th { color: #666; font-size: 0.75rem; text-transform: uppercase; padding: 15px 20px; border-bottom: 1px solid #333; }
+        .table-dark td { color: #e0e0e0; padding: 15px 20px; vertical-align: middle; }
+
+        .btn-action {
+            padding: 5px 15px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: 0.3s;
+            border: 1px solid #444;
+            color: #ccc;
+            background: transparent;
+        }
+        .btn-action:hover { border-color: var(--primary-gold); color: var(--primary-gold); }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="brand">
+            <img src="/static/images/logo.png" alt="DG">
+            <div>DRUGAN <span class="tagline">GROUP</span></div>
+        </div>
+        
+        <div class="d-flex flex-column gap-2">
+            <small class="text-muted text-uppercase mb-2" style="font-size: 0.7rem; letter-spacing: 1px;">Navigation</small>
+            <a href="/super-admin" class="sidebar-btn"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+        </div>
     </div>
 
-    {% if results.companies %}
-    <div class="card mb-4 shadow-sm">
-        <div class="card-header bg-primary text-white">🏢 Companies</div>
-        <div class="card-body p-0">
-            <table class="table table-hover mb-0">
-                <thead><tr><th>ID</th><th>Name</th><th>Subdomain</th><th>Email</th><th>Action</th></tr></thead>
+    <div class="content">
+        <div class="mb-5">
+            <h6 class="text-muted text-uppercase mb-1">Global Search</h6>
+            <h2 class="fw-bold mb-0 text-white">Results for "<span style="color: var(--primary-gold);">{{ query }}</span>"</h2>
+        </div>
+
+        {% if results.companies %}
+        <div class="result-card">
+            <div class="result-header header-company">
+                <span><i class="fas fa-building me-2"></i> Companies Found</span>
+                <span class="badge bg-dark">{{ results.companies|length }}</span>
+            </div>
+            <table class="table table-dark table-hover">
+                <thead><tr><th>Name</th><th>Subdomain</th><th>Email</th><th class="text-end">Action</th></tr></thead>
                 <tbody>
                     {% for c in results.companies %}
                     <tr>
-                        <td>{{ c[0] }}</td>
-                        <td><strong>{{ c[1] }}</strong></td>
-                        <td>{{ c[2] }}</td>
+                        <td class="fw-bold text-white">{{ c[1] }}</td>
+                        <td>{{ c[2] }}.tradecore.com</td>
                         <td>{{ c[3] }}</td>
-                        <td><a href="{{ url_for('admin.company_details', company_id=c[0]) }}" class="btn btn-sm btn-primary">Manage</a></td>
+                        <td class="text-end"><a href="/super-admin/company/{{ c[0] }}" class="btn-action">Manage</a></td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-    </div>
-    {% endif %}
+        {% endif %}
 
-    {% if results.users %}
-    <div class="card mb-4 shadow-sm">
-        <div class="card-header bg-info text-white">👤 Users</div>
-        <div class="card-body p-0">
-            <table class="table table-hover mb-0">
-                <thead><tr><th>User ID</th><th>Email</th><th>Role</th><th>Company</th><th>Action</th></tr></thead>
+        {% if results.users %}
+        <div class="result-card">
+            <div class="result-header header-user">
+                <span><i class="fas fa-users me-2"></i> Users Found</span>
+                <span class="badge bg-dark">{{ results.users|length }}</span>
+            </div>
+            <table class="table table-dark table-hover">
+                <thead><tr><th>Email</th><th>Role</th><th>Company</th><th class="text-end">Action</th></tr></thead>
                 <tbody>
                     {% for u in results.users %}
                     <tr>
-                        <td>{{ u[0] }}</td>
-                        <td>{{ u[1] }}</td>
+                        <td class="fw-bold text-white">{{ u[1] }}</td>
                         <td>{{ u[2] }}</td>
-                        <td>{{ u[3] }} (ID: {{ u[4] }})</td>
-                        <td><a href="{{ url_for('admin.company_details', company_id=u[4]) }}" class="btn btn-sm btn-outline-info">Go to Company</a></td>
+                        <td>{{ u[3] }}</td>
+                        <td class="text-end"><a href="/super-admin/company/{{ u[4] }}" class="btn-action">View Company</a></td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-    </div>
-    {% endif %}
+        {% endif %}
 
-    {% if results.vehicles %}
-    <div class="card mb-4 shadow-sm">
-        <div class="card-header bg-warning text-dark">🚚 Vehicles</div>
-        <div class="card-body p-0">
-            <table class="table table-hover mb-0">
-                <thead><tr><th>ID</th><th>Reg Plate</th><th>Make</th><th>Owner Company</th><th>Action</th></tr></thead>
+        {% if results.invoices %}
+        <div class="result-card">
+            <div class="result-header header-invoice">
+                <span><i class="fas fa-file-invoice-dollar me-2"></i> Invoices Found</span>
+                <span class="badge bg-dark">{{ results.invoices|length }}</span>
+            </div>
+            <table class="table table-dark table-hover">
+                <thead><tr><th>Invoice #</th><th>Amount</th><th>Company</th><th class="text-end">Action</th></tr></thead>
+                <tbody>
+                    {% for i in results.invoices %}
+                    <tr>
+                        <td class="fw-bold text-white">{{ i[1] }}</td>
+                        <td>£{{ i[2] }}</td>
+                        <td>{{ i[3] }}</td>
+                        <td class="text-end"><a href="/super-admin/company/{{ i[4] }}" class="btn-action">View Company</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if results.vehicles %}
+        <div class="result-card">
+            <div class="result-header header-vehicle">
+                <span><i class="fas fa-truck me-2"></i> Vehicles Found</span>
+                <span class="badge bg-dark">{{ results.vehicles|length }}</span>
+            </div>
+            <table class="table table-dark table-hover">
+                <thead><tr><th>Reg Plate</th><th>Make</th><th>Company</th><th class="text-end">Action</th></tr></thead>
                 <tbody>
                     {% for v in results.vehicles %}
                     <tr>
-                        <td>{{ v[0] }}</td>
-                        <td><strong>{{ v[1] }}</strong></td>
+                        <td class="fw-bold text-white">{{ v[1] }}</td>
                         <td>{{ v[2] }}</td>
                         <td>{{ v[3] }}</td>
-                        <td><a href="{{ url_for('admin.company_details', company_id=v[4]) }}" class="btn btn-sm btn-outline-warning">View Company</a></td>
+                        <td class="text-end"><a href="/super-admin/company/{{ v[4] }}" class="btn-action">View Company</a></td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% endif %}
+
+        {% if not results.companies and not results.users and not results.invoices and not results.vehicles %}
+            <div class="text-center py-5">
+                <i class="fas fa-search fa-3x mb-3 text-muted"></i>
+                <h3 class="text-muted">No results found for "{{ query }}"</h3>
+                <p class="text-secondary">Try searching for a company name, email address, invoice number, or reg plate.</p>
+            </div>
+        {% endif %}
+
     </div>
-    {% endif %}
 
-    {% if not results.companies and not results.users and not results.invoices and not results.vehicles %}
-        <div class="alert alert-warning text-center">No results found for "{{ query }}". Try a different keyword.</div>
-    {% endif %}
-
-</div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
