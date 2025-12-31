@@ -11,6 +11,8 @@
         .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; }
         .content { margin-left: 250px; padding: 30px; }
         .card { border: none; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .nav-tabs .nav-link.active { background-color: #fff; border-bottom-color: #fff; color: #000; }
+        .nav-tabs .nav-link { color: #666; }
     </style>
 </head>
 <body>
@@ -29,25 +31,65 @@
                 <button type="submit" class="btn btn-success fw-bold px-4"><i class="fas fa-save me-2"></i> Save Quote</button>
             </div>
 
-            <div class="card p-4 mb-4">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="small text-muted text-uppercase fw-bold">Select Client</label>
-                        <select name="client_id" class="form-select" required>
-                            <option value="" disabled selected>-- Choose Client --</option>
-                            {% for c in clients %}
-                                <option value="{{ c[0] }}">{{ c[1] }}</option>
-                            {% endfor %}
-                        </select>
-                        <div class="mt-2"><a href="/clients" class="small text-decoration-none">+ Add New Client</a></div>
+            <div class="card p-0 mb-4 overflow-hidden">
+                <div class="card-header bg-light p-3">
+                    <ul class="nav nav-tabs card-header-tabs" id="clientTabs">
+                        <li class="nav-item">
+                            <a class="nav-link active fw-bold" href="#" onclick="switchClientMode('existing')">
+                                <i class="fas fa-search me-2"></i> Existing Client
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link fw-bold" href="#" onclick="switchClientMode('new')">
+                                <i class="fas fa-user-plus me-2"></i> New Client
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="card-body p-4">
+                    <input type="hidden" name="client_mode" id="clientMode" value="existing">
+
+                    <div id="existingClientSection">
+                        <label class="small text-muted text-uppercase fw-bold mb-2">Search Client Database</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input class="form-control" list="clientOptions" id="clientSearchInput" placeholder="Start typing name..." onchange="setClientId(this)">
+                            <datalist id="clientOptions">
+                                {% for c in clients %}
+                                    <option data-id="{{ c[0] }}" value="{{ c[1] }}"></option>
+                                {% endfor %}
+                            </datalist>
+                            <input type="hidden" name="existing_client_id" id="realClientId">
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <label class="small text-muted text-uppercase fw-bold">Quote Reference</label>
-                        <input type="text" name="reference" class="form-control fw-bold" value="{{ new_ref }}" readonly>
+
+                    <div id="newClientSection" style="display:none;">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="small text-muted text-uppercase fw-bold">Client / Company Name</label>
+                                <input type="text" name="new_client_name" class="form-control" placeholder="e.g. Smith & Co">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small text-muted text-uppercase fw-bold">Email Address</label>
+                                <input type="email" name="new_client_email" class="form-control" placeholder="client@email.com">
+                            </div>
+                            <div class="col-12">
+                                <label class="small text-muted text-uppercase fw-bold">Billing Address</label>
+                                <input type="text" name="new_client_address" class="form-control" placeholder="Full Address...">
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <label class="small text-muted text-uppercase fw-bold">Date</label>
-                        <input type="text" class="form-control" value="{{ today }}" readonly>
+
+                    <div class="row g-3 mt-3 pt-3 border-top">
+                        <div class="col-md-6">
+                            <label class="small text-muted text-uppercase fw-bold">Quote Reference</label>
+                            <input type="text" name="reference" class="form-control fw-bold bg-light" value="{{ new_ref }}" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small text-muted text-uppercase fw-bold">Date</label>
+                            <input type="text" class="form-control bg-light" value="{{ today }}" readonly>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -109,9 +151,41 @@
     </div>
 
     <script>
-        // Get Tax Rate from Python
         var taxRate = {{ tax_rate }};
 
+        // --- SMART CLIENT SWITCHER ---
+        function switchClientMode(mode) {
+            document.getElementById('clientMode').value = mode;
+            
+            if(mode === 'existing') {
+                document.getElementById('existingClientSection').style.display = 'block';
+                document.getElementById('newClientSection').style.display = 'none';
+                document.querySelectorAll('.nav-link')[0].classList.add('active');
+                document.querySelectorAll('.nav-link')[1].classList.remove('active');
+            } else {
+                document.getElementById('existingClientSection').style.display = 'none';
+                document.getElementById('newClientSection').style.display = 'block';
+                document.querySelectorAll('.nav-link')[0].classList.remove('active');
+                document.querySelectorAll('.nav-link')[1].classList.add('active');
+            }
+        }
+
+        // Capture ID from Datalist
+        function setClientId(input) {
+            var list = document.getElementById('clientOptions');
+            var hiddenInput = document.getElementById('realClientId');
+            var options = list.options;
+            hiddenInput.value = ""; 
+            
+            for(var i = 0; i < options.length; i++) {
+                if(options[i].value === input.value) {
+                    hiddenInput.value = options[i].getAttribute('data-id');
+                    break;
+                }
+            }
+        }
+
+        // --- CALCULATOR ---
         function addRow() {
             var table = document.getElementById("itemsBody");
             var row = table.insertRow(-1);
@@ -151,11 +225,7 @@
             var total = subtotal + tax;
 
             document.getElementById('subtotalDisplay').innerText = subtotal.toFixed(2);
-            
-            if (taxRate > 0) {
-                document.getElementById('taxDisplay').innerText = tax.toFixed(2);
-            }
-            
+            if (taxRate > 0) document.getElementById('taxDisplay').innerText = tax.toFixed(2);
             document.getElementById('totalDisplay').innerText = total.toFixed(2);
         }
     </script>
