@@ -37,6 +37,41 @@ def office_dashboard():
     conn = get_db()
     cur = conn.cursor()
     
+    # 1. STAT 1: New Service Requests (Replaces Revenue)
+    cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id = %s AND status != 'Completed'", (company_id,))
+    pending_requests_count = cur.fetchone()[0]
+
+    # 2. STAT 2: Active Jobs Count
+    cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id = %s AND status != 'Completed'", (company_id,))
+    active_jobs_count = cur.fetchone()[0]
+
+    # 3. STAT 3: Pending Quotes (For the list and the count)
+    cur.execute("""
+        SELECT q.id, c.name, q.reference, q.date, q.total, q.status 
+        FROM quotes q LEFT JOIN clients c ON q.client_id = c.id
+        WHERE q.company_id = %s AND q.status = 'Draft'
+        ORDER BY q.id DESC LIMIT 10
+    """, (company_id,))
+    recent_quotes = cur.fetchall()
+
+    conn.close()
+
+    return render_template('office/office_dashboard.html', 
+                           pending_requests_count=pending_requests_count,
+                           active_jobs_count=active_jobs_count, 
+                           quotes=recent_quotes,
+                           brand_color=config['color'], 
+                           logo_url=config['logo'])
+                           
+    # Strict check: Site Managers cannot see this dashboard
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    company_id = session.get('company_id')
+    config = get_site_config(company_id)
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
     # 1. Ensure Quote Tables Exist (Run Once)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS quotes (

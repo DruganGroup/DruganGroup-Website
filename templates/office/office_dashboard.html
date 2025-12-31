@@ -58,16 +58,16 @@
     <div class="content">
         <div class="row g-4 mb-4">
             <div class="col-md-4">
-                <div class="card stat-card stat-blue p-3">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="text-muted fw-bold">REVENUE (YTD)</h6>
-                            <h3 class="fw-bold mb-0">£{{ total_income }}</h3>
-                        </div>
-                        <i class="fas fa-chart-line fa-2x text-primary opacity-50"></i>
-                    </div>
-                </div>
+    <div class="card stat-card stat-blue p-3">
+        <div class="d-flex justify-content-between">
+            <div>
+                <h6 class="text-muted fw-bold">NEW REQUESTS</h6>
+                <h3 class="fw-bold mb-0">{{ pending_requests_count }}</h3>
             </div>
+            <i class="fas fa-clipboard-list fa-2x text-primary opacity-50"></i>
+        </div>
+    </div>
+</div>
             <div class="col-md-4">
                 <div class="card stat-card stat-green p-3">
                     <div class="d-flex justify-content-between">
