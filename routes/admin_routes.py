@@ -20,7 +20,7 @@ def log_audit(action, target, details=""):
         conn = get_db()
         cur = conn.cursor()
         email = session.get('user_email', 'Unknown')
-        # Handle proxy headers if on Render/Heroku for real IP
+        # Handle proxy headers for real IP
         if request.headers.getlist("X-Forwarded-For"):
             ip = request.headers.getlist("X-Forwarded-For")[0]
         else:
@@ -33,7 +33,7 @@ def log_audit(action, target, details=""):
         conn.commit()
         conn.close()
     except Exception as e:
-        print(f"Logging Failed: {e}") # Never crash app because of logging
+        print(f"Logging Failed: {e}") 
 
 # --- HELPER: CALCULATE REAL DISK USAGE ---
 def get_real_company_usage(company_id, cur):
@@ -124,16 +124,16 @@ def super_admin_dashboard():
             cur.execute("SELECT key, value FROM system_settings")
             sys_conf = {row[0]: row[1] for row in cur.fetchall()}
             
-            # 5. SEND WELCOME EMAIL
+            # 5. SEND WELCOME EMAIL (REBRANDED)
             if sys_conf.get('smtp_server') and sys_conf.get('smtp_email'):
                 try:
                     msg = MIMEMultipart()
                     msg['From'] = sys_conf['smtp_email']
                     msg['To'] = owner_email
-                    msg['Subject'] = f"Welcome to TradeCore - {comp_name} Setup Complete"
+                    msg['Subject'] = f"Welcome to Business Better - {comp_name} Setup Complete"
                     
                     body = f"""
-                    Welcome to TradeCore!
+                    Welcome to Business Better by Drugan Group!
                     
                     Your environment has been successfully deployed.
                     
@@ -141,7 +141,7 @@ def super_admin_dashboard():
                     --------------------------------------------------
                     Company:   {comp_name}
                     Plan:      {plan}
-                    Login URL: https://www.drugangroup.co.uk/login
+                    Login URL: https://www.drugansgroup.co.uk/login
                     --------------------------------------------------
                     
                     CREDENTIALS:
@@ -170,7 +170,7 @@ def super_admin_dashboard():
 
         except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
             
-    # --- FETCH DATA WITH DATES ---
+    # --- FETCH DATA ---
     cur.execute("""
         SELECT 
             c.id, c.name, c.subdomain,
@@ -189,10 +189,8 @@ def super_admin_dashboard():
     for c in raw_companies:
         created_date = c[5] if c[5] else today
         next_bill = "Unknown"
-        
         if created_date:
             try:
-                # Billing Logic
                 if today.day > created_date.day:
                     month = today.month + 1 if today.month < 12 else 1
                     year = today.year if today.month < 12 else today.year + 1
@@ -251,7 +249,7 @@ def super_admin_analytics():
     conn.close()
     return render_template('admin/super_admin_analytics.html', data=analytics_data)
 
-# --- 3. UTILITIES (Password, Settings, Backup) ---
+# --- 3. UTILITIES ---
 @admin_bp.route('/admin/reset-password', methods=['POST'])
 def reset_user_password():
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
@@ -319,7 +317,7 @@ def assign_super_admin(company_id):
 @admin_bp.route('/admin/reset-me')
 def reset_super_admin():
     conn = get_db(); cur = conn.cursor()
-    # Using NULL for unassigned, as per best practice
+    # Using NULL for unassigned
     cur.execute("UPDATE users SET company_id = NULL WHERE id = %s", (session.get('user_id'),))
     session['company_id'] = None
     conn.commit(); conn.close()
@@ -343,78 +341,47 @@ def delete_tenant(company_id):
     conn = get_db()
     cur = conn.cursor()
     try:
-        # STEP 1: Delete "Grandchildren" (Data that relies on other data)
-        # These tables must go first or they will block the deletion of their parents
+        # STEP 1: Delete "Grandchildren"
         grandchildren = [
-            'invoice_items',   # Links to invoices
-            'quote_items',     # Links to quotes
-            'overhead_items',  # Links to overhead_categories
-            'vehicle_crews',   # Links to vehicles/staff
-            'job_logs'         # (If you have this table)
+            'invoice_items', 'quote_items', 'overhead_items', 
+            'vehicle_crews', 'job_logs'
         ]
-        
         for t in grandchildren:
             try:
-                # We check if table exists to prevent crashes on old DB versions
                 cur.execute(f"DELETE FROM {t} USING companies WHERE {t}.company_id = companies.id AND companies.id = %s", (company_id,))
-            except Exception:
-                # If table doesn't exist or column differs, we safely ignore but ROLLBACK the mini-error
-                conn.rollback() 
+            except Exception: conn.rollback() 
 
-        # STEP 2: Delete "Children" (The main operational data)
+        # STEP 2: Delete "Children"
         children = [
-            'maintenance_logs',
-            'materials',
-            'overhead_categories',
-            'transactions',
-            'service_requests',
-            'invoices',
-            'quotes',
-            'jobs'
+            'maintenance_logs', 'materials', 'overhead_categories', 'transactions', 
+            'service_requests', 'invoices', 'quotes', 'jobs'
         ]
-        
         for t in children:
-            try:
-                cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
-            except Exception:
-                conn.rollback()
+            try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
+            except Exception: conn.rollback()
 
-        # STEP 3: Delete "Direct Dependents" (Assets and People)
+        # STEP 3: Delete "Direct Dependents"
         dependents = [
-            'vehicles',
-            'staff',
-            'properties',
-            'clients',
-            'users',
-            'settings',
-            'subscriptions'
+            'vehicles', 'staff', 'properties', 'clients', 
+            'users', 'settings', 'subscriptions'
         ]
-        
         for t in dependents:
-            try:
-                cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
-            except Exception:
-                conn.rollback()
+            try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
+            except Exception: conn.rollback()
 
-        # STEP 4: Finally, delete the Company itself
+        # STEP 4: Delete the Company
         cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
         
         conn.commit()
-        
-        # --- LOG THE ACTION ---
         log_audit("DELETE COMPANY", f"Company ID {company_id}", "Deleted via Super Admin Dashboard")
-        
         flash("✅ Company and all associated data deleted permanently.")
         
     except Exception as e:
         conn.rollback()
-        # This will now show the REAL error instead of "transaction aborted"
         flash(f"❌ Error deleting company: {e}")
         print(f"DEBUG ERROR: {e}") 
-        
     finally:
         conn.close()
-        
     return redirect(url_for('admin.super_admin_dashboard'))
 
 @admin_bp.route('/admin/backup/all')
@@ -462,170 +429,91 @@ def setup_overheads_db():
     finally: conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
     
-# --- GLOBAL SEARCH (Find anything, anywhere) ---
+# --- GLOBAL SEARCH ---
 @admin_bp.route('/admin/global-search')
 def global_search():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
-    
     query = request.args.get('q', '').strip()
     if not query: return redirect(url_for('admin.super_admin_dashboard'))
-    
-    conn = get_db()
-    cur = conn.cursor()
+    conn = get_db(); cur = conn.cursor()
     results = {'companies': [], 'users': [], 'invoices': [], 'vehicles': []}
-    
     try:
-        # 1. Search Companies (Name or Subdomain)
-        cur.execute("""
-            SELECT id, name, subdomain, contact_email 
-            FROM companies 
-            WHERE name ILIKE %s OR subdomain ILIKE %s
-        """, (f'%{query}%', f'%{query}%'))
+        # 1. Search Companies
+        cur.execute("SELECT id, name, subdomain, contact_email FROM companies WHERE name ILIKE %s OR subdomain ILIKE %s", (f'%{query}%', f'%{query}%'))
         results['companies'] = cur.fetchall()
-        
-        # 2. Search Users (Email or Username)
-        cur.execute("""
-            SELECT u.id, u.email, u.role, c.name, c.id 
-            FROM users u
-            LEFT JOIN companies c ON u.company_id = c.id
-            WHERE u.email ILIKE %s OR u.username ILIKE %s
-        """, (f'%{query}%', f'%{query}%'))
+        # 2. Search Users
+        cur.execute("SELECT u.id, u.email, u.role, c.name, c.id FROM users u LEFT JOIN companies c ON u.company_id = c.id WHERE u.email ILIKE %s OR u.username ILIKE %s", (f'%{query}%', f'%{query}%'))
         results['users'] = cur.fetchall()
-
-        # 3. Search Invoices (Reference Number) - Safe check if table exists
+        # 3. Search Invoices
         try:
-            cur.execute("""
-                SELECT i.id, i.invoice_number, i.total, c.name, c.id
-                FROM invoices i
-                LEFT JOIN companies c ON i.company_id = c.id
-                WHERE i.invoice_number ILIKE %s
-            """, (f'%{query}%',))
+            cur.execute("SELECT i.id, i.invoice_number, i.total, c.name, c.id FROM invoices i LEFT JOIN companies c ON i.company_id = c.id WHERE i.invoice_number ILIKE %s", (f'%{query}%',))
             results['invoices'] = cur.fetchall()
-        except: pass # Table might not exist yet
-
-        # 4. Search Vehicles (Reg Plate)
+        except: pass
+        # 4. Search Vehicles
         try:
-            cur.execute("""
-                SELECT v.id, v.registration, v.make, c.name, c.id
-                FROM vehicles v
-                LEFT JOIN companies c ON v.company_id = c.id
-                WHERE v.registration ILIKE %s
-            """, (f'%{query}%',))
+            cur.execute("SELECT v.id, v.registration, v.make, c.name, c.id FROM vehicles v LEFT JOIN companies c ON v.company_id = c.id WHERE v.registration ILIKE %s", (f'%{query}%',))
             results['vehicles'] = cur.fetchall()
         except: pass
-
-    except Exception as e:
-        print(f"Search Error: {e}")
-    finally:
-        conn.close()
-    
+    except Exception as e: print(f"Search Error: {e}")
+    finally: conn.close()
     return render_template('admin/search_results.html', query=query, results=results)
     
-# --- 4. COMPANY INSPECTION (Drill Down) ---
+# --- 4. COMPANY INSPECTION ---
 @admin_bp.route('/super-admin/company/<int:company_id>')
 def company_details(company_id):
     if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
-    
     conn = get_db(); cur = conn.cursor()
-    
-    # 1. Fetch Basic Info & Plan
-    cur.execute("""
-        SELECT c.id, c.name, c.subdomain, c.contact_email, s.plan_tier, s.status, s.start_date
-        FROM companies c 
-        LEFT JOIN subscriptions s ON c.id = s.company_id 
-        WHERE c.id = %s
-    """, (company_id,))
+    # 1. Fetch Basic Info
+    cur.execute("SELECT c.id, c.name, c.subdomain, c.contact_email, s.plan_tier, s.status, s.start_date FROM companies c LEFT JOIN subscriptions s ON c.id = s.company_id WHERE c.id = %s", (company_id,))
     comp = cur.fetchone()
+    if not comp: conn.close(); return "Company not found", 404
+    company = {'id': comp[0], 'name': comp[1], 'subdomain': comp[2], 'email': comp[3], 'plan': comp[4], 'status': comp[5], 'joined': comp[6]}
     
-    if not comp: 
-        conn.close()
-        return "Company not found", 404
-    
-    company = {
-        'id': comp[0], 'name': comp[1], 'subdomain': comp[2], 'email': comp[3],
-        'plan': comp[4], 'status': comp[5], 'joined': comp[6]
-    }
-    
-    # 2. Fetch The "Vital Signs" (Row Counts)
+    # 2. Fetch "Vital Signs"
     tables = ['users', 'staff', 'clients', 'vehicles', 'properties', 'jobs', 'quotes', 'invoices', 'transactions', 'service_requests']
     stats = {}
     for t in tables:
-        try:
-            cur.execute(f"SELECT COUNT(*) FROM {t} WHERE company_id = %s", (company_id,))
-            stats[t] = cur.fetchone()[0]
-        except Exception:
-            conn.rollback() 
-            stats[t] = 0
+        try: cur.execute(f"SELECT COUNT(*) FROM {t} WHERE company_id = %s", (company_id,)); stats[t] = cur.fetchone()[0]
+        except Exception: conn.rollback(); stats[t] = 0
 
-    # 3. Fetch Configuration (Setup)
+    # 3. Fetch Config & Finance
     try:
-        cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
-        settings = {row[0]: row[1] for row in cur.fetchall()}
-    except Exception:
-        conn.rollback()
-        settings = {}
-
-    # 4. Fetch Financial Summary (Admin Eyes Only)
-    try:
-        cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Income'", (company_id,))
-        stats['total_revenue'] = cur.fetchone()[0] or 0.0
-    except Exception:
-        conn.rollback()
-        stats['total_revenue'] = 0.0
+        cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,)); settings = {row[0]: row[1] for row in cur.fetchall()}
+        cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Income'", (company_id,)); stats['total_revenue'] = cur.fetchone()[0] or 0.0
+    except Exception: conn.rollback(); settings = {}; stats['total_revenue'] = 0.0
     
-    # 5. Get Real Disk Usage
     stats['storage_mb'] = get_real_company_usage(company_id, cur)
-
     conn.close()
-    
     return render_template('admin/company_details.html', company=company, stats=stats, settings=settings)
 
-# --- 5. NUKE SUPER ADMIN JUNK DATA ---
+# --- 5. DATA CLEANUP ---
 @admin_bp.route('/admin/cleanup-my-data')
 def cleanup_super_admin_data():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
-    
     target_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
     try:
-        tables = ['jobs', 'quotes', 'invoices', 'quote_items', 'invoice_items', 
-                  'staff', 'vehicles', 'vehicle_crews', 'maintenance_logs', 
-                  'clients', 'properties', 'service_requests', 'transactions', 'materials']
+        tables = ['jobs', 'quotes', 'invoices', 'quote_items', 'invoice_items', 'staff', 'vehicles', 'vehicle_crews', 'maintenance_logs', 'clients', 'properties', 'service_requests', 'transactions', 'materials']
         for t in tables:
             try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (target_id,))
             except: pass
-        conn.commit()
-        flash("✅ Your testing data has been wiped.")
-    except Exception as e:
-        conn.rollback()
-        flash(f"❌ Error: {e}")
-    finally:
-        conn.close()
+        conn.commit(); flash("✅ Your testing data has been wiped.")
+    except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
+    finally: conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
     
 @admin_bp.route('/admin/wipe-fleet-data')
 def wipe_fleet_data():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
-    
-    # Wipes vehicles for the LOGGED IN company only
     target_id = session.get('company_id')
-    
     conn = get_db(); cur = conn.cursor()
     try:
-        # Delete children first (Foreign Keys)
         cur.execute("DELETE FROM maintenance_logs WHERE company_id = %s", (target_id,))
         cur.execute("DELETE FROM vehicle_crews WHERE company_id = %s", (target_id,))
-        # Delete parent
         cur.execute("DELETE FROM vehicles WHERE company_id = %s", (target_id,))
-        
-        conn.commit()
-        flash("✅ Fleet Data Wiped (Vehicles, Crews, Maintenance Logs)")
-    except Exception as e:
-        conn.rollback()
-        flash(f"❌ Error: {e}")
-    finally:
-        conn.close()
-        
+        conn.commit(); flash("✅ Fleet Data Wiped")
+    except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
+    finally: conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
     
 # --- SETUP: CREATE LOG TABLES ---
@@ -634,36 +522,19 @@ def setup_logs_db():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
     conn = get_db(); cur = conn.cursor()
     try:
-        # 1. Audit Logs (Who did what?)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS audit_logs (
-                id SERIAL PRIMARY KEY,
-                admin_email VARCHAR(150),
-                action VARCHAR(100),
-                target VARCHAR(255),
-                details TEXT,
-                ip_address VARCHAR(50),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                id SERIAL PRIMARY KEY, admin_email VARCHAR(150), action VARCHAR(100), target VARCHAR(255), details TEXT, ip_address VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
-        
-        # 2. System Logs (What broke?)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS system_logs (
-                id SERIAL PRIMARY KEY,
-                level VARCHAR(20) DEFAULT 'ERROR',
-                message TEXT,
-                traceback TEXT,
-                route VARCHAR(100),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                id SERIAL PRIMARY KEY, level VARCHAR(20) DEFAULT 'ERROR', message TEXT, traceback TEXT, route VARCHAR(100), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
-        conn.commit()
-        flash("✅ Log Tables Created Successfully")
-    except Exception as e:
-        conn.rollback(); flash(f"❌ Error: {e}")
-    finally:
-        conn.close()
+        conn.commit(); flash("✅ Log Tables Created Successfully")
+    except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
+    finally: conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
 
 # --- VIEW: AUDIT LOGS ---
@@ -671,7 +542,6 @@ def setup_logs_db():
 def view_audit_logs():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
     conn = get_db(); cur = conn.cursor()
-    # Get last 100 entries
     cur.execute("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 100")
     logs = cur.fetchall()
     conn.close()
@@ -682,7 +552,6 @@ def view_audit_logs():
 def view_system_logs():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
     conn = get_db(); cur = conn.cursor()
-    # Get last 50 errors
     cur.execute("SELECT * FROM system_logs ORDER BY id DESC LIMIT 50")
     logs = cur.fetchall()
     conn.close()

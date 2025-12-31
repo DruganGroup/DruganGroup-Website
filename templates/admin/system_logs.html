@@ -1,58 +1,214 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>System Logs</title>
+    <meta charset="UTF-8">
+    <title>System Logs | Business Better</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
     <style>
-        .log-trace { display: none; background: #333; color: #0f0; padding: 10px; font-family: monospace; font-size: 0.8rem; }
+        :root {
+            --primary-gold: #c5a059;
+            --bg-dark: #121212;
+            --bg-panel: #1f1f1f;
+            --text-main: #e0e0e0;
+            --border-light: #333;
+        }
+
+        body { 
+            background-color: var(--bg-dark); 
+            color: var(--text-main); 
+            font-family: 'Inter', sans-serif; 
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            color: #ffffff !important;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        /* SIDEBAR */
+        .sidebar { 
+            width: 280px; 
+            height: 100vh; 
+            position: fixed; 
+            background: var(--bg-panel); 
+            padding: 30px; 
+            border-right: 1px solid var(--border-light); 
+        }
+
+        .brand {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+            margin-bottom: 40px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .brand img { height: 35px; width: auto; }
+        .tagline { color: var(--primary-gold); font-weight: 400; }
+
+        .sidebar-btn {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            color: #aaa; 
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            transition: 0.3s;
+            font-weight: 600;
+            border: 1px solid transparent;
+        }
+
+        .sidebar-btn:hover, .sidebar-btn.active {
+            background: rgba(197, 160, 89, 0.1);
+            color: var(--primary-gold);
+            border-color: rgba(197, 160, 89, 0.2);
+        }
+
+        .sidebar-btn i { width: 25px; }
+
+        .content { margin-left: 280px; padding: 50px; }
+
+        /* LOG SPECIFIC */
+        .card { 
+            background: var(--bg-panel); 
+            border: 1px solid var(--border-light); 
+            border-radius: 12px; 
+            overflow: hidden;
+        }
+
+        .table-dark { --bs-table-bg: transparent; --bs-table-border-color: var(--border-light); }
+        .table-dark th { 
+            text-transform: uppercase; 
+            font-size: 0.75rem; 
+            color: #e74c3c; /* Red for Error Logs */
+            letter-spacing: 1px; 
+            padding: 15px; 
+            font-family: 'Montserrat', sans-serif;
+        }
+        .table-dark td { 
+            vertical-align: middle; 
+            color: #e0e0e0; 
+            padding: 15px; 
+        }
+
+        .log-trace { 
+            background: #111; 
+            color: #e74c3c; 
+            padding: 20px; 
+            font-family: monospace; 
+            font-size: 0.8rem; 
+            border-left: 3px solid #e74c3c;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+
+        .btn-view-trace {
+            background: transparent;
+            border: 1px solid #555;
+            color: #aaa;
+            padding: 5px 15px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            transition: 0.3s;
+        }
+        .btn-view-trace:hover {
+            border-color: var(--primary-gold);
+            color: var(--primary-gold);
+        }
     </style>
     <script>
         function toggleTrace(id) {
             var x = document.getElementById('trace-' + id);
-            if (x.style.display === "none") { x.style.display = "block"; } else { x.style.display = "none"; }
+            if (x.style.display === "none") { x.style.display = "table-row"; } else { x.style.display = "none"; }
         }
     </script>
 </head>
-<body class="bg-light">
-<div class="container mt-4">
-    <div class="d-flex justify-content-between mb-4">
-        <h3 class="text-danger">⚠️ System Error Logs</h3>
-        <a href="{{ url_for('admin.super_admin_dashboard') }}" class="btn btn-secondary">Back</a>
+<body>
+
+    <div class="sidebar">
+        <div class="brand">
+            <img src="/static/images/logo.png" alt="DG">
+            <div>DRUGAN <span class="tagline">GROUP</span></div>
+        </div>
+        
+        <div class="d-flex flex-column gap-2">
+            <small class="text-muted text-uppercase mb-2" style="font-size: 0.7rem; letter-spacing: 1px;">Admin Console</small>
+            
+            <a href="/super-admin" class="sidebar-btn">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+            <a href="/super-admin/analytics" class="sidebar-btn">
+                <i class="fas fa-chart-pie"></i> Intelligence
+            </a>
+            
+            <small class="text-muted text-uppercase mb-2 mt-4" style="font-size: 0.7rem; letter-spacing: 1px;">Security & Logs</small>
+
+            <a href="{{ url_for('admin.view_audit_logs') }}" class="sidebar-btn">
+                <i class="fas fa-shield-alt"></i> Audit Trail
+            </a>
+            <a href="{{ url_for('admin.view_system_logs') }}" class="sidebar-btn active">
+                <i class="fas fa-exclamation-triangle"></i> Error Logs
+            </a>
+
+            <div class="mt-5 pt-4 border-top border-secondary">
+                <a href="/launcher" class="sidebar-btn">
+                    <i class="fas fa-arrow-left"></i> Back to Main
+                </a>
+            </div>
+        </div>
     </div>
 
-    <div class="card shadow-sm border-danger">
-        <div class="card-body p-0">
-            <table class="table mb-0">
-                <thead class="bg-danger text-white">
+    <div class="content">
+        <div class="d-flex justify-content-between align-items-end mb-5">
+            <div>
+                <h6 class="text-muted text-uppercase mb-1">System Health</h6>
+                <h2 class="fw-bold mb-0 text-white">Error <span style="color: #e74c3c;">Logs</span></h2>
+            </div>
+            <div>
+                <span class="text-muted" style="font-size: 0.9rem;">Automatic crash reports</span>
+            </div>
+        </div>
+
+        <div class="card shadow-lg" style="border-top: 3px solid #e74c3c;">
+            <table class="table table-dark table-hover mb-0">
+                <thead>
                     <tr>
-                        <th>Time</th>
-                        <th>Route</th>
-                        <th>Message</th>
-                        <th>Traceback</th>
+                        <th style="color: #e74c3c;">Time</th>
+                        <th style="color: #e74c3c;">Route</th>
+                        <th style="color: #e74c3c;">Message</th>
+                        <th style="color: #e74c3c;">Debug</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for log in logs %}
                     <tr>
-                        <td style="width: 15%">{{ log[5] }}</td>
-                        <td style="width: 15%"><code>{{ log[4] }}</code></td>
+                        <td style="width: 15%; font-family: monospace; color: #aaa;">{{ log[5].strftime('%d-%b %H:%M:%S') }}</td>
+                        <td style="width: 20%"><code style="color: #e74c3c;">{{ log[4] }}</code></td>
                         <td>{{ log[2] }}</td>
                         <td style="width: 10%">
-                            <button class="btn btn-sm btn-outline-dark" onclick="toggleTrace({{ log[0] }})">View</button>
+                            <button class="btn-view-trace" onclick="toggleTrace({{ log[0] }})">Details</button>
                         </td>
                     </tr>
-                    <tr id="trace-{{ log[0] }}" style="display:none;">
+                    <tr id="trace-{{ log[0] }}" style="display:none; background: #181818;">
                         <td colspan="4">
                             <div class="log-trace">{{ log[3] }}</div>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="4" class="text-center p-4 text-success">✅ No system errors recorded.</td></tr>
+                    <tr><td colspan="4" class="text-center p-5 text-success">✅ System is healthy. No errors recorded.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
-</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,24 +1,169 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Audit Trail</title>
+    <meta charset="UTF-8">
+    <title>Audit Trail | Business Better</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-gold: #c5a059;
+            --bg-dark: #121212;
+            --bg-panel: #1f1f1f;
+            --text-main: #e0e0e0;
+            --border-light: #333;
+        }
+
+        body { 
+            background-color: var(--bg-dark); 
+            color: var(--text-main); 
+            font-family: 'Inter', sans-serif; 
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            color: #ffffff !important;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        /* SIDEBAR */
+        .sidebar { 
+            width: 280px; 
+            height: 100vh; 
+            position: fixed; 
+            background: var(--bg-panel); 
+            padding: 30px; 
+            border-right: 1px solid var(--border-light); 
+        }
+
+        .brand {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+            margin-bottom: 40px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .brand img { height: 35px; width: auto; }
+        .tagline { color: var(--primary-gold); font-weight: 400; }
+
+        .sidebar-btn {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            color: #aaa; 
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            transition: 0.3s;
+            font-weight: 600;
+            border: 1px solid transparent;
+        }
+
+        .sidebar-btn:hover, .sidebar-btn.active {
+            background: rgba(197, 160, 89, 0.1);
+            color: var(--primary-gold);
+            border-color: rgba(197, 160, 89, 0.2);
+        }
+
+        .sidebar-btn i { width: 25px; }
+
+        .content { margin-left: 280px; padding: 50px; }
+
+        /* TABLE STYLES */
+        .card { 
+            background: var(--bg-panel); 
+            border: 1px solid var(--border-light); 
+            border-radius: 12px; 
+            overflow: hidden;
+        }
+        
+        .table-dark { --bs-table-bg: transparent; --bs-table-border-color: var(--border-light); }
+        .table-dark th { 
+            text-transform: uppercase; 
+            font-size: 0.75rem; 
+            color: var(--primary-gold); 
+            letter-spacing: 1px; 
+            padding: 15px; 
+            font-family: 'Montserrat', sans-serif;
+        }
+        .table-dark td { 
+            vertical-align: middle; 
+            color: #e0e0e0; 
+            font-size: 0.9rem; 
+            padding: 15px; 
+        }
+
+        .badge-action {
+            background: rgba(197, 160, 89, 0.15);
+            color: var(--primary-gold);
+            border: 1px solid rgba(197, 160, 89, 0.3);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+    </style>
 </head>
-<body class="bg-light">
-<div class="container mt-4">
-    <div class="d-flex justify-content-between mb-4">
-        <h3>🛡️ Admin Audit Trail</h3>
-        <a href="{{ url_for('admin.super_admin_dashboard') }}" class="btn btn-secondary">Back</a>
+<body>
+
+    <div class="sidebar">
+        <div class="brand">
+            <img src="/static/images/logo.png" alt="DG">
+            <div>DRUGAN <span class="tagline">GROUP</span></div>
+        </div>
+        
+        <div class="d-flex flex-column gap-2">
+            <small class="text-muted text-uppercase mb-2" style="font-size: 0.7rem; letter-spacing: 1px;">Admin Console</small>
+            
+            <a href="/super-admin" class="sidebar-btn">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+            <a href="/super-admin/analytics" class="sidebar-btn">
+                <i class="fas fa-chart-pie"></i> Intelligence
+            </a>
+            
+            <small class="text-muted text-uppercase mb-2 mt-4" style="font-size: 0.7rem; letter-spacing: 1px;">Security & Logs</small>
+
+            <a href="{{ url_for('admin.view_audit_logs') }}" class="sidebar-btn active">
+                <i class="fas fa-shield-alt"></i> Audit Trail
+            </a>
+            <a href="{{ url_for('admin.view_system_logs') }}" class="sidebar-btn">
+                <i class="fas fa-exclamation-triangle"></i> Error Logs
+            </a>
+            
+            <div class="mt-5 pt-4 border-top border-secondary">
+                <a href="/launcher" class="sidebar-btn">
+                    <i class="fas fa-arrow-left"></i> Back to Main
+                </a>
+            </div>
+        </div>
     </div>
 
-    <div class="card shadow-sm">
-        <div class="card-body p-0">
-            <table class="table table-striped mb-0" style="font-size: 0.9rem;">
-                <thead class="bg-dark text-white">
+    <div class="content">
+        <div class="d-flex justify-content-between align-items-end mb-5">
+            <div>
+                <h6 class="text-muted text-uppercase mb-1">Security Centre</h6>
+                <h2 class="fw-bold mb-0 text-white">Audit <span style="color: var(--primary-gold);">Trail</span></h2>
+            </div>
+            <div>
+                <span class="text-muted" style="font-size: 0.9rem;">Tracking all admin actions</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <table class="table table-dark table-hover mb-0">
+                <thead>
                     <tr>
                         <th>Time</th>
-                        <th>Admin</th>
-                        <th>Action</th>
+                        <th>Admin User</th>
+                        <th>Action Type</th>
                         <th>Target</th>
                         <th>IP Address</th>
                     </tr>
@@ -26,14 +171,21 @@
                 <tbody>
                     {% for log in logs %}
                     <tr>
-                        <td>{{ log[6] }}</td> <td><strong>{{ log[1] }}</strong></td> <td><span class="badge bg-primary">{{ log[2] }}</span></td> <td>{{ log[3] }}</td> <td class="text-muted">{{ log[5] }}</td> </tr>
+                        <td class="text-muted" style="font-family: monospace;">{{ log[6].strftime('%d-%b %H:%M') }}</td> <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="fas fa-user-circle text-secondary"></i>
+                                <strong>{{ log[1] }}</strong>
+                            </div>
+                        </td> 
+                        <td><span class="badge-action">{{ log[2] }}</span></td> <td>{{ log[3] }}</td> <td class="text-muted" style="font-family: monospace;">{{ log[5] }}</td> </tr>
                     {% else %}
-                    <tr><td colspan="5" class="text-center p-4">No audit records found.</td></tr>
+                    <tr><td colspan="5" class="text-center p-5 text-muted">No audit records found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
-</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
