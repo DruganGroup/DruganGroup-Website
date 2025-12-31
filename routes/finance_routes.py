@@ -211,19 +211,16 @@ def finance_fleet():
             except Exception as e:
                 conn.rollback(); flash(f"❌ Error: {e}")
 
-    # Fetch Data
     cur.execute("""
         SELECT 
             v.id, v.reg_plate, v.make_model, v.status, 
             v.mot_due, v.tax_due, v.insurance_due,
             s.name as driver_name,
-            COALESCE(SUM(l.cost), 0) as total_spend,
+            (SELECT COALESCE(SUM(cost), 0) FROM maintenance_logs WHERE vehicle_id = v.id) as total_spend,
             v.assigned_driver_id, v.tracker_url, v.service_due
         FROM vehicles v 
         LEFT JOIN staff s ON v.assigned_driver_id = s.id 
-        LEFT JOIN maintenance_logs l ON v.id = l.vehicle_id
         WHERE v.company_id = %s
-        GROUP BY v.id, s.name
         ORDER BY v.reg_plate
     """, (comp_id,))
     

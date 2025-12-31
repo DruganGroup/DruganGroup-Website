@@ -347,9 +347,106 @@ def staff_list():
     conn.close()
     return render_template('office/staff_management.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# --- 9. FLEET MANAGEMENT ---
+# --- 9. FLEET MANAGEMENT (FIXED) ---
 @office_bp.route('/office/fleet', methods=['GET', 'POST'])
 def fleet_list():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+    
+    # --- HANDLE FORM SUBMISSIONS ---
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'add_vehicle':
+            try:
+                cur.execute("""
+                    INSERT INTO vehicles (company_id, reg_plate, make_model, assigned_driver_id, mot_due, tax_due, insurance_due, service_due, tracker_url, daily_cost, status) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')
+                """, (comp_id, request.form.get('reg_number'), request.form.get('make_model'), request.form.get('driver_id') or None, 
+                      request.form.get('mot_expiry'), request.form.get('tax_due'), request.form.get('insurance_due'), 
+                      request.form.get('service_due'), request.form.get('tracker_url'), request.form.get('daily_cost') or 0))
+                conn.commit(); flash(f"✅ Vehicle Added.")
+            except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
+
+        elif action == 'assign_crew':
+            try:
+                cur.execute("DELETE FROM vehicle_crews WHERE vehicle_id = %s", (request.form.get('vehicle_id'),))
+                for s_id in request.form.getlist('crew_ids'):
+                    cur.execute("INSERT INTO vehicle_crews (company_id, vehicle_id, staff_id) VALUES (%s, %s, %s)", (comp_id, request.form.get('vehicle_id'), s_id))
+                conn.commit(); flash("✅ Gang Assigned")
+            except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
+
+        elif action == 'add_log': 
+            try:
+                cur.execute("""
+                    INSERT INTO maintenance_logs (company_id, vehicle_id, type, description, date, cost)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (comp_id, request.form.get('vehicle_id'), request.form.get('log_type'), request.form.get('description'), request.form.get('date'), request.form.get('cost') or 0))
+                conn.commit(); flash("✅ Maintenance Record Added")
+            except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
+                
+        elif action == 'update_defects': 
+            try:
+                cur.execute("UPDATE vehicles SET defect_notes = %s, tracker_url = %s WHERE id = %s", (request.form.get('defect_notes'), request.form.get('tracker_url'), request.form.get('vehicle_id')))
+                conn.commit(); flash("✅ Vehicle Details Updated")
+            except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
+
+    # --- FETCH FLEET DATA (FIXED QUERY) ---
+    # We added 'COALESCE(s.pay_rate, 0)' to the end so row[13] exists
+    cur.execute("""
+        SELECT v.id, v.reg_plate, v.make_model, v.status, v.mot_due, v.tax_due, v.insurance_due, v.service_due, 
+               v.tracker_url, v.defect_notes, s.name, v.assigned_driver_id, 
+               COALESCE(v.daily_cost, 0), 
+               COALESCE(s.pay_rate, 0) 
+        FROM vehicles v 
+        LEFT JOIN staff s ON v.assigned_driver_id = s.id 
+        WHERE v.company_id = %s 
+        ORDER BY v.reg_plate
+    """, (comp_id,))
+    
+    raw_vehicles = cur.fetchall()
+    vehicles = []
+    
+    for row in raw_vehicles:
+        # 1. Fetch Maintenance History
+        cur.execute("SELECT date, type, description, cost FROM maintenance_logs WHERE vehicle_id = %s ORDER BY date DESC", (row[0],))
+        history = [{'date': r[0], 'type': r[1], 'desc': r[2], 'cost': r[3]} for r in cur.fetchall()]
+        
+        # 2. Fetch Crew
+        cur.execute("""
+            SELECT s.id, s.name, s.role, COALESCE(s.pay_rate, 0)
+            FROM vehicle_crews vc
+            JOIN staff s ON vc.staff_id = s.id
+            WHERE vc.vehicle_id = %s
+        """, (row[0],))
+        crew = []
+        crew_total_cost = 0
+        for c in cur.fetchall():
+            crew.append({'name': c[1], 'role': c[2]})
+            crew_total_cost += float(c[3])
+            
+        # 3. Cost Calc (Now safe because row[13] exists)
+        labor_cost = (float(row[13]) + crew_total_cost) * 8 
+        total_day_cost = float(row[12]) + labor_cost
+
+        vehicles.append({
+            'id': row[0], 'reg_number': row[1], 'make_model': row[2], 'status': row[3],
+            'mot_expiry': parse_date(row[4]), 'tax_expiry': parse_date(row[5]),
+            'ins_expiry': parse_date(row[6]), 'service_due': parse_date(row[7]),
+            'tracker_url': row[8], 'defect_notes': row[9], 'driver_name': row[10],
+            'daily_cost': row[12], 'crew': crew, 'history': history,
+            'total_gang_cost': total_day_cost
+        })
+    
+    cur.execute("SELECT id, name, role FROM staff WHERE company_id = %s AND status='Active'", (comp_id,))
+    all_staff = [dict(zip(['id', 'name', 'role'], row)) for row in cur.fetchall()]
+    
+    conn.close()
+    return render_template('office/fleet_management.html', vehicles=vehicles, staff=all_staff, today=date.today(), brand_color=config['color'], logo_url=config['logo'])
+    
     if not check_office_access(): return redirect(url_for('auth.login'))
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
@@ -453,3 +550,22 @@ def get_calendar_data():
 
     conn.close()
     return jsonify(events)
+    
+    # --- SEND RECEIPT (RESTORED) ---
+@office_bp.route('/office/send-receipt/<int:transaction_id>')
+def send_receipt(transaction_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    company_id = session.get('company_id')
+    # In a real app, you would fetch the client email from the transaction
+    user_email = "client@example.com" 
+    
+    subject = f"Receipt for Transaction #{transaction_id}"
+    body = f"<h2>Transaction Receipt</h2><p>This is a confirmation for transaction #{transaction_id}.</p>"
+    
+    success, message = send_company_email(company_id, user_email, subject, body)
+    
+    if success: flash(f"✅ Email sent successfully to {user_email}!")
+    else: flash(f"❌ Email Failed: {message}")
+        
+    return redirect(url_for('office.office_dashboard'))
