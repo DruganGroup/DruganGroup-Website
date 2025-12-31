@@ -17,16 +17,21 @@
             --border-light: #333;
         }
 
+        /* --- GLOBAL VISIBILITY FIXES --- */
         body { 
             background-color: var(--bg-dark); 
             color: var(--text-main); 
             font-family: 'Inter', sans-serif; 
         }
 
-        h1, h2, h3, h4, h5, .brand {
+        h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
+            color: #ffffff !important;
             font-family: 'Montserrat', sans-serif;
         }
-
+        
+        /* Make 'text-muted' readable on dark bg */
+        .text-muted { color: #a0a0a0 !important; }
+        
         /* SIDEBAR */
         .sidebar { 
             width: 280px; 
@@ -55,7 +60,7 @@
             display: flex;
             align-items: center;
             padding: 12px 15px;
-            color: #888;
+            color: #aaa; /* Lighter grey for visibility */
             text-decoration: none;
             border-radius: 8px;
             margin-bottom: 5px;
@@ -74,7 +79,7 @@
 
         .content { margin-left: 280px; padding: 50px; }
 
-        /* GOLD BUTTON */
+        /* BUTTONS */
         .btn-gold {
             background: var(--primary-gold);
             color: #000;
@@ -90,7 +95,6 @@
             transform: translateY(-2px);
         }
 
-        /* SECONDARY BUTTON */
         .btn-outline-gold {
             border: 1px solid var(--primary-gold);
             color: var(--primary-gold);
@@ -105,7 +109,13 @@
             color: #fff;
         }
 
-        .card { background: var(--bg-panel); border: 1px solid var(--border-light); border-radius: 12px; }
+        /* CARD & TABLE FIXES */
+        .card { 
+            background: var(--bg-panel); 
+            border: 1px solid var(--border-light); 
+            border-radius: 12px; 
+            color: #e0e0e0; /* Ensure text inside cards is visible */
+        }
         
         .table-dark { --bs-table-bg: transparent; --bs-table-border-color: var(--border-light); }
         .table-dark th { 
@@ -116,7 +126,12 @@
             padding-bottom: 15px; 
             font-family: 'Montserrat', sans-serif;
         }
-        .table-dark td { vertical-align: middle; color: #ccc; font-size: 0.95rem; padding: 15px 10px; }
+        .table-dark td { 
+            vertical-align: middle; 
+            color: #e0e0e0 !important; /* Force table text to be light grey */
+            font-size: 0.95rem; 
+            padding: 15px 10px; 
+        }
         
         .comp-link { color: #fff; font-weight: 700; font-family: 'Montserrat', sans-serif; }
         .comp-link:hover { color: var(--primary-gold); }
@@ -137,7 +152,7 @@
             width: 32px; height: 32px; 
             display: inline-flex; align-items: center; justify-content: center; 
             border-radius: 6px; 
-            background: #333; color: #888; 
+            background: #333; color: #aaa; 
             margin-left: 5px; transition: 0.2s; 
         }
         .btn-icon:hover { color: #fff; background: #555; }
@@ -145,10 +160,21 @@
         .btn-icon.warning:hover { background: #f39c12; color: black; }
         .btn-icon.info:hover { background: var(--primary-gold); color: black; }
 
+        /* FORM INPUT VISIBILITY FIX */
         .form-control, .form-select, .input-group-text {
             background-color: #121212 !important;
             border-color: #333 !important;
-            color: #fff !important;
+            color: #ffffff !important; /* Force Input text white */
+        }
+        .form-control::placeholder {
+            color: #666 !important; /* Make placeholders visible grey */
+            opacity: 1;
+        }
+        .form-label {
+            color: #ccc !important; /* Make labels visible */
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
     </style>
 </head>
@@ -210,7 +236,7 @@
             {% if messages %}
                 <div class="alert alert-dark border-secondary shadow-lg mb-4 d-flex align-items-center">
                     <i class="fas fa-info-circle me-3" style="color: var(--primary-gold);"></i> 
-                    <div>{{ messages[0] }}</div>
+                    <div style="color: white;">{{ messages[0] }}</div>
                 </div>
             {% endif %}
         {% endwith %}
@@ -238,7 +264,7 @@
                                 </div>
                                 <div>
                                     <a href="/super-admin/company/{{ c.id }}" class="comp-link">{{ c.name }}</a>
-                                    <div style="font-size: 0.75rem; color: #666; font-family: 'Inter';">{{ c.subdomain }}.tradecore.com</div>
+                                    <div style="font-size: 0.75rem; color: #aaa; font-family: 'Inter';">{{ c.subdomain }}.tradecore.com</div>
                                 </div>
                             </div>
                         </td>
@@ -295,15 +321,15 @@
                 <form method="POST">
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label class="form-label text-muted small">COMPANY NAME</label>
+                            <label class="form-label">COMPANY NAME</label>
                             <input type="text" name="company_name" class="form-control" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label text-muted small">OWNER EMAIL</label>
+                            <label class="form-label">OWNER EMAIL</label>
                             <input type="email" name="owner_email" class="form-control" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label text-muted small">PASSWORD</label>
+                            <label class="form-label">PASSWORD</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-magic" style="color: var(--primary-gold);"></i></span>
                                 <input type="text" class="form-control text-muted" value="Auto-generated & Emailed" disabled readonly style="font-style: italic;">
@@ -313,7 +339,7 @@
                             </small>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label text-muted small">SUBSCRIPTION PLAN</label>
+                            <label class="form-label">SUBSCRIPTION PLAN</label>
                             <select name="plan" class="form-select">
                                 <option value="Starter">Starter (Free)</option>
                                 <option value="Professional">Professional (£50/mo)</option>
@@ -342,7 +368,7 @@
                         
                         <h6 class="text-warning mb-3 border-bottom border-secondary pb-2">Global Notifications</h6>
                         <div class="mb-4">
-                            <label class="form-label text-muted small">SYSTEM-WIDE ALERT MESSAGE</label>
+                            <label class="form-label">SYSTEM-WIDE ALERT MESSAGE</label>
                             <input type="text" name="global_alert" class="form-control" placeholder="e.g. System Maintenance Scheduled 10 PM..." value="{{ config.get('global_alert', '') }}">
                             <small class="text-muted">This message will appear on ALL client dashboards.</small>
                         </div>
@@ -350,19 +376,19 @@
                         <h6 class="text-primary mb-3 border-bottom border-secondary pb-2">SMTP Email Settings</h6>
                         <div class="row g-3">
                             <div class="col-md-8">
-                                <label class="form-label text-muted small">SMTP SERVER</label>
+                                <label class="form-label">SMTP SERVER</label>
                                 <input type="text" name="smtp_server" class="form-control" placeholder="smtp.gmail.com" value="{{ config.get('smtp_server', '') }}">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label text-muted small">PORT</label>
+                                <label class="form-label">PORT</label>
                                 <input type="text" name="smtp_port" class="form-control" placeholder="587" value="{{ config.get('smtp_port', '587') }}">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label text-muted small">EMAIL ADDRESS</label>
+                                <label class="form-label">EMAIL ADDRESS</label>
                                 <input type="email" name="smtp_email" class="form-control" placeholder="admin@domain.com" value="{{ config.get('smtp_email', '') }}">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label text-muted small">PASSWORD / APP KEY</label>
+                                <label class="form-label">PASSWORD / APP KEY</label>
                                 <input type="password" name="smtp_password" class="form-control" value="{{ config.get('smtp_password', '') }}">
                             </div>
                         </div>
