@@ -17,15 +17,19 @@
             --border-light: #333;
         }
 
+        /* --- VISIBILITY FIXES --- */
         body { 
             background-color: var(--bg-dark); 
             color: var(--text-main); 
             font-family: 'Inter', sans-serif; 
         }
 
-        h1, h2, h3, h4, h5, .brand {
+        h1, h2, h3, h4, h5, h6 {
+            color: #ffffff !important; /* Force all headings white */
             font-family: 'Montserrat', sans-serif;
         }
+
+        .text-muted { color: #a0a0a0 !important; } /* Make muted text readable */
 
         /* SIDEBAR */
         .sidebar { 
@@ -55,7 +59,7 @@
             display: flex;
             align-items: center;
             padding: 12px 15px;
-            color: #888;
+            color: #aaa; /* Lighter grey */
             text-decoration: none;
             border-radius: 8px;
             margin-bottom: 5px;
@@ -110,7 +114,7 @@
             display: flex; justify-content: space-between; align-items: center;
             padding: 8px 0;
             border-bottom: 1px solid #333;
-            color: #aaa;
+            color: #ccc; /* Lighter text for rows */
             font-size: 0.9rem;
         }
         .stat-row:last-child { border-bottom: none; }
@@ -131,7 +135,15 @@
             text-align: center; padding: 40px;
         }
         .big-stat h1 { font-size: 3.5rem; color: var(--primary-gold); margin: 0; font-weight: 800; }
-        .big-stat p { text-transform: uppercase; color: #666; font-size: 0.8rem; letter-spacing: 2px; margin-top: 10px; }
+        
+        /* FIX FOR INVISIBLE LABELS */
+        .big-stat p { 
+            text-transform: uppercase; 
+            color: #ccc; /* Was #666, now readable */
+            font-size: 0.8rem; 
+            letter-spacing: 2px; 
+            margin-top: 10px; 
+        }
     </style>
 </head>
 <body>
@@ -170,7 +182,7 @@
         <div class="big-stat-grid">
             <div class="admin-card big-stat">
                 <h1>{{ data|length }}</h1>
-                <p>Active Tenants</p>
+                <p>Active Companies</p>
             </div>
             
             <div class="admin-card big-stat">
