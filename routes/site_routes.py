@@ -83,3 +83,10 @@ def view_job(job_id):
         return "Job not found", 404
         
     return render_template('site/job_details.html', job=job)
+    
+    # --- ADVERTISEMENT PAGE ---
+@site_bp.route('/advertise')
+@site_bp.route('/business-better')
+def advertise_page():
+    # No login required for this page
+    return render_template('public/advert-bb.html')
