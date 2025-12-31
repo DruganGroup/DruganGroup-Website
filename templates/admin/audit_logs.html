@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Audit Trail</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container mt-4">
+    <div class="d-flex justify-content-between mb-4">
+        <h3>🛡️ Admin Audit Trail</h3>
+        <a href="{{ url_for('admin.super_admin_dashboard') }}" class="btn btn-secondary">Back</a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-striped mb-0" style="font-size: 0.9rem;">
+                <thead class="bg-dark text-white">
+                    <tr>
+                        <th>Time</th>
+                        <th>Admin</th>
+                        <th>Action</th>
+                        <th>Target</th>
+                        <th>IP Address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log[6] }}</td> <td><strong>{{ log[1] }}</strong></td> <td><span class="badge bg-primary">{{ log[2] }}</span></td> <td>{{ log[3] }}</td> <td class="text-muted">{{ log[5] }}</td> </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center p-4">No audit records found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -14,6 +14,27 @@ from werkzeug.security import generate_password_hash
 
 admin_bp = Blueprint('admin', __name__)
 
+# --- HELPER: RECORD AUDIT LOG ---
+def log_audit(action, target, details=""):
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        email = session.get('user_email', 'Unknown')
+        # Handle proxy headers if on Render/Heroku for real IP
+        if request.headers.getlist("X-Forwarded-For"):
+            ip = request.headers.getlist("X-Forwarded-For")[0]
+        else:
+            ip = request.remote_addr
+            
+        cur.execute("""
+            INSERT INTO audit_logs (admin_email, action, target, details, ip_address)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (email, action, target, details, ip))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Logging Failed: {e}") # Never crash app because of logging
+
 # --- HELPER: CALCULATE REAL DISK USAGE ---
 def get_real_company_usage(company_id, cur):
     total_bytes = 0
@@ -138,6 +159,7 @@ def super_admin_dashboard():
                     server.quit()
                     
                     conn.commit()
+                    log_audit("CREATE COMPANY", comp_name, f"Plan: {plan}, Admin: {owner_email}")
                     flash(f"✅ Success! {comp_name} created. Credentials emailed to {owner_email}.")
                 except Exception as e:
                     conn.commit()
@@ -257,6 +279,8 @@ def reset_user_password():
                 flash(f"✅ Password emailed to {user[1]}")
             else:
                 flash(f"⚠️ Password reset to: {secure_pass} (SMTP Not Configured)")
+            
+            log_audit("RESET PASSWORD", user[1], "Admin reset via dashboard")
             conn.commit()
     except Exception as e: conn.rollback(); flash(f"Error: {e}")
     finally: conn.close()
@@ -278,6 +302,7 @@ def save_system_settings():
         for key, val in settings.items():
             cur.execute("INSERT INTO system_settings (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", (key, val))
         conn.commit(); flash("✅ Settings Saved")
+        log_audit("UPDATE SETTINGS", "System Settings", "Updated SMTP/Alert Config")
     except Exception as e: conn.rollback(); flash(f"Error: {e}")
     finally: conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
@@ -294,8 +319,9 @@ def assign_super_admin(company_id):
 @admin_bp.route('/admin/reset-me')
 def reset_super_admin():
     conn = get_db(); cur = conn.cursor()
-    cur.execute("UPDATE users SET company_id = 1 WHERE id = %s", (session.get('user_id'),))
-    session['company_id'] = 0
+    # Using NULL for unassigned, as per best practice
+    cur.execute("UPDATE users SET company_id = NULL WHERE id = %s", (session.get('user_id'),))
+    session['company_id'] = None
     conn.commit(); conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
 
@@ -304,7 +330,9 @@ def toggle_suspend(company_id):
     if session.get('role') != 'SuperAdmin': return "Access Denied"
     conn = get_db(); cur = conn.cursor()
     cur.execute("UPDATE subscriptions SET status = CASE WHEN status = 'Active' THEN 'Suspended' ELSE 'Active' END WHERE company_id = %s", (company_id,))
-    conn.commit(); conn.close()
+    conn.commit()
+    log_audit("TOGGLE SUSPEND", f"Company ID {company_id}", "Changed subscription status")
+    conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
 
 # --- ROBUST DELETE COMPANY ---
@@ -372,37 +400,21 @@ def delete_tenant(company_id):
         cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
         
         conn.commit()
+        
+        # --- LOG THE ACTION ---
+        log_audit("DELETE COMPANY", f"Company ID {company_id}", "Deleted via Super Admin Dashboard")
+        
         flash("✅ Company and all associated data deleted permanently.")
         
     except Exception as e:
         conn.rollback()
         # This will now show the REAL error instead of "transaction aborted"
         flash(f"❌ Error deleting company: {e}")
-        print(f"DEBUG ERROR: {e}") # Check your Render logs if this happens again
+        print(f"DEBUG ERROR: {e}") 
         
     finally:
         conn.close()
         
-    return redirect(url_for('admin.super_admin_dashboard'))
-    
-    if session.get('role') != 'SuperAdmin': return "Access Denied"
-    conn = get_db(); cur = conn.cursor()
-    try:
-        # 1. Manually delete children first to prevent Foreign Key errors
-        tables = ['jobs', 'quotes', 'invoices', 'staff', 'vehicles', 'clients', 'properties', 'service_requests', 'transactions', 'maintenance_logs', 'settings', 'subscriptions', 'users']
-        for t in tables:
-            try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
-            except: pass # Ignore if table doesn't exist
-            
-        # 2. Finally delete the company
-        cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
-        conn.commit()
-        flash("✅ Company and all associated data deleted permanently.")
-    except Exception as e:
-        conn.rollback()
-        flash(f"❌ Error deleting company: {e}")
-    finally:
-        conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
 
 @admin_bp.route('/admin/backup/all')
@@ -420,6 +432,7 @@ def backup_all_companies():
                 data = perform_company_backup(c_id, cur)
                 zipf.writestr(f"Company_{c_id}.json", json.dumps(data, indent=4, default=str))
         flash(f"✅ Backup Complete")
+        log_audit("MASS BACKUP", "All Data", f"Created {zip_path}")
     except Exception as e: flash(f"Error: {e}")
     finally: conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
@@ -449,7 +462,7 @@ def setup_overheads_db():
     finally: conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
     
-    # --- GLOBAL SEARCH (Find anything, anywhere) ---
+# --- GLOBAL SEARCH (Find anything, anywhere) ---
 @admin_bp.route('/admin/global-search')
 def global_search():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
@@ -614,3 +627,63 @@ def wipe_fleet_data():
         conn.close()
         
     return redirect(url_for('admin.super_admin_dashboard'))
+    
+# --- SETUP: CREATE LOG TABLES ---
+@admin_bp.route('/admin/setup-logs-db')
+def setup_logs_db():
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # 1. Audit Logs (Who did what?)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id SERIAL PRIMARY KEY,
+                admin_email VARCHAR(150),
+                action VARCHAR(100),
+                target VARCHAR(255),
+                details TEXT,
+                ip_address VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        
+        # 2. System Logs (What broke?)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS system_logs (
+                id SERIAL PRIMARY KEY,
+                level VARCHAR(20) DEFAULT 'ERROR',
+                message TEXT,
+                traceback TEXT,
+                route VARCHAR(100),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn.commit()
+        flash("✅ Log Tables Created Successfully")
+    except Exception as e:
+        conn.rollback(); flash(f"❌ Error: {e}")
+    finally:
+        conn.close()
+    return redirect(url_for('admin.super_admin_dashboard'))
+
+# --- VIEW: AUDIT LOGS ---
+@admin_bp.route('/admin/logs/audit')
+def view_audit_logs():
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    conn = get_db(); cur = conn.cursor()
+    # Get last 100 entries
+    cur.execute("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 100")
+    logs = cur.fetchall()
+    conn.close()
+    return render_template('admin/audit_logs.html', logs=logs)
+
+# --- VIEW: SYSTEM ERROR LOGS ---
+@admin_bp.route('/admin/logs/system')
+def view_system_logs():
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    conn = get_db(); cur = conn.cursor()
+    # Get last 50 errors
+    cur.execute("SELECT * FROM system_logs ORDER BY id DESC LIMIT 50")
+    logs = cur.fetchall()
+    conn.close()
+    return render_template('admin/system_logs.html', logs=logs)
