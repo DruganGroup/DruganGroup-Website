@@ -62,7 +62,7 @@ def perform_company_backup(company_id, cur):
         except: pass
     return backup_data
 
-# --- 1. SUPER ADMIN DASHBOARD (UPDATED WITH DATES) ---
+# --- 1. SUPER ADMIN DASHBOARD (Auto-Email & Dates) ---
 @admin_bp.route('/super-admin', methods=['GET', 'POST'])
 def super_admin_dashboard():
     if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
@@ -76,12 +76,11 @@ def super_admin_dashboard():
         owner_email = request.form.get('owner_email')
         plan = request.form.get('plan')
         
-        # 1. GENERATE RANDOM PASSWORD (The new logic)
-        import random, string
+        # 1. GENERATE RANDOM PASSWORD
         chars = string.ascii_letters + string.digits + "!@#$%"
         owner_pass = ''.join(random.choice(chars) for i in range(12))
 
-        # 2. Slug Generation (Same as before)
+        # 2. Slug Generation
         base_slug = re.sub(r'[^a-z0-9-]', '', comp_name.lower().replace(' ', '-'))
         final_slug = base_slug; counter = 1
         while True:
@@ -90,22 +89,63 @@ def super_admin_dashboard():
             final_slug = f"{base_slug}-{counter}"; counter += 1
 
         try:
+            # 3. Insert Data
             cur.execute("INSERT INTO companies (name, contact_email, subdomain) VALUES (%s, %s, %s) RETURNING id", (comp_name, owner_email, final_slug))
             new_id = cur.fetchone()[0]
+            
             cur.execute("INSERT INTO subscriptions (company_id, plan_tier, status, start_date) VALUES (%s, %s, 'Active', CURRENT_DATE)", (new_id, plan))
             
-            # Hash the random password
             secure_pass = generate_password_hash(owner_pass)
             cur.execute("INSERT INTO users (username, password_hash, email, role, company_id) VALUES (%s, %s, %s, 'Admin', %s)", (owner_email, secure_pass, owner_email, new_id))
             cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'brand_color', '#2c3e50')", (new_id,))
             
-            conn.commit()
+            # 4. FETCH SMTP SETTINGS
+            cur.execute("SELECT key, value FROM system_settings")
+            sys_conf = {row[0]: row[1] for row in cur.fetchall()}
             
-            # FLASH THE PASSWORD (So you can see it for now, until email is set up)
-            flash(f"✅ Success! {comp_name} created. Temp Password: {owner_pass}")
-            
-            # TODO: Add your send_email code here once SMTP is live
-            
+            # 5. SEND WELCOME EMAIL
+            if sys_conf.get('smtp_server') and sys_conf.get('smtp_email'):
+                try:
+                    msg = MIMEMultipart()
+                    msg['From'] = sys_conf['smtp_email']
+                    msg['To'] = owner_email
+                    msg['Subject'] = f"Welcome to TradeCore - {comp_name} Setup Complete"
+                    
+                    body = f"""
+                    Welcome to TradeCore!
+                    
+                    Your environment has been successfully deployed.
+                    
+                    DETAILS:
+                    --------------------------------------------------
+                    Company:   {comp_name}
+                    Plan:      {plan}
+                    Login URL: https://www.drugangroup.co.uk/login
+                    --------------------------------------------------
+                    
+                    CREDENTIALS:
+                    Username:  {owner_email}
+                    Password:  {owner_pass}
+                    
+                    Please login immediately and change your password.
+                    """
+                    msg.attach(MIMEText(body, 'plain'))
+                    
+                    server = smtplib.SMTP(sys_conf['smtp_server'], int(sys_conf.get('smtp_port', 587)))
+                    server.starttls()
+                    server.login(sys_conf['smtp_email'], sys_conf['smtp_password'])
+                    server.send_message(msg)
+                    server.quit()
+                    
+                    conn.commit()
+                    flash(f"✅ Success! {comp_name} created. Credentials emailed to {owner_email}.")
+                except Exception as e:
+                    conn.commit()
+                    flash(f"⚠️ Account created, but Email Failed: {e}. Password is: {owner_pass}")
+            else:
+                conn.commit()
+                flash(f"⚠️ Account created, but SMTP not configured. Password is: {owner_pass}")
+
         except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
             
     # --- FETCH DATA WITH DATES ---
@@ -125,23 +165,19 @@ def super_admin_dashboard():
     today = date.today()
 
     for c in raw_companies:
-        # Calculate Next Bill
         created_date = c[5] if c[5] else today
         next_bill = "Unknown"
         
         if created_date:
-            # If created on the 15th, bill is due on the 15th of this month or next
             try:
-                # Logic: Find this month's "Bill Day"
-                this_month_bill = date(today.year, today.month, created_date.day)
-                if today > this_month_bill:
-                    # If we passed it, it's next month
-                    if today.month == 12: next_bill = date(today.year + 1, 1, created_date.day)
-                    else: next_bill = date(today.year, today.month + 1, created_date.day)
+                # Billing Logic
+                if today.day > created_date.day:
+                    month = today.month + 1 if today.month < 12 else 1
+                    year = today.year if today.month < 12 else today.year + 1
+                    next_bill = date(year, month, created_date.day)
                 else:
-                    next_bill = this_month_bill
+                    next_bill = date(today.year, today.month, created_date.day)
             except:
-                # Fallback for end-of-month edge cases (e.g. created on 31st)
                 next_bill = created_date + timedelta(days=30)
 
         real_size_mb = get_real_company_usage(c[0], cur)
@@ -168,79 +204,6 @@ def super_admin_dashboard():
     
     conn.close()
     return render_template('super_admin.html', companies=companies, users=users, config=system_config)
-    
-    if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
-    
-    conn = get_db()
-    cur = conn.cursor()
-    
-    # --- CREATE NEW COMPANY ---
-    if request.method == 'POST':
-        comp_name = request.form.get('company_name')
-        owner_email = request.form.get('owner_email')
-        owner_pass = request.form.get('owner_pass')
-        plan = request.form.get('plan')
-        
-        base_slug = re.sub(r'[^a-z0-9-]', '', comp_name.lower().replace(' ', '-'))
-        final_slug = base_slug; counter = 1
-        while True:
-            cur.execute("SELECT id FROM companies WHERE subdomain = %s", (final_slug,))
-            if not cur.fetchone(): break 
-            final_slug = f"{base_slug}-{counter}"; counter += 1
-
-        try:
-            cur.execute("INSERT INTO companies (name, contact_email, subdomain) VALUES (%s, %s, %s) RETURNING id", (comp_name, owner_email, final_slug))
-            new_id = cur.fetchone()[0]
-            cur.execute("INSERT INTO subscriptions (company_id, plan_tier, status) VALUES (%s, %s, 'Active')", (new_id, plan))
-            secure_pass = generate_password_hash(owner_pass)
-            cur.execute("INSERT INTO users (username, password_hash, email, role, company_id) VALUES (%s, %s, %s, 'Admin', %s)", (owner_email, secure_pass, owner_email, new_id))
-            cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'brand_color', '#2c3e50')", (new_id,))
-            conn.commit(); flash(f"✅ Success! {comp_name} created.")
-        except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
-            
-    # --- FETCH DATA (BULLETPROOF NO-DUPLICATE QUERY) ---
-    # We select the Company, then use Sub-Queries to get exactly 1 Plan and 1 Email per company.
-    cur.execute("""
-        SELECT 
-            c.id, 
-            c.name, 
-            c.subdomain,
-            (SELECT plan_tier FROM subscriptions WHERE company_id = c.id ORDER BY id DESC LIMIT 1) as plan,
-            (SELECT status FROM subscriptions WHERE company_id = c.id ORDER BY id DESC LIMIT 1) as status,
-            (SELECT email FROM users WHERE company_id = c.id AND role = 'Admin' ORDER BY id ASC LIMIT 1) as email
-        FROM companies c
-        ORDER BY c.id DESC
-    """)
-    raw_companies = cur.fetchall()
-    
-    companies = []
-    for c in raw_companies:
-        real_size_mb = get_real_company_usage(c[0], cur)
-        est_bandwidth = round(real_size_mb * 5, 2)
-        
-        # Safe Dictionary Creation
-        companies.append({
-            'id': c[0], 
-            'name': c[1], 
-            'subdomain': c[2],
-            'plan': c[3] if c[3] else 'Basic', 
-            'status': c[4] if c[4] else 'Active', 
-            'email': c[5] if c[5] else 'No Admin',
-            'storage': real_size_mb, 
-            'bandwidth': est_bandwidth
-        })
-    
-    cur.execute("SELECT id, username, role, company_id FROM users WHERE role IN ('SuperAdmin', 'Admin') ORDER BY id ASC")
-    users = cur.fetchall()
-    
-    # Get System Settings for SMTP
-    cur.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)") 
-    conn.commit()
-    cur.execute("SELECT key, value FROM system_settings")
-    system_config = {row[0]: row[1] for row in cur.fetchall()}
-    
-    conn.close()
-    return render_template('super_admin.html', companies=companies, users=users, config=system_config)
 
 # --- 2. ANALYTICS ---
 @admin_bp.route('/super-admin/analytics')
@@ -252,7 +215,7 @@ def super_admin_analytics():
     analytics_data = []
     
     for comp in raw_comps:
-        stat = {'name': comp[1], 'total_rows': 0, 'breakdown': {}}
+        stat = {'name': comp[1], 'id': comp[0], 'total_rows': 0, 'breakdown': {}}
         for t in ['users', 'staff', 'vehicles', 'clients', 'jobs', 'transactions', 'maintenance_logs']:
             try:
                 cur.execute(f"SELECT COUNT(*) FROM {t} WHERE company_id = %s", (comp[0],))
@@ -366,13 +329,6 @@ def delete_tenant(company_id):
     finally:
         conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
-    
-    if session.get('role') != 'SuperAdmin': return "Access Denied"
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
-    conn.commit(); conn.close()
-    flash("✅ Company Deleted")
-    return redirect(url_for('admin.super_admin_dashboard'))
 
 @admin_bp.route('/admin/backup/all')
 def backup_all_companies():
@@ -418,7 +374,7 @@ def setup_overheads_db():
     finally: conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
     
-    # --- 4. COMPANY INSPECTION (Drill Down) ---
+# --- 4. COMPANY INSPECTION (Drill Down) ---
 @admin_bp.route('/super-admin/company/<int:company_id>')
 def company_details(company_id):
     if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
@@ -464,32 +420,26 @@ def company_details(company_id):
     conn.close()
     
     return render_template('admin/company_details.html', company=company, stats=stats, settings=settings)
-    
-    # --- NUKE SUPER ADMIN JUNK DATA ---
+
+# --- 5. NUKE SUPER ADMIN JUNK DATA ---
 @admin_bp.route('/admin/cleanup-my-data')
 def cleanup_super_admin_data():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
     
-    # Double check: Only delete data for the currently logged in company ID (likely ID 1)
     target_id = session.get('company_id')
-    
     conn = get_db(); cur = conn.cursor()
     try:
-        # Delete OPERATIONAL data only. Keep Users, Settings, Company.
         tables = ['jobs', 'quotes', 'invoices', 'quote_items', 'invoice_items', 
                   'staff', 'vehicles', 'vehicle_crews', 'maintenance_logs', 
                   'clients', 'properties', 'service_requests', 'transactions', 'materials']
-        
         for t in tables:
             try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (target_id,))
             except: pass
-            
         conn.commit()
-        flash("✅ Your testing data (Jobs, Staff, Clients, etc.) has been wiped. Admin account remains.")
+        flash("✅ Your testing data has been wiped.")
     except Exception as e:
         conn.rollback()
         flash(f"❌ Error: {e}")
     finally:
         conn.close()
-        
     return redirect(url_for('admin.super_admin_dashboard'))
