@@ -74,9 +74,14 @@ def super_admin_dashboard():
     if request.method == 'POST':
         comp_name = request.form.get('company_name')
         owner_email = request.form.get('owner_email')
-        owner_pass = request.form.get('owner_pass')
         plan = request.form.get('plan')
         
+        # 1. GENERATE RANDOM PASSWORD (The new logic)
+        import random, string
+        chars = string.ascii_letters + string.digits + "!@#$%"
+        owner_pass = ''.join(random.choice(chars) for i in range(12))
+
+        # 2. Slug Generation (Same as before)
         base_slug = re.sub(r'[^a-z0-9-]', '', comp_name.lower().replace(' ', '-'))
         final_slug = base_slug; counter = 1
         while True:
@@ -87,12 +92,20 @@ def super_admin_dashboard():
         try:
             cur.execute("INSERT INTO companies (name, contact_email, subdomain) VALUES (%s, %s, %s) RETURNING id", (comp_name, owner_email, final_slug))
             new_id = cur.fetchone()[0]
-            # Default Start Date = Today
             cur.execute("INSERT INTO subscriptions (company_id, plan_tier, status, start_date) VALUES (%s, %s, 'Active', CURRENT_DATE)", (new_id, plan))
+            
+            # Hash the random password
             secure_pass = generate_password_hash(owner_pass)
             cur.execute("INSERT INTO users (username, password_hash, email, role, company_id) VALUES (%s, %s, %s, 'Admin', %s)", (owner_email, secure_pass, owner_email, new_id))
             cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'brand_color', '#2c3e50')", (new_id,))
-            conn.commit(); flash(f"✅ Success! {comp_name} created.")
+            
+            conn.commit()
+            
+            # FLASH THE PASSWORD (So you can see it for now, until email is set up)
+            flash(f"✅ Success! {comp_name} created. Temp Password: {owner_pass}")
+            
+            # TODO: Add your send_email code here once SMTP is live
+            
         except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
             
     # --- FETCH DATA WITH DATES ---
