@@ -7,6 +7,10 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; z-index:1000;}
+        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; transition: 0.2s; }
+        .sidebar a:hover { background-color: rgba(0,0,0,0.1); }
+        .sidebar a.active { background-color: rgba(255,255,255,0.2); border-left: 5px solid white; }
+
         .content { margin-left: 250px; padding: 30px; }
         
         .vehicle-card { 
@@ -16,10 +20,9 @@
         }
         .vehicle-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.15); }
 
-        /* Date Warning Colors */
         .date-ok { color: #198754; font-weight: 500; }
-        .date-warn { color: #ffc107; font-weight: bold; } /* < 30 Days */
-        .date-danger { color: #dc3545; font-weight: bold; animation: pulse 2s infinite; } /* < 14 Days */
+        .date-warn { color: #ffc107; font-weight: bold; }
+        .date-danger { color: #dc3545; font-weight: bold; animation: pulse 2s infinite; }
         
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
         
@@ -30,11 +33,15 @@
 
 <div class="sidebar">
     <div class="text-center mb-4"><img src="{{ logo_url }}" width="150" style="border-radius:10px;"></div>
-    <a href="/office-hub" class="nav-link text-white p-3"><i class="fas fa-desktop me-2"></i> Overview</a>
-    <a href="/office/service-desk" class="nav-link text-white p-3"><i class="fas fa-tools me-2"></i> Service Desk</a>
-    <a href="/office/staff" class="nav-link text-white p-3"><i class="fas fa-users-cog me-2"></i> Staff Manager</a>
-    <a href="/office/fleet" class="nav-link text-white p-3 active bg-white bg-opacity-25"><i class="fas fa-truck me-2"></i> Fleet & Gangs</a>
-    <a href="/launcher" class="nav-link text-white p-3 mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
+    
+    <a href="/office-hub"><i class="fas fa-desktop me-2"></i> Dashboard</a>
+    <a href="/office/service-desk"><i class="fas fa-tools me-2"></i> Service Desk</a>
+    <a href="/clients"><i class="fas fa-address-book me-2"></i> Client Database</a>
+    <a href="/office/staff"><i class="fas fa-users-cog me-2"></i> Staff Manager</a>
+    <a href="/office/fleet" class="active"><i class="fas fa-truck me-2"></i> Fleet Manager</a>        
+    
+    <a href="/launcher" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
+    <a href="/logout" class="text-warning"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
 </div>
 
 <div class="content">
@@ -117,7 +124,6 @@
                         </ul>
 
                         <div class="tab-content p-4">
-                            
                             <div class="tab-pane fade show active" id="overview{{ v.id }}">
                                 <div class="row g-3">
                                     <div class="col-md-6">
@@ -140,7 +146,7 @@
                                     </div>
                                 </div>
                             </div>
-
+                            
                             <div class="tab-pane fade" id="history{{ v.id }}">
                                 <table class="table table-sm table-striped">
                                     <thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Cost</th></tr></thead>
@@ -229,9 +235,7 @@
                         <div class="col-md-6"><label>Make/Model</label><input type="text" name="make_model" class="form-control" required></div>
                         <div class="col-md-6"><label>Driver</label><select name="driver_id" class="form-select"><option value="">-- None --</option>{% for s in staff %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></div>
                         <div class="col-md-6"><label>Daily Cost (£)</label><input type="number" step="0.01" name="daily_cost" class="form-control"></div>
-                        
                         <div class="col-12"><hr></div>
-                        
                         <div class="col-md-3"><label class="small fw-bold">MOT Due</label><input type="date" name="mot_expiry" class="form-control"></div>
                         <div class="col-md-3"><label class="small fw-bold">Tax Due</label><input type="date" name="tax_due" class="form-control"></div>
                         <div class="col-md-3"><label class="small fw-bold">Insurance Due</label><input type="date" name="insurance_due" class="form-control"></div>
@@ -242,7 +246,6 @@
             </form>
         </div>
     </div>
-
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

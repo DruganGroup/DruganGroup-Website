@@ -6,7 +6,10 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; }
+        .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; z-index: 1000; }
+        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; transition: 0.2s; }
+        .sidebar a:hover { background-color: rgba(0,0,0,0.1); }
+        .sidebar a.active { background-color: rgba(255,255,255,0.2); border-left: 5px solid white; }
         .content { margin-left: 250px; padding: 30px; }
     </style>
 </head>
@@ -14,10 +17,15 @@
 
 <div class="sidebar">
     <div class="text-center mb-4"><img src="{{ logo_url }}" width="150" style="border-radius:10px;"></div>
-    <a href="/office-hub" class="nav-link text-white p-3"><i class="fas fa-desktop me-2"></i> Overview</a>
-    <a href="/office/service-desk" class="nav-link text-white p-3"><i class="fas fa-tools me-2"></i> Service Desk</a>
-    <a href="/office/staff" class="nav-link text-white p-3 active bg-white bg-opacity-25"><i class="fas fa-users me-2"></i> Staff (HR)</a>
-    <a href="/office/fleet" class="nav-link text-white p-3"><i class="fas fa-truck me-2"></i> Fleet</a>
+    
+    <a href="/office-hub"><i class="fas fa-desktop me-2"></i> Dashboard</a>
+    <a href="/office/service-desk"><i class="fas fa-tools me-2"></i> Service Desk</a>
+    <a href="/clients"><i class="fas fa-address-book me-2"></i> Client Database</a>
+    <a href="/office/staff" class="active"><i class="fas fa-users-cog me-2"></i> Staff Manager</a>
+    <a href="/office/fleet"><i class="fas fa-truck me-2"></i> Fleet Manager</a>        
+    
+    <a href="/launcher" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
+    <a href="/logout" class="text-warning"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
 </div>
 
 <div class="content">
@@ -26,7 +34,7 @@
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStaffModal"><i class="fas fa-plus"></i> Add Staff</button>
     </div>
 
-    <div class="card p-3 shadow-sm">
+    <div class="card p-3 shadow-sm border-0 rounded-3">
         <table class="table table-hover align-middle">
             <thead class="table-light">
                 <tr>

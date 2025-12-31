@@ -14,22 +14,26 @@
         .bg-Resolved { background-color: #198754; }
         
         .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; z-index: 1000; }
-        .content { margin-left: 250px; padding: 30px; }
+        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; transition: 0.2s; }
+        .sidebar a:hover { background-color: rgba(0,0,0,0.1); }
+        .sidebar a.active { background-color: rgba(255,255,255,0.2); border-left: 5px solid white; }
 
-        /* Modal Styles */
-        .modal-header { background-color: #f8f9fa; border-bottom: 1px solid #eee; }
+        .content { margin-left: 250px; padding: 30px; }
     </style>
 </head>
 <body>
 
 <div class="sidebar">
-    <div class="text-center mb-4">
-        <img src="{{ logo_url }}" alt="Logo" style="max-width: 150px; border-radius: 10px;">
-    </div>
-    <a href="/office-hub" class="nav-link text-white p-3"><i class="fas fa-desktop me-2"></i> Overview</a>
-    <a href="/office/service-desk" class="nav-link text-white p-3 active bg-white bg-opacity-25"><i class="fas fa-tools me-2"></i> Service Desk</a>
-    <a href="/clients" class="nav-link text-white p-3"><i class="fas fa-users me-2"></i> Clients</a>
-    <a href="/dashboard-menu" class="nav-link text-white p-3 mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
+    <div class="text-center mb-4"><img src="{{ logo_url }}" width="150" style="border-radius:10px;"></div>
+    
+    <a href="/office-hub"><i class="fas fa-desktop me-2"></i> Dashboard</a>
+    <a href="/office/service-desk" class="active"><i class="fas fa-tools me-2"></i> Service Desk</a>
+    <a href="/clients"><i class="fas fa-address-book me-2"></i> Client Database</a>
+    <a href="/office/staff"><i class="fas fa-users-cog me-2"></i> Staff Manager</a>
+    <a href="/office/fleet"><i class="fas fa-truck me-2"></i> Fleet Manager</a>        
+    
+    <a href="/launcher" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
+    <a href="/logout" class="text-warning"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
 </div>
 
 <div class="content">
@@ -44,7 +48,7 @@
       {% endif %}
     {% endwith %}
 
-    <div class="card p-3 shadow-sm">
+    <div class="card p-3 shadow-sm border-0 rounded-3">
         <table class="table table-hover align-middle">
             <thead class="table-light">
                 <tr>
@@ -153,7 +157,6 @@
         document.getElementById('modalRequestID').value = id;
         document.getElementById('modalAddress').value = address;
         document.getElementById('modalIssue').innerText = issue;
-        
         var myModal = new bootstrap.Modal(document.getElementById('dispatchModal'));
         myModal.show();
     }
