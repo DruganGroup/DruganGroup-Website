@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -6,11 +7,21 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        /* --- 🎨 YOUR BRAND SETTINGS --- */
+        :root {
+            /* CHANGE THIS CODE TO YOUR EXACT COMPANY HEX COLOR */
+            --brand-color: #d4af37; 
+            
+            /* Darker version for gradients (don't worry about changing this unless you want to) */
+            --brand-dark: #d35400; 
+        }
+
         body { font-family: 'Segoe UI', sans-serif; overflow-x: hidden; }
         
         /* HERO SECTION */
         .hero-section {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            /* Uses your brand color for the background */
+            background: linear-gradient(135deg, var(--brand-color) 0%, var(--brand-dark) 100%);
             color: white;
             padding: 100px 0;
             position: relative;
@@ -18,16 +29,21 @@
         }
         
         /* Floating Icons Animation */
-        .floating-icon { position: absolute; opacity: 0.1; animation: float 6s ease-in-out infinite; }
+        .floating-icon { position: absolute; opacity: 0.15; color: white; animation: float 6s ease-in-out infinite; }
         @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-20px); } 100% { transform: translateY(0px); } }
         
         .hero-btn {
-            background-color: #ffc107; color: #333; font-weight: bold;
+            background-color: white; color: var(--brand-color); font-weight: bold;
             padding: 15px 40px; border-radius: 50px; text-transform: uppercase;
-            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4); transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0, 0.2); transition: 0.3s;
             text-decoration: none; display: inline-block;
         }
-        .hero-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(255, 193, 7, 0.6); color: #000; }
+        .hero-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0, 0.3); color: var(--brand-dark); }
+
+        .btn-outline-custom {
+            border: 2px solid white; color: white; border-radius: 50px; padding: 12px 30px; font-weight: bold; text-decoration: none; transition: 0.3s;
+        }
+        .btn-outline-custom:hover { background: white; color: var(--brand-color); }
 
         /* FEATURE CARDS */
         .feature-box {
@@ -35,27 +51,27 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.05); text-align: center;
             height: 100%; transition: 0.3s; border-bottom: 5px solid transparent;
         }
-        .feature-box:hover { transform: translateY(-10px); }
-        .feature-box.office:hover { border-color: #1e3c72; }
-        .feature-box.site:hover { border-color: #ffc107; }
+        .feature-box:hover { transform: translateY(-10px); border-color: var(--brand-color); }
         
         .icon-circle {
             width: 80px; height: 80px; line-height: 80px; border-radius: 50%;
             margin: 0 auto 20px auto; font-size: 2rem; color: white;
+            background: linear-gradient(45deg, var(--brand-color), var(--brand-dark));
         }
-        .bg-office { background: linear-gradient(45deg, #1e3c72, #2a5298); }
-        .bg-site { background: linear-gradient(45deg, #ff9966, #ff5e62); }
-        .bg-fleet { background: linear-gradient(45deg, #11998e, #38ef7d); }
 
         /* SPLIT SCREEN VISUAL */
         .split-mockup {
             background: #f8f9fa; border-radius: 20px; overflow: hidden;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.1); border: 1px solid #eee;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2); border: 4px solid white;
         }
         .mockup-header { background: #333; padding: 10px; color: white; font-size: 0.8rem; text-align: center; letter-spacing: 1px; }
 
         /* CTA SECTION */
         .cta-section { background-color: #f8f9fa; padding: 80px 0; }
+        .btn-primary-custom {
+            background-color: var(--brand-color); border: none; color: white;
+        }
+        .btn-primary-custom:hover { background-color: var(--brand-dark); color: white; }
     </style>
 </head>
 <body>
@@ -68,15 +84,15 @@
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-lg-6 mb-5 mb-lg-0">
-                    <span class="badge bg-white text-primary fw-bold px-3 py-2 rounded-pill mb-3">NEW PLATFORM</span>
-                    <h1 class="display-3 fw-bold mb-4">Run Your Trade Business. <span style="color:#ffc107;">Better.</span></h1>
-                    <p class="lead mb-5 opacity-75">
+                    <span class="badge bg-white text-dark fw-bold px-3 py-2 rounded-pill mb-3">NEW PLATFORM</span>
+                    <h1 class="display-3 fw-bold mb-4">Run Your Trade Business. <span style="text-decoration: underline; text-decoration-color: rgba(255,255,255,0.5);">Better.</span></h1>
+                    <p class="lead mb-5 opacity-90">
                         <strong>BusinessBetter</strong> is the all-in-one command center that connects your Office to your Site. 
                         Stop chasing paper, simplify your fleet, and get paid faster.
                     </p>
                     <div class="d-flex gap-3 justify-content-center justify-content-lg-start">
                         <a href="#" class="hero-btn">Request Early Access</a>
-                        <a href="#" class="btn btn-outline-light rounded-pill px-4 py-3 fw-bold">Watch Video</a>
+                        <a href="#" class="btn-outline-custom">Watch Video</a>
                     </div>
                 </div>
                 
@@ -87,7 +103,7 @@
                                 <div class="mockup-header">OFFICE HUB</div>
                                 <div class="p-4 bg-white" style="height: 300px;">
                                     <div class="d-flex align-items-center mb-3">
-                                        <div style="width: 40px; height: 40px; background: #1e3c72; border-radius: 8px;"></div>
+                                        <div style="width: 40px; height: 40px; background: var(--brand-color); border-radius: 8px;"></div>
                                         <div class="ms-2" style="width: 100px; height: 10px; background: #eee; border-radius: 4px;"></div>
                                     </div>
                                     <div class="mb-2" style="height: 80px; background: #f4f6f9; border-radius: 8px; border-left: 4px solid #2ecc71;"></div>
@@ -96,14 +112,14 @@
                                 </div>
                             </div>
                             <div class="col-6">
-                                <div class="mockup-header" style="background:#ff9966;">SITE COMPANION</div>
+                                <div class="mockup-header" style="background:#555;">SITE COMPANION</div>
                                 <div class="p-4 bg-light" style="height: 300px; text-align: center;">
                                     <div class="bg-white p-2 shadow-sm rounded mb-3 d-inline-block">
                                         <i class="fas fa-mobile-alt fa-3x text-dark"></i>
                                     </div>
                                     <div class="d-grid gap-2">
-                                        <div class="btn btn-warning btn-sm text-start fw-bold text-dark"><i class="fas fa-hard-hat me-2"></i> My Jobs</div>
-                                        <div class="btn btn-success btn-sm text-start fw-bold text-white"><i class="fas fa-truck me-2"></i> Van Check</div>
+                                        <div class="btn btn-sm text-start fw-bold text-white" style="background: var(--brand-color);"><i class="fas fa-hard-hat me-2"></i> My Jobs</div>
+                                        <div class="btn btn-dark btn-sm text-start fw-bold text-white"><i class="fas fa-truck me-2"></i> Van Check</div>
                                     </div>
                                     <small class="text-muted fw-bold d-block mt-4"><i class="fas fa-wifi me-1"></i> Live Sync</small>
                                 </div>
@@ -118,30 +134,30 @@
     <section class="py-5">
         <div class="container py-5">
             <div class="text-center mb-5">
-                <h5 class="text-primary fw-bold text-uppercase">One System. Total Control.</h5>
+                <h5 class="fw-bold text-uppercase" style="color: var(--brand-color);">One System. Total Control.</h5>
                 <h2 class="fw-bold">Everything you need to grow</h2>
             </div>
 
             <div class="row g-4">
                 <div class="col-md-4">
-                    <div class="feature-box office">
-                        <div class="icon-circle bg-office"><i class="fas fa-file-invoice-dollar"></i></div>
+                    <div class="feature-box">
+                        <div class="icon-circle"><i class="fas fa-file-invoice-dollar"></i></div>
                         <h4>Smart Quoting</h4>
                         <p class="text-muted">Create professional branded quotes in seconds. Convert them to live jobs and invoices with a single click.</p>
                     </div>
                 </div>
 
                 <div class="col-md-4">
-                    <div class="feature-box site">
-                        <div class="icon-circle bg-site"><i class="fas fa-mobile-screen"></i></div>
+                    <div class="feature-box">
+                        <div class="icon-circle"><i class="fas fa-mobile-screen"></i></div>
                         <h4>Site Companion App</h4>
                         <p class="text-muted">Give your engineers the power to see jobs, navigate to sites, and upload completion photos from their pocket.</p>
                     </div>
                 </div>
 
                 <div class="col-md-4">
-                    <div class="feature-box fleet">
-                        <div class="icon-circle bg-fleet"><i class="fas fa-truck-moving"></i></div>
+                    <div class="feature-box">
+                        <div class="icon-circle"><i class="fas fa-truck-moving"></i></div>
                         <h4>Fleet Command</h4>
                         <p class="text-muted">Never miss an MOT or Service. Track daily van checks, handle defects, and manage vehicle safety compliance.</p>
                     </div>
@@ -154,7 +170,7 @@
         <div class="container">
             <h2 class="fw-bold mb-4">Ready to make Business Better?</h2>
             <p class="lead text-muted mb-5">Join the platform built by tradespeople, for tradespeople.</p>
-            <a href="#" class="btn btn-primary btn-lg rounded-pill px-5 py-3 fw-bold shadow">Get Started Today</a>
+            <a href="#" class="btn btn-primary-custom btn-lg rounded-pill px-5 py-3 fw-bold shadow">Get Started Today</a>
         </div>
     </section>
 
