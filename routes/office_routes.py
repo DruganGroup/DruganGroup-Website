@@ -5,7 +5,7 @@ from datetime import datetime, date
 
 office_bp = Blueprint('office', __name__)
 
-# Allowed roles for Office Hub
+# Allowed roles for Office Hub (STRICT - Does NOT include Site Manager)
 ALLOWED_OFFICE_ROLES = ['Admin', 'SuperAdmin', 'Office']
 
 # --- HELPER: CHECK PERMISSION ---
@@ -28,6 +28,7 @@ def parse_date(d):
 @office_bp.route('/office-hub')
 @office_bp.route('/office-hub.html')
 def office_dashboard():
+    # Strict check: Site Managers cannot see this dashboard
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     company_id = session.get('company_id')
@@ -64,7 +65,7 @@ def office_dashboard():
     cur.execute("SELECT id, date, type, category, description, amount, reference FROM transactions WHERE company_id = %s ORDER BY date DESC LIMIT 10", (company_id,))
     transactions = cur.fetchall()
 
-    # 4. Recent Quotes (Added this so they appear on the dashboard)
+    # 4. Recent Quotes (ADDED THIS SECTION)
     cur.execute("""
         SELECT q.id, c.name, q.reference, q.date, q.total, q.status 
         FROM quotes q LEFT JOIN clients c ON q.client_id = c.id
@@ -82,10 +83,12 @@ def office_dashboard():
                            brand_color=config['color'], 
                            logo_url=config['logo'])
 
-# --- CREATE QUOTE (NEW ADDITION) ---
+# --- CREATE QUOTE (UPDATED WITH SMART CLIENT & PERMISSIONS) ---
 @office_bp.route('/office/quote/new', methods=['GET', 'POST'])
 def create_quote():
-    if not check_office_access(): return redirect(url_for('auth.login'))
+    # PERMISSION FIX: Allow Site Managers just for this route
+    allowed_roles = ['Admin', 'SuperAdmin', 'Office', 'Site Manager']
+    if session.get('role') not in allowed_roles: return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
@@ -96,16 +99,38 @@ def create_quote():
     settings_rows = cur.fetchall()
     settings = {row[0]: row[1] for row in settings_rows}
 
-    # Calculate Tax Rate (Default 0.20 if registered, else 0)
+    # Calculate Tax Rate
     if settings.get('vat_registered', 'no') == 'yes':
-        # Default to 20 if tax_rate is missing, divide by 100 for math (20 -> 0.20)
         tax_rate = float(settings.get('tax_rate', '20')) / 100
     else:
         tax_rate = 0.0
 
     if request.method == 'POST':
         try:
-            client_id = request.form.get('client_id')
+            # --- SMART CLIENT LOGIC START ---
+            client_mode = request.form.get('client_mode')
+            client_id = None
+
+            if client_mode == 'existing':
+                client_id = request.form.get('existing_client_id')
+            elif client_mode == 'new':
+                # Create Client Instantly
+                new_name = request.form.get('new_client_name')
+                new_email = request.form.get('new_client_email')
+                new_address = request.form.get('new_client_address')
+                cur.execute("""
+                    INSERT INTO clients (company_id, name, email, address, status) 
+                    VALUES (%s, %s, %s, %s, 'Active') RETURNING id
+                """, (comp_id, new_name, new_email, new_address))
+                client_id = cur.fetchone()[0]
+
+            if not client_id: 
+                # Fallback to standard dropdown if JS failed
+                client_id = request.form.get('client_id') 
+
+            if not client_id: raise Exception("No client selected.")
+            # --- SMART CLIENT LOGIC END ---
+            
             ref = request.form.get('reference')
             notes = request.form.get('notes')
             
@@ -149,7 +174,6 @@ def create_quote():
         except Exception as e: conn.rollback(); flash(f"Error: {e}")
             
     # GET Request: Prepare Form
-    # Generate Reference (e.g., Q-1001)
     cur.execute("SELECT COUNT(*) FROM quotes WHERE company_id = %s", (comp_id,))
     count = cur.fetchone()[0]
     new_ref = f"Q-{1000 + count + 1}"
@@ -163,7 +187,7 @@ def create_quote():
                            clients=clients, 
                            new_ref=new_ref, 
                            today=date.today(), 
-                           tax_rate=tax_rate, # Pass calculated rate to JS
+                           tax_rate=tax_rate, 
                            settings=settings,
                            brand_color=config['color'], 
                            logo_url=config['logo'])
@@ -424,10 +448,12 @@ def send_receipt(transaction_id):
         
     return redirect(url_for('office.office_dashboard'))
     
-# --- 3. VIEW QUOTE (Handles Dashboard & PDF Generation) ---
+# --- 3. VIEW QUOTE (UPDATED PERMISSIONS) ---
 @office_bp.route('/office/quote/<int:quote_id>')
 def view_quote(quote_id):
-    if not session.get('user_id'): return redirect(url_for('auth.login'))
+    # PERMISSION FIX: Allow Site Managers just for this route
+    allowed_roles = ['Admin', 'SuperAdmin', 'Office', 'Site Manager']
+    if session.get('role') not in allowed_roles: return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
     config = get_site_config(comp_id) # Gets logo & color
