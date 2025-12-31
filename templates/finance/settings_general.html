@@ -2,9 +2,11 @@
 
 {% block settings_content %}
 <form method="POST" enctype="multipart/form-data">
-    <div class="row g-4">
+    
+    <div class="row g-4 mb-4">
+        
         <div class="col-md-8">
-            <div class="card p-4 h-100">
+            <div class="card p-4 h-100 shadow-sm">
                 <h5 class="fw-bold text-secondary mb-4">Business Profile</h5>
                 <div class="row g-3">
                     <div class="col-md-6">
@@ -32,27 +34,32 @@
         </div>
 
         <div class="col-md-4">
-            <div class="card p-4 mb-4 bg-light border-0">
-                <h5 class="fw-bold text-secondary mb-3">Branding</h5>
+            <div class="card p-4 h-100 shadow-sm border-0 bg-light">
+                <h5 class="fw-bold text-secondary mb-3">Visual Branding</h5>
                 <div class="mb-3">
-                    <label class="form-label text-muted small fw-bold">Brand Color (Theme)</label>
+                    <label class="form-label text-muted small fw-bold">Brand Color</label>
                     <input type="color" name="brand_color" class="form-control form-control-color w-100" value="{{ settings.get('brand_color', '#2c3e50') }}">
                 </div>
                 <div class="mb-2">
                     <label class="form-label text-muted small fw-bold">Company Logo</label>
                     <input type="file" name="logo" class="form-control mb-2">
                     {% if logo_url %}
-                        <div class="p-2 bg-white border rounded text-center">
+                        <div class="p-2 bg-white border rounded text-center d-inline-block">
                             <img src="{{ logo_url }}" style="max-width: 80px; height: auto;">
-                            <div class="small text-muted mt-1">Current Logo</div>
+                            <div class="small text-muted mt-1">Current</div>
                         </div>
                     {% endif %}
                 </div>
             </div>
+        </div>
+    </div>
 
-            <div class="card p-4 border-0 shadow-sm">
+    <div class="row g-4">
+        
+        <div class="col-md-6">
+            <div class="card p-4 h-100 shadow-sm border-0">
                 <h5 class="fw-bold text-secondary mb-3">Email System (SMTP)</h5>
-                <p class="small text-muted mb-2">Used to send Quotes & Invoices.</p>
+                <p class="small text-muted mb-3">Required to send quotes to clients.</p>
                 
                 <div class="mb-2">
                     <label class="form-label text-muted small fw-bold">SMTP Host</label>
@@ -74,10 +81,48 @@
                 </div>
             </div>
         </div>
-        
-        <div class="col-12 text-end">
-            <button type="submit" class="btn btn-primary fw-bold px-4"><i class="fas fa-save me-2"></i> Save Profile & Email</button>
+
+        <div class="col-md-6">
+            <div class="card p-4 h-100 shadow-sm border-0">
+                <h5 class="fw-bold text-secondary mb-3">Quote & Invoice Style</h5>
+                <p class="small text-muted mb-3">Choose the layout for your PDFs.</p>
+                
+                <div class="d-flex flex-column gap-2">
+                    <div class="form-check p-2 border rounded bg-white">
+                        <input class="form-check-input ms-1" type="radio" name="quote_template" id="tpl_modern" value="modern" 
+                               {% if settings.get('quote_template', 'modern') == 'modern' %}checked{% endif %}>
+                        <label class="form-check-label ms-2 w-100" for="tpl_modern" style="cursor:pointer;">
+                            <strong class="text-dark">Modern (Default)</strong>
+                            <div class="text-muted small" style="font-size: 0.75rem;">Clean, minimalist, left-aligned.</div>
+                        </label>
+                    </div>
+
+                    <div class="form-check p-2 border rounded bg-white">
+                        <input class="form-check-input ms-1" type="radio" name="quote_template" id="tpl_classic" value="classic" 
+                               {% if settings.get('quote_template') == 'classic' %}checked{% endif %}>
+                        <label class="form-check-label ms-2 w-100" for="tpl_classic" style="cursor:pointer;">
+                            <strong class="text-dark">Classic / Formal</strong>
+                            <div class="text-muted small" style="font-size: 0.75rem;">Boxed layout, serif font, traditional.</div>
+                        </label>
+                    </div>
+
+                    <div class="form-check p-2 border rounded bg-white">
+                        <input class="form-check-input ms-1" type="radio" name="quote_template" id="tpl_bold" value="bold" 
+                               {% if settings.get('quote_template') == 'bold' %}checked{% endif %}>
+                        <label class="form-check-label ms-2 w-100" for="tpl_bold" style="cursor:pointer;">
+                            <strong class="text-dark">Bold / Industrial</strong>
+                            <div class="text-muted small" style="font-size: 0.75rem;">High contrast headers using brand color.</div>
+                        </label>
+                    </div>
+                </div>
+            </div>
         </div>
+        
     </div>
+
+    <div class="text-end mt-4">
+        <button type="submit" class="btn btn-primary fw-bold px-5 py-2"><i class="fas fa-save me-2"></i> Save Settings</button>
+    </div>
+
 </form>
 {% endblock %}
