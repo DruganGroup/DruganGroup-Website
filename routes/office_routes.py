@@ -307,3 +307,49 @@ def send_receipt(transaction_id):
     else: flash(f"❌ Email Failed: {message}")
         
     return redirect(url_for('office.office_dashboard'))
+    
+    # --- 3. VIEW QUOTE (Handles Dashboard & PDF Generation) ---
+@office_bp.route('/office/quote/<int:quote_id>')
+def view_quote(quote_id):
+    if not session.get('user_id'): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id) # Gets logo & color
+    conn = get_db(); cur = conn.cursor()
+
+    # 1. Fetch Quote Header
+    cur.execute("""
+        SELECT q.id, c.name, c.address, c.email, q.reference, q.date, q.status, 
+               q.subtotal, q.tax, q.total, q.notes
+        FROM quotes q 
+        JOIN clients c ON q.client_id = c.id
+        WHERE q.id = %s AND q.company_id = %s
+    """, (quote_id, comp_id))
+    quote = cur.fetchone()
+
+    if not quote:
+        return "Quote not found or access denied", 404
+
+    # 2. Fetch Line Items
+    cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
+    items = cur.fetchall()
+
+    # 3. Fetch Company Settings (To know which Template Style to use)
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    
+    # Merge basic config (logo/color) into settings for easier access in template
+    settings['brand_color'] = config['color']
+    settings['logo_url'] = config['logo']
+
+    conn.close()
+
+    # 4. Mode Switch: Are we viewing the Dashboard Wrapper or the raw PDF?
+    mode = request.args.get('mode')
+    
+    if mode == 'pdf':
+        # Render the actual document (Print View)
+        return render_template('office/pdf_quote.html', quote=quote, items=items, settings=settings)
+    else:
+        # Render the Dashboard Wrapper (Buttons + Iframe)
+        return render_template('office/view_quote_dashboard.html', quote=quote, settings=settings)

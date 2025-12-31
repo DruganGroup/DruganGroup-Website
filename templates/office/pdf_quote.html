@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quote {{ quote[4] }}</title>
+    <style>
+        /* --- DYNAMIC BRANDING --- */
+        :root {
+            --brand-color: {{ settings.get('brand_color', '#333') }};
+        }
+
+        body { margin: 0; padding: 0; color: #333; font-size: 14px; -webkit-print-color-adjust: exact; }
+        .page-container { padding: 40px; max-width: 800px; margin: 0 auto; }
+        
+        /* =========================================
+           THEME 1: MODERN (Default) 
+           Minimalist, Left Aligned, Clean Lines
+           ========================================= */
+        .theme-modern { font-family: 'Helvetica', 'Arial', sans-serif; }
+        .theme-modern .header { display: flex; justify-content: space-between; margin-bottom: 50px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
+        .theme-modern .logo-box img { max-height: 80px; }
+        .theme-modern .company-details { text-align: right; color: #555; font-size: 0.9rem; }
+        .theme-modern .company-details strong { color: var(--brand-color); font-size: 1.1rem; }
+        .theme-modern .doc-title h1 { color: var(--brand-color); text-transform: uppercase; margin: 0; font-size: 2.5rem; }
+        .theme-modern .client-box { background: #f9f9f9; border-left: 5px solid var(--brand-color); padding: 15px; margin: 30px 0; width: 50%; }
+        .theme-modern table th { background-color: var(--brand-color); color: white; padding: 10px; text-transform: uppercase; font-size: 0.8rem; }
+
+        /* =========================================
+           THEME 2: CLASSIC 
+           Serif Font, Centered Header, Boxed
+           ========================================= */
+        .theme-classic { font-family: 'Times New Roman', serif; }
+        .theme-classic .header { text-align: center; margin-bottom: 40px; border-bottom: 1px double #ccc; padding-bottom: 20px; }
+        .theme-classic .logo-box { margin-bottom: 15px; }
+        .theme-classic .company-details { font-size: 1rem; color: #000; }
+        .theme-classic .doc-title { text-align: center; margin-bottom: 30px; }
+        .theme-classic .doc-title h1 { border: 2px solid #000; display: inline-block; padding: 10px 40px; text-transform: uppercase; letter-spacing: 2px; }
+        .theme-classic .client-box { border: 1px solid #ccc; padding: 20px; width: 60%; margin: 0 auto 30px auto; text-align: center; }
+        .theme-classic table th { background-color: #eee; color: #000; border-bottom: 2px solid #000; font-weight: bold; padding: 8px; }
+        .theme-classic .grand-total { border: 3px double #000; padding: 10px; }
+
+        /* =========================================
+           THEME 3: BOLD 
+           Full Width Header, White Text, High Contrast
+           ========================================= */
+        .theme-bold { font-family: 'Verdana', sans-serif; }
+        .theme-bold .header-bg { background-color: var(--brand-color); padding: 40px; color: white; display: flex; justify-content: space-between; align-items: center; margin: -40px -40px 40px -40px; }
+        .theme-bold .company-details { text-align: right; color: white; }
+        .theme-bold .company-details strong { font-size: 1.4rem; }
+        .theme-bold .doc-title h1 { color: #000; font-size: 3rem; font-weight: 900; opacity: 0.1; position: absolute; top: 20px; right: 40px; }
+        .theme-bold .client-box { border-top: 4px solid var(--brand-color); padding-top: 10px; margin-bottom: 40px; }
+        .theme-bold table th { border-bottom: 3px solid var(--brand-color); color: var(--brand-color); padding: 12px; text-align: left; font-weight: bold; }
+        .theme-bold .grand-total { background-color: var(--brand-color); color: white; padding: 15px; text-align: center; border-radius: 5px; }
+
+        /* --- SHARED TABLE STYLES --- */
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        td { padding: 12px; border-bottom: 1px solid #ddd; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        
+        .totals-area { width: 40%; margin-left: auto; }
+        .totals-row { display: flex; justify-content: space-between; padding: 5px 0; }
+        .grand-total { font-weight: bold; font-size: 1.2rem; margin-top: 10px; }
+
+        .footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 0.8rem; color: #777; text-align: center; }
+    </style>
+</head>
+<body class="theme-{{ settings.get('quote_template', 'modern') }}">
+
+    <div class="page-container">
+        
+        {% if settings.get('quote_template') == 'bold' %}
+            <div class="header-bg">
+                <div class="logo-box">
+                    {% if settings.logo_url %}<img src="{{ settings.logo_url }}" style="background:white; padding:5px; border-radius:4px;">{% else %}<h2>{{ settings.get('company_name') }}</h2>{% endif %}
+                </div>
+                <div class="company-details">
+                    <strong>{{ settings.get('company_name') }}</strong><br>
+                    {{ settings.get('company_email') }} | {{ settings.get('company_phone') }}<br>
+                    {{ settings.get('company_website') }}
+                </div>
+            </div>
+        {% else %}
+            <div class="header">
+                <div class="logo-box">
+                    {% if settings.logo_url %}<img src="{{ settings.logo_url }}">{% else %}<h2>{{ settings.get('company_name') }}</h2>{% endif %}
+                </div>
+                <div class="company-details">
+                    <strong>{{ settings.get('company_name') }}</strong><br>
+                    {{ settings.get('company_address') }}<br>
+                    {{ settings.get('company_email') }}<br>
+                    {% if settings.get('tax_id') %}VAT/Tax ID: {{ settings.tax_id }}{% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="doc-title">
+            <h1>Quote</h1>
+            <p><strong>Ref:</strong> {{ quote[4] }} &nbsp;|&nbsp; <strong>Date:</strong> {{ quote[5] }}</p>
+        </div>
+
+        <div class="client-box">
+            <small style="text-transform:uppercase; color:#888; font-weight:bold;">Prepared For:</small><br>
+            <strong style="font-size:1.1rem;">{{ quote[1] }}</strong><br>
+            {{ quote[2] }}<br>
+            {{ quote[3] }}
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th width="50%">Description</th>
+                    <th width="10%" class="text-center">Qty</th>
+                    <th width="20%" class="text-right">Unit Price</th>
+                    <th width="20%" class="text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item[0] }}</td>
+                    <td class="text-center">{{ item[1]|int }}</td>
+                    <td class="text-right">{{ settings.get('currency_symbol', '£') }}{{ "%.2f"|format(item[2]) }}</td>
+                    <td class="text-right">{{ settings.get('currency_symbol', '£') }}{{ "%.2f"|format(item[3]) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="totals-area">
+            <div class="totals-row">
+                <span>Subtotal:</span>
+                <span>{{ settings.get('currency_symbol', '£') }}{{ "%.2f"|format(quote[7]) }}</span>
+            </div>
+            {% if quote[8] > 0 %}
+            <div class="totals-row">
+                <span>Tax / VAT:</span>
+                <span>{{ settings.get('currency_symbol', '£') }}{{ "%.2f"|format(quote[8]) }}</span>
+            </div>
+            {% endif %}
+            <div class="totals-row grand-total">
+                <span>Total Due:</span>
+                <span>{{ settings.get('currency_symbol', '£') }}{{ "%.2f"|format(quote[9]) }}</span>
+            </div>
+        </div>
+
+        <div class="footer">
+            <strong>Payment Terms:</strong> {{ settings.get('payment_terms', 'Due on receipt.') }}<br>
+            {{ settings.get('quote_footer', 'Thank you for your business!') }}<br><br>
+            {% if settings.get('bank_name') %}
+                <div style="border-top:1px dashed #ccc; display:inline-block; padding-top:10px; margin-top:10px;">
+                    <strong>Bank:</strong> {{ settings.bank_name }} | 
+                    <strong>Acct:</strong> {{ settings.account_number }} | 
+                    <strong>Sort:</strong> {{ settings.sort_code }}
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+</body>
+</html>
