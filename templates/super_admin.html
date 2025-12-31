@@ -27,7 +27,7 @@
             font-family: 'Montserrat', sans-serif;
         }
 
-        /* SIDEBAR MATCHING ANALYTICS */
+        /* SIDEBAR */
         .sidebar { 
             width: 280px; 
             height: 100vh; 
@@ -90,6 +90,21 @@
             transform: translateY(-2px);
         }
 
+        /* SECONDARY BUTTON */
+        .btn-outline-gold {
+            border: 1px solid var(--primary-gold);
+            color: var(--primary-gold);
+            font-weight: 600;
+            padding: 10px 25px;
+            border-radius: 5px;
+            background: transparent;
+            transition: 0.3s;
+        }
+        .btn-outline-gold:hover {
+            background: rgba(197, 160, 89, 0.1);
+            color: #fff;
+        }
+
         .card { background: var(--bg-panel); border: 1px solid var(--border-light); border-radius: 12px; }
         
         .table-dark { --bs-table-bg: transparent; --bs-table-border-color: var(--border-light); }
@@ -106,7 +121,6 @@
         .comp-link { color: #fff; font-weight: 700; font-family: 'Montserrat', sans-serif; }
         .comp-link:hover { color: var(--primary-gold); }
 
-        /* VISIBLE PLAN BADGE */
         .badge-plan { 
             background-color: var(--primary-gold); 
             color: #000; 
@@ -178,11 +192,18 @@
         <div class="d-flex justify-content-between align-items-end mb-5">
             <div>
                 <h6 class="text-muted text-uppercase mb-1">Super Admin</h6>
-                <h2 class="fw-bold mb-0 text-white">Tenant <span style="color: var(--primary-gold);">Management</span></h2>
+                <h2 class="fw-bold mb-0 text-white">Company <span style="color: var(--primary-gold);">Management</span></h2>
             </div>
-            <button class="btn-gold" data-bs-toggle="modal" data-bs-target="#newCompanyModal">
-                <i class="fas fa-plus me-2"></i> New Tenant
-            </button>
+            
+            <div class="d-flex gap-2">
+                <button class="btn-outline-gold" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                    <i class="fas fa-cogs me-2"></i> System Settings
+                </button>
+                
+                <button class="btn-gold" data-bs-toggle="modal" data-bs-target="#newCompanyModal">
+                    <i class="fas fa-plus me-2"></i> New Company
+                </button>
+            </div>
         </div>
 
         {% with messages = get_flashed_messages() %}
@@ -246,7 +267,7 @@
                             <a href="/admin/assign-me/{{ c.id }}" class="btn-icon info" title="Login as Owner">
                                 <i class="fas fa-user-secret"></i>
                             </a>
-                            <a href="/admin/delete-tenant/{{ c.id }}" class="btn-icon danger" title="Delete Tenant" onclick="return confirm('⚠️ DANGER: Permanently delete {{ c.name }}? This cannot be undone.');">
+                            <a href="/admin/delete-tenant/{{ c.id }}" class="btn-icon danger" title="Delete Company" onclick="return confirm('⚠️ DANGER: Permanently delete {{ c.name }}? This cannot be undone.');">
                                 <i class="fas fa-trash"></i>
                             </a>
                         </td>
@@ -254,7 +275,7 @@
                     {% else %}
                     <tr>
                         <td colspan="6" class="text-center py-5 text-muted">
-                            No tenants found.
+                            No companies found.
                         </td>
                     </tr>
                     {% endfor %}
@@ -268,7 +289,7 @@
         <div class="modal-dialog">
             <div class="modal-content" style="background: #1f1f1f; color: white; border: 1px solid #333;">
                 <div class="modal-header border-secondary">
-                    <h5 class="modal-title" style="font-family: 'Montserrat'; font-weight: 700;">Deploy New Tenant</h5>
+                    <h5 class="modal-title" style="font-family: 'Montserrat'; font-weight: 700;">Deploy New Company</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST">
@@ -303,6 +324,53 @@
                     <div class="modal-footer border-secondary">
                         <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn-gold">Deploy System</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="settingsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" style="background: #1f1f1f; color: white; border: 1px solid #333;">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title" style="font-family: 'Montserrat'; font-weight: 700;">System Configuration</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="/admin/settings" method="POST">
+                    <div class="modal-body">
+                        
+                        <h6 class="text-warning mb-3 border-bottom border-secondary pb-2">Global Notifications</h6>
+                        <div class="mb-4">
+                            <label class="form-label text-muted small">SYSTEM-WIDE ALERT MESSAGE</label>
+                            <input type="text" name="global_alert" class="form-control" placeholder="e.g. System Maintenance Scheduled 10 PM..." value="{{ config.get('global_alert', '') }}">
+                            <small class="text-muted">This message will appear on ALL client dashboards.</small>
+                        </div>
+
+                        <h6 class="text-primary mb-3 border-bottom border-secondary pb-2">SMTP Email Settings</h6>
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label text-muted small">SMTP SERVER</label>
+                                <input type="text" name="smtp_server" class="form-control" placeholder="smtp.gmail.com" value="{{ config.get('smtp_server', '') }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label text-muted small">PORT</label>
+                                <input type="text" name="smtp_port" class="form-control" placeholder="587" value="{{ config.get('smtp_port', '587') }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small">EMAIL ADDRESS</label>
+                                <input type="email" name="smtp_email" class="form-control" placeholder="admin@domain.com" value="{{ config.get('smtp_email', '') }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small">PASSWORD / APP KEY</label>
+                                <input type="password" name="smtp_password" class="form-control" value="{{ config.get('smtp_password', '') }}">
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="modal-footer border-secondary">
+                        <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-gold">Save Configuration</button>
                     </div>
                 </form>
             </div>
