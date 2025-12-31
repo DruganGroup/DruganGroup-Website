@@ -49,17 +49,8 @@
         <a href="/site/schedule"><i class="fas fa-calendar-alt me-2"></i> Gang Schedule</a>
         <a href="/site/requests"><i class="fas fa-clipboard-list me-2"></i> Service Requests</a>
         <a href="/site/defects"><i class="fas fa-exclamation-triangle me-2"></i> Vehicle Defects</a>
-		<a href="/office/quote/new" class="text-decoration-none col-md-4">
-    <div class="card p-4 bg-gradient-orange text-white h-100 shadow-sm">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h3 class="fw-bold m-0"><i class="fas fa-plus"></i></h3>
-                <span>Create Quote</span>
-            </div>
-            <i class="fas fa-file-invoice-dollar fa-3x opacity-50"></i>
-        </div>
-    </div>
-</a>
+        
+        <a href="/office/quote/new"><i class="fas fa-file-invoice-dollar me-2"></i> Create Quote</a>
         
         <a href="/launcher" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
         <a href="/logout" class="text-warning"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
@@ -76,8 +67,8 @@
         <h2 class="mb-4 fw-bold text-secondary">Field Operations Overview</h2>
 
         <div class="row g-4 mb-4">
-            <div class="col-md-4">
-                <div class="card p-4 bg-gradient-blue">
+            <div class="col-md-3">
+                <div class="card p-4 bg-gradient-blue h-100">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h2 class="fw-bold m-0">{{ active_jobs_count }}</h2>
@@ -88,8 +79,8 @@
                 </div>
             </div>
 
-            <div class="col-md-4">
-                <div class="card p-4 bg-gradient-orange">
+            <div class="col-md-3">
+                <div class="card p-4 bg-gradient-orange h-100">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h2 class="fw-bold m-0">{{ pending_req_count }}</h2>
@@ -100,8 +91,8 @@
                 </div>
             </div>
 
-            <div class="col-md-4">
-                <div class="card p-4 bg-gradient-purple">
+            <div class="col-md-3">
+                <div class="card p-4 bg-gradient-purple h-100">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h2 class="fw-bold m-0">{{ active_gangs_count }}</h2>
@@ -110,6 +101,20 @@
                         <i class="fas fa-users fa-3x opacity-50"></i>
                     </div>
                 </div>
+            </div>
+
+            <div class="col-md-3">
+                <a href="/office/quote/new" class="text-decoration-none">
+                    <div class="card p-4 bg-white border-warning h-100 shadow-sm" style="border-left: 5px solid #ffc107;">
+                        <div class="d-flex justify-content-between align-items-center text-dark">
+                            <div>
+                                <h3 class="fw-bold m-0"><i class="fas fa-plus-circle text-warning"></i></h3>
+                                <span class="fw-bold">Create Quote</span>
+                            </div>
+                            <i class="fas fa-file-invoice-dollar fa-3x text-warning opacity-50"></i>
+                        </div>
+                    </div>
+                </a>
             </div>
         </div>
 
