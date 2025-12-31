@@ -13,13 +13,11 @@ def login():
         
         conn = get_db()
         cur = conn.cursor()
-        
-        # THE FIX: We added a LEFT JOIN to grab the 'name' from the staff table
         cur.execute("""
             SELECT u.id, u.username, u.password_hash, u.role, u.company_id, s.name 
             FROM users u 
-            LEFT JOIN staff s ON u.email = s.email 
-            WHERE u.username = %s
+            LEFT JOIN staff s ON LOWER(TRIM(u.email)) = LOWER(TRIM(s.email)) 
+            WHERE LOWER(TRIM(u.username)) = LOWER(TRIM(%s))
         """, (email,))
         
         user = cur.fetchone()
