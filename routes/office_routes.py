@@ -565,3 +565,55 @@ def convert_to_invoice(quote_id):
     flash(f"✅ Quote Converted! Invoice {new_inv_ref} Created.")
     # For now, we redirect back to the quote, or we can build an Invoice View next.
     return redirect(url_for('office.office_dashboard'))
+    
+    # --- 5. MASTER CALENDAR ---
+@office_bp.route('/office/calendar')
+def office_calendar():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    return render_template('office/calendar.html', brand_color=config['color'], logo_url=config['logo'])
+
+@office_bp.route('/office/calendar/data')
+def get_calendar_data():
+    if not check_office_access(): return []
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    events = []
+
+    # 1. Fetch JOBS (Blue)
+    try:
+        cur.execute("""
+            SELECT j.id, j.reference, j.scheduled_date, c.name, j.status
+            FROM jobs j JOIN service_requests sr ON j.request_id = sr.id 
+            JOIN clients c ON sr.client_id = c.id
+            WHERE j.company_id = %s AND j.scheduled_date IS NOT NULL
+        """, (comp_id,))
+        jobs = cur.fetchall()
+        
+        for j in jobs:
+            events.append({
+                'title': f"{j[1]} - {j[3]}",
+                'start': str(j[2]),
+                'color': '#3788d8' if j[4] != 'Completed' else '#28a745', # Blue for Active, Green for Done
+                'url': f"/site/job/{j[0]}" # Link to job
+            })
+    except: pass
+
+    # 2. Fetch VEHICLE DATES (Red/Orange/Yellow)
+    try:
+        cur.execute("SELECT reg_plate, mot_due, tax_due, insurance_due, service_due FROM vehicles WHERE company_id = %s", (comp_id,))
+        vehicles = cur.fetchall()
+        
+        for v in vehicles:
+            reg = v[0]
+            if v[1]: events.append({'title': f"MOT Due: {reg}", 'start': str(v[1]), 'color': '#dc3545'}) # Red
+            if v[2]: events.append({'title': f"Tax Due: {reg}", 'start': str(v[2]), 'color': '#ffc107', 'textColor': 'black'}) # Yellow
+            if v[3]: events.append({'title': f"Ins Due: {reg}", 'start': str(v[3]), 'color': '#fd7e14'}) # Orange
+            if v[4]: events.append({'title': f"Service: {reg}", 'start': str(v[4]), 'color': '#6f42c1'}) # Purple
+    except: pass
+
+    conn.close()
+    return {'events': events}
