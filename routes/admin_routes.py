@@ -449,6 +449,65 @@ def setup_overheads_db():
     finally: conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
     
+    # --- GLOBAL SEARCH (Find anything, anywhere) ---
+@admin_bp.route('/admin/global-search')
+def global_search():
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    
+    query = request.args.get('q', '').strip()
+    if not query: return redirect(url_for('admin.super_admin_dashboard'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    results = {'companies': [], 'users': [], 'invoices': [], 'vehicles': []}
+    
+    try:
+        # 1. Search Companies (Name or Subdomain)
+        cur.execute("""
+            SELECT id, name, subdomain, contact_email 
+            FROM companies 
+            WHERE name ILIKE %s OR subdomain ILIKE %s
+        """, (f'%{query}%', f'%{query}%'))
+        results['companies'] = cur.fetchall()
+        
+        # 2. Search Users (Email or Username)
+        cur.execute("""
+            SELECT u.id, u.email, u.role, c.name, c.id 
+            FROM users u
+            LEFT JOIN companies c ON u.company_id = c.id
+            WHERE u.email ILIKE %s OR u.username ILIKE %s
+        """, (f'%{query}%', f'%{query}%'))
+        results['users'] = cur.fetchall()
+
+        # 3. Search Invoices (Reference Number) - Safe check if table exists
+        try:
+            cur.execute("""
+                SELECT i.id, i.invoice_number, i.total, c.name, c.id
+                FROM invoices i
+                LEFT JOIN companies c ON i.company_id = c.id
+                WHERE i.invoice_number ILIKE %s
+            """, (f'%{query}%',))
+            results['invoices'] = cur.fetchall()
+        except: pass # Table might not exist yet
+
+        # 4. Search Vehicles (Reg Plate)
+        try:
+            cur.execute("""
+                SELECT v.id, v.registration, v.make, c.name, c.id
+                FROM vehicles v
+                LEFT JOIN companies c ON v.company_id = c.id
+                WHERE v.registration ILIKE %s
+            """, (f'%{query}%',))
+            results['vehicles'] = cur.fetchall()
+        except: pass
+
+    except Exception as e:
+        print(f"Search Error: {e}")
+    finally:
+        conn.close()
+    
+    return render_template('admin/search_results.html', query=query, results=results)
+    
 # --- 4. COMPANY INSPECTION (Drill Down) ---
 @admin_bp.route('/super-admin/company/<int:company_id>')
 def company_details(company_id):

@@ -195,6 +195,14 @@
             <a href="/super-admin/analytics" class="sidebar-btn">
                 <i class="fas fa-chart-pie"></i> Intelligence
             </a>
+			<div class="row mb-4">
+    <div class="col-md-12">
+        <form action="{{ url_for('admin.global_search') }}" method="GET" class="d-flex gap-2">
+            <input type="text" name="q" class="form-control form-control-lg" placeholder="Search companies, emails, reg plates..." required>
+            <button type="submit" class="btn btn-primary btn-lg">Search</button>
+        </form>
+    </div>
+</div>
             
             <small class="text-muted text-uppercase mb-2 mt-4" style="font-size: 0.7rem; letter-spacing: 1px;">Navigation</small>
             
