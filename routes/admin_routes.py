@@ -390,6 +390,65 @@ def company_details(company_id):
     """, (company_id,))
     comp = cur.fetchone()
     
+    if not comp: 
+        conn.close()
+        return "Company not found", 404
+    
+    company = {
+        'id': comp[0], 'name': comp[1], 'subdomain': comp[2], 'email': comp[3],
+        'plan': comp[4], 'status': comp[5], 'joined': comp[6]
+    }
+    
+    # 2. Fetch The "Vital Signs" (Row Counts)
+    tables = ['users', 'staff', 'clients', 'vehicles', 'properties', 'jobs', 'quotes', 'invoices', 'transactions', 'service_requests']
+    stats = {}
+    for t in tables:
+        try:
+            cur.execute(f"SELECT COUNT(*) FROM {t} WHERE company_id = %s", (company_id,))
+            stats[t] = cur.fetchone()[0]
+        except Exception:
+            # THE FIX: If a query fails (e.g. table doesn't exist), we MUST rollback 
+            # the transaction so the connection is clean for the next query.
+            conn.rollback() 
+            stats[t] = 0
+
+    # 3. Fetch Configuration (Setup)
+    # This was crashing before because the transaction was broken above.
+    try:
+        cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
+        settings = {row[0]: row[1] for row in cur.fetchall()}
+    except Exception:
+        conn.rollback()
+        settings = {}
+
+    # 4. Fetch Financial Summary (Admin Eyes Only)
+    try:
+        cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Income'", (company_id,))
+        stats['total_revenue'] = cur.fetchone()[0] or 0.0
+    except Exception:
+        conn.rollback()
+        stats['total_revenue'] = 0.0
+    
+    # 5. Get Real Disk Usage
+    stats['storage_mb'] = get_real_company_usage(company_id, cur)
+
+    conn.close()
+    
+    return render_template('admin/company_details.html', company=company, stats=stats, settings=settings)
+    
+    if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. Fetch Basic Info & Plan
+    cur.execute("""
+        SELECT c.id, c.name, c.subdomain, c.contact_email, s.plan_tier, s.status, s.start_date
+        FROM companies c 
+        LEFT JOIN subscriptions s ON c.id = s.company_id 
+        WHERE c.id = %s
+    """, (company_id,))
+    comp = cur.fetchone()
+    
     if not comp: return "Company not found", 404
     
     company = {
