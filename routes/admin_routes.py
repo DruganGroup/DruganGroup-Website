@@ -502,3 +502,28 @@ def cleanup_super_admin_data():
     finally:
         conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
+    
+    @admin_bp.route('/admin/wipe-fleet-data')
+def wipe_fleet_data():
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    
+    # Wipes vehicles for the LOGGED IN company only
+    target_id = session.get('company_id')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Delete children first (Foreign Keys)
+        cur.execute("DELETE FROM maintenance_logs WHERE company_id = %s", (target_id,))
+        cur.execute("DELETE FROM vehicle_crews WHERE company_id = %s", (target_id,))
+        # Delete parent
+        cur.execute("DELETE FROM vehicles WHERE company_id = %s", (target_id,))
+        
+        conn.commit()
+        flash("✅ Fleet Data Wiped (Vehicles, Crews, Maintenance Logs)")
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error: {e}")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('admin.super_admin_dashboard'))
