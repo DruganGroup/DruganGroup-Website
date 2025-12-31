@@ -2,85 +2,202 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Super Admin | TradeCore</title>
+    <title>Super Admin | Drugan Group</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
     <style>
-        body { background-color: #121212; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; }
-        .sidebar { width: 260px; height: 100vh; position: fixed; background: #1f1f1f; padding: 20px; border-right: 1px solid #333; }
-        .content { margin-left: 260px; padding: 40px; }
+        :root {
+            --primary-gold: #c5a059; /* Approximate gold based on your site */
+            --bg-dark: #121212;
+            --bg-panel: #1f1f1f;
+            --text-main: #e0e0e0;
+            --border-light: #333;
+        }
+
+        body { 
+            background-color: var(--bg-dark); 
+            color: var(--text-main); 
+            font-family: 'Inter', sans-serif; 
+        }
+
+        h1, h2, h3, h4, h5, .brand {
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        /* SIDEBAR STYLING MATCHING YOUR BRAND */
+        .sidebar { 
+            width: 280px; 
+            height: 100vh; 
+            position: fixed; 
+            background: var(--bg-panel); 
+            padding: 30px; 
+            border-right: 1px solid var(--border-light); 
+        }
+
+        .brand {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+            margin-bottom: 40px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
         
-        /* CARDS */
-        .stat-card { background: #1f1f1f; padding: 20px; border-radius: 10px; border: 1px solid #333; text-align: center; }
-        .stat-number { font-size: 2.5rem; font-weight: bold; color: #fff; }
-        .stat-label { color: #888; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; }
+        .brand img { height: 35px; width: auto; }
+        .tagline { color: var(--primary-gold); font-weight: 400; }
 
-        /* TABLE */
-        .table-dark { background-color: #1f1f1f; --bs-table-bg: #1f1f1f; --bs-table-border-color: #333; }
-        .table-dark th { text-transform: uppercase; font-size: 0.8rem; color: #888; padding-bottom: 15px; }
-        .table-dark td { vertical-align: middle; color: #ddd; }
-        .btn-action { width: 35px; height: 35px; display: inline-flex; align-items: center; justify-content: center; border-radius: 5px; text-decoration: none; transition: 0.2s; border: none; }
-        .btn-action:hover { transform: translateY(-2px); }
+        .sidebar-btn {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            color: #888;
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            transition: 0.3s;
+            font-weight: 600;
+            border: 1px solid transparent;
+        }
 
-        /* STATUS BADGES */
-        .badge-status { padding: 5px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
-        .status-active { background: rgba(46, 204, 113, 0.2); color: #2ecc71; }
-        .status-suspended { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+        .sidebar-btn:hover, .sidebar-btn.active {
+            background: rgba(197, 160, 89, 0.1);
+            color: var(--primary-gold);
+            border-color: rgba(197, 160, 89, 0.2);
+        }
 
-        /* LINKS */
-        a { text-decoration: none; }
-        .comp-link { color: #fff; font-weight: bold; }
-        .comp-link:hover { color: #3498db; }
+        .sidebar-btn i { width: 25px; }
+
+        /* CONTENT AREA */
+        .content { margin-left: 280px; padding: 50px; }
+
+        /* CUSTOM BUTTONS */
+        .btn-gold {
+            background: var(--primary-gold);
+            color: #000;
+            font-weight: 700;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 5px;
+            transition: 0.3s;
+        }
+        .btn-gold:hover {
+            background: #fff;
+            color: #000;
+            transform: translateY(-2px);
+        }
+
+        /* TABLE STYLING */
+        .card { background: var(--bg-panel); border: 1px solid var(--border-light); border-radius: 12px; }
+        .table-dark { background-color: transparent; --bs-table-bg: transparent; --bs-table-border-color: var(--border-light); }
+        .table-dark th { 
+            text-transform: uppercase; 
+            font-size: 0.75rem; 
+            color: var(--primary-gold); 
+            letter-spacing: 1px; 
+            padding-bottom: 15px; 
+            font-family: 'Montserrat', sans-serif;
+        }
+        .table-dark td { vertical-align: middle; color: #ccc; font-size: 0.95rem; padding: 15px 10px; }
+        
+        .comp-link { color: #fff; font-weight: 700; font-family: 'Montserrat', sans-serif; }
+        .comp-link:hover { color: var(--primary-gold); }
+
+        /* BADGES */
+        .badge-status { padding: 6px 12px; border-radius: 30px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .status-active { background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3); }
+        .status-suspended { background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3); }
+
+        /* ACTION BUTTONS */
+        .btn-icon { 
+            width: 32px; height: 32px; 
+            display: inline-flex; align-items: center; justify-content: center; 
+            border-radius: 6px; 
+            background: #333; color: #888; 
+            margin-left: 5px; transition: 0.2s; 
+        }
+        .btn-icon:hover { color: #fff; background: #555; }
+        .btn-icon.danger:hover { background: #e74c3c; color: white; }
+        .btn-icon.warning:hover { background: #f39c12; color: black; }
+        .btn-icon.info:hover { background: var(--primary-gold); color: black; }
+
+        /* FORM INPUTS */
+        .form-control, .form-select, .input-group-text {
+            background-color: #121212 !important;
+            border-color: #333 !important;
+            color: #fff !important;
+        }
+        .form-control:focus { border-color: var(--primary-gold) !important; box-shadow: none; }
     </style>
 </head>
 <body>
 
     <div class="sidebar">
-        <h3 class="fw-bold mb-5"><span class="text-primary">TRADE</span>CORE <span style="font-size: 0.6em; color: #666;">ADMIN</span></h3>
+        <div class="brand">
+            <img src="/static/images/logo.png" alt="DG">
+            <div>DRUGAN <span class="tagline">GROUP</span></div>
+        </div>
         
-        <div class="d-grid gap-3">
-            <a href="/super-admin" class="btn btn-primary text-start"><i class="fas fa-tachometer-alt me-3"></i>Dashboard</a>
-            <a href="/super-admin/analytics" class="btn btn-outline-secondary text-start border-0 text-light"><i class="fas fa-chart-pie me-3"></i>Analytics</a>
-            <a href="/launcher" class="btn btn-outline-secondary text-start border-0 text-light"><i class="fas fa-arrow-left me-3"></i>Main Launcher</a>
+        <div class="d-flex flex-column gap-2">
+            <small class="text-muted text-uppercase mb-2" style="font-size: 0.7rem; letter-spacing: 1px;">Admin Console</small>
             
-            <hr class="border-secondary my-3">
-            
-            <a href="/admin/cleanup-my-data" class="btn btn-danger text-start" onclick="return confirm('WARNING: This will delete ALL Jobs, Staff, and Clients from YOUR account (ID {{ session.get('company_id') }}). This is for cleaning up test data. Continue?');">
-                <i class="fas fa-trash-alt me-3"></i> Wipe My Test Data
+            <a href="/super-admin" class="sidebar-btn active">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+            <a href="/super-admin/analytics" class="sidebar-btn">
+                <i class="fas fa-chart-pie"></i> Intelligence
             </a>
             
-            <a href="/admin/backup/all" class="btn btn-outline-success text-start mt-3"><i class="fas fa-download me-3"></i> Backup All DB</a>
+            <small class="text-muted text-uppercase mb-2 mt-4" style="font-size: 0.7rem; letter-spacing: 1px;">Navigation</small>
+            
+            <a href="/launcher" class="sidebar-btn">
+                <i class="fas fa-arrow-left"></i> Main Launcher
+            </a>
+            
+            <div class="mt-5 pt-4 border-top border-secondary">
+                <a href="/admin/cleanup-my-data" class="sidebar-btn text-danger" onclick="return confirm('⚠️ WARNING: This will delete ALL Jobs, Staff, and Clients from YOUR account. This is for cleaning up test data. Continue?');">
+                    <i class="fas fa-trash-alt"></i> Wipe Test Data
+                </a>
+                <a href="/admin/backup/all" class="sidebar-btn text-success">
+                    <i class="fas fa-download"></i> Backup DB
+                </a>
+            </div>
         </div>
     </div>
 
     <div class="content">
         
-        <div class="d-flex justify-content-between align-items-center mb-5">
+        <div class="d-flex justify-content-between align-items-end mb-5">
             <div>
-                <h2 class="fw-bold mb-0">Tenant Management</h2>
-                <p class="text-muted">Manage companies, subscriptions, and billing cycles.</p>
+                <h6 class="text-muted text-uppercase mb-1">Super Admin</h6>
+                <h2 class="fw-bold mb-0 text-white">Tenant <span style="color: var(--primary-gold);">Management</span></h2>
             </div>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newCompanyModal">
-                <i class="fas fa-plus me-2"></i> New Company
+            <button class="btn-gold" data-bs-toggle="modal" data-bs-target="#newCompanyModal">
+                <i class="fas fa-plus me-2"></i> New Tenant
             </button>
         </div>
 
         {% with messages = get_flashed_messages() %}
             {% if messages %}
-                <div class="alert alert-info border-0 shadow-lg mb-4" style="background: #2c3e50; color: white;">
-                    <i class="fas fa-bell me-2"></i> {{ messages[0] }}
+                <div class="alert alert-dark border-secondary shadow-lg mb-4 d-flex align-items-center">
+                    <i class="fas fa-info-circle me-3" style="color: var(--primary-gold);"></i> 
+                    <div>{{ messages[0] }}</div>
                 </div>
             {% endif %}
         {% endwith %}
 
-        <div class="card bg-transparent border-0">
-            <table class="table table-dark table-hover">
+        <div class="card p-3">
+            <table class="table table-dark table-hover mb-0">
                 <thead>
                     <tr>
-                        <th>Company / Domain</th>
-                        <th>Joined Date</th>
-                        <th>Package</th>
-                        <th>Next Bill Due</th>
+                        <th>Company</th>
+                        <th>Joined</th>
+                        <th>Plan</th>
+                        <th>Next Bill</th>
                         <th>Status</th>
                         <th class="text-end">Actions</th>
                     </tr>
@@ -90,24 +207,21 @@
                     <tr>
                         <td>
                             <div class="d-flex align-items-center">
-                                <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px; font-weight: bold; color: white;">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                     style="width: 40px; height: 40px; background: rgba(255,255,255,0.1); color: var(--primary-gold); font-weight: 800; font-family: 'Montserrat';">
                                     {{ c.name[:1] }}
                                 </div>
                                 <div>
                                     <a href="/super-admin/company/{{ c.id }}" class="comp-link">{{ c.name }}</a>
-                                    <div style="font-size: 0.8rem; color: #666;">{{ c.subdomain }}.tradecore.com</div>
+                                    <div style="font-size: 0.75rem; color: #666; font-family: 'Inter';">{{ c.subdomain }}.tradecore.com</div>
                                 </div>
                             </div>
                         </td>
-                        <td>
-                            <i class="far fa-calendar me-2 opacity-50"></i> {{ c.created }}
-                        </td>
-                        <td>
-                            <span class="badge bg-secondary text-light">{{ c.plan }}</span>
-                        </td>
+                        <td>{{ c.created }}</td>
+                        <td><span class="badge bg-dark border border-secondary text-muted">{{ c.plan }}</span></td>
                         <td>
                             {% if c.next_bill %}
-                                <span class="text-warning fw-bold">{{ c.next_bill }}</span>
+                                <span class="text-white fw-bold">{{ c.next_bill }}</span>
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
@@ -120,15 +234,13 @@
                             {% endif %}
                         </td>
                         <td class="text-end">
-                            <a href="/admin/suspend/{{ c.id }}" class="btn-action" style="background: #f39c12; color: #fff;" title="{{ 'Unsuspend' if c.status == 'Suspended' else 'Suspend' }}">
+                            <a href="/admin/suspend/{{ c.id }}" class="btn-icon warning" title="Suspend/Unsuspend">
                                 <i class="fas {{ 'fa-play' if c.status == 'Suspended' else 'fa-pause' }}"></i>
                             </a>
-                            
-                            <a href="/admin/assign-me/{{ c.id }}" class="btn-action" style="background: #3498db; color: #fff; margin-left: 5px;" title="Login as Owner">
+                            <a href="/admin/assign-me/{{ c.id }}" class="btn-icon info" title="Login as Owner">
                                 <i class="fas fa-user-secret"></i>
                             </a>
-
-                            <a href="/admin/delete-tenant/{{ c.id }}" class="btn-action" style="background: #e74c3c; color: #fff; margin-left: 5px;" title="Delete Tenant" onclick="return confirm('⚠️ DANGER: This will permanently delete {{ c.name }} and ALL their data (Invoices, Jobs, Staff). This cannot be undone. Confirm?');">
+                            <a href="/admin/delete-tenant/{{ c.id }}" class="btn-icon danger" title="Delete Tenant" onclick="return confirm('⚠️ DANGER: Permanently delete {{ c.name }}? This cannot be undone.');">
                                 <i class="fas fa-trash"></i>
                             </a>
                         </td>
@@ -136,7 +248,7 @@
                     {% else %}
                     <tr>
                         <td colspan="6" class="text-center py-5 text-muted">
-                            No companies found. Click "New Company" to start.
+                            No tenants found.
                         </td>
                     </tr>
                     {% endfor %}
@@ -148,34 +260,36 @@
 
     <div class="modal fade" id="newCompanyModal" tabindex="-1">
         <div class="modal-dialog">
-            <div class="modal-content" style="background: #2c3e50; color: white;">
+            <div class="modal-content" style="background: #1f1f1f; color: white; border: 1px solid #333;">
                 <div class="modal-header border-secondary">
-                    <h5 class="modal-title">Create New Tenant</h5>
+                    <h5 class="modal-title" style="font-family: 'Montserrat'; font-weight: 700;">Deploy New Tenant</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST">
                     <div class="modal-body">
                         <div class="mb-3">
                             <label class="form-label text-muted small">COMPANY NAME</label>
-                            <input type="text" name="company_name" class="form-control bg-dark border-secondary text-light" required>
+                            <input type="text" name="company_name" class="form-control" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label text-muted small">OWNER EMAIL (LOGIN)</label>
-                            <input type="email" name="owner_email" class="form-control bg-dark border-secondary text-light" required>
+                            <label class="form-label text-muted small">OWNER EMAIL</label>
+                            <input type="email" name="owner_email" class="form-control" required>
                         </div>
+                        
                         <div class="mb-3">
-    <label class="form-label text-muted small">PASSWORD</label>
-    <div class="input-group">
-        <span class="input-group-text bg-dark border-secondary text-muted"><i class="fas fa-magic"></i></span>
-        <input type="text" class="form-control bg-dark border-secondary text-muted" value="Auto-generated & sent to email" disabled readonly>
-    </div>
-    <small class="text-muted" style="font-size: 0.75rem;">
-        <i class="fas fa-shield-alt me-1"></i> A secure password will be generated automatically.
-    </small>
-</div>
+                            <label class="form-label text-muted small">PASSWORD</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-magic" style="color: var(--primary-gold);"></i></span>
+                                <input type="text" class="form-control text-muted" value="Auto-generated & Emailed" disabled readonly style="font-style: italic;">
+                            </div>
+                            <small class="text-muted" style="font-size: 0.7rem; margin-top: 5px; display: block;">
+                                Credentials will be sent via SMTP instantly.
+                            </small>
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label text-muted small">SUBSCRIPTION PLAN</label>
-                            <select name="plan" class="form-select bg-dark border-secondary text-light">
+                            <select name="plan" class="form-select">
                                 <option value="Starter">Starter (Free)</option>
                                 <option value="Professional">Professional (£50/mo)</option>
                                 <option value="Enterprise">Enterprise (£150/mo)</option>
@@ -184,7 +298,7 @@
                     </div>
                     <div class="modal-footer border-secondary">
                         <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary fw-bold">Create Company</button>
+                        <button type="submit" class="btn-gold">Deploy System</button>
                     </div>
                 </form>
             </div>
