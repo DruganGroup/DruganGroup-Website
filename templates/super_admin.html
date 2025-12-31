@@ -10,7 +10,7 @@
     
     <style>
         :root {
-            --primary-gold: #c5a059; /* Approximate gold based on your site */
+            --primary-gold: #c5a059;
             --bg-dark: #121212;
             --bg-panel: #1f1f1f;
             --text-main: #e0e0e0;
@@ -27,7 +27,7 @@
             font-family: 'Montserrat', sans-serif;
         }
 
-        /* SIDEBAR STYLING MATCHING YOUR BRAND */
+        /* SIDEBAR MATCHING ANALYTICS */
         .sidebar { 
             width: 280px; 
             height: 100vh; 
@@ -72,10 +72,9 @@
 
         .sidebar-btn i { width: 25px; }
 
-        /* CONTENT AREA */
         .content { margin-left: 280px; padding: 50px; }
 
-        /* CUSTOM BUTTONS */
+        /* GOLD BUTTON */
         .btn-gold {
             background: var(--primary-gold);
             color: #000;
@@ -91,9 +90,9 @@
             transform: translateY(-2px);
         }
 
-        /* TABLE STYLING */
         .card { background: var(--bg-panel); border: 1px solid var(--border-light); border-radius: 12px; }
-        .table-dark { background-color: transparent; --bs-table-bg: transparent; --bs-table-border-color: var(--border-light); }
+        
+        .table-dark { --bs-table-bg: transparent; --bs-table-border-color: var(--border-light); }
         .table-dark th { 
             text-transform: uppercase; 
             font-size: 0.75rem; 
@@ -107,12 +106,19 @@
         .comp-link { color: #fff; font-weight: 700; font-family: 'Montserrat', sans-serif; }
         .comp-link:hover { color: var(--primary-gold); }
 
-        /* BADGES */
-        .badge-status { padding: 6px 12px; border-radius: 30px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        /* VISIBLE PLAN BADGE */
+        .badge-plan { 
+            background-color: var(--primary-gold); 
+            color: #000; 
+            font-weight: 800; 
+            padding: 5px 10px; 
+            border-radius: 4px;
+        }
+
+        .badge-status { padding: 6px 12px; border-radius: 30px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
         .status-active { background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3); }
         .status-suspended { background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3); }
 
-        /* ACTION BUTTONS */
         .btn-icon { 
             width: 32px; height: 32px; 
             display: inline-flex; align-items: center; justify-content: center; 
@@ -125,13 +131,11 @@
         .btn-icon.warning:hover { background: #f39c12; color: black; }
         .btn-icon.info:hover { background: var(--primary-gold); color: black; }
 
-        /* FORM INPUTS */
         .form-control, .form-select, .input-group-text {
             background-color: #121212 !important;
             border-color: #333 !important;
             color: #fff !important;
         }
-        .form-control:focus { border-color: var(--primary-gold) !important; box-shadow: none; }
     </style>
 </head>
 <body>
@@ -218,7 +222,9 @@
                             </div>
                         </td>
                         <td>{{ c.created }}</td>
-                        <td><span class="badge bg-dark border border-secondary text-muted">{{ c.plan }}</span></td>
+                        <td>
+                            <span class="badge-plan">{{ c.plan }}</span>
+                        </td>
                         <td>
                             {% if c.next_bill %}
                                 <span class="text-white fw-bold">{{ c.next_bill }}</span>
@@ -234,7 +240,7 @@
                             {% endif %}
                         </td>
                         <td class="text-end">
-                            <a href="/admin/suspend/{{ c.id }}" class="btn-icon warning" title="Suspend/Unsuspend">
+                            <a href="/admin/suspend/{{ c.id }}" class="btn-icon warning" title="Suspend">
                                 <i class="fas {{ 'fa-play' if c.status == 'Suspended' else 'fa-pause' }}"></i>
                             </a>
                             <a href="/admin/assign-me/{{ c.id }}" class="btn-icon info" title="Login as Owner">
@@ -275,7 +281,6 @@
                             <label class="form-label text-muted small">OWNER EMAIL</label>
                             <input type="email" name="owner_email" class="form-control" required>
                         </div>
-                        
                         <div class="mb-3">
                             <label class="form-label text-muted small">PASSWORD</label>
                             <div class="input-group">
@@ -286,7 +291,6 @@
                                 Credentials will be sent via SMTP instantly.
                             </small>
                         </div>
-
                         <div class="mb-3">
                             <label class="form-label text-muted small">SUBSCRIPTION PLAN</label>
                             <select name="plan" class="form-select">
