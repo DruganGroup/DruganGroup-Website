@@ -18,7 +18,7 @@
             <thead class="table-light text-uppercase small">
                 <tr>
                     <th class="ps-4">Employee</th>
-                    <th>Role / Dept</th>
+                    <th>Job Title</th>
                     <th>System Access</th>
                     <th>Contact</th>
                     <th>Pay Rate</th>
@@ -93,11 +93,11 @@
                             
                             <div class="col-12"><hr></div>
                             
-                            <div class="col-md-4"><label class="small fw-bold">Type</label>
+                            <div class="col-md-4"><label class="small fw-bold">Employment Type</label>
                                 <select name="employment_type" id="edit_type" class="form-select">
-                                    <option value="Full Time">Full Time</option>
-                                    <option value="Sub-Contractor">Sub-Contractor</option>
-                                    <option value="Casual">Casual</option>
+                                    <option value="Full Time">Full Time (PAYE)</option>
+                                    <option value="Part Time">Part Time (PAYE)</option>
+                                    <option value="Sub-Contractor">Sub-Contractor (CIS)</option>
                                 </select>
                             </div>
                             <div class="col-md-4"><label class="small fw-bold">Dept</label>
@@ -130,7 +130,7 @@
                                     <div class="col-md-6">
                                         <div class="small text-muted lh-sm">
                                             <i class="fas fa-info-circle me-1"></i> 
-                                            If you grant access, a <strong>random secure password</strong> will be generated and emailed to them immediately.
+                                            If granted, a <strong>secure password</strong> will be auto-emailed to the user immediately.
                                         </div>
                                     </div>
                                 </div>
@@ -164,7 +164,7 @@
         document.getElementById('edit_rate').value = btn.getAttribute('data-rate');
         document.getElementById('edit_model').value = btn.getAttribute('data-model');
         
-        // Handle Access Level (Default to None if missing)
+        // Handle Access Level
         let access = btn.getAttribute('data-access');
         document.getElementById('edit_access').value = (access && access !== 'None') ? access : 'None';
     }
