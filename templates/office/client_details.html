@@ -5,9 +5,20 @@
 {% block head %}
 <style>
     .comp-badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border: 1px solid transparent; font-weight: bold; }
+    
+    /* Green - Good for >30 days */
     .comp-Valid { background-color: #d1e7dd; color: #0f5132; border-color: #badbcc; }
-    .comp-Expired { background-color: #f8d7da; color: #842029; border-color: #f5c2c7; }
+    
+    /* Red - Expired */
+    .comp-Expired { background-color: #f8d7da; color: #842029; border-color: #f5c2c7; animation: pulse 2s infinite; }
+    
+    /* NEW: Amber - Due within 30 days */
+    .comp-Due { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
+    
+    /* Grey - Never Done */
     .comp-Missing { background-color: #e2e3e5; color: #41464b; border-color: #d3d6d8; }
+    
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 </style>
 {% endblock %}
 
