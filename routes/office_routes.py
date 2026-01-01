@@ -13,9 +13,23 @@ def check_office_access():
     return True
 
 def get_staff_list(cur, company_id):
-    cur.execute("SELECT id, name, email, phone, position AS role, status FROM staff WHERE company_id = %s ORDER BY name", (company_id,))
-    cols = [desc[0] for desc in cur.description]
-    return [dict(zip(cols, row)) for row in cur.fetchall()]
+    try:
+        cur.execute("SELECT id, name, email, phone, position AS role, status FROM staff WHERE company_id = %s ORDER BY name", (company_id,))
+        cols = [desc[0] for desc in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+    except: return []
+
+# --- HELPER: UK DATE FORMATTER ---
+def uk_date(d):
+    if not d: return ""
+    try:
+        if isinstance(d, str):
+            try: d = datetime.strptime(d, '%Y-%m-%d')
+            except: 
+                try: d = datetime.strptime(d, '%Y-%m-%d %H:%M:%S')
+                except: return d
+        return d.strftime('%d/%m/%Y')
+    except: return str(d)
 
 # --- 1. OFFICE DASHBOARD (Updated with Live Ops) ---
 @office_bp.route('/office-hub')
@@ -33,11 +47,13 @@ def office_dashboard():
     cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id = %s AND status != 'Completed'", (company_id,))
     active_jobs_count = cur.fetchone()[0]
 
-    # Quotes
+    # Quotes (Apply UK Date)
     cur.execute("SELECT q.id, c.name, q.reference, q.date, q.total, q.status FROM quotes q LEFT JOIN clients c ON q.client_id = c.id WHERE q.company_id = %s AND q.status = 'Draft' ORDER BY q.id DESC LIMIT 5", (company_id,))
-    recent_quotes = cur.fetchall()
+    recent_quotes = []
+    for r in cur.fetchall():
+        recent_quotes.append((r[0], r[1], r[2], uk_date(r[3]), r[4], r[5]))
 
-    # Completed Jobs (Ready for Invoicing)
+    # Completed Jobs (Apply UK Date)
     cur.execute("""
         SELECT j.id, j.ref, j.site_address, c.name, j.description, j.start_date
         FROM jobs j LEFT JOIN clients c ON j.client_id = c.id
@@ -46,7 +62,7 @@ def office_dashboard():
     """, (company_id,))
     completed_jobs = []
     for r in cur.fetchall():
-        completed_jobs.append({'id': r[0], 'ref': r[1], 'address': r[2], 'client': r[3], 'desc': r[4], 'date': r[5]})
+        completed_jobs.append({'id': r[0], 'ref': r[1], 'address': r[2], 'client': r[3], 'desc': r[4], 'date': uk_date(r[5])})
 
     # --- LIVE OPERATIONS BOARD logic ---
     # Fetch jobs that are 'In Progress' right now
@@ -112,7 +128,8 @@ def generate_invoice_from_job(job_id):
         """, (comp_id, client_id, job_ref, new_ref, f"Generated from Job {job_ref}"))
         inv_id = cur.fetchone()[0]
 
-        cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, 1, 0, 0)", (inv_id, f"Work Completed: {job_desc} ({job_date})"))
+        # Use uk_date here for the description
+        cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, 1, 0, 0)", (inv_id, f"Work Completed: {job_desc} ({uk_date(job_date)})"))
         cur.execute("UPDATE jobs SET status = 'Invoiced' WHERE id = %s", (job_id,))
         conn.commit(); flash(f"✅ Invoice {new_ref} Generated!")
         return redirect(url_for('finance.finance_dashboard')) 
@@ -222,7 +239,7 @@ def service_desk():
     rows = cur.fetchall()
     requests_list = []
     for r in rows:
-        requests_list.append({'id': r[0], 'property_address': r[1], 'issue_description': r[2], 'client_name': r[3], 'severity': r[4], 'status': r[5], 'date': r[6]})
+        requests_list.append({'id': r[0], 'property_address': r[1], 'issue_description': r[2], 'client_name': r[3], 'severity': r[4], 'status': r[5], 'date': uk_date(r[6])})
     staff_members = get_staff_list(cur, comp_id)
     conn.close()
     return render_template('office/service_desk.html', requests=requests_list, staff=staff_members, brand_color=config['color'], logo_url=config['logo'])
