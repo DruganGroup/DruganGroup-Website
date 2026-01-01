@@ -12,6 +12,7 @@
     .date-danger { color: #dc3545; font-weight: bold; }
     .date-warn { color: #ffc107; font-weight: bold; }
     .date-ok { color: #198754; }
+    .crew-checkbox { transform: scale(1.2); cursor: pointer; }
 </style>
 {% endblock %}
 
@@ -38,7 +39,7 @@
         {% endmacro %}
 
         <div class="col-xl-6">
-            <div class="card p-3 shadow-sm vehicle-card border-0" data-bs-toggle="modal" data-bs-target="#detailModal{{ v.id }}">
+            <div class="card p-3 shadow-sm vehicle-card border-0 h-100" data-bs-toggle="modal" data-bs-target="#detailModal{{ v.id }}">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <h4 class="fw-bold mb-0">{{ v.reg_number }}</h4>
@@ -50,19 +51,108 @@
                 <div class="d-flex gap-3 mt-3 mb-3 small fw-bold">
                     <span class="{{ check_date(v.mot_expiry) }}">MOT: {{ v.mot_expiry or 'N/A' }}</span>
                     <span class="{{ check_date(v.tax_expiry) }}">TAX: {{ v.tax_expiry or 'N/A' }}</span>
-                    <span class="{{ check_date(v.ins_expiry) }}">INS: {{ v.ins_expiry or 'N/A' }}</span>
                 </div>
 
-                <div class="bg-light p-2 rounded d-flex align-items-center justify-content-between">
+                <div class="bg-light p-2 rounded d-flex align-items-center justify-content-between mt-auto">
                     <div class="d-flex align-items-center gap-2">
                         <div class="bg-white p-1 rounded-circle border"><i class="fas fa-user-circle fa-lg text-secondary"></i></div>
                         <div class="small fw-bold text-dark">{{ v.driver_name or 'Unassigned' }}</div>
                     </div>
-                    <div class="small text-muted">{{ v.crew|length }} Crew</div>
+                    <div class="small text-muted">
+                        <i class="fas fa-users me-1"></i> {{ v.crew|length }} Crew
+                    </div>
                 </div>
             </div>
         </div>
 
+        <div class="modal fade" id="detailModal{{ v.id }}" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title fw-bold">{{ v.reg_number }} - Management</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <ul class="nav nav-tabs mb-3" id="tab{{ v.id }}" role="tablist">
+                            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#crew{{ v.id }}">Crew & Driver</button></li>
+                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#maint{{ v.id }}">Maintenance</button></li>
+                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#edit{{ v.id }}">Edit Details</button></li>
+                        </ul>
+
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="crew{{ v.id }}">
+                                <form method="POST">
+                                    <input type="hidden" name="action" value="assign_crew">
+                                    <input type="hidden" name="vehicle_id" value="{{ v.id }}">
+                                    
+                                    <div class="alert alert-info py-2 small">
+                                        <i class="fas fa-info-circle me-1"></i> Check the boxes below to assign staff to this van for today.
+                                    </div>
+
+                                    <div class="row g-2 mb-3">
+                                        {% for s in staff %}
+                                        <div class="col-md-4 col-6">
+                                            <div class="form-check p-2 border rounded bg-light">
+                                                <input class="form-check-input crew-checkbox me-2" type="checkbox" name="crew_ids" value="{{ s.id }}" id="s{{ v.id }}_{{ s.id }}">
+                                                <label class="form-check-label fw-bold small stretched-link" for="s{{ v.id }}_{{ s.id }}">
+                                                    {{ s.name }}
+                                                </label>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <button type="submit" class="btn btn-success fw-bold w-100">Update Crew List</button>
+                                </form>
+                            </div>
+
+                            <div class="tab-pane fade" id="maint{{ v.id }}">
+                                <form method="POST" class="mb-4 border-bottom pb-3">
+                                    <input type="hidden" name="action" value="add_log">
+                                    <input type="hidden" name="vehicle_id" value="{{ v.id }}">
+                                    <div class="row g-2">
+                                        <div class="col-4"><input type="date" name="date" class="form-control form-control-sm" required></div>
+                                        <div class="col-4">
+                                            <select name="log_type" class="form-select form-select-sm">
+                                                <option>Repair</option><option>Service</option><option>Fuel</option><option>MOT</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-4"><input type="number" step="0.01" name="cost" class="form-control form-control-sm" placeholder="£ Cost"></div>
+                                        <div class="col-12"><input type="text" name="description" class="form-control form-control-sm" placeholder="Description of work..." required></div>
+                                        <div class="col-12"><button class="btn btn-sm btn-outline-dark w-100">Add Log</button></div>
+                                    </div>
+                                </form>
+                                <div class="list-group list-group-flush">
+                                    {% for log in v.history %}
+                                        <div class="list-group-item d-flex justify-content-between small">
+                                            <span><strong>{{ log.date }}</strong>: {{ log.desc }}</span>
+                                            <span class="text-danger fw-bold">-£{{ log.cost }}</span>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center text-muted small">No maintenance history.</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="edit{{ v.id }}">
+                                <form method="POST">
+                                    <input type="hidden" name="action" value="update_defects">
+                                    <input type="hidden" name="vehicle_id" value="{{ v.id }}">
+                                    <div class="mb-3">
+                                        <label class="small fw-bold">Tracker URL</label>
+                                        <input type="text" name="tracker_url" value="{{ v.tracker_url or '' }}" class="form-control" placeholder="https://...">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="small fw-bold">Defect Notes</label>
+                                        <textarea name="defect_notes" class="form-control" rows="3">{{ v.defect_notes or '' }}</textarea>
+                                    </div>
+                                    <button class="btn btn-dark w-100">Save Changes</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         {% endfor %}
     </div>
 
@@ -78,7 +168,19 @@
                     <div class="row g-3">
                         <div class="col-md-6"><label class="small fw-bold">Reg Plate</label><input type="text" name="reg_number" class="form-control" required></div>
                         <div class="col-md-6"><label class="small fw-bold">Model</label><input type="text" name="make_model" class="form-control"></div>
+                        <div class="col-md-6"><label class="small fw-bold">Driver</label>
+                            <select name="driver_id" class="form-select">
+                                <option value="">-- Unassigned --</option>
+                                {% for s in staff %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                            </select>
                         </div>
+                        <div class="col-md-6"><label class="small fw-bold">Daily Cost (£)</label><input type="number" name="daily_cost" class="form-control" value="0"></div>
+                        
+                        <div class="col-6"><label class="small fw-bold">MOT Expiry</label><input type="date" name="mot_expiry" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold">Tax Expiry</label><input type="date" name="tax_due" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold">Insurance Expiry</label><input type="date" name="insurance_due" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold">Service Due</label><input type="date" name="service_due" class="form-control"></div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="submit" class="btn btn-primary w-100">Save Vehicle</button>
