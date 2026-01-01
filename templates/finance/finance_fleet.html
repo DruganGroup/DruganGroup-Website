@@ -12,7 +12,6 @@
     .date-danger { color: #dc3545; font-weight: bold; }
     .date-warn { color: #ffc107; font-weight: bold; }
     .date-ok { color: #198754; }
-    /* Fix for checkbox clicking */
     .crew-box { position: relative; }
     .crew-checkbox { transform: scale(1.2); cursor: pointer; }
 </style>
@@ -32,7 +31,7 @@
     <div class="row g-4">
         {% for v in vehicles %}
         
-        {# --- Date Logic Macro --- #}
+        {# --- Date Logic Macro (Uses Object for Math) --- #}
         {% macro check_date(d) %}
             {% if d %}
                 {% set days = (d - today).days %}
@@ -50,10 +49,17 @@
                     <span class="badge {{ 'bg-success' if v.status == 'Active' else 'bg-danger' }}">{{ v.status }}</span>
                 </div>
                 
+                {# --- Display Dates using Dynamic Format (date_fmt) --- #}
                 <div class="d-flex gap-3 mt-3 mb-3 small fw-bold">
-                    <span class="{{ check_date(v.mot_expiry) }}">MOT: {{ v.mot_expiry or 'N/A' }}</span>
-                    <span class="{{ check_date(v.tax_expiry) }}">TAX: {{ v.tax_expiry or 'N/A' }}</span>
-                    <span class="{{ check_date(v.ins_expiry) }}">INS: {{ v.ins_expiry or 'N/A' }}</span>
+                    <span class="{{ check_date(v.mot_expiry) }}">
+                        MOT: {{ v.mot_expiry.strftime(date_fmt) if v.mot_expiry else 'N/A' }}
+                    </span>
+                    <span class="{{ check_date(v.tax_expiry) }}">
+                        TAX: {{ v.tax_expiry.strftime(date_fmt) if v.tax_expiry else 'N/A' }}
+                    </span>
+                    <span class="{{ check_date(v.ins_expiry) }}">
+                        INS: {{ v.ins_expiry.strftime(date_fmt) if v.ins_expiry else 'N/A' }}
+                    </span>
                 </div>
 
                 <div class="bg-light p-2 rounded d-flex align-items-center justify-content-between mt-auto">
