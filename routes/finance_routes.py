@@ -40,13 +40,12 @@ def get_date_fmt_str(company_id):
     except:
         return COUNTRY_FORMATS['Default']
 
-# --- HELPER: FORMAT A DATE STRING ---
+# --- HELPER: FORMAT A DATE STRING (FOR DISPLAY) ---
 def format_date(d, fmt_str):
     """Formats a DB date object or string into the company preference"""
     if not d: return ""
     try:
         if isinstance(d, str):
-            # Try parsing common DB formats
             try: d = datetime.strptime(d, '%Y-%m-%d')
             except: 
                 try: d = datetime.strptime(d, '%Y-%m-%d %H:%M:%S')
@@ -54,7 +53,7 @@ def format_date(d, fmt_str):
         return d.strftime(fmt_str)
     except: return str(d)
 
-# --- HELPER: PARSE DB DATE ---
+# --- HELPER: PARSE DB DATE (FOR MATH) ---
 def parse_date(d):
     """Ensures we have a real Date Object for math"""
     if isinstance(d, str):
@@ -167,7 +166,7 @@ def delete_staff(id):
     conn.commit(); conn.close()
     return redirect(url_for('finance.finance_hr'))
 
-# --- 3. FINANCE FLEET (Dynamic Date Fix) ---
+# --- 3. FINANCE FLEET (THE FULL VERSION) ---
 @finance_bp.route('/finance/fleet', methods=['GET', 'POST'])
 def finance_fleet():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -237,7 +236,7 @@ def finance_fleet():
 
         vehicles.append({
             'id': row[0], 'reg_number': row[1], 'make_model': row[2], 'status': row[3],
-            'mot_expiry': parse_date(row[4]),  # KEEP OBJECT
+            'mot_expiry': parse_date(row[4]),  # KEEP OBJECT for calculation
             'tax_expiry': parse_date(row[5]),  # KEEP OBJECT
             'ins_expiry': parse_date(row[6]),  # KEEP OBJECT
             'service_due': parse_date(row[10]),# KEEP OBJECT
@@ -328,7 +327,6 @@ def settings_general():
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,)); settings = {row[0]: row[1] for row in cur.fetchall()}; conn.close()
     return render_template('finance/settings_general.html', settings=settings, active_tab='general', brand_color=config['color'], logo_url=config['logo'])
 
-# (Compliance, Banking, Overheads remain same)
 @finance_bp.route('/finance/settings/compliance', methods=['GET', 'POST'])
 def settings_compliance():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
