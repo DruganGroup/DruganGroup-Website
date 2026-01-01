@@ -73,10 +73,9 @@
             </div>
 
             <div class="col-6 col-md-3">
-                <div class="card app-tile bg-van" data-bs-toggle="modal" data-bs-target="#vanCheckModal">
-                    <i class="fas fa-truck tile-icon"></i>
-                    <span class="tile-label">Van Check</span>
-                </div>
+                <a href="/site/van-check" class="card app-tile bg-van"><i class="fas fa-truck tile-icon"></i>
+				<span class="tile-label">Van Check</span>
+				</a>
             </div>
 
             <div class="col-6 col-md-3">
@@ -126,60 +125,6 @@
         {% endfor %}
 
     </div>
-
-    <div class="modal fade" id="vanCheckModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title fw-bold"><i class="fas fa-check-circle me-2"></i>Daily Van Check</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <form method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="action" value="van_check">
-                    <div class="modal-body p-4">
-                        <div class="mb-3">
-                            <label class="fw-bold small">Vehicle Reg</label>
-                            <select name="reg_plate" class="form-select form-select-lg fw-bold" required>
-                                {% for v in vehicles %}
-                                    <option value="{{ v }}">{{ v }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="fw-bold small">Current Mileage</label>
-                            <input type="number" name="mileage" class="form-control form-control-lg" placeholder="e.g. 45000">
-                        </div>
-                        
-                        <div class="mb-3 p-3 bg-light rounded border text-center">
-                            <label class="fw-bold d-block mb-2">Is the vehicle safe to drive?</label>
-                            <div class="btn-group w-100" role="group">
-                                <input type="radio" class="btn-check" name="is_safe" id="safeYes" value="yes" checked>
-                                <label class="btn btn-outline-success fw-bold py-3" for="safeYes">YES - Safe</label>
-
-                                <input type="radio" class="btn-check" name="is_safe" id="safeNo" value="no">
-                                <label class="btn btn-outline-danger fw-bold py-3" for="safeNo">NO - Defects</label>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="fw-bold small">Defects / Issues</label>
-                            <textarea name="defects" class="form-control" rows="3" placeholder="Describe any issues..."></textarea>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="fw-bold small">Upload Photo (Defects)</label>
-                            <input type="file" name="photo" class="form-control" accept="image/*" capture="environment">
-                            <small class="text-muted">Tap to open camera.</small>
-                        </div>
-                    </div>
-                    <div class="modal-footer p-3">
-                        <button type="submit" class="btn btn-success w-100 btn-lg fw-bold">Sign & Submit Check</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
