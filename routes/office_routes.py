@@ -274,7 +274,7 @@ def staff_list():
     conn.close()
     return render_template('office/staff_management.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# --- 7. OFFICE FLEET (RESTRICTED + RECEIPT UPLOADS) ---
+# --- 10. OFFICE FLEET (RESTRICTED + RECEIPT UPLOADS) ---
 @office_bp.route('/office/fleet', methods=['GET', 'POST'])
 def fleet_list():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -357,48 +357,6 @@ def fleet_list():
     return render_template('office/fleet_management.html', 
                          vehicles=vehicles, staff=staff, today=date.today(), date_fmt=date_fmt,
                          brand_color=config['color'], logo_url=config['logo'])
-
-    # Fetch Data for Display
-    cur.execute("""
-        SELECT v.id, v.reg_plate, v.make_model, v.status, s.name, v.assigned_driver_id, 
-               v.mot_due, v.tax_due, v.insurance_due, v.tracker_url, v.defect_notes
-        FROM vehicles v LEFT JOIN staff s ON v.assigned_driver_id = s.id 
-        WHERE v.company_id = %s ORDER BY v.reg_plate
-    """, (comp_id,))
-    
-    vehicles = []
-    rows = cur.fetchall()
-    
-    # Secondary cursor for lists
-    cur2 = conn.cursor()
-    
-    for r in rows:
-        v_id = r[0]
-        # Get Crew
-        cur2.execute("SELECT s.id, s.name FROM vehicle_crew vc JOIN staff s ON vc.staff_id = s.id WHERE vc.vehicle_id = %s", (v_id,))
-        crew = [{'id': c[0], 'name': c[1]} for c in cur2.fetchall()]
-        
-        # Get History
-        cur2.execute("SELECT date, type, description, cost FROM maintenance_logs WHERE vehicle_id = %s ORDER BY date DESC", (v_id,))
-        history = [{'date': h[0], 'desc': h[2], 'cost': h[3]} for h in cur2.fetchall()]
-
-        vehicles.append({
-            'id': r[0], 'reg_number': r[1], 'make_model': r[2], 'status': r[3],
-            'driver_name': r[4], 'assigned_driver_id': r[5],
-            'mot_expiry': to_date(r[6]), # Convert to Object for Math
-            'tax_expiry': to_date(r[7]), 
-            'ins_expiry': to_date(r[8]),
-            'tracker_url': r[9], 'defect_notes': r[10],
-            'crew': crew, 'history': history
-        })
-
-    cur.execute("SELECT id, name FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
-    staff = [{'id': s[0], 'name': s[1]} for s in cur.fetchall()]
-    
-    conn.close()
-    
-    # Pointing to the correct Office Template
-    return render_template('office/fleet_management.html', vehicles=vehicles, staff=staff, today=date.today())
 
 # --- 11. CALENDAR ---
 @office_bp.route('/office/calendar')
