@@ -12,15 +12,36 @@ def check_site_access():
     if 'user_id' not in session: return False
     return True
 
+# --- HELPER: SELF-REPAIR DATABASE ---
+def repair_jobs_table_if_needed(conn):
+    """
+    Checks if 'staff_id' exists in the jobs table.
+    If not, it adds the column automatically to prevent crashes.
+    """
+    try:
+        cur = conn.cursor()
+        # This command is safe: it only adds the column if it's missing
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS staff_id INTEGER")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"⚠️ Auto-Repair Warning: {e}")
+
 # --- 1. SITE DASHBOARD (WORKER VIEW) ---
 @site_bp.route('/site-hub', methods=['GET', 'POST'])
-@site_bp.route('/site-companion', methods=['GET', 'POST']) # <--- RESTORED THIS LINE
+@site_bp.route('/site-companion', methods=['GET', 'POST']) 
 def site_dashboard():
     if not check_site_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
     staff_id = session.get('user_id')
-    conn = get_db(); cur = conn.cursor()
+    
+    conn = get_db()
+    
+    # 1. RUN AUTO-REPAIR (Fixes the 500 Error)
+    repair_jobs_table_if_needed(conn)
+    
+    cur = conn.cursor()
 
     # --- HANDLE VAN CHECK SUBMISSION ---
     if request.method == 'POST' and request.form.get('action') == 'van_check':
@@ -61,7 +82,7 @@ def site_dashboard():
 
     # --- LOAD DASHBOARD DATA ---
     
-    # A. Fetch "My Jobs"
+    # A. Fetch "My Jobs" (Now safe because column exists)
     cur.execute("""
         SELECT j.id, j.status, j.ref, j.site_address, p.postcode, j.description, j.start_date
         FROM jobs j
