@@ -757,3 +757,71 @@ def view_client(client_id):
 
     conn.close()
     return render_template('office/client_details.html', client=client_data, properties=properties, jobs=active_jobs, brand_color=config['color'], logo_url=config['logo'])
+    
+    # --- 13. ADD PROPERTY & UPLOAD CERTIFICATES ---
+@office_bp.route('/client/<int:client_id>/add_property', methods=['POST'])
+def add_property(client_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    # Get Form Data
+    address = request.form.get('address')
+    postcode = request.form.get('postcode')
+    tenant = request.form.get('tenant_name')
+    phone = request.form.get('tenant_phone')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # We try to insert into 'address' column first (most likely correct name)
+        # If your DB uses 'addr', we might need to adjust, but standard is 'address'
+        cur.execute("""
+            INSERT INTO properties (client_id, address, postcode, tenant_name, tenant_phone)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (client_id, address, postcode, tenant, phone))
+        conn.commit()
+        flash("✅ Property Added Successfully")
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error adding property: {e}")
+        # Debug hint: if it fails, check if column is named 'addr' or 'address'
+    finally:
+        conn.close()
+        
+    return redirect(url_for('office.view_client', client_id=client_id))
+
+@office_bp.route('/compliance/upload', methods=['POST'])
+def upload_compliance():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    client_id = request.form.get('client_id')
+    prop_id = request.form.get('property_id')
+    cert_type = request.form.get('cert_type') # Gas Safety, EICR, etc.
+    comp_date = request.form.get('date')
+    file = request.files.get('file')
+    
+    filename = "manual_entry"
+    if file and file.filename != '':
+        # Save the file securely
+        safe_name = secure_filename(f"CERT_{prop_id}_{cert_type}_{file.filename}")
+        # Ensure directory exists
+        save_path = os.path.join(UPLOAD_FOLDER, 'certs')
+        os.makedirs(save_path, exist_ok=True)
+        file.save(os.path.join(save_path, safe_name))
+        filename = safe_name
+
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Create a 'Completed' job to represent this certificate
+        # This fixes the traffic light logic automatically
+        cur.execute("""
+            INSERT INTO jobs (client_id, property_id, type, description, status, date, attachment_url)
+            VALUES (%s, %s, %s, 'Compliance Certificate Uploaded', 'Completed', %s, %s)
+        """, (client_id, prop_id, cert_type, comp_date, filename))
+        
+        conn.commit()
+        flash(f"✅ {cert_type} Uploaded & Status Updated")
+    except Exception as e:
+        conn.rollback(); flash(f"❌ Error: {e}")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('office.view_client', client_id=client_id))

@@ -5,20 +5,13 @@
 {% block head %}
 <style>
     .comp-badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border: 1px solid transparent; font-weight: bold; }
-    
-    /* Green - Good for >30 days */
     .comp-Valid { background-color: #d1e7dd; color: #0f5132; border-color: #badbcc; }
-    
-    /* Red - Expired */
     .comp-Expired { background-color: #f8d7da; color: #842029; border-color: #f5c2c7; animation: pulse 2s infinite; }
-    
-    /* NEW: Amber - Due within 30 days */
     .comp-Due { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
-    
-    /* Grey - Never Done */
     .comp-Missing { background-color: #e2e3e5; color: #41464b; border-color: #d3d6d8; }
-    
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+    
+    .btn-upload { font-size: 0.7rem; padding: 2px 6px; margin-top: 4px; }
 </style>
 {% endblock %}
 
@@ -61,7 +54,9 @@
 
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="fw-bold m-0">Property Portfolio ({{ properties|length }})</h5>
-        <button class="btn btn-sm btn-primary fw-bold"><i class="fas fa-plus me-1"></i> Add Property</button>
+        <button class="btn btn-sm btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
+            <i class="fas fa-plus me-1"></i> Add Property
+        </button>
     </div>
 
     <div class="row g-3">
@@ -87,21 +82,21 @@
                         <div class="d-flex gap-2">
                             <div class="text-center">
                                 <div class="comp-badge comp-{{ prop.compliance.Gas.status }}">Gas Safety</div>
-                                <small class="d-block mt-1 text-muted" style="font-size:0.65rem">
-                                    {{ prop.compliance.Gas.date or 'N/A' }}
-                                </small>
+                                <div class="small text-muted" style="font-size:0.65rem">{{ prop.compliance.Gas.date or 'N/A' }}</div>
+                                <button class="btn btn-sm btn-outline-secondary btn-upload w-100" 
+                                    onclick="openUploadModal('{{ prop.id }}', 'Gas Safety')"><i class="fas fa-upload"></i> Update</button>
                             </div>
                             <div class="text-center">
                                 <div class="comp-badge comp-{{ prop.compliance.EICR.status }}">EICR (Elec)</div>
-                                <small class="d-block mt-1 text-muted" style="font-size:0.65rem">
-                                    {{ prop.compliance.EICR.date or 'N/A' }}
-                                </small>
+                                <div class="small text-muted" style="font-size:0.65rem">{{ prop.compliance.EICR.date or 'N/A' }}</div>
+                                <button class="btn btn-sm btn-outline-secondary btn-upload w-100" 
+                                    onclick="openUploadModal('{{ prop.id }}', 'EICR')"><i class="fas fa-upload"></i> Update</button>
                             </div>
                             <div class="text-center">
                                 <div class="comp-badge comp-{{ prop.compliance.PAT.status }}">PAT Test</div>
-                                <small class="d-block mt-1 text-muted" style="font-size:0.65rem">
-                                    {{ prop.compliance.PAT.date or 'N/A' }}
-                                </small>
+                                <div class="small text-muted" style="font-size:0.65rem">{{ prop.compliance.PAT.date or 'N/A' }}</div>
+                                <button class="btn btn-sm btn-outline-secondary btn-upload w-100" 
+                                    onclick="openUploadModal('{{ prop.id }}', 'PAT Test')"><i class="fas fa-upload"></i> Update</button>
                             </div>
                         </div>
                     </div>
@@ -114,4 +109,85 @@
         </div>
         {% endfor %}
     </div>
+
+    <div class="modal fade" id="addPropertyModal" tabindex="-1">
+        <div class="modal-dialog">
+            <form action="/client/{{ client.id }}/add_property" method="POST" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Add Property</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="small fw-bold">Address Line 1</label>
+                        <input type="text" name="address" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small fw-bold">Postcode</label>
+                        <input type="text" name="postcode" class="form-control" required>
+                    </div>
+                    <hr>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="small fw-bold">Tenant Name</label>
+                            <input type="text" name="tenant_name" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="small fw-bold">Tenant Phone</label>
+                            <input type="text" name="tenant_phone" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary fw-bold">Save Property</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="uploadModal" tabindex="-1">
+        <div class="modal-dialog">
+            <form action="/compliance/upload" method="POST" enctype="multipart/form-data" class="modal-content">
+                <input type="hidden" name="client_id" value="{{ client.id }}">
+                <input type="hidden" name="property_id" id="upload_prop_id">
+                <input type="hidden" name="cert_type" id="upload_cert_type">
+                
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-file-upload me-2"></i>Upload Certificate</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-light border text-center mb-3">
+                        Uploading for: <strong><span id="display_cert_type"></span></strong>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="small fw-bold">Date Completed / Issued</label>
+                        <input type="date" name="date" class="form-control" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="small fw-bold">Certificate File (PDF/Image)</label>
+                        <input type="file" name="file" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success fw-bold w-100">Upload & Update Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function openUploadModal(propId, certType) {
+        document.getElementById('upload_prop_id').value = propId;
+        document.getElementById('upload_cert_type').value = certType;
+        document.getElementById('display_cert_type').innerText = certType;
+        
+        var myModal = new bootstrap.Modal(document.getElementById('uploadModal'));
+        myModal.show();
+    }
+</script>
 {% endblock %}
