@@ -6,114 +6,112 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root { --brand-color: {{ brand_color or '#c5a059' }}; }
-        body { background-color: #1a1a1a; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
         
-        .sidebar { width: 260px; height: 100vh; position: fixed; background: #111; padding: 20px; border-right: 1px solid #333; }
-        .content { margin-left: 260px; padding: 40px; }
+        /* MATCHING OFFICE SIDEBAR */
+        .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; z-index: 1000; }
+        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; opacity: 0.8; transition: 0.2s; }
+        .sidebar a:hover { opacity: 1; background-color: rgba(255,255,255,0.1); }
+        .sidebar a.active { opacity: 1; background-color: rgba(255,255,255,0.2); border-left: 5px solid white; }
+        .sidebar-heading { font-size: 0.8rem; text-transform: uppercase; color: rgba(255,255,255,0.5); padding: 20px 25px 5px 25px; font-weight: bold; }
         
-        .client-header { 
-            background: #252525; padding: 30px; border-radius: 15px; margin-bottom: 30px; 
-            border: 1px solid #333; border-left: 5px solid var(--brand-color);
-            display: flex; justify-content: space-between; align-items: center;
-        }
+        .content { margin-left: 250px; padding: 30px; }
         
-        .prop-card {
-            background: #252525; border: 1px solid #333; border-radius: 12px; margin-bottom: 15px; transition: 0.3s;
-        }
-        .prop-card:hover { border-color: var(--brand-color); transform: translateX(5px); }
+        /* MATCHING CARDS */
+        .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .client-header-card { border-left: 5px solid {{ brand_color }}; }
         
-        .btn-brand { background: var(--brand-color); color: #000; font-weight: bold; border: none; }
-        .btn-brand:hover { background: white; color: black; }
+        .badge-compliance { font-size: 0.75rem; padding: 6px 12px; border-radius: 6px; background: #fff; color: #666; border: 1px solid #ddd; }
+        .badge-compliance.active { border-color: #2ecc71; color: #2ecc71; background: rgba(46, 204, 113, 0.1); }
         
-        .badge-compliance { font-size: 0.75rem; padding: 6px 12px; border-radius: 6px; background: #111; color: #666; border: 1px solid #333; }
-        /* Active/Safe state */
-        .badge-compliance.active { border-color: #2ecc71; color: #2ecc71; background: rgba(46, 204, 113, 0.05); }
-        /* Urgent/Expired state - you can trigger this with logic in the template */
-        .badge-compliance.danger { border-color: #e74c3c; color: #e74c3c; background: rgba(231, 76, 60, 0.1); font-weight: bold; }
-        
-        .form-control, .form-select { background: #111; border: 1px solid #444; color: white; }
+        .btn-brand { background-color: {{ brand_color }}; color: white; border: none; font-weight: bold; }
+        .btn-brand:hover { filter: brightness(0.9); color: white; }
     </style>
 </head>
 <body>
 
     <div class="sidebar">
-        <h4 class="fw-bold mb-4 text-white">Business<span style="color: var(--brand-color)">Better</span></h4>
-        <a href="/clients" class="btn btn-outline-light w-100 mb-3 shadow-sm">
-            <i class="fas fa-arrow-left me-2"></i> Back to Directory
-        </a>
-        <hr class="border-secondary">
-        <div class="text-muted small text-uppercase mb-2">Management</div>
-        <button class="btn btn-dark w-100 text-start mb-2" data-bs-toggle="modal" data-bs-target="#editClientModal"><i class="fas fa-edit me-2"></i> Edit Account</button>
-        <button class="btn btn-dark w-100 text-start mb-2" onclick="window.print()"><i class="fas fa-print me-2"></i> Export PDF</button>
+        <div class="text-center mb-4">
+            <img src="{{ logo_url }}" alt="Logo" style="max-width: 150px; height: auto; padding: 10px; border-radius: 10px;">
+        </div>
+        
+        <span class="sidebar-heading">Main</span>
+        <a href="/office-hub"><i class="fas fa-columns me-2"></i> Dashboard</a>
+        <a href="/office/calendar"><i class="fas fa-calendar-alt me-2"></i> Schedule</a>
+        <a href="/office/service-desk"><i class="fas fa-inbox me-2"></i> Service Desk</a>
+
+        <span class="sidebar-heading">Assets & People</span>
+        <a href="/clients" class="active"><i class="fas fa-address-book me-2"></i> Clients</a>
+        <a href="/office/staff"><i class="fas fa-users me-2"></i> Staff</a>
+        <a href="/office/fleet"><i class="fas fa-truck me-2"></i> Fleet</a>
+        
+        <span class="sidebar-heading">System</span>
+        <a href="/launcher"><i class="fas fa-th me-2"></i> App Launcher</a>
+        <a href="/logout" class="text-warning"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
     </div>
 
     <div class="content">
-        
-        <div class="client-header shadow-lg">
-            <div>
-                <h6 class="text-uppercase text-muted mb-1" style="letter-spacing: 2px;">Account Overview</h6>
-                <h1 class="fw-bold text-white m-0">{{ client.name }}</h1>
-                <div class="mt-2">
-                    <span class="me-3"><i class="fas fa-envelope text-muted me-2"></i>{{ client.email }}</span>
-                    <span><i class="fas fa-phone text-muted me-2"></i>{{ client.phone }}</span>
+        <div class="card client-header-card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted fw-bold mb-1">CLIENT PROFILE</h6>
+                    <h2 class="fw-bold mb-0 text-dark">{{ client.name }}</h2>
+                    <div class="mt-2 text-muted">
+                        <i class="fas fa-envelope me-2"></i>{{ client.email }} &nbsp;|&nbsp; 
+                        <i class="fas fa-phone me-2"></i>{{ client.phone }}
+                    </div>
                 </div>
-            </div>
-            <div class="text-end">
-                <button class="btn btn-brand px-4 py-2 shadow" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
-                    <i class="fas fa-plus-circle me-2"></i> Add Managed Property
-                </button>
+                <div>
+                    <button class="btn btn-outline-secondary me-2" data-bs-toggle="modal" data-bs-target="#editClientModal">Edit Account</button>
+                    <button class="btn btn-brand" data-bs-toggle="modal" data-bs-target="#addPropertyModal">Add Property</button>
+                </div>
             </div>
         </div>
 
-        <div class="row">
-            <div class="col-lg-12">
-                <h5 class="mb-4 d-flex align-items-center">
-                    <i class="fas fa-building me-2 text-muted"></i> 
-                    Property Portfolio & Compliance
-                    <span class="badge bg-dark ms-3 fs-6 border border-secondary">{{ properties|length }} Units</span>
-                </h5>
-                
-                {% for p in properties %}
-                <div class="prop-card p-4 shadow-sm">
-                    <div class="row align-items-center">
+        <h4 class="fw-bold text-secondary mb-3">Portfolio & Compliance</h4>
+        
+        <div class="row g-3">
+            {% for p in properties %}
+            <div class="col-12">
+                <div class="card p-4">
+                    <div class="row align-items-center text-dark">
                         <div class="col-md-4">
-                            <h5 class="fw-bold text-white mb-1">{{ p[1] }}</h5> <span class="text-muted small text-uppercase" style="letter-spacing: 1px;">{{ p[2] }}</span> {% if p[3] %}
-                            <div class="mt-2 small" style="color: #3498DB;"><i class="fas fa-user-tag me-1"></i> Tenant: {{ p[3] }}</div>
+                            <h5 class="fw-bold mb-1">{{ p[1] }}</h5>
+                            <span class="text-muted small">{{ p[2] }}</span>
+                            {% if p[3] %}
+                            <div class="mt-1 small text-primary"><i class="fas fa-user me-1"></i> Tenant: {{ p[3] }}</div>
                             {% endif %}
                         </div>
-                        
                         <div class="col-md-6">
-                            <div class="d-flex flex-wrap gap-2 justify-content-center">
-                                <div class="badge-compliance {{ 'active' if p[4] else '' }}" title="Gas Safety Due">
+                            <div class="d-flex flex-wrap gap-2">
+                                <div class="badge-compliance {{ 'active' if p[4] else '' }}">
                                     <i class="fas fa-burn me-1"></i> GAS: {{ p[4].strftime('%d/%m/%y') if p[4] else 'N/A' }}
                                 </div>
-                                <div class="badge-compliance {{ 'active' if p[5] else '' }}" title="EICR Due">
+                                <div class="badge-compliance {{ 'active' if p[5] else '' }}">
                                     <i class="fas fa-bolt me-1"></i> EICR: {{ p[5].strftime('%d/%m/%y') if p[5] else 'N/A' }}
                                 </div>
-                                <div class="badge-compliance {{ 'active' if p[6] else '' }}" title="PAT Due">
+                                <div class="badge-compliance {{ 'active' if p[6] else '' }}">
                                     <i class="fas fa-plug me-1"></i> PAT: {{ p[6].strftime('%d/%m/%y') if p[6] else 'N/A' }}
                                 </div>
-                                <div class="badge-compliance {{ 'active' if p[7] else '' }}" title="Fire Risk Due">
+                                <div class="badge-compliance {{ 'active' if p[7] else '' }}">
                                     <i class="fas fa-fire-extinguisher me-1"></i> FIRE: {{ p[7].strftime('%d/%m/%y') if p[7] else 'N/A' }}
                                 </div>
                             </div>
                         </div>
-
                         <div class="col-md-2 text-end">
-                            <a href="/office/create-job?property_id={{ p[0] }}" class="btn btn-sm btn-outline-light w-100">
-                                <i class="fas fa-calendar-plus me-1"></i> Book Job
-                            </a>
+                            <a href="/office/create-job?property_id={{ p[0] }}" class="btn btn-sm btn-outline-primary">Book Job</a>
                         </div>
                     </div>
                 </div>
-                {% else %}
-                <div class="text-center py-5 rounded-4" style="background: #222; border: 2px dashed #333;">
-                    <i class="fas fa-folder-open fa-3x mb-3 text-muted"></i>
-                    <p class="text-muted">No properties found. Start by adding the first managed asset.</p>
-                </div>
-                {% endfor %}
             </div>
+            {% else %}
+            <div class="col-12">
+                <div class="card p-5 text-center text-muted">
+                    <i class="fas fa-building fa-3x mb-3 opacity-25"></i>
+                    <p>No properties found for this client.</p>
+                </div>
+            </div>
+            {% endfor %}
         </div>
     </div>
 
