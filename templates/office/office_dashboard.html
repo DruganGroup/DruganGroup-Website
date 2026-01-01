@@ -1,179 +1,34 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Office Hub | TradeCore</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
-        
-        /* 1. CLEAN SIDEBAR */
-        .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; z-index: 1000; }
-        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; opacity: 0.8; transition: 0.2s; }
-        .sidebar a:hover { opacity: 1; background-color: rgba(255,255,255,0.1); }
-        .sidebar a.active { opacity: 1; background-color: rgba(255,255,255,0.2); border-left: 5px solid white; }
-        .sidebar-heading { font-size: 0.8rem; text-transform: uppercase; color: rgba(255,255,255,0.5); padding: 20px 25px 5px 25px; font-weight: bold; }
-        
-        .content { margin-left: 250px; padding: 30px; }
-        
-        /* 2. STAT CARDS */
-        .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform 0.2s; }
-        .stat-card { border-left: 5px solid transparent; }
-        .stat-card:hover { transform: translateY(-3px); }
-        .stat-blue { border-color: #3498db; }
-        .stat-green { border-color: #2ecc71; }
-        .stat-orange { border-color: #f39c12; }
-        
-        /* 3. WORKFLOW TABS */
-        .nav-pills .nav-link { color: #666; font-weight: 600; padding: 10px 20px; border-radius: 30px; margin-right: 10px; }
-        .nav-pills .nav-link.active { background-color: {{ brand_color }}; color: white; }
-        .nav-pills .nav-link i { margin-right: 8px; }
-        
-        .table-hover tbody tr:hover { background-color: #f8f9fa; cursor: pointer; }
-    </style>
-</head>
-<body>
+{% extends "base.html" %}
 
-    <div class="sidebar">
-        <div class="text-center mb-4">
-            <img src="{{ logo_url }}" alt="Logo" style="max-width: 150px; height: auto; padding: 10px; border-radius: 10px;">
+{% block title %}Office Hub | Business Better{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0">Office Command Center</h2>
+            <p class="text-muted">Managed by {{ company_name }}</p>
         </div>
-        
-        <span class="sidebar-heading">Main</span>
-        <a href="/office-hub" class="active"><i class="fas fa-columns me-2"></i> Dashboard</a>
-        <a href="/office/calendar"><i class="fas fa-calendar-alt me-2"></i> Schedule</a>
-        <a href="/office/service-desk"><i class="fas fa-inbox me-2"></i> Service Desk</a>
-
-        <span class="sidebar-heading">Assets & People</span>
-        <a href="/clients"><i class="fas fa-address-book me-2"></i> Clients</a>
-        <a href="/office/staff"><i class="fas fa-users me-2"></i> Staff</a>
-        <a href="/office/fleet"><i class="fas fa-truck me-2"></i> Fleet</a>
-        
-        <span class="sidebar-heading">System</span>
-        <a href="/launcher"><i class="fas fa-th me-2"></i> App Launcher</a>
-        <a href="/logout" class="text-warning"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
+        <a href="/office/create-job" class="btn btn-lg text-white shadow-sm" style="background-color: var(--brand-color);">
+            <i class="fas fa-plus-circle me-2"></i> New Work Order
+        </a>
     </div>
 
-    <div class="content">
-        <div class="row g-4 mb-4">
-            <div class="col-md-4">
-    <div class="card stat-card stat-blue p-3">
-        <div class="d-flex justify-content-between">
-            <div>
-                <h6 class="text-muted fw-bold">NEW REQUESTS</h6>
-                <h3 class="fw-bold mb-0">{{ pending_requests_count }}</h3>
-            </div>
-            <i class="fas fa-clipboard-list fa-2x text-primary opacity-50"></i>
-        </div>
-    </div>
-</div>
-            <div class="col-md-4">
-                <div class="card stat-card stat-green p-3">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="text-muted fw-bold">ACTIVE JOBS</h6>
-                            <h3 class="fw-bold mb-0">{{ active_jobs_count or 0 }}</h3>
-                        </div>
-                        <i class="fas fa-hammer fa-2x text-success opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card stat-card stat-orange p-3">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="text-muted fw-bold">PENDING QUOTES</h6>
-                            <h3 class="fw-bold mb-0">{{ quotes|length }}</h3>
-                        </div>
-                        <i class="fas fa-file-invoice fa-2x text-warning opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="fw-bold text-secondary">Work Pipeline</h4>
-            <a href="/office/quote/new" class="btn btn-primary fw-bold"><i class="fas fa-plus"></i> New Quote</a>
-        </div>
-
-        <div class="card p-4">
-            <ul class="nav nav-pills mb-4" id="workflowTabs" role="tablist">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white border-0 pt-3">
+            <ul class="nav nav-tabs card-header-tabs" id="officeTabs">
                 <li class="nav-item">
-                    <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-quotes">
-                        <i class="fas fa-file-alt"></i> Quotes & Leads
-                    </button>
+                    <button class="nav-link active fw-bold" data-bs-toggle="tab" data-bs-target="#quotes">Pending Quotes</button>
                 </li>
                 <li class="nav-item">
-                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-jobs">
-                        <i class="fas fa-tools"></i> Active Jobs
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-complete">
-                        <i class="fas fa-check-circle"></i> Completed (To Bill)
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-invoices">
-                        <i class="fas fa-pound-sign"></i> Invoices
-                    </button>
+                    <button class="nav-link fw-bold" data-bs-toggle="tab" data-bs-target="#live">Live Site Jobs</button>
                 </li>
             </ul>
-
-            <div class="tab-content">
-                
-                <div class="tab-pane fade show active" id="tab-quotes">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr><th>Date</th><th>Client</th><th>Ref</th><th>Total</th><th>Status</th><th>Action</th></tr>
-                        </thead>
-                        <tbody>
-                            {% for q in quotes %}
-                            <tr onclick="window.location='/office/quote/{{ q[0] }}'">
-                                <td>{{ q[3] }}</td>
-                                <td class="fw-bold">{{ q[1] }}</td>
-                                <td>{{ q[2] }}</td>
-                                <td>£{{ "%.2f"|format(q[4]) }}</td>
-                                <td><span class="badge bg-secondary">{{ q[5] }}</span></td>
-                                <td><a href="/office/quote/{{ q[0] }}" class="btn btn-sm btn-outline-primary">View</a></td>
-                            </tr>
-                            {% else %}
-                            <tr><td colspan="6" class="text-center py-4 text-muted">No pending quotes.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="tab-pane fade" id="tab-jobs">
-                    <div class="text-center py-5 text-muted">
-                        <i class="fas fa-hard-hat fa-3x mb-3 opacity-25"></i>
-                        <h5>Active Jobs View</h5>
-                        <p>Jobs scheduled or currently in progress appear here.</p>
-                        <a href="/office/calendar" class="btn btn-outline-primary btn-sm">View Schedule</a>
+        </div>
+        <div class="card-body">
+            <div class="tab-content pt-2">
+                <div class="tab-pane fade show active" id="quotes">
                     </div>
-                </div>
-
-                <div class="tab-pane fade" id="tab-complete">
-                    <div class="text-center py-5 text-muted">
-                        <i class="fas fa-check-double fa-3x mb-3 opacity-25"></i>
-                        <h5>Ready for Invoicing</h5>
-                        <p>Jobs marked 'Complete' by site staff will land here for you to bill.</p>
-                    </div>
-                </div>
-
-                <div class="tab-pane fade" id="tab-invoices">
-                    <div class="text-center py-5 text-muted">
-                        <i class="fas fa-file-invoice-dollar fa-3x mb-3 opacity-25"></i>
-                        <h5>Invoices & Payments</h5>
-                        <p>Track paid and unpaid invoices here.</p>
-                    </div>
-                </div>
-
             </div>
         </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+{% endblock %}
