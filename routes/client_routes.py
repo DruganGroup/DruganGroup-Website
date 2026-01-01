@@ -261,9 +261,73 @@ def client_portal_home():
                            brand_color=config['color'], 
                            logo_url=config['logo'])
 
-# --- 10. DATABASE REPAIR TOOL (UPDATED FOR COMPLIANCE) ---
+# --- 10. DATABASE REPAIR TOOL (ENHANCED) ---
 @client_bp.route('/clients/fix-schema')
 def fix_client_schema():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # 1. Handle the Client Password Migration
+        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT;")
+        
+        # 2. Ensure Properties Table Exists
+        cur.execute("""CREATE TABLE IF NOT EXISTS properties (
+            id SERIAL PRIMARY KEY, 
+            client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+            company_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);""")
+
+        # 3. RENAME 'address' TO 'address_line1' IF IT EXISTS
+        # This prevents the "column does not exist" error while saving your data
+        cur.execute("""
+            DO $$ 
+            BEGIN 
+                IF EXISTS (SELECT 1 FROM information_schema.columns 
+                           WHERE table_name='properties' AND column_name='address') THEN
+                    ALTER TABLE properties RENAME COLUMN address TO address_line1;
+                END IF;
+            END $$;
+        """)
+
+        # 4. ADD NEW COLUMNS (If they don't exist)
+        # We use TEXT for info and DATE for compliance so the "Due Soon" logic works
+        columns_to_add = [
+            ("address_line1", "TEXT"), # Just in case it's a fresh table
+            ("postcode", "TEXT"),
+            ("tenant_name", "TEXT"),
+            ("tenant_phone", "TEXT"),
+            ("access_info", "TEXT"),
+            ("gas_safety_due", "DATE"),
+            ("eicr_due", "DATE"),
+            ("pat_test_due", "DATE"),
+            ("fire_risk_due", "DATE"),
+            ("epc_expiry", "DATE")
+        ]
+
+        for col_name, col_type in columns_to_add:
+            try:
+                cur.execute(f"ALTER TABLE properties ADD COLUMN IF NOT EXISTS {col_name} {col_type};")
+            except Exception as e:
+                print(f"Skipping {col_name}: {e}")
+
+        # 5. Ensure Service Requests Table Exists
+        cur.execute("""CREATE TABLE IF NOT EXISTS service_requests (
+            id SERIAL PRIMARY KEY, 
+            property_id INTEGER REFERENCES properties(id) ON DELETE CASCADE,
+            client_id INTEGER, 
+            company_id INTEGER, 
+            issue_description TEXT, 
+            severity TEXT, 
+            status TEXT DEFAULT 'Pending', 
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);""")
+            
+        conn.commit()
+        return "✅ Database Refurbished: 'address' renamed to 'address_line1' and compliance dates ready."
+    except Exception as e: 
+        conn.rollback()
+        return f"❌ Migration Error: {e}"
+    finally: 
+        conn.close()
     if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
     conn = get_db(); cur = conn.cursor()
     try:

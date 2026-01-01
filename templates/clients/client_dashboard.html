@@ -85,14 +85,17 @@
                     {% for c in clients %}
                     <tr>
                         <td>
-                            <div class="d-flex align-items-center">
-                                <div class="client-avatar" style="border: 2px solid {{ brand_color }};">{{ c[1][0] | upper }}</div>
-                                <div>
-                                    <div class="fw-bold">{{ c[1] }}</div>
-                                    <small class="text-muted fst-italic">{{ c[8] or 'No notes' }}</small>
-                                </div>
-                            </div>
-                        </td>
+    <div class="d-flex align-items-center">
+        <div class="client-avatar" style="border: 2px solid {{ brand_color }};">{{ c[1][0] | upper }}</div>
+        <div>
+            <a href="/client/{{ c[0] }}" class="fw-bold text-decoration-none" style="color: inherit; border-bottom: 1px dashed {{ brand_color }};">
+                {{ c[1] }}
+            </a>
+            <br>
+            <small class="text-muted fst-italic">{{ c[8] or 'No notes' }}</small>
+        </div>
+    </div>
+</td>
 
                         <td>
                             {% if c[2] %}<div class="small"><i class="fas fa-envelope text-muted me-2"></i>{{ c[2] }}</div>{% endif %}
