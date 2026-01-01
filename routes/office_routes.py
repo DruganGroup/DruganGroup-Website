@@ -62,7 +62,6 @@ def create_quote():
             client_mode = request.form.get('client_mode'); client_id = None
             if client_mode == 'existing': client_id = request.form.get('existing_client_id')
             elif client_mode == 'new':
-                # Note: Clients table uses 'address' (standard), but properties uses 'address_line1'. Keeping clients standard.
                 cur.execute("INSERT INTO clients (company_id, name, email, address, status) VALUES (%s, %s, %s, %s, 'Active') RETURNING id", (comp_id, request.form.get('new_client_name'), request.form.get('new_client_email'), request.form.get('new_client_address')))
                 client_id = cur.fetchone()[0]
 
@@ -164,7 +163,12 @@ def service_desk():
     comp_id = session.get('company_id'); config = get_site_config(comp_id); conn = get_db(); cur = conn.cursor()
     
     # FIXED: Using address_line1 for properties
-    cur.execute("SELECT r.id, p.address_line1, r.issue_description, c.name, r.severity, r.status, r.created_at FROM service_requests r JOIN properties p ON r.property_id = p.id JOIN clients c ON r.client_id = c.id WHERE r.company_id = %s AND r.status != 'Completed' ORDER BY r.created_at DESC", (comp_id,))
+    try:
+        cur.execute("SELECT r.id, p.address_line1, r.issue_description, c.name, r.severity, r.status, r.created_at FROM service_requests r JOIN properties p ON r.property_id = p.id JOIN clients c ON r.client_id = c.id WHERE r.company_id = %s AND r.status != 'Completed' ORDER BY r.created_at DESC", (comp_id,))
+    except:
+        conn.rollback()
+        # Fallback to site_address if migration incomplete (safety net)
+        cur.execute("SELECT r.id, p.site_address, r.issue_description, c.name, r.severity, r.status, r.created_at FROM service_requests r JOIN properties p ON r.property_id = p.id JOIN clients c ON r.client_id = c.id WHERE r.company_id = %s AND r.status != 'Completed' ORDER BY r.created_at DESC", (comp_id,))
     
     rows = cur.fetchall()
     requests_list = []
@@ -240,6 +244,57 @@ def fleet_list():
     all_staff = [dict(zip(['id', 'name', 'role'], row)) for row in cur.fetchall()]
     conn.close()
     return render_template('office/fleet_management.html', vehicles=vehicles, staff=all_staff, today=date.today(), brand_color=config['color'], logo_url=config['logo'])
+
+# --- 10. CALENDAR (ADDED BACK) ---
+@office_bp.route('/office/calendar')
+def office_calendar():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    return render_template('office/calendar.html', brand_color=config['color'], logo_url=config['logo'])
+
+# --- 11. CALENDAR DATA FEED (UPDATED for start_date) ---
+@office_bp.route('/office/calendar/data')
+def get_calendar_data():
+    if not check_office_access(): return jsonify([])
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    events = []
+
+    # A. Fetch JOBS (Fixed for start_date)
+    try:
+        cur.execute("""
+            SELECT j.id, j.ref, j.start_date, c.name, j.status, j.description
+            FROM jobs j 
+            LEFT JOIN clients c ON j.client_id = c.id
+            WHERE j.company_id = %s AND j.start_date IS NOT NULL
+        """, (comp_id,))
+        jobs = cur.fetchall()
+        for j in jobs:
+            events.append({
+                'title': f"{j[1]} - {j[3] or 'Client'}", 
+                'start': str(j[2]),
+                'color': '#28a745' if j[4] == 'Completed' else '#0d6efd',
+                'url': f"/site/job/{j[0]}",
+                'allDay': True
+            })
+    except Exception as e: print(f"Calendar Job Error: {e}")
+
+    # B. Fetch VEHICLE DATES
+    try:
+        cur.execute("SELECT reg_plate, mot_due, tax_due, insurance_due, service_due FROM vehicles WHERE company_id = %s", (comp_id,))
+        vehicles = cur.fetchall()
+        for v in vehicles:
+            reg = v[0]
+            if v[1]: events.append({'title': f"MOT Due: {reg}", 'start': str(v[1]), 'color': '#dc3545', 'allDay': True})
+            if v[2]: events.append({'title': f"Tax Due: {reg}", 'start': str(v[2]), 'color': '#ffc107', 'textColor': 'black', 'allDay': True})
+            if v[3]: events.append({'title': f"Ins Due: {reg}", 'start': str(v[3]), 'color': '#fd7e14', 'allDay': True})
+            if v[4]: events.append({'title': f"Service: {reg}", 'start': str(v[4]), 'color': '#6f42c1', 'allDay': True})
+    except Exception as e: print(f"Calendar Fleet Error: {e}")
+
+    conn.close()
+    return jsonify(events)
 
 # --- 12. CLIENT DETAILS (FIXED: address_line1) ---
 @office_bp.route('/client/<int:client_id>')
