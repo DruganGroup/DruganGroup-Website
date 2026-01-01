@@ -65,7 +65,15 @@ def finance_hr():
         SELECT id, name, position, dept, pay_rate, pay_model, access_level, email, phone, employment_type, address, tax_id 
         FROM staff WHERE company_id = %s ORDER BY name
     """, (comp_id,))
-    staff = cur.fetchall()
+    
+    # FIX: Convert tuples to dictionaries so HTML can use {{ s.name }} instead of {{ s[1] }}
+    rows = cur.fetchall()
+    staff = []
+    columns = ['id', 'name', 'position', 'dept', 'pay_rate', 'pay_model', 'access_level', 'email', 'phone', 'employment_type', 'address', 'tax_id']
+    
+    for row in rows:
+        staff.append(dict(zip(columns, row)))
+
     conn.close()
     return render_template('finance/finance_hr.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
@@ -169,21 +177,21 @@ def finance_fleet():
                 conn.rollback(); flash(f"❌ Error: {e}")
                 
         elif action == 'add_vehicle':
-            reg = request.form.get('reg')
-            model = request.form.get('model')
+            reg = request.form.get('reg_plate') # Fixed key name
+            model = request.form.get('make_model')
             driver = request.form.get('driver_id')
             cost = request.form.get('daily_cost') or 0
-            mot = request.form.get('mot')
-            tax = request.form.get('tax')
-            ins = request.form.get('ins')
-            serv = request.form.get('serv')
+            mot = request.form.get('mot_expiry')
+            tax = request.form.get('tax_due')
+            ins = request.form.get('insurance_due')
+            serv = request.form.get('service_due')
             tracker = request.form.get('tracker_url')
             
             try:
                 cur.execute("""
                     INSERT INTO vehicles (company_id, reg_plate, make_model, assigned_driver_id, daily_cost, mot_due, tax_due, insurance_due, service_due, tracker_url, status)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')
-                """, (comp_id, reg, model, driver if driver != 'None' else None, cost, mot, tax, ins, serv, tracker))
+                """, (comp_id, reg, model, driver if driver != 'None' and driver != '' else None, cost, mot, tax, ins, serv, tracker))
                 conn.commit()
                 flash("✅ Vehicle Added")
             except Exception as e:
@@ -191,35 +199,36 @@ def finance_fleet():
         
         elif action == 'update_vehicle':
             v_id = request.form.get('vehicle_id')
-            reg = request.form.get('reg')
-            model = request.form.get('model')
+            reg = request.form.get('reg_plate')
+            model = request.form.get('make_model')
             driver = request.form.get('driver_id')
             status = request.form.get('status')
-            mot = request.form.get('mot')
-            tax = request.form.get('tax')
-            ins = request.form.get('ins')
-            serv = request.form.get('serv')
+            mot = request.form.get('mot_expiry')
+            tax = request.form.get('tax_due')
+            ins = request.form.get('insurance_due')
+            serv = request.form.get('service_due')
             tracker = request.form.get('tracker_url')
+            cost = request.form.get('daily_cost') or 0
             
             try:
                 cur.execute("""
                     UPDATE vehicles SET reg_plate=%s, make_model=%s, assigned_driver_id=%s, status=%s, 
-                    mot_due=%s, tax_due=%s, insurance_due=%s, service_due=%s, tracker_url=%s
+                    mot_due=%s, tax_due=%s, insurance_due=%s, service_due=%s, tracker_url=%s, daily_cost=%s
                     WHERE id=%s AND company_id=%s
-                """, (reg, model, driver if driver != 'None' else None, status, mot, tax, ins, serv, tracker, v_id, comp_id))
+                """, (reg, model, driver if driver != 'None' and driver != '' else None, status, mot, tax, ins, serv, tracker, cost, v_id, comp_id))
                 conn.commit()
                 flash("✅ Vehicle Updated")
             except Exception as e:
                 conn.rollback(); flash(f"❌ Error: {e}")
 
     # --- FETCH VEHICLES (Safe Logic) ---
-    # We use a separate cursor for the inner loop to prevent any "cursor conflict" issues
     cur.execute("""
         SELECT 
             v.id, v.reg_plate, v.make_model, v.status, 
             v.mot_due, v.tax_due, v.insurance_due,
             s.name as driver_name,
-            v.assigned_driver_id, v.tracker_url, v.service_due
+            v.assigned_driver_id, v.tracker_url, v.service_due,
+            COALESCE(v.daily_cost, 0)
         FROM vehicles v 
         LEFT JOIN staff s ON v.assigned_driver_id = s.id 
         WHERE v.company_id = %s
@@ -245,22 +254,23 @@ def finance_fleet():
 
         vehicles.append({
             'id': row[0],
-            'reg_number': row[1],
+            'reg_plate': row[1],
             'make_model': row[2],
             'status': row[3],
             'mot_due': parse_date(row[4]),
             'tax_due': parse_date(row[5]),
             'ins_due': parse_date(row[6]),
-            'driver': row[7],
+            'driver_name': row[7],
             'total_spend': total_spend,
             'assigned_driver_id': row[8],
             'tracker_url': row[9],
             'service_due': parse_date(row[10]),
+            'daily_cost': row[11], # FIX: Included missing field
             'history': history
         })
         
     cur.execute("SELECT id, name FROM staff WHERE company_id = %s ORDER BY name ASC", (comp_id,))
-    staff_list = cur.fetchall()
+    staff_list = [dict(zip(['id', 'name'], row)) for row in cur.fetchall()]
     
     cur2.close()
     conn.close()
@@ -286,7 +296,12 @@ def finance_materials():
     cur.execute("CREATE TABLE IF NOT EXISTS materials (id SERIAL PRIMARY KEY, company_id INTEGER, sku TEXT, name TEXT, category TEXT, unit TEXT, cost_price DECIMAL(10,2), supplier TEXT);")
     conn.commit()
     cur.execute("SELECT id, sku, name, category, unit, cost_price, supplier FROM materials WHERE company_id = %s ORDER BY name", (comp_id,))
-    materials = cur.fetchall()
+    
+    rows = cur.fetchall()
+    materials = []
+    for m in rows:
+        materials.append({'id': m[0], 'sku': m[1], 'name': m[2], 'category': m[3], 'unit': m[4], 'price': m[5], 'supplier': m[6]})
+
     conn.close()
     return render_template('finance/finance_materials.html', materials=materials, brand_color=config['color'], logo_url=config['logo'])
 
@@ -295,7 +310,7 @@ def add_material():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
     supplier = request.form.get('supplier'); sku = request.form.get('sku')
     name = request.form.get('name'); cat = request.form.get('category')
-    unit = request.form.get('unit'); cost = request.form.get('cost') or 0
+    unit = request.form.get('unit'); cost = request.form.get('price') or 0
     conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("INSERT INTO materials (company_id, sku, name, category, unit, cost_price, supplier) VALUES (%s, %s, %s, %s, %s, %s, %s)", (session.get('company_id'), sku, name, cat, unit, cost, supplier))
@@ -552,6 +567,7 @@ def settings_overheads():
         items = cur.fetchall()
         cat_total = sum([float(i[2]) for i in items])
         total_overhead += cat_total
+        # FIX: Renamed 'items' key to 'line_items' to avoid Jinja 'dict.items' conflict
         overheads.append({'id': cat[0], 'name': cat[1], 'items': items, 'total': cat_total})
 
     conn.close()
