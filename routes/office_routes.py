@@ -17,15 +17,7 @@ def get_staff_list(cur, company_id):
     cols = [desc[0] for desc in cur.description]
     return [dict(zip(cols, row)) for row in cur.fetchall()]
 
-# --- HELPER: UK DATE FORMATTER ---
-def uk_date(d):
-    if not d: return ""
-    if isinstance(d, str): 
-        try: d = datetime.strptime(d, '%Y-%m-%d')
-        except: return d
-    return d.strftime('%d/%m/%Y')
-
-# --- 1. OFFICE DASHBOARD ---
+# --- 1. OFFICE DASHBOARD (Updated with Live Ops) ---
 @office_bp.route('/office-hub')
 @office_bp.route('/office-hub.html')
 def office_dashboard():
@@ -34,20 +26,18 @@ def office_dashboard():
     config = get_site_config(company_id)
     conn = get_db(); cur = conn.cursor()
     
-    # Stats
+    # Basic Stats
     cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id = %s AND status != 'Completed'", (company_id,))
     pending_requests_count = cur.fetchone()[0]
 
     cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id = %s AND status != 'Completed'", (company_id,))
     active_jobs_count = cur.fetchone()[0]
 
-    # Quotes (With UK Date)
+    # Quotes
     cur.execute("SELECT q.id, c.name, q.reference, q.date, q.total, q.status FROM quotes q LEFT JOIN clients c ON q.client_id = c.id WHERE q.company_id = %s AND q.status = 'Draft' ORDER BY q.id DESC LIMIT 5", (company_id,))
-    recent_quotes = []
-    for r in cur.fetchall():
-        recent_quotes.append((r[0], r[1], r[2], uk_date(r[3]), r[4], r[5])) # Apply format to index 3
+    recent_quotes = cur.fetchall()
 
-    # Completed Jobs (With UK Date)
+    # Completed Jobs (Ready for Invoicing)
     cur.execute("""
         SELECT j.id, j.ref, j.site_address, c.name, j.description, j.start_date
         FROM jobs j LEFT JOIN clients c ON j.client_id = c.id
@@ -56,10 +46,10 @@ def office_dashboard():
     """, (company_id,))
     completed_jobs = []
     for r in cur.fetchall():
-        # Apply UK Date format here
-        completed_jobs.append({'id': r[0], 'ref': r[1], 'address': r[2], 'client': r[3], 'desc': r[4], 'date': uk_date(r[5])})
+        completed_jobs.append({'id': r[0], 'ref': r[1], 'address': r[2], 'client': r[3], 'desc': r[4], 'date': r[5]})
 
-    # Live Operations
+    # --- LIVE OPERATIONS BOARD logic ---
+    # Fetch jobs that are 'In Progress' right now
     cur.execute("""
         SELECT j.id, j.ref, j.site_address, s.name, j.start_date
         FROM jobs j
@@ -70,17 +60,24 @@ def office_dashboard():
     live_ops = []
     now = datetime.now()
     for r in cur.fetchall():
-        start_time = r[4]
+        start_time = r[4] # This is a datetime object from DB
         duration_str = "Just Started"
+        
+        # Calculate Duration
         if start_time:
+            # Handle edge case where DB returns date only
             if isinstance(start_time, date) and not isinstance(start_time, datetime):
                 start_time = datetime.combine(start_time, datetime.min.time())
+            
             diff = now - start_time
             hours = diff.seconds // 3600
             mins = (diff.seconds % 3600) // 60
             duration_str = f"{hours}h {mins}m"
 
-        live_ops.append({'id': r[0], 'ref': r[1], 'address': r[2], 'staff': r[3], 'duration': duration_str})
+        live_ops.append({
+            'id': r[0], 'ref': r[1], 'address': r[2], 
+            'staff': r[3], 'duration': duration_str
+        })
 
     conn.close()
 
@@ -89,15 +86,16 @@ def office_dashboard():
                          active_jobs_count=active_jobs_count, 
                          quotes=recent_quotes,
                          completed_jobs=completed_jobs,
-                         live_ops=live_ops,
+                         live_ops=live_ops, # <--- Sending Live Data
                          brand_color=config['color'], 
                          logo_url=config['logo'])
 
-# --- 2. INVOICE GENERATION ---
+# --- 2. MANUAL INVOICE GENERATION (Backup) ---
 @office_bp.route('/office/job/<int:job_id>/invoice', methods=['POST'])
 def generate_invoice_from_job(job_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
-    comp_id = session.get('company_id'); conn = get_db(); cur = conn.cursor()
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
 
     try:
         cur.execute("SELECT client_id, ref, description, start_date FROM jobs WHERE id = %s", (job_id,))
@@ -114,7 +112,7 @@ def generate_invoice_from_job(job_id):
         """, (comp_id, client_id, job_ref, new_ref, f"Generated from Job {job_ref}"))
         inv_id = cur.fetchone()[0]
 
-        cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, 1, 0, 0)", (inv_id, f"Work Completed: {job_desc} ({uk_date(job_date)})"))
+        cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, 1, 0, 0)", (inv_id, f"Work Completed: {job_desc} ({job_date})"))
         cur.execute("UPDATE jobs SET status = 'Invoiced' WHERE id = %s", (job_id,))
         conn.commit(); flash(f"✅ Invoice {new_ref} Generated!")
         return redirect(url_for('finance.finance_dashboard')) 
@@ -224,7 +222,7 @@ def service_desk():
     rows = cur.fetchall()
     requests_list = []
     for r in rows:
-        requests_list.append({'id': r[0], 'property_address': r[1], 'issue_description': r[2], 'client_name': r[3], 'severity': r[4], 'status': r[5], 'date': uk_date(r[6])}) # UK Date
+        requests_list.append({'id': r[0], 'property_address': r[1], 'issue_description': r[2], 'client_name': r[3], 'severity': r[4], 'status': r[5], 'date': r[6]})
     staff_members = get_staff_list(cur, comp_id)
     conn.close()
     return render_template('office/service_desk.html', requests=requests_list, staff=staff_members, brand_color=config['color'], logo_url=config['logo'])
@@ -259,7 +257,7 @@ def staff_list():
     conn.close()
     return render_template('office/staff_management.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# --- 10. FLEET ---
+# --- 10. FLEET (Office View) ---
 @office_bp.route('/office/fleet', methods=['GET', 'POST'])
 def fleet_list():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -285,7 +283,7 @@ def get_calendar_data():
     conn.close()
     return jsonify(events)
 
-# --- 12. CLIENTS ---
+# --- 12. CLIENTS & PROPERTIES ---
 @office_bp.route('/client/<int:client_id>')
 def view_client(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
