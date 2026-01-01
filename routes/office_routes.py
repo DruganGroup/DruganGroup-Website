@@ -256,7 +256,7 @@ def convert_quote_to_job():
         cur.execute("SELECT client_id, reference, notes FROM quotes WHERE id = %s", (quote_id,))
         quote = cur.fetchone()
         
-        # !!! FIX: Changed 'scheduled_date' to 'date' !!!
+        # FIX: 'date' instead of 'scheduled_date'
         cur.execute("""
             INSERT INTO jobs (company_id, staff_id, client_id, date, type, status, reference, notes)
             VALUES (%s, %s, %s, %s, 'Quote Work', 'Scheduled', %s, %s)
@@ -272,7 +272,7 @@ def convert_quote_to_job():
         
     return redirect(url_for('office.office_dashboard'))
 
-# --- 6. SERVICE DESK ---
+# --- 6. SERVICE DESK (FIXED) ---
 @office_bp.route('/office/service-desk')
 def service_desk():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -280,8 +280,9 @@ def service_desk():
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
     
+    # !!! FIX: Changed 'p.address' to 'p.addr' !!!
     cur.execute("""
-        SELECT r.id, p.address, r.issue_description, c.name, r.severity, r.status, r.created_at
+        SELECT r.id, p.addr, r.issue_description, c.name, r.severity, r.status, r.created_at
         FROM service_requests r
         JOIN properties p ON r.property_id = p.id
         JOIN clients c ON r.client_id = c.id
@@ -315,7 +316,7 @@ def create_work_order():
     
     conn = get_db(); cur = conn.cursor()
     try:
-        # !!! FIX: Changed 'scheduled_date' to 'date' !!!
+        # FIX: 'date' instead of 'scheduled_date'
         cur.execute("""
             INSERT INTO jobs (company_id, request_id, staff_id, date, type, notes, status)
             VALUES (%s, %s, %s, %s, %s, %s, 'Scheduled')
@@ -467,7 +468,7 @@ def get_calendar_data():
 
     # A. Fetch JOBS
     try:
-        # !!! FIX: Changed 'j.scheduled_date' to 'j.date' to match database schema !!!
+        # FIX: 'date' instead of 'scheduled_date'
         cur.execute("""
             SELECT j.id, j.ref, j.date, c.name, j.status
             FROM jobs j 
