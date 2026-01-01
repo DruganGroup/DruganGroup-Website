@@ -1,137 +1,187 @@
 {% extends "office/office_base.html" %}
 
-{% block title %}Office Command | Business Better{% endblock %}
+{% block title %}Office Hub | Business Better{% endblock %}
 
 {% block content %}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold text-dark m-0">Operations Command</h2>
-            <p class="text-muted mb-0">Overview for {{ session.get('company_name') }}</p>
+            <h2 class="fw-bold m-0">Office Dashboard</h2>
+            <p class="text-muted mb-0">Overview of operations and requests</p>
         </div>
-        <a href="/office/quote/new" class="btn btn-primary fw-bold px-4 shadow-sm" style="background-color: var(--brand-color); border:none;">
-            <i class="fas fa-plus-circle me-2"></i> New Quote
-        </a>
+        <div class="d-flex gap-2">
+            <a href="/office/quote/new" class="btn btn-warning fw-bold text-dark shadow-sm">
+                <i class="fas fa-plus me-2"></i>New Quote
+            </a>
+            <a href="/office/calendar" class="btn btn-primary fw-bold shadow-sm" style="background-color: var(--brand-color); border:none;">
+                <i class="fas fa-calendar-alt me-2"></i>Master Calendar
+            </a>
+        </div>
     </div>
+
+    {% if live_ops %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-satellite-dish me-2"></i>Live Operations</span>
+            <span class="badge bg-danger rounded-pill px-3 animate__animated animate__pulse animate__infinite">LIVE</span>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-muted small text-uppercase">
+                    <tr>
+                        <th class="ps-4">Staff Member</th>
+                        <th>Job Ref</th>
+                        <th>Site Address</th>
+                        <th class="text-end pe-4">Time on Site</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for op in live_ops %}
+                    <tr style="background-color: #f8fff9;">
+                        <td class="ps-4 fw-bold text-success">
+                            <i class="fas fa-user-circle me-2"></i>{{ op.staff }}
+                        </td>
+                        <td>{{ op.ref }}</td>
+                        <td>{{ op.address }}</td>
+                        <td class="text-end pe-4 fw-bold text-dark">
+                            <i class="fas fa-stopwatch me-1 text-muted"></i> {{ op.duration }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="row g-4 mb-4">
         <div class="col-md-4">
-            <div class="card p-3 border-0 shadow-sm border-start border-4 border-primary hover-lift">
-                <div class="d-flex justify-content-between">
+            <div class="card border-0 shadow-sm h-100 overflow-hidden">
+                <div class="card-body d-flex align-items-center justify-content-between">
                     <div>
-                        <h6 class="text-muted fw-bold small text-uppercase">New Requests</h6>
-                        <h3 class="fw-bold mb-0 text-dark">{{ pending_requests_count }}</h3>
+                        <h6 class="text-muted text-uppercase fw-bold mb-1">Service Desk</h6>
+                        <h2 class="fw-bold m-0">{{ pending_requests_count }}</h2>
+                        <small class="text-danger fw-bold">Pending Requests</small>
                     </div>
-                    <div class="bg-primary bg-opacity-10 p-3 rounded-circle text-primary">
-                        <i class="fas fa-clipboard-list fa-lg"></i>
+                    <div class="bg-light p-3 rounded-circle">
+                        <i class="fas fa-headset fa-2x text-primary"></i>
                     </div>
+                </div>
+                <div class="card-footer bg-white border-0">
+                    <a href="/office/service-desk" class="text-decoration-none fw-bold small stretched-link">View Desk &rarr;</a>
                 </div>
             </div>
         </div>
+
         <div class="col-md-4">
-            <div class="card p-3 border-0 shadow-sm border-start border-4 border-success hover-lift">
-                <div class="d-flex justify-content-between">
+            <div class="card border-0 shadow-sm h-100 overflow-hidden">
+                <div class="card-body d-flex align-items-center justify-content-between">
                     <div>
-                        <h6 class="text-muted fw-bold small text-uppercase">Active Jobs</h6>
-                        <h3 class="fw-bold mb-0 text-dark">{{ active_jobs_count or 0 }}</h3>
+                        <h6 class="text-muted text-uppercase fw-bold mb-1">Active Jobs</h6>
+                        <h2 class="fw-bold m-0">{{ active_jobs_count }}</h2>
+                        <small class="text-success fw-bold">Live on Site</small>
                     </div>
-                    <div class="bg-success bg-opacity-10 p-3 rounded-circle text-success">
-                        <i class="fas fa-hammer fa-lg"></i>
+                    <div class="bg-light p-3 rounded-circle">
+                        <i class="fas fa-hard-hat fa-2x text-warning"></i>
                     </div>
+                </div>
+                <div class="card-footer bg-white border-0">
+                    <a href="/office/calendar" class="text-decoration-none fw-bold small stretched-link">View Calendar &rarr;</a>
                 </div>
             </div>
         </div>
+        
         <div class="col-md-4">
-            <div class="card p-3 border-0 shadow-sm border-start border-4 border-warning hover-lift">
-                <div class="d-flex justify-content-between">
+            <div class="card border-0 shadow-sm h-100 overflow-hidden">
+                <div class="card-body d-flex align-items-center justify-content-between">
                     <div>
-                        <h6 class="text-muted fw-bold small text-uppercase">Pending Quotes</h6>
-                        <h3 class="fw-bold mb-0 text-dark">{{ quotes|length }}</h3>
+                        <h6 class="text-muted text-uppercase fw-bold mb-1">Fleet Status</h6>
+                        <h2 class="fw-bold m-0">Active</h2>
+                        <small class="text-muted">Manage Vehicles</small>
                     </div>
-                    <div class="bg-warning bg-opacity-10 p-3 rounded-circle text-warning">
-                        <i class="fas fa-file-invoice fa-lg"></i>
+                    <div class="bg-light p-3 rounded-circle">
+                        <i class="fas fa-truck fa-2x text-dark"></i>
                     </div>
+                </div>
+                <div class="card-footer bg-white border-0">
+                    <a href="/office/fleet" class="text-decoration-none fw-bold small stretched-link">View Fleet &rarr;</a>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-        <div class="card-header bg-white p-2 border-bottom">
-            <ul class="nav nav-pills card-header-pills" id="workflowTabs" role="tablist">
-                <li class="nav-item">
-                    <button class="nav-link active fw-bold rounded-pill px-4" data-bs-toggle="pill" data-bs-target="#tab-quotes">
-                        <i class="fas fa-file-alt me-2"></i> Quotes
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link fw-bold rounded-pill px-4" data-bs-toggle="pill" data-bs-target="#tab-jobs">
-                        <i class="fas fa-tools me-2"></i> Live Jobs
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link fw-bold rounded-pill px-4" data-bs-toggle="pill" data-bs-target="#tab-invoices">
-                        <i class="fas fa-pound-sign me-2"></i> Billing
-                    </button>
-                </li>
-            </ul>
+    {% if completed_jobs %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-success text-white fw-bold">
+            <i class="fas fa-check-circle me-2"></i> Work Completed - Ready to Invoice
         </div>
-
         <div class="card-body p-0">
-            <div class="tab-content">
-                
-                <div class="tab-pane fade show active" id="tab-quotes">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light small text-uppercase">
-                                <tr>
-                                    <th class="ps-4">Date</th>
-                                    <th>Client</th>
-                                    <th>Ref</th>
-                                    <th>Total</th>
-                                    <th>Status</th>
-                                    <th class="text-end pe-4">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for q in quotes %}
-                                <tr style="cursor: pointer;" onclick="window.location='/office/quote/{{ q[0] }}'">
-                                    <td class="ps-4 text-muted">{{ q[3] }}</td>
-                                    <td class="fw-bold text-dark">{{ q[1] }}</td>
-                                    <td><span class="badge bg-light text-dark border">{{ q[2] }}</span></td>
-                                    <td class="fw-bold text-primary">£{{ "%.2f"|format(q[4]) }}</td>
-                                    <td>
-                                        <span class="badge rounded-pill {{ 'bg-success' if q[5]=='Accepted' else 'bg-secondary' }}">{{ q[5] }}</span>
-                                    </td>
-                                    <td class="text-end pe-4">
-                                        <a href="/office/quote/{{ q[0] }}" class="btn btn-sm btn-outline-primary fw-bold">Open</a>
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr><td colspan="6" class="text-center py-5 text-muted">No pending quotes found.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="tab-pane fade" id="tab-jobs">
-                    <div class="text-center py-5 text-muted bg-light">
-                        <i class="fas fa-map-marked-alt fa-3x mb-3 opacity-25"></i>
-                        <h5>Active Job View</h5>
-                        <p class="mb-3">Switch to the Calendar for the full schedule.</p>
-                        <a href="/office/calendar" class="btn btn-outline-dark btn-sm">Go to Schedule</a>
-                    </div>
-                </div>
-
-                <div class="tab-pane fade" id="tab-invoices">
-                    <div class="text-center py-5 text-muted bg-light">
-                        <i class="fas fa-file-invoice-dollar fa-3x mb-3 opacity-25"></i>
-                        <h5>Ready to Invoice</h5>
-                        <p>Completed jobs waiting for billing will appear here.</p>
-                    </div>
-                </div>
-
-            </div>
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-muted small text-uppercase">
+                    <tr>
+                        <th class="ps-4">Reference</th>
+                        <th>Client / Site</th>
+                        <th>Description</th>
+                        <th>Completed Date</th>
+                        <th class="text-end pe-4">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in completed_jobs %}
+                    <tr>
+                        <td class="ps-4 fw-bold">{{ job.ref }}</td>
+                        <td>
+                            <div class="fw-bold">{{ job.client }}</div>
+                            <small class="text-muted">{{ job.address }}</small>
+                        </td>
+                        <td>{{ job.desc }}</td>
+                        <td>{{ job.date }}</td>
+                        <td class="text-end pe-4">
+                            <form method="POST" action="/office/job/{{ job.id }}/invoice">
+                                <button type="submit" class="btn btn-sm btn-dark fw-bold">
+                                    <i class="fas fa-file-invoice me-1"></i> Convert to Invoice
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-white py-3 border-0">
+            <h5 class="fw-bold m-0">Recent Draft Quotes</h5>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-muted small text-uppercase">
+                    <tr>
+                        <th class="ps-4">Reference</th>
+                        <th>Client</th>
+                        <th>Date</th>
+                        <th>Total</th>
+                        <th class="text-end pe-4">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for q in quotes %}
+                    <tr>
+                        <td class="ps-4 fw-bold">{{ q[2] }}</td>
+                        <td>{{ q[1] }}</td>
+                        <td>{{ q[3] }}</td>
+                        <td class="fw-bold">£{{ "%.2f"|format(q[4]) }}</td>
+                        <td class="text-end pe-4">
+                            <a href="/office/quote/{{ q[0] }}" class="btn btn-sm btn-outline-primary fw-bold">Open</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center py-4 text-muted">No draft quotes found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 {% endblock %}
