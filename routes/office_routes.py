@@ -256,8 +256,9 @@ def convert_quote_to_job():
         cur.execute("SELECT client_id, reference, notes FROM quotes WHERE id = %s", (quote_id,))
         quote = cur.fetchone()
         
+        # !!! FIX: Changed 'scheduled_date' to 'date' !!!
         cur.execute("""
-            INSERT INTO jobs (company_id, staff_id, client_id, scheduled_date, type, status, reference, notes)
+            INSERT INTO jobs (company_id, staff_id, client_id, date, type, status, reference, notes)
             VALUES (%s, %s, %s, %s, 'Quote Work', 'Scheduled', %s, %s)
         """, (session['company_id'], staff_id, quote[0], schedule_date, f"Ref: {quote[1]}", quote[2]))
         
@@ -314,8 +315,9 @@ def create_work_order():
     
     conn = get_db(); cur = conn.cursor()
     try:
+        # !!! FIX: Changed 'scheduled_date' to 'date' !!!
         cur.execute("""
-            INSERT INTO jobs (company_id, request_id, staff_id, scheduled_date, type, notes, status)
+            INSERT INTO jobs (company_id, request_id, staff_id, date, type, notes, status)
             VALUES (%s, %s, %s, %s, %s, %s, 'Scheduled')
         """, (session['company_id'], request_id, staff_id, date_val, job_type, notes))
         cur.execute("UPDATE service_requests SET status = 'In Progress' WHERE id = %s", (request_id,))
@@ -465,12 +467,12 @@ def get_calendar_data():
 
     # A. Fetch JOBS
     try:
-        # !!! FIX: Changed 'j.reference' to 'j.ref' to match database column !!!
+        # !!! FIX: Changed 'j.scheduled_date' to 'j.date' to match database schema !!!
         cur.execute("""
-            SELECT j.id, j.ref, j.scheduled_date, c.name, j.status
+            SELECT j.id, j.ref, j.date, c.name, j.status
             FROM jobs j 
             LEFT JOIN clients c ON j.client_id = c.id
-            WHERE j.company_id = %s AND j.scheduled_date IS NOT NULL
+            WHERE j.company_id = %s AND j.date IS NOT NULL
         """, (comp_id,))
         jobs = cur.fetchall()
         for j in jobs:
@@ -504,6 +506,7 @@ def send_receipt(transaction_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     company_id = session.get('company_id')
+    # In a real app, you would fetch the client email from the transaction
     user_email = "client@example.com" 
     
     subject = f"Receipt for Transaction #{transaction_id}"
