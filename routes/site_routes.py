@@ -14,13 +14,8 @@ def check_site_access():
 
 # --- HELPER: SELF-REPAIR DATABASE ---
 def repair_jobs_table_if_needed(conn):
-    """
-    Checks if 'staff_id' exists in the jobs table.
-    If not, it adds the column automatically to prevent crashes.
-    """
     try:
         cur = conn.cursor()
-        # This command is safe: it only adds the column if it's missing
         cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS staff_id INTEGER")
         conn.commit()
     except Exception as e:
@@ -38,7 +33,7 @@ def site_dashboard():
     
     conn = get_db()
     
-    # 1. RUN AUTO-REPAIR (Fixes the 500 Error)
+    # 1. RUN AUTO-REPAIR
     repair_jobs_table_if_needed(conn)
     
     cur = conn.cursor()
@@ -50,7 +45,6 @@ def site_dashboard():
         safe = request.form.get('is_safe')
         defects = request.form.get('defects')
         
-        # Handle Photo
         filename = None
         if 'photo' in request.files:
             file = request.files['photo']
@@ -60,12 +54,10 @@ def site_dashboard():
                 file.save(os.path.join(UPLOAD_FOLDER, filename))
 
         try:
-            # Get Vehicle ID from Reg
             cur.execute("SELECT id FROM vehicles WHERE reg_plate = %s", (reg,))
             v_row = cur.fetchone()
             if v_row:
                 v_id = v_row[0]
-                # Log to Maintenance History
                 desc = f"Daily Check: {safe.upper()}. Mileage: {mileage}. Notes: {defects}"
                 status_log = 'Check Failed' if safe == 'no' else 'Daily Check'
                 
@@ -81,8 +73,6 @@ def site_dashboard():
             conn.rollback(); flash(f"Error: {e}")
 
     # --- LOAD DASHBOARD DATA ---
-    
-    # A. Fetch "My Jobs" (Now safe because column exists)
     cur.execute("""
         SELECT j.id, j.status, j.ref, j.site_address, p.postcode, j.description, j.start_date
         FROM jobs j
@@ -98,14 +88,14 @@ def site_dashboard():
             'address': r[3], 'postcode': r[4] or '', 'notes': r[5]
         })
 
-    # B. Fetch Vehicle List for Dropdown
     cur.execute("SELECT reg_plate FROM vehicles WHERE company_id = %s AND status='Active' ORDER BY reg_plate", (comp_id,))
     vehicles = [r[0] for r in cur.fetchall()]
     
     config = get_site_config(comp_id)
     conn.close()
     
-    return render_template('site_dashboard.html', 
+    # FIX: Point to the 'site/' subfolder
+    return render_template('site/site_dashboard.html', 
                          staff_name=session.get('user_name'), 
                          my_jobs=my_jobs, 
                          vehicles=vehicles,
@@ -120,7 +110,6 @@ def view_job(job_id):
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
     
-    # Corrected Query using 'site_address' and 'start_date'
     cur.execute("""
         SELECT j.id, j.ref, j.status, j.start_date, j.description, 
                c.name, c.phone, j.site_address, j.description
@@ -133,7 +122,9 @@ def view_job(job_id):
     conn.close()
     
     if not job: return "Job not found", 404
-    return render_template('job_details.html', job=job)
+    
+    # FIX: Point to the 'site/' subfolder
+    return render_template('site/job_details.html', job=job)
 
 # --- 3. PUBLIC PAGES ---
 @site_bp.route('/advertise')
