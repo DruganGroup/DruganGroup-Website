@@ -1,39 +1,143 @@
-{% extends "finance/finance_base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Finance | Business Better{% endblock %}</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        /* Finance uses the Brand Color but can have a distinct accent if needed */
+        :root { --brand-color: {{ brand_color or '#2C3E50' }}; }
+        
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
+        
+        /* SIDEBAR STYLING */
+        .sidebar { 
+            height: 100vh; 
+            background-color: var(--brand-color); 
+            color: white; 
+            position: fixed; 
+            width: 260px; 
+            padding-top: 25px; 
+            z-index: 1000;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.05);
+        }
+        
+        .sidebar a { 
+            padding: 12px 25px; 
+            text-decoration: none; 
+            font-size: 15px; 
+            color: rgba(255,255,255,0.85); 
+            display: block; 
+            transition: 0.2s;
+            border-left: 4px solid transparent;
+        }
+        
+        .sidebar a:hover { 
+            background-color: rgba(255,255,255,0.1); 
+            color: white; 
+        }
+        
+        .sidebar a.active { 
+            background-color: rgba(255,255,255,0.15); 
+            color: white; 
+            border-left-color: #f1c40f; /* Gold accent for Finance */
+            font-weight: 600;
+        }
+        
+        .sidebar-heading { 
+            font-size: 0.7rem; 
+            text-transform: uppercase; 
+            letter-spacing: 1.5px; 
+            color: rgba(255,255,255,0.5); 
+            padding: 20px 25px 8px 25px; 
+            font-weight: bold; 
+        }
 
-{% block title %}Settings | Business Better{% endblock %}
+        .content { margin-left: 260px; padding: 40px; }
+        
+        /* Finance-Specific Utilities */
+        .currency-text { font-family: 'Consolas', monospace; letter-spacing: -0.5px; }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
 
-{% block content %}
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold m-0">Configuration Center</h2>
-            <p class="text-muted mb-0">System preferences for {{ session.get('company_name') }}</p>
+    {% if session.get('role') != 'Admin' and session.get('role') != 'Finance' %}
+        <script>window.location.href = "/unauthorized";</script>
+    {% endif %}
+
+    <div class="sidebar">
+        <div class="text-center mb-5 px-4">
+            <div class="bg-white p-2 rounded-3 shadow-sm d-inline-block mb-2">
+                <img src="{{ logo_url }}" alt="Business Better" width="140" height="auto">
+            </div>
+            <div class="small text-white-50 text-uppercase fw-bold" style="letter-spacing: 1px;">Finance Console</div>
+            <div class="badge bg-warning text-dark mt-2 shadow-sm">
+                <i class="fas fa-building me-1"></i> {{ session.get('company_name', 'Drugan Group') }}
+            </div>
         </div>
+
+        <div class="sidebar-heading">Ledgers & Reporting</div>
+        <a href="/finance-hub" class="{% if request.path == '/finance-hub' %}active{% endif %}">
+            <i class="fas fa-tachometer-alt me-3"></i> Overview
+        </a>
+        <a href="/finance/analysis" class="{% if 'analysis' in request.path %}active{% endif %}">
+            <i class="fas fa-chart-line me-3"></i> Profit Analysis
+        </a>
+        <a href="/finance/invoices" class="{% if 'invoices' in request.path %}active{% endif %}">
+            <i class="fas fa-file-invoice-dollar me-3"></i> Sales Ledger
+        </a>
+
+        <div class="sidebar-heading">Cost Control</div>
+        <a href="/finance/fleet" class="{% if 'fleet' in request.path %}active{% endif %}">
+            <i class="fas fa-truck me-3"></i> Fleet Costs
+        </a>
+        <a href="/finance/materials" class="{% if 'materials' in request.path %}active{% endif %}">
+            <i class="fas fa-cubes me-3"></i> Material Library
+        </a>
+        <a href="/finance/hr" class="{% if 'hr' in request.path %}active{% endif %}">
+            <i class="fas fa-users me-3"></i> Payroll & HR
+        </a>
+
+        <div class="sidebar-heading">System</div>
+        <a href="/finance/settings" class="{% if 'settings' in request.path %}active{% endif %}">
+            <i class="fas fa-cogs me-3"></i> Global Settings
+        </a>
+        <a href="/launcher" class="mt-4 text-warning">
+            <i class="fas fa-arrow-left me-3"></i> Main Menu
+        </a>
+        <a href="/logout" class="text-danger">
+            <i class="fas fa-sign-out-alt me-3"></i> Secure Logout
+        </a>
     </div>
 
-    <ul class="nav nav-tabs mb-4 border-bottom-0">
-        <li class="nav-item">
-            <a class="nav-link {{ 'active' if active_tab == 'general' else '' }} fw-bold px-4" href="/finance/settings/general">
-                <i class="fas fa-building me-2"></i> General
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {{ 'active' if active_tab == 'compliance' else '' }} fw-bold px-4" href="/finance/settings/compliance">
-                <i class="fas fa-balance-scale me-2"></i> Compliance
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {{ 'active' if active_tab == 'banking' else '' }} fw-bold px-4" href="/finance/settings/banking">
-                <i class="fas fa-university me-2"></i> Banking
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {{ 'active' if active_tab == 'overheads' else '' }} fw-bold px-4" href="/finance/settings/overheads">
-                <i class="fas fa-coins me-2"></i> Overheads
-            </a>
-        </li>
-    </ul>
+    <div class="content">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-info shadow-sm border-0 border-start border-4 border-info">
+                        <i class="fas fa-info-circle me-2"></i> {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
-    <div class="bg-white p-4 rounded-4 shadow-sm border">
-        {% block settings_content %}{% endblock %}
+        {% block content %}{% endblock %}
     </div>
-{% endblock %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Auto-format currency fields on load
+        document.querySelectorAll('.currency-input').forEach(input => {
+            input.addEventListener('blur', (e) => {
+                if(e.target.value) e.target.value = parseFloat(e.target.value).toFixed(2);
+            });
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
