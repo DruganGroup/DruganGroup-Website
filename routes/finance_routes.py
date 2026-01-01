@@ -272,10 +272,14 @@ def finance_fleet():
             model = request.form.get('make_model')
             driver = request.form.get('driver_id')
             status = request.form.get('status')
-            mot = request.form.get('mot_expiry')
-            tax = request.form.get('tax_due')
-            ins = request.form.get('insurance_due')
-            serv = request.form.get('service_due')
+            
+            # --- FIX START: Handle empty dates safely ---
+            mot = request.form.get('mot_expiry') or None
+            tax = request.form.get('tax_due') or None
+            ins = request.form.get('insurance_due') or None
+            serv = request.form.get('service_due') or None
+            # --- FIX END ---
+            
             tracker = request.form.get('tracker_url')
             cost = request.form.get('daily_cost') or 0
             
