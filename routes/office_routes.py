@@ -287,16 +287,78 @@ def create_work_order():
     cur.execute("UPDATE service_requests SET status = 'In Progress' WHERE id = %s", (request.form.get('request_id'),))
     conn.commit(); conn.close(); return redirect(url_for('office.service_desk'))
 
-# --- 9. STAFF ---
+# --- 9. STAFF MANAGEMENT (Cards, History & Search) ---
 @office_bp.route('/office/staff', methods=['GET', 'POST'])
 def staff_list():
     if not check_office_access(): return redirect(url_for('auth.login'))
-    comp_id = session.get('company_id'); config = get_site_config(comp_id); conn = get_db(); cur = conn.cursor()
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+
+    # Reuse Helper
+    def uk_date(d):
+        if not d: return ""
+        try: return d.strftime('%d/%m/%Y')
+        except: return str(d)
+
     if request.method == 'POST':
-        cur.execute("INSERT INTO staff (company_id, name, email, phone, position, status) VALUES (%s, %s, %s, %s, %s, 'Active')", (comp_id, request.form.get('name'), request.form.get('email'), request.form.get('phone'), request.form.get('role')))
-        conn.commit()
-    cur.execute("SELECT id, name, email, phone, position AS role, status FROM staff WHERE company_id = %s ORDER BY name", (comp_id,)); cols = [desc[0] for desc in cur.description]; staff = [dict(zip(cols, row)) for row in cur.fetchall()]; conn.close()
-    return render_template('office/staff_management.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
+        action = request.form.get('action')
+        try:
+            if action == 'add_staff':
+                cur.execute("""
+                    INSERT INTO staff (company_id, name, email, phone, position, status) 
+                    VALUES (%s, %s, %s, %s, %s, 'Active')
+                """, (comp_id, request.form.get('name'), request.form.get('email'), request.form.get('phone'), request.form.get('role')))
+                flash("✅ Staff Member Added")
+            
+            elif action == 'edit_staff':
+                cur.execute("""
+                    UPDATE staff SET name=%s, email=%s, phone=%s, position=%s, status=%s
+                    WHERE id=%s AND company_id=%s
+                """, (request.form.get('name'), request.form.get('email'), request.form.get('phone'), 
+                      request.form.get('role'), request.form.get('status'), 
+                      request.form.get('staff_id'), comp_id))
+                flash("✅ Details Updated")
+
+            conn.commit()
+        except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
+
+    # 1. Fetch Staff List
+    cur.execute("""
+        SELECT id, name, email, phone, position AS role, status 
+        FROM staff WHERE company_id = %s ORDER BY name ASC
+    """, (comp_id,))
+    cols = [desc[0] for desc in cur.description]
+    staff_list = [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    # 2. Fetch Job History for these staff members
+    cur.execute("""
+        SELECT j.id, j.ref, j.site_address, j.description, j.start_date, j.status, j.staff_id
+        FROM jobs j
+        WHERE j.company_id = %s AND j.staff_id IS NOT NULL
+        ORDER BY j.start_date DESC
+    """, (comp_id,))
+    
+    # Organize jobs by Staff ID
+    jobs_by_staff = {}
+    for j in cur.fetchall():
+        sid = j[6]
+        if sid not in jobs_by_staff: jobs_by_staff[sid] = []
+        jobs_by_staff[sid].append({
+            'id': j[0], 'ref': j[1], 'address': j[2], 
+            'desc': j[3], 'date': uk_date(j[4]), 'status': j[5]
+        })
+    
+    # Attach Jobs to Staff Objects
+    for s in staff_list:
+        s['history'] = jobs_by_staff.get(s['id'], [])
+
+    conn.close()
+    return render_template('office/staff_management.html', 
+                         staff=staff_list, 
+                         brand_color=config['color'], 
+                         logo_url=config['logo'])
 
 # --- 10. CALENDAR ---
 @office_bp.route('/office/calendar')
