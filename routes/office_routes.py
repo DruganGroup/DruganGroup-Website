@@ -519,3 +519,85 @@ def send_receipt(transaction_id):
     else: flash(f"❌ Email Failed: {message}")
         
     return redirect(url_for('office.office_dashboard'))
+    
+    # --- 12. CLIENT DETAILS & COMPLIANCE VIEW ---
+@office_bp.route('/client/<int:client_id>')
+def view_client(client_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    company_id = session.get('company_id')
+    config = get_site_config(company_id)
+    conn = get_db(); cur = conn.cursor()
+
+    # 1. Fetch Client Info
+    cur.execute("SELECT id, name, email, phone, address, notes FROM clients WHERE id = %s AND company_id = %s", (client_id, company_id))
+    client = cur.fetchone()
+    
+    if not client: return "Client not found", 404
+    client_data = {'id': client[0], 'name': client[1], 'email': client[2], 'phone': client[3], 'addr': client[4], 'notes': client[5]}
+
+    # 2. Fetch Properties & Tenant Info
+    # Assumes 'tenant_name' and 'tenant_phone' are columns in 'properties' table 
+    # OR we join a tenants table if you have one. For now, we assume simple columns on property.
+    cur.execute("""
+        SELECT id, addr, postcode, tenant_name, tenant_phone 
+        FROM properties 
+        WHERE client_id = %s 
+        ORDER BY addr
+    """, (client_id,))
+    
+    raw_props = cur.fetchall()
+    properties = []
+
+    for p in raw_props:
+        prop_id = p[0]
+        
+        # 3. Fetch Compliance Status (Gas, PAT, EICR)
+        # We look for the MOST RECENT completed job of each type for this property
+        cur.execute("""
+            SELECT type, date 
+            FROM jobs 
+            WHERE property_id = %s AND status = 'Completed' 
+            AND type IN ('Gas Safety', 'EICR', 'PAT Test', 'EPC')
+            ORDER BY date DESC
+        """, (prop_id,))
+        
+        comp_jobs = cur.fetchall()
+        compliance = {
+            'Gas': {'date': None, 'status': 'Missing'},
+            'EICR': {'date': None, 'status': 'Missing'},
+            'PAT': {'date': None, 'status': 'Missing'}
+        }
+        
+        # Simple logic: If a job exists within 1 year, it's valid.
+        today = date.today()
+        for job in comp_jobs:
+            j_type = job[0]
+            j_date = job[1] # Date object
+            
+            # Map job types to our keys
+            key = None
+            if 'Gas' in j_type: key = 'Gas'
+            elif 'EICR' in j_type: key = 'EICR'
+            elif 'PAT' in j_type: key = 'PAT'
+            
+            if key and compliance[key]['status'] == 'Missing':
+                days_old = (today - j_date).days
+                valid_days = 365 # 1 year validity default
+                if key == 'EICR': valid_days = 365 * 5 # 5 years for EICR
+                
+                status = 'Valid' if days_old < valid_days else 'Expired'
+                compliance[key] = {'date': j_date, 'status': status}
+
+        properties.append({
+            'id': p[0], 'addr': p[1], 'postcode': p[2], 
+            'tenant': p[3], 'tenant_phone': p[4],
+            'compliance': compliance
+        })
+
+    # 4. Fetch Active Jobs
+    cur.execute("SELECT id, type, status, date, notes FROM jobs WHERE client_id = %s AND status != 'Completed' ORDER BY date", (client_id,))
+    active_jobs = cur.fetchall()
+
+    conn.close()
+    return render_template('office/client_details.html', client=client_data, properties=properties, jobs=active_jobs, brand_color=config['color'], logo_url=config['logo'])

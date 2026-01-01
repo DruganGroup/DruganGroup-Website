@@ -20,18 +20,19 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold m-0">Client Directory</h2>
-            <p class="text-muted mb-0">Manage customer portfolios and billing</p>
+            <p class="text-muted mb-0">Manage customer portfolios and properties</p>
         </div>
         <button class="btn btn-primary fw-bold shadow-sm" style="background-color: var(--brand-color); border:none;" data-bs-toggle="modal" data-bs-target="#addClientModal">
             <i class="fas fa-user-plus me-2"></i> Add New Client
         </button>
     </div>
 
-    {% if global_system_alert %}
-    <div class="alert alert-danger text-center fw-bold shadow-sm mb-4">
-        <i class="fas fa-bullhorn me-2"></i> {{ global_system_alert }}
+    <div class="card p-3 mb-4 border-0 shadow-sm">
+        <div class="input-group">
+            <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+            <input type="text" id="clientSearch" class="form-control border-start-0 ps-0" placeholder="Search clients by name, email, or phone..." onkeyup="filterClients()">
+        </div>
     </div>
-    {% endif %}
 
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="card-header bg-white p-3 border-bottom">
@@ -41,7 +42,7 @@
             </div>
         </div>
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0" id="clientTable">
                 <thead class="table-light text-uppercase small">
                     <tr>
                         <th class="ps-4">Client Name</th>
@@ -57,7 +58,7 @@
                             <div class="d-flex align-items-center">
                                 <div class="client-avatar">{{ c[1][0] | upper }}</div>
                                 <div>
-                                    <a href="/client/{{ c[0] }}" class="fw-bold text-dark text-decoration-none stretched-link">
+                                    <a href="/client/{{ c[0] }}" class="fw-bold text-dark text-decoration-none stretched-link client-name">
                                         {{ c[1] }}
                                     </a>
                                     <div class="small text-muted">{{ c[8] or 'No internal notes' }}</div>
@@ -65,18 +66,15 @@
                             </div>
                         </td>
                         <td>
-                            {% if c[2] %}<div class="small"><i class="fas fa-envelope text-muted me-2" style="width:15px;"></i>{{ c[2] }}</div>{% endif %}
-                            {% if c[3] %}<div class="small"><i class="fas fa-phone text-muted me-2" style="width:15px;"></i>{{ c[3] }}</div>{% endif %}
+                            {% if c[2] %}<div class="small client-email"><i class="fas fa-envelope text-muted me-2" style="width:15px;"></i>{{ c[2] }}</div>{% endif %}
+                            {% if c[3] %}<div class="small client-phone"><i class="fas fa-phone text-muted me-2" style="width:15px;"></i>{{ c[3] }}</div>{% endif %}
                         </td>
                         <td>
                             <span class="badge {{ 'bg-success' if c[5] == 'Active' else 'bg-secondary' }}">{{ c[5] }}</span>
                         </td>
                         <td class="text-end pe-4">
                             <a href="/client/{{ c[0] }}" class="btn btn-sm btn-outline-dark me-1" style="position: relative; z-index: 2;">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            <a href="/clients/delete/{{ c[0] }}" class="btn btn-sm btn-outline-danger" style="position: relative; z-index: 2;" onclick="return confirm('Delete this client?')">
-                                <i class="fas fa-trash"></i>
+                                <i class="fas fa-folder-open me-1"></i> Properties
                             </a>
                         </td>
                     </tr>
@@ -121,11 +119,39 @@
                         </div>
                     </div>
                     <div class="modal-footer bg-light">
-                        <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary fw-bold">Save Client</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function filterClients() {
+        var input = document.getElementById("clientSearch");
+        var filter = input.value.toUpperCase();
+        var table = document.getElementById("clientTable");
+        var tr = table.getElementsByTagName("tr");
+
+        for (var i = 1; i < tr.length; i++) {
+            // Get Name, Email, Phone cells
+            var name = tr[i].querySelector(".client-name");
+            var email = tr[i].querySelector(".client-email");
+            var phone = tr[i].querySelector(".client-phone");
+            
+            var txtValue = "";
+            if (name) txtValue += name.textContent || name.innerText;
+            if (email) txtValue += email.textContent || email.innerText;
+            if (phone) txtValue += phone.textContent || phone.innerText;
+
+            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                tr[i].style.display = "";
+            } else {
+                tr[i].style.display = "none";
+            }
+        }
+    }
+</script>
 {% endblock %}

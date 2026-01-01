@@ -1,0 +1,106 @@
+{% extends "office/office_base.html" %}
+
+{% block title %}{{ client.name }} | Details{% endblock %}
+
+{% block head %}
+<style>
+    .comp-badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border: 1px solid transparent; font-weight: bold; }
+    .comp-Valid { background-color: #d1e7dd; color: #0f5132; border-color: #badbcc; }
+    .comp-Expired { background-color: #f8d7da; color: #842029; border-color: #f5c2c7; }
+    .comp-Missing { background-color: #e2e3e5; color: #41464b; border-color: #d3d6d8; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="row align-items-center mb-4">
+        <div class="col-md-8">
+            <div class="d-flex align-items-center">
+                <a href="/clients" class="btn btn-outline-secondary me-3"><i class="fas fa-arrow-left"></i></a>
+                <div>
+                    <h2 class="fw-bold m-0">{{ client.name }}</h2>
+                    <div class="text-muted"><i class="fas fa-map-marker-alt me-2"></i>{{ client.addr }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="mailto:{{ client.email }}" class="btn btn-outline-dark"><i class="fas fa-envelope"></i> Email</a>
+            <a href="tel:{{ client.phone }}" class="btn btn-outline-dark"><i class="fas fa-phone"></i> Call</a>
+        </div>
+    </div>
+
+    {% if jobs %}
+    <div class="card mb-4 border-warning border-2">
+        <div class="card-header bg-warning-subtle fw-bold text-dark">
+            <i class="fas fa-tools me-2"></i> Active Management Tasks
+        </div>
+        <div class="list-group list-group-flush">
+            {% for job in jobs %}
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="badge bg-dark me-2">{{ job[1] }}</span>
+                    <span class="text-muted small">{{ job[3] }}</span>
+                    <span class="ms-2 fw-bold">{{ job[4] }}</span>
+                </div>
+                <span class="badge bg-warning text-dark">{{ job[2] }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold m-0">Property Portfolio ({{ properties|length }})</h5>
+        <button class="btn btn-sm btn-primary fw-bold"><i class="fas fa-plus me-1"></i> Add Property</button>
+    </div>
+
+    <div class="row g-3">
+        {% for prop in properties %}
+        <div class="col-12">
+            <div class="card p-3 shadow-sm h-100">
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <h6 class="fw-bold mb-1">{{ prop.addr }}</h6>
+                        <span class="badge bg-light text-dark border">{{ prop.postcode }}</span>
+                    </div>
+
+                    <div class="col-md-3 border-start">
+                        <small class="text-muted fw-bold text-uppercase">Tenant</small>
+                        <div class="fw-bold">{{ prop.tenant or 'Vacant' }}</div>
+                        {% if prop.tenant_phone %}
+                            <div class="small text-muted"><i class="fas fa-phone me-1"></i> {{ prop.tenant_phone }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-5 border-start">
+                        <small class="text-muted fw-bold text-uppercase mb-2 d-block">Compliance Status</small>
+                        <div class="d-flex gap-2">
+                            <div class="text-center">
+                                <div class="comp-badge comp-{{ prop.compliance.Gas.status }}">Gas Safety</div>
+                                <small class="d-block mt-1 text-muted" style="font-size:0.65rem">
+                                    {{ prop.compliance.Gas.date or 'N/A' }}
+                                </small>
+                            </div>
+                            <div class="text-center">
+                                <div class="comp-badge comp-{{ prop.compliance.EICR.status }}">EICR (Elec)</div>
+                                <small class="d-block mt-1 text-muted" style="font-size:0.65rem">
+                                    {{ prop.compliance.EICR.date or 'N/A' }}
+                                </small>
+                            </div>
+                            <div class="text-center">
+                                <div class="comp-badge comp-{{ prop.compliance.PAT.status }}">PAT Test</div>
+                                <small class="d-block mt-1 text-muted" style="font-size:0.65rem">
+                                    {{ prop.compliance.PAT.date or 'N/A' }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12 text-center py-5 bg-white rounded border border-dashed">
+            <p class="text-muted mb-0">No properties linked to this client yet.</p>
+        </div>
+        {% endfor %}
+    </div>
+{% endblock %}
