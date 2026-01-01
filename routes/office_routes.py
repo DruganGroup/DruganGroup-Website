@@ -184,28 +184,36 @@ def fleet_list():
     comp_id = session.get('company_id')
     config = get_site_config(comp_id) 
     conn = get_db(); cur = conn.cursor()
-    
-    # 1. NOW DEFINED: Get Dynamic Format
     date_fmt = get_date_fmt_str(comp_id)
 
-    # 2. Ensure DB Schema
     cur.execute("CREATE TABLE IF NOT EXISTS vehicle_crew (vehicle_id INTEGER, staff_id INTEGER, PRIMARY KEY(vehicle_id, staff_id))")
     try:
         cur.execute("ALTER TABLE maintenance_logs ADD COLUMN IF NOT EXISTS receipt_path TEXT")
         conn.commit()
-    except: conn.rollback()
+    except: conn.rollback() 
 
     if request.method == 'POST':
         action = request.form.get('action')
         try:
             if action == 'assign_crew':
-                v_id = request.form.get('vehicle_id'); crew_ids = request.form.getlist('crew_ids')
+                v_id = request.form.get('vehicle_id')
+                driver_id = request.form.get('driver_id')
+                crew_ids = request.form.getlist('crew_ids')
+                
+                # 1. Update Driver (Handle "None" if empty)
+                driver_val = driver_id if driver_id and driver_id != 'None' else None
+                cur.execute("UPDATE vehicles SET assigned_driver_id = %s WHERE id = %s AND company_id = %s", (driver_val, v_id, comp_id))
+
+                # 2. Update Crew
                 cur.execute("DELETE FROM vehicle_crew WHERE vehicle_id = %s", (v_id,))
-                for staff_id in crew_ids: cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (v_id, staff_id))
-                flash("✅ Crew Updated")
+                for staff_id in crew_ids:
+                    # Prevent adding the driver as crew (double counting)
+                    if str(staff_id) != str(driver_val):
+                        cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (v_id, staff_id))
+                
+                flash("✅ Driver & Crew Updated")
                 
             elif action == 'add_log':
-                # Handle File Upload
                 file_url = None
                 if 'receipt_file' in request.files:
                     file = request.files['receipt_file']
@@ -219,9 +227,7 @@ def fleet_list():
                     INSERT INTO maintenance_logs (company_id, vehicle_id, type, description, date, cost, receipt_path) 
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """, (comp_id, request.form.get('vehicle_id'), request.form.get('log_type'), request.form.get('description'), request.form.get('date'), request.form.get('cost') or 0, file_url))
-                flash("✅ Log & Receipt Added")
-            
-            # NOTE: 'add_vehicle' REMOVED to satisfy restriction
+                flash("✅ Receipt Logged")
             
             conn.commit()
         except Exception as e: conn.rollback(); flash(f"Error: {e}")
@@ -246,7 +252,7 @@ def fleet_list():
         vehicles.append({
             'id': row[0], 'reg_number': row[1], 'make_model': row[2], 'status': row[3],
             'driver_name': row[4], 'assigned_driver_id': row[5],
-            'mot_expiry': parse_date(row[6]), # Keep Object for Math
+            'mot_expiry': parse_date(row[6]), 
             'tax_expiry': parse_date(row[7]), 
             'ins_expiry': parse_date(row[8]),
             'tracker_url': row[9],
@@ -260,7 +266,7 @@ def fleet_list():
     return render_template('office/fleet_management.html', 
                          vehicles=vehicles, staff=staff, today=date.today(), date_fmt=date_fmt,
                          brand_color=config['color'], logo_url=config['logo'])
-
+                         
 # --- 8. SERVICE DESK ---
 @office_bp.route('/office/service-desk')
 def service_desk():

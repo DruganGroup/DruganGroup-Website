@@ -23,9 +23,6 @@
             <h2 class="fw-bold m-0">Fleet Command</h2>
             <p class="text-muted mb-0">Track vehicle compliance and crew assignments</p>
         </div>
-        <button class="btn btn-primary fw-bold shadow-sm" style="background-color: var(--brand-color); border:none;" data-bs-toggle="modal" data-bs-target="#addVehicleModal">
-            <i class="fas fa-plus me-2"></i> Add Vehicle
-        </button>
     </div>
 
     <div class="row g-4">
@@ -76,8 +73,7 @@
                     <div class="modal-body">
                         <ul class="nav nav-tabs mb-3" id="tab{{ v.id }}" role="tablist">
                             <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#crew{{ v.id }}">Crew & Driver</button></li>
-                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#maint{{ v.id }}">Receipts</button></li>
-                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#edit{{ v.id }}">Edit Details</button></li>
+                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#maint{{ v.id }}">Receipts & Logs</button></li>
                         </ul>
 
                         <div class="tab-content">
@@ -86,16 +82,27 @@
                                     <input type="hidden" name="action" value="assign_crew">
                                     <input type="hidden" name="vehicle_id" value="{{ v.id }}">
                                     
+                                    <div class="mb-3 p-3 bg-light rounded border">
+                                        <label class="fw-bold small mb-2 text-uppercase text-muted">Assigned Driver</label>
+                                        <select name="driver_id" class="form-select fw-bold">
+                                            <option value="None">-- No Driver --</option>
+                                            {% for s in staff %}
+                                                <option value="{{ s.id }}" {% if s.id == v.assigned_driver_id %}selected{% endif %}>
+                                                    {{ s.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="form-text small">Changing the driver here updates the vehicle record immediately.</div>
+                                    </div>
+
                                     <div class="alert alert-info py-2 small border-0 bg-light text-dark">
-                                        <i class="fas fa-info-circle me-1" style="color: var(--brand-color);"></i> Assign crew (Driver is hidden from this list).
+                                        <i class="fas fa-info-circle me-1" style="color: var(--brand-color);"></i> Select Passengers (Crew) below.
                                     </div>
 
                                     <div class="row g-2 mb-3">
                                         {% for s in staff %}
-                                            {# LOGIC FIX: Do not show the person if they are the Driver #}
                                             {% if s.id != v.assigned_driver_id %}
                                             <div class="col-md-4 col-6">
-                                                {# LAYOUT FIX: Used d-flex instead of form-check for better centering #}
                                                 <div class="d-flex align-items-center p-2 border rounded bg-white position-relative crew-box h-100">
                                                     <input class="form-check-input crew-checkbox m-0 me-2" type="checkbox" name="crew_ids" value="{{ s.id }}" id="s{{ v.id }}_{{ s.id }}"
                                                         {% for member in v.crew %}{% if member.name == s.name %}checked{% endif %}{% endfor %}>
@@ -107,12 +114,12 @@
                                             {% endif %}
                                         {% endfor %}
                                     </div>
-                                    <button type="submit" class="btn btn-primary fw-bold w-100" style="background-color: var(--brand-color); border:none;">Update Crew List</button>
+                                    <button type="submit" class="btn btn-primary fw-bold w-100" style="background-color: var(--brand-color); border:none;">Save Driver & Crew</button>
                                 </form>
                             </div>
 
                             <div class="tab-pane fade" id="maint{{ v.id }}">
-                                <form method="POST" class="mb-4 border-bottom pb-3">
+                                <form method="POST" enctype="multipart/form-data" class="mb-4 border-bottom pb-3">
                                     <input type="hidden" name="action" value="add_log">
                                     <input type="hidden" name="vehicle_id" value="{{ v.id }}">
                                     <div class="row g-2">
@@ -123,14 +130,32 @@
                                             </select>
                                         </div>
                                         <div class="col-4"><input type="number" step="0.01" name="cost" class="form-control form-control-sm" placeholder="£ Cost"></div>
-                                        <div class="col-12"><input type="text" name="description" class="form-control form-control-sm" placeholder="Description of receipt..." required></div>
-                                        <div class="col-12"><button class="btn btn-sm text-white w-100 fw-bold" style="background-color: var(--brand-color);">Add Receipt</button></div>
+                                        
+                                        <div class="col-12">
+                                            <input type="text" name="description" class="form-control form-control-sm" placeholder="Description of receipt..." required>
+                                        </div>
+                                        
+                                        <div class="col-12">
+                                            <label class="small fw-bold text-muted">Upload Receipt (Image/PDF)</label>
+                                            <input type="file" name="receipt_file" class="form-control form-control-sm">
+                                        </div>
+
+                                        <div class="col-12 mt-2">
+                                            <button class="btn btn-sm text-white w-100 fw-bold" style="background-color: var(--brand-color);">Add Receipt</button>
+                                        </div>
                                     </div>
                                 </form>
                                 <div class="list-group list-group-flush">
                                     {% for log in v.history %}
-                                        <div class="list-group-item d-flex justify-content-between small">
-                                            <span><strong>{{ log.date }}</strong>: {{ log.desc }}</span>
+                                        <div class="list-group-item d-flex justify-content-between align-items-center small">
+                                            <div>
+                                                <strong>{{ log.date }}</strong>: {{ log.desc }}
+                                                {% if log.receipt %}
+                                                    <a href="/static/{{ log.receipt }}" target="_blank" class="ms-2 badge bg-secondary text-decoration-none">
+                                                        <i class="fas fa-paperclip"></i> View
+                                                    </a>
+                                                {% endif %}
+                                            </div>
                                             <span class="text-muted fw-bold">Logged</span>
                                         </div>
                                     {% else %}
@@ -138,55 +163,11 @@
                                     {% endfor %}
                                 </div>
                             </div>
-
-                            <div class="tab-pane fade" id="edit{{ v.id }}">
-                                <form method="POST">
-                                    <input type="hidden" name="action" value="update_defects">
-                                    <input type="hidden" name="vehicle_id" value="{{ v.id }}">
-                                    <div class="mb-3">
-                                        <label class="small fw-bold">Tracker URL</label>
-                                        <input type="text" name="tracker_url" value="{{ v.tracker_url or '' }}" class="form-control" placeholder="https://...">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="small fw-bold">Defect Notes</label>
-                                        <textarea name="defect_notes" class="form-control" rows="3">{{ v.defect_notes or '' }}</textarea>
-                                    </div>
-                                    <button class="btn btn-dark w-100">Save Changes</button>
-                                </form>
-                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         {% endfor %}
-    </div>
-
-    <div class="modal fade" id="addVehicleModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <form method="POST" class="modal-content">
-                <input type="hidden" name="action" value="add_vehicle">
-                <div class="modal-header text-white" style="background-color: var(--brand-color);">
-                    <h5 class="modal-title fw-bold">Register New Vehicle</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-md-6"><label class="small fw-bold">Reg Plate</label><input type="text" name="reg_number" class="form-control" required></div>
-                        <div class="col-md-6"><label class="small fw-bold">Model</label><input type="text" name="make_model" class="form-control"></div>
-                        <div class="col-md-6"><label class="small fw-bold">Driver</label>
-                            <select name="driver_id" class="form-select">
-                                <option value="">-- Unassigned --</option>
-                                {% for s in staff %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-12"><label class="small fw-bold">Tracker URL</label><input type="text" name="tracker_url" class="form-control"></div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary w-100" style="background-color: var(--brand-color); border:none;">Save Vehicle</button>
-                </div>
-            </form>
-        </div>
     </div>
 {% endblock %}
