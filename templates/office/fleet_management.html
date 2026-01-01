@@ -13,8 +13,6 @@
     .date-warn { color: #ffc107; font-weight: bold; }
     .date-ok { color: #198754; }
     .crew-checkbox { transform: scale(1.2); cursor: pointer; }
-    
-    /* FIX: Ensure the stretched link stays inside its box */
     .crew-box { position: relative; } 
 </style>
 {% endblock %}
@@ -52,8 +50,8 @@
                 </div>
                 
                 <div class="d-flex gap-3 mt-3 mb-3 small fw-bold">
-                    <span class="{{ check_date(v.mot_expiry) }}">MOT: {{ v.mot_expiry or 'N/A' }}</span>
-                    <span class="{{ check_date(v.tax_expiry) }}">TAX: {{ v.tax_expiry or 'N/A' }}</span>
+                    <span class="{{ check_date(v.mot_expiry) }}">MOT: {{ v.mot_expiry.strftime(date_fmt) if v.mot_expiry else 'N/A' }}</span>
+                    <span class="{{ check_date(v.tax_expiry) }}">TAX: {{ v.tax_expiry.strftime(date_fmt) if v.tax_expiry else 'N/A' }}</span>
                 </div>
 
                 <div class="bg-light p-2 rounded d-flex align-items-center justify-content-between mt-auto">
@@ -71,14 +69,14 @@
         <div class="modal fade" id="detailModal{{ v.id }}" tabindex="-1">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
-                    <div class="modal-header bg-light">
+                    <div class="modal-header text-white" style="background-color: var(--brand-color);">
                         <h5 class="modal-title fw-bold">{{ v.reg_number }} - Management</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <ul class="nav nav-tabs mb-3" id="tab{{ v.id }}" role="tablist">
                             <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#crew{{ v.id }}">Crew & Driver</button></li>
-                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#maint{{ v.id }}">Maintenance</button></li>
+                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#maint{{ v.id }}">Receipts</button></li>
                             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#edit{{ v.id }}">Edit Details</button></li>
                         </ul>
 
@@ -88,15 +86,16 @@
                                     <input type="hidden" name="action" value="assign_crew">
                                     <input type="hidden" name="vehicle_id" value="{{ v.id }}">
                                     
-                                    <div class="alert alert-info py-2 small">
-                                        <i class="fas fa-info-circle me-1"></i> Check the boxes below to assign staff to this van for today.
+                                    <div class="alert alert-info py-2 small border-0 bg-light text-dark">
+                                        <i class="fas fa-info-circle me-1" style="color: var(--brand-color);"></i> Check the boxes below to assign staff to this van for today.
                                     </div>
 
                                     <div class="row g-2 mb-3">
                                         {% for s in staff %}
                                         <div class="col-md-4 col-6">
-                                            <div class="form-check p-2 border rounded bg-light position-relative crew-box">
-                                                <input class="form-check-input crew-checkbox me-2" type="checkbox" name="crew_ids" value="{{ s.id }}" id="s{{ v.id }}_{{ s.id }}">
+                                            <div class="form-check p-2 border rounded bg-white position-relative crew-box">
+                                                <input class="form-check-input crew-checkbox me-2" type="checkbox" name="crew_ids" value="{{ s.id }}" id="s{{ v.id }}_{{ s.id }}"
+                                                    {% for member in v.crew %}{% if member.name == s.name %}checked{% endif %}{% endfor %}>
                                                 <label class="form-check-label fw-bold small stretched-link" for="s{{ v.id }}_{{ s.id }}">
                                                     {{ s.name }}
                                                 </label>
@@ -104,7 +103,7 @@
                                         </div>
                                         {% endfor %}
                                     </div>
-                                    <button type="submit" class="btn btn-success fw-bold w-100">Update Crew List</button>
+                                    <button type="submit" class="btn btn-primary fw-bold w-100" style="background-color: var(--brand-color); border:none;">Update Crew List</button>
                                 </form>
                             </div>
 
@@ -116,22 +115,22 @@
                                         <div class="col-4"><input type="date" name="date" class="form-control form-control-sm" required></div>
                                         <div class="col-4">
                                             <select name="log_type" class="form-select form-select-sm">
-                                                <option>Repair</option><option>Service</option><option>Fuel</option><option>MOT</option>
+                                                <option>Fuel</option><option>Repair</option><option>Service</option><option>MOT</option>
                                             </select>
                                         </div>
                                         <div class="col-4"><input type="number" step="0.01" name="cost" class="form-control form-control-sm" placeholder="£ Cost"></div>
-                                        <div class="col-12"><input type="text" name="description" class="form-control form-control-sm" placeholder="Description of work..." required></div>
-                                        <div class="col-12"><button class="btn btn-sm btn-outline-dark w-100">Add Log</button></div>
+                                        <div class="col-12"><input type="text" name="description" class="form-control form-control-sm" placeholder="Description of receipt..." required></div>
+                                        <div class="col-12"><button class="btn btn-sm text-white w-100 fw-bold" style="background-color: var(--brand-color);">Add Receipt</button></div>
                                     </div>
                                 </form>
                                 <div class="list-group list-group-flush">
                                     {% for log in v.history %}
                                         <div class="list-group-item d-flex justify-content-between small">
                                             <span><strong>{{ log.date }}</strong>: {{ log.desc }}</span>
-                                            <span class="text-danger fw-bold">-£{{ log.cost }}</span>
+                                            <span class="text-muted fw-bold">Logged</span>
                                         </div>
                                     {% else %}
-                                        <div class="text-center text-muted small">No maintenance history.</div>
+                                        <div class="text-center text-muted small">No receipts logged.</div>
                                     {% endfor %}
                                 </div>
                             </div>
@@ -163,9 +162,9 @@
         <div class="modal-dialog modal-lg">
             <form method="POST" class="modal-content">
                 <input type="hidden" name="action" value="add_vehicle">
-                <div class="modal-header">
+                <div class="modal-header text-white" style="background-color: var(--brand-color);">
                     <h5 class="modal-title fw-bold">Register New Vehicle</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row g-3">
@@ -177,16 +176,11 @@
                                 {% for s in staff %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-6"><label class="small fw-bold">Daily Cost (£)</label><input type="number" name="daily_cost" class="form-control" value="0"></div>
-                        
-                        <div class="col-6"><label class="small fw-bold">MOT Expiry</label><input type="date" name="mot_expiry" class="form-control"></div>
-                        <div class="col-6"><label class="small fw-bold">Tax Expiry</label><input type="date" name="tax_due" class="form-control"></div>
-                        <div class="col-6"><label class="small fw-bold">Insurance Expiry</label><input type="date" name="insurance_due" class="form-control"></div>
-                        <div class="col-6"><label class="small fw-bold">Service Due</label><input type="date" name="service_due" class="form-control"></div>
+                        <div class="col-md-12"><label class="small fw-bold">Tracker URL</label><input type="text" name="tracker_url" class="form-control"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary w-100">Save Vehicle</button>
+                    <button type="submit" class="btn btn-primary w-100" style="background-color: var(--brand-color); border:none;">Save Vehicle</button>
                 </div>
             </form>
         </div>

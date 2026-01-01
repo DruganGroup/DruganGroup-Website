@@ -274,51 +274,89 @@ def staff_list():
     conn.close()
     return render_template('office/staff_management.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# --- 10. FLEET (Office View - Corrected) ---
+# --- 7. OFFICE FLEET (RESTRICTED + RECEIPT UPLOADS) ---
 @office_bp.route('/office/fleet', methods=['GET', 'POST'])
 def fleet_list():
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
+    config = get_site_config(comp_id) 
     conn = get_db(); cur = conn.cursor()
-    
-    # Helper to ensure dates are Objects (for the Traffic Light math)
-    def to_date(d):
-        if isinstance(d, str):
-            try: return datetime.strptime(d, '%Y-%m-%d').date()
-            except: return None
-        return d
+    date_fmt = get_date_fmt_str(comp_id)
 
-    # Handle Form Actions
+    # 1. Ensure DB Schema for Receipts
+    cur.execute("CREATE TABLE IF NOT EXISTS vehicle_crew (vehicle_id INTEGER, staff_id INTEGER, PRIMARY KEY(vehicle_id, staff_id))")
+    
+    # Auto-migration: Check if receipt_path exists, if not add it (Silent fail if exists)
+    try:
+        cur.execute("ALTER TABLE maintenance_logs ADD COLUMN IF NOT EXISTS receipt_path TEXT")
+        conn.commit()
+    except:
+        conn.rollback() 
+
     if request.method == 'POST':
         action = request.form.get('action')
         try:
             if action == 'assign_crew':
-                v_id = request.form.get('vehicle_id')
+                v_id = request.form.get('vehicle_id'); crew_ids = request.form.getlist('crew_ids')
                 cur.execute("DELETE FROM vehicle_crew WHERE vehicle_id = %s", (v_id,))
-                for staff_id in request.form.getlist('crew_ids'):
-                    cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (v_id, staff_id))
+                for staff_id in crew_ids: cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (v_id, staff_id))
                 flash("✅ Crew Updated")
-
+                
             elif action == 'add_log':
-                cur.execute("INSERT INTO maintenance_logs (company_id, vehicle_id, type, description, date, cost) VALUES (%s, %s, %s, %s, %s, %s)", 
-                           (comp_id, request.form.get('vehicle_id'), request.form.get('log_type'), request.form.get('description'), request.form.get('date'), request.form.get('cost') or 0))
-                flash("✅ Log Added")
+                # Handle File Upload for Receipts
+                file_url = None
+                if 'receipt_file' in request.files:
+                    file = request.files['receipt_file']
+                    if file and file.filename != '':
+                        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                        filename = secure_filename(f"receipt_{comp_id}_{int(datetime.now().timestamp())}_{file.filename}")
+                        file.save(os.path.join(UPLOAD_FOLDER, filename))
+                        file_url = f"uploads/receipts/{filename}" # Relative path for DB
 
-            elif action == 'add_vehicle':
-                # Office can add vehicles, cost defaults to 0 if not provided
-                cur.execute("INSERT INTO vehicles (company_id, reg_plate, make_model, assigned_driver_id, daily_cost, mot_due, tax_due, insurance_due, service_due, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')", 
-                           (comp_id, request.form.get('reg_number'), request.form.get('make_model'), request.form.get('driver_id') or None, request.form.get('daily_cost') or 0, request.form.get('mot_expiry') or None, request.form.get('tax_due') or None, request.form.get('insurance_due') or None, request.form.get('service_due') or None))
-                flash("✅ Vehicle Registered")
-
-            elif action == 'update_defects':
-                cur.execute("UPDATE vehicles SET tracker_url=%s, defect_notes=%s WHERE id=%s", 
-                           (request.form.get('tracker_url'), request.form.get('defect_notes'), request.form.get('vehicle_id')))
-                flash("✅ Details Updated")
-
+                cur.execute("""
+                    INSERT INTO maintenance_logs (company_id, vehicle_id, type, description, date, cost, receipt_path) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (comp_id, request.form.get('vehicle_id'), request.form.get('log_type'), request.form.get('description'), request.form.get('date'), request.form.get('cost') or 0, file_url))
+                flash("✅ Log & Receipt Added")
+            
             conn.commit()
-        except Exception as e:
-            conn.rollback(); flash(f"❌ Error: {e}")
+        except Exception as e: conn.rollback(); flash(f"Error: {e}")
+
+    # Fetch Ops Data
+    cur.execute("""
+        SELECT v.id, v.reg_plate, v.make_model, v.status, s.name, v.assigned_driver_id, 
+               v.mot_due, v.tax_due, v.insurance_due, v.tracker_url
+        FROM vehicles v LEFT JOIN staff s ON v.assigned_driver_id = s.id 
+        WHERE v.company_id = %s ORDER BY v.reg_plate
+    """, (comp_id,))
+    
+    raw_vehicles = cur.fetchall(); vehicles = []; cur2 = conn.cursor()
+    for row in raw_vehicles:
+        v_id = row[0]
+        cur2.execute("SELECT s.id, s.name, s.position FROM vehicle_crew vc JOIN staff s ON vc.staff_id = s.id WHERE vc.vehicle_id = %s", (v_id,))
+        crew = [{'id': c[0], 'name': c[1], 'role': c[2]} for c in cur2.fetchall()]
+        
+        cur2.execute("SELECT date, type, description, cost, receipt_path FROM maintenance_logs WHERE vehicle_id = %s ORDER BY date DESC", (v_id,))
+        history = [{'date': format_date(r[0], date_fmt), 'type': r[1], 'desc': r[2], 'cost': r[3], 'receipt': r[4]} for r in cur2.fetchall()]
+
+        vehicles.append({
+            'id': row[0], 'reg_number': row[1], 'make_model': row[2], 'status': row[3],
+            'driver_name': row[4], 'assigned_driver_id': row[5],
+            'mot_expiry': parse_date(row[6]), 
+            'tax_expiry': parse_date(row[7]), 
+            'ins_expiry': parse_date(row[8]),
+            'tracker_url': row[9],
+            'crew': crew, 'history': history
+        })
+        
+    cur.execute("SELECT id, name, position as role FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
+    staff = [dict(zip(['id', 'name', 'role'], r)) for r in cur.fetchall()]
+    cur2.close(); conn.close()
+    
+    return render_template('office/fleet_management.html', 
+                         vehicles=vehicles, staff=staff, today=date.today(), date_fmt=date_fmt,
+                         brand_color=config['color'], logo_url=config['logo'])
 
     # Fetch Data for Display
     cur.execute("""
