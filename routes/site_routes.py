@@ -14,6 +14,7 @@ def check_site_access():
 
 # --- 1. SITE DASHBOARD (WORKER VIEW) ---
 @site_bp.route('/site-hub', methods=['GET', 'POST'])
+@site_bp.route('/site-companion', methods=['GET', 'POST']) # <--- RESTORED THIS LINE
 def site_dashboard():
     if not check_site_access(): return redirect(url_for('auth.login'))
     
@@ -60,8 +61,7 @@ def site_dashboard():
 
     # --- LOAD DASHBOARD DATA ---
     
-    # A. Fetch "My Jobs" (Assigned to this user, using correct columns)
-    # We use 'start_date' and 'staff_id' which we know exist.
+    # A. Fetch "My Jobs"
     cur.execute("""
         SELECT j.id, j.status, j.ref, j.site_address, p.postcode, j.description, j.start_date
         FROM jobs j
@@ -114,7 +114,7 @@ def view_job(job_id):
     if not job: return "Job not found", 404
     return render_template('job_details.html', job=job)
 
-# --- 3. PUBLIC PAGES (Kept from your original file) ---
+# --- 3. PUBLIC PAGES ---
 @site_bp.route('/advertise')
 @site_bp.route('/business-better')
 def advertise_page():
