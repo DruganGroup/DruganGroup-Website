@@ -1,60 +1,39 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Finance Settings | TradeCore</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
-        .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; }
-        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; }
-        .content { margin-left: 250px; padding: 30px; }
-        .nav-tabs .nav-link { color: #555; font-weight: 600; padding: 12px 20px; }
-        .nav-tabs .nav-link.active { color: {{ brand_color }}; border-bottom: 3px solid {{ brand_color }}; background: transparent; }
-        .card { border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-radius: 8px; }
-    </style>
-</head>
-<body>
+{% extends "finance/finance_base.html" %}
 
-<div class="sidebar">
-    <div class="text-center mb-4"><img src="{{ logo_url }}" width="150" style="border-radius:10px;"></div>
-    <a href="/finance-dashboard"><i class="fas fa-tachometer-alt me-2"></i> Overview</a>
-    <a href="/finance/hr"><i class="fas fa-users me-2"></i> HR & Staff</a>
-    <a href="/finance/fleet"><i class="fas fa-truck me-2"></i> Fleet & Gangs</a>
-    <a href="/finance/materials"><i class="fas fa-cubes me-2"></i> Materials</a>
-    <a href="/finance/analysis"><i class="fas fa-chart-pie me-2"></i> Analysis</a>
-    <a href="/finance/settings/general" style="background-color: rgba(255,255,255,0.2); border-left: 5px solid white;"><i class="fas fa-cogs me-2"></i> Settings</a>
-    <a href="/launcher" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
-</div>
+{% block title %}Settings | Business Better{% endblock %}
 
-<div class="content">
+{% block content %}
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold">Configuration Center</h2>
+        <div>
+            <h2 class="fw-bold m-0">Configuration Center</h2>
+            <p class="text-muted mb-0">System preferences for {{ session.get('company_name') }}</p>
+        </div>
     </div>
 
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}<div class="alert alert-success shadow-sm">{{ messages[0] }}</div>{% endif %}
-    {% endwith %}
-
-    <ul class="nav nav-tabs mb-4">
+    <ul class="nav nav-tabs mb-4 border-bottom-0">
         <li class="nav-item">
-            <a class="nav-link {{ 'active' if active_tab == 'general' else '' }}" href="/finance/settings/general">🏢 General & Brand</a>
+            <a class="nav-link {{ 'active' if active_tab == 'general' else '' }} fw-bold px-4" href="/finance/settings/general">
+                <i class="fas fa-building me-2"></i> General
+            </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {{ 'active' if active_tab == 'compliance' else '' }}" href="/finance/settings/compliance">⚖️ Compliance & Tax</a>
+            <a class="nav-link {{ 'active' if active_tab == 'compliance' else '' }} fw-bold px-4" href="/finance/settings/compliance">
+                <i class="fas fa-balance-scale me-2"></i> Compliance
+            </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {{ 'active' if active_tab == 'banking' else '' }}" href="/finance/settings/banking">🏦 Banking & Docs</a>
+            <a class="nav-link {{ 'active' if active_tab == 'banking' else '' }} fw-bold px-4" href="/finance/settings/banking">
+                <i class="fas fa-university me-2"></i> Banking
+            </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {{ 'active' if active_tab == 'overheads' else '' }}" href="/finance/settings/overheads">📉 Running Costs</a>
+            <a class="nav-link {{ 'active' if active_tab == 'overheads' else '' }} fw-bold px-4" href="/finance/settings/overheads">
+                <i class="fas fa-coins me-2"></i> Overheads
+            </a>
         </li>
     </ul>
 
-    {% block settings_content %}{% endblock %}
-
-</div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+    <div class="bg-white p-4 rounded-4 shadow-sm border">
+        {% block settings_content %}{% endblock %}
+    </div>
+{% endblock %}
