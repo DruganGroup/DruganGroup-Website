@@ -1,227 +1,68 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Office | Fleet Command</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; z-index:1000;}
-        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; transition: 0.2s; }
-        .sidebar a:hover { background-color: rgba(0,0,0,0.1); }
-        .sidebar a.active { background-color: rgba(255,255,255,0.2); border-left: 5px solid white; }
+{% extends "office/office_base.html" %}
 
-        .content { margin-left: 250px; padding: 30px; }
-        
-        .vehicle-card { 
-            border-left: 5px solid {{ brand_color }}; 
-            transition: transform 0.2s, box-shadow 0.2s; 
-            cursor: pointer; 
-        }
-        .vehicle-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.15); }
+{% block title %}Fleet Manager | Business Better{% endblock %}
 
-        .date-ok { color: #198754; font-weight: 500; }
-        .date-warn { color: #ffc107; font-weight: bold; }
-        .date-danger { color: #dc3545; font-weight: bold; animation: pulse 2s infinite; }
-        
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-        
-        .tracker-frame { width: 100%; height: 300px; border: 0; border-radius: 8px; background: #eee; }
-    </style>
-</head>
-<body>
+{% block head %}
+<style>
+    .vehicle-card { 
+        border-left: 5px solid var(--brand-color); 
+        transition: transform 0.2s; cursor: pointer; 
+    }
+    .vehicle-card:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+    .date-danger { color: #dc3545; font-weight: bold; }
+    .date-warn { color: #ffc107; font-weight: bold; }
+    .date-ok { color: #198754; }
+</style>
+{% endblock %}
 
-<div class="sidebar">
-    <div class="text-center mb-4"><img src="{{ logo_url }}" width="150" style="border-radius:10px;"></div>
-    
-    <a href="/office-hub"><i class="fas fa-desktop me-2"></i> Dashboard</a>
-    <a href="/office/service-desk"><i class="fas fa-tools me-2"></i> Service Desk</a>
-	<a href="/office/calendar"><i class="fas fa-calendar-alt me-2"></i> Calendar</a>
-    <a href="/clients"><i class="fas fa-address-book me-2"></i> Client Database</a>
-    <a href="/office/staff"><i class="fas fa-users-cog me-2"></i> Staff Manager</a>
-    <a href="/office/fleet" class="active"><i class="fas fa-truck me-2"></i> Fleet Manager</a>        
-    
-    <a href="/launcher" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
-    <a href="/logout" class="text-warning"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
-</div>
-
-<div class="content">
+{% block content %}
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold">Fleet Command</h2>
-        <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addVehicleModal">
+        <div>
+            <h2 class="fw-bold m-0">Fleet Command</h2>
+            <p class="text-muted mb-0">Track vehicle compliance and crew assignments</p>
+        </div>
+        <button class="btn btn-primary fw-bold shadow-sm" style="background-color: var(--brand-color); border:none;" data-bs-toggle="modal" data-bs-target="#addVehicleModal">
             <i class="fas fa-plus me-2"></i> Add Vehicle
         </button>
     </div>
 
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            <div class="alert alert-success">{{ messages[0] }}</div>
-        {% endif %}
-    {% endwith %}
-
     <div class="row g-4">
         {% for v in vehicles %}
         
-        {# --- DATE LOGIC --- #}
+        {# --- Date Logic Macro --- #}
         {% macro check_date(d) %}
             {% if d %}
                 {% set days = (d - today).days %}
-                {% if days <= 14 %}date-danger
-                {% elif days <= 30 %}date-warn
-                {% else %}date-ok{% endif %}
+                {% if days <= 14 %}date-danger{% elif days <= 30 %}date-warn{% else %}date-ok{% endif %}
             {% else %}text-muted{% endif %}
         {% endmacro %}
 
         <div class="col-xl-6">
-            <div class="card p-3 shadow-sm vehicle-card" data-bs-toggle="modal" data-bs-target="#detailModal{{ v.id }}">
+            <div class="card p-3 shadow-sm vehicle-card border-0" data-bs-toggle="modal" data-bs-target="#detailModal{{ v.id }}">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h4 class="fw-bold mb-0">{{ v.reg_number }} <span class="text-muted fs-6">{{ v.make_model }}</span></h4>
-                        <span class="badge {{ 'bg-success' if v.status == 'Active' else 'bg-danger' }}">{{ v.status }}</span>
+                        <h4 class="fw-bold mb-0">{{ v.reg_number }}</h4>
+                        <span class="text-muted small">{{ v.make_model }}</span>
                     </div>
-                    <div class="text-end">
-                        <div class="text-muted small text-uppercase">Daily Gang Cost</div>
-                        <div class="fs-4 fw-bold text-success">£{{ "%.2f"|format(v.total_gang_cost) }}</div>
-                    </div>
+                    <span class="badge {{ 'bg-success' if v.status == 'Active' else 'bg-danger' }}">{{ v.status }}</span>
                 </div>
-
-                <hr class="my-2">
-
-                <div class="d-flex justify-content-between small mb-2">
-                    <span class="{{ check_date(v.mot_expiry) }}"><i class="fas fa-tools"></i> MOT: {{ v.mot_expiry or 'N/A' }}</span>
-                    <span class="{{ check_date(v.tax_expiry) }}"><i class="fas fa-file-invoice-dollar"></i> Tax: {{ v.tax_expiry or 'N/A' }}</span>
-                    <span class="{{ check_date(v.ins_expiry) }}"><i class="fas fa-shield-alt"></i> Ins: {{ v.ins_expiry or 'N/A' }}</span>
+                
+                <div class="d-flex gap-3 mt-3 mb-3 small fw-bold">
+                    <span class="{{ check_date(v.mot_expiry) }}">MOT: {{ v.mot_expiry or 'N/A' }}</span>
+                    <span class="{{ check_date(v.tax_expiry) }}">TAX: {{ v.tax_expiry or 'N/A' }}</span>
+                    <span class="{{ check_date(v.ins_expiry) }}">INS: {{ v.ins_expiry or 'N/A' }}</span>
                 </div>
 
                 <div class="bg-light p-2 rounded d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-user-circle fa-2x text-secondary me-2"></i>
-                        <div>
-                            <div class="fw-bold" style="font-size: 0.9rem;">{{ v.driver_name or 'No Driver' }}</div>
-                            <div class="text-muted" style="font-size: 0.75rem;">Designated Driver</div>
-                        </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="bg-white p-1 rounded-circle border"><i class="fas fa-user-circle fa-lg text-secondary"></i></div>
+                        <div class="small fw-bold text-dark">{{ v.driver_name or 'Unassigned' }}</div>
                     </div>
-                    <div class="text-end">
-                        <div class="fw-bold" style="font-size: 0.9rem;">{{ v.crew|length }} Crew</div>
-                        <div class="text-muted" style="font-size: 0.75rem;">Passengers</div>
-                    </div>
+                    <div class="small text-muted">{{ v.crew|length }} Crew</div>
                 </div>
             </div>
         </div>
 
-        <div class="modal fade" id="detailModal{{ v.id }}" tabindex="-1">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header bg-light">
-                        <h5 class="modal-title fw-bold"><i class="fas fa-truck me-2"></i> {{ v.reg_number }} - Vehicle Details</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body p-0">
-                        <ul class="nav nav-tabs nav-fill" id="myTab{{ v.id }}" role="tablist">
-                            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overview{{ v.id }}">Overview & Defects</button></li>
-                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#history{{ v.id }}">Service History</button></li>
-                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#track{{ v.id }}">Live Tracking</button></li>
-                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#gang{{ v.id }}">Manage Gang</button></li>
-                        </ul>
-
-                        <div class="tab-content p-4">
-                            <div class="tab-pane fade show active" id="overview{{ v.id }}">
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <h6 class="fw-bold text-muted">Next Due Dates</h6>
-                                        <ul class="list-group">
-                                            <li class="list-group-item d-flex justify-content-between"><span>MOT</span> <strong class="{{ check_date(v.mot_expiry) }}">{{ v.mot_expiry }}</strong></li>
-                                            <li class="list-group-item d-flex justify-content-between"><span>Tax</span> <strong class="{{ check_date(v.tax_expiry) }}">{{ v.tax_expiry }}</strong></li>
-                                            <li class="list-group-item d-flex justify-content-between"><span>Insurance</span> <strong class="{{ check_date(v.ins_expiry) }}">{{ v.ins_expiry }}</strong></li>
-                                            <li class="list-group-item d-flex justify-content-between"><span>Service</span> <strong class="{{ check_date(v.service_due) }}">{{ v.service_due }}</strong></li>
-                                        </ul>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <form method="POST">
-                                            <input type="hidden" name="action" value="update_defects">
-                                            <input type="hidden" name="vehicle_id" value="{{ v.id }}">
-                                            <label class="fw-bold text-danger mb-2">Reported Defects / Notes</label>
-                                            <textarea name="defect_notes" class="form-control" rows="4" placeholder="e.g. Scratched bumper, tyre pressure low...">{{ v.defect_notes }}</textarea>
-                                            <button type="submit" class="btn btn-sm btn-outline-dark mt-2 w-100">Save Notes</button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="tab-pane fade" id="history{{ v.id }}">
-                                <table class="table table-sm table-striped">
-                                    <thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Cost</th></tr></thead>
-                                    <tbody>
-                                        {% for h in v.history %}
-                                        <tr>
-                                            <td>{{ h.date }}</td>
-                                            <td><span class="badge bg-secondary">{{ h.type }}</span></td>
-                                            <td>{{ h.desc }}</td>
-                                            <td class="fw-bold">£{{ h.cost }}</td>
-                                        </tr>
-                                        {% else %}
-                                        <tr><td colspan="4" class="text-center text-muted">No history recorded.</td></tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                                <hr>
-                                <h6 class="fw-bold">Add New Record</h6>
-                                <form method="POST" class="row g-2">
-                                    <input type="hidden" name="action" value="add_log">
-                                    <input type="hidden" name="vehicle_id" value="{{ v.id }}">
-                                    <div class="col-md-3"><input type="date" name="date" class="form-control form-control-sm" required></div>
-                                    <div class="col-md-3"><select name="log_type" class="form-select form-select-sm"><option>Service</option><option>Repair</option><option>Tyres</option><option>MOT</option></select></div>
-                                    <div class="col-md-4"><input type="text" name="description" class="form-control form-control-sm" placeholder="Description"></div>
-                                    <div class="col-md-2"><button type="submit" class="btn btn-sm btn-success w-100">Add</button></div>
-                                </form>
-                            </div>
-
-                            <div class="tab-pane fade" id="track{{ v.id }}">
-                                {% if v.tracker_url %}
-                                    <p class="text-muted small mb-2"><i class="fas fa-satellite-dish me-2"></i>Live view from Tracker Feed</p>
-                                    <iframe src="{{ v.tracker_url }}" class="tracker-frame"></iframe>
-                                    <div class="text-end mt-2">
-                                        <a href="{{ v.tracker_url }}" target="_blank" class="btn btn-sm btn-primary"><i class="fas fa-expand me-2"></i>Full Screen Map</a>
-                                    </div>
-                                {% else %}
-                                    <div class="text-center py-5 bg-light rounded">
-                                        <i class="fas fa-map-marked-alt fa-3x text-muted mb-3"></i>
-                                        <h5>No Tracker Configured</h5>
-                                        <p class="text-muted">Enter a Google Maps Embed URL or Tracker Link in the "Defects" tab to see the map here.</p>
-                                        <form method="POST">
-                                            <input type="hidden" name="action" value="update_defects">
-                                            <input type="hidden" name="vehicle_id" value="{{ v.id }}">
-                                            <input type="text" name="tracker_url" class="form-control mb-2" placeholder="Paste Map/Tracker URL here...">
-                                            <button class="btn btn-sm btn-primary">Save URL</button>
-                                        </form>
-                                    </div>
-                                {% endif %}
-                            </div>
-
-                            <div class="tab-pane fade" id="gang{{ v.id }}">
-                                <form method="POST">
-                                    <input type="hidden" name="action" value="assign_crew">
-                                    <input type="hidden" name="vehicle_id" value="{{ v.id }}">
-                                    <div class="list-group">
-                                        {% for s in staff %}
-                                            {% if s.id != v.driver_id %}
-                                            <label class="list-group-item d-flex gap-2">
-                                                <input class="form-check-input flex-shrink-0" type="checkbox" name="crew_ids" value="{{ s.id }}" 
-                                                {% if s.name in v.crew|map(attribute='name')|list %}checked{% endif %}>
-                                                <span>{{ s.name }} <small class="text-muted">({{ s.role }})</small></span>
-                                            </label>
-                                            {% endif %}
-                                        {% endfor %}
-                                    </div>
-                                    <button type="submit" class="btn btn-success w-100 mt-3">Update Gang</button>
-                                </form>
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
         {% endfor %}
     </div>
 
@@ -229,26 +70,20 @@
         <div class="modal-dialog modal-lg">
             <form method="POST" class="modal-content">
                 <input type="hidden" name="action" value="add_vehicle">
-                <div class="modal-header"><h5 class="modal-title">Add New Vehicle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Register New Vehicle</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
                 <div class="modal-body">
                     <div class="row g-3">
-                        <div class="col-md-6"><label>Reg Plate</label><input type="text" name="reg_number" class="form-control" required></div>
-                        <div class="col-md-6"><label>Make/Model</label><input type="text" name="make_model" class="form-control" required></div>
-                        <div class="col-md-6"><label>Driver</label><select name="driver_id" class="form-select"><option value="">-- None --</option>{% for s in staff %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></div>
-                        <div class="col-md-6"><label>Daily Cost (£)</label><input type="number" step="0.01" name="daily_cost" class="form-control"></div>
-                        <div class="col-12"><hr></div>
-                        <div class="col-md-3"><label class="small fw-bold">MOT Due</label><input type="date" name="mot_expiry" class="form-control"></div>
-                        <div class="col-md-3"><label class="small fw-bold">Tax Due</label><input type="date" name="tax_due" class="form-control"></div>
-                        <div class="col-md-3"><label class="small fw-bold">Insurance Due</label><input type="date" name="insurance_due" class="form-control"></div>
-                        <div class="col-md-3"><label class="small fw-bold">Service Due</label><input type="date" name="service_due" class="form-control"></div>
-                    </div>
+                        <div class="col-md-6"><label class="small fw-bold">Reg Plate</label><input type="text" name="reg_number" class="form-control" required></div>
+                        <div class="col-md-6"><label class="small fw-bold">Model</label><input type="text" name="make_model" class="form-control"></div>
+                        </div>
                 </div>
-                <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Vehicle</button></div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary w-100">Save Vehicle</button>
+                </div>
             </form>
         </div>
     </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+{% endblock %}

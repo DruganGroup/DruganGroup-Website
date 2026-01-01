@@ -1,99 +1,50 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Master Calendar | TradeCore</title>
-    
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
+{% extends "office/office_base.html" %}
+
+{% block title %}Schedule | Business Better{% endblock %}
+
+{% block head %}
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
-
     <style>
-        body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
-        
-        /* SIDEBAR (Matches your existing design) */
-        .sidebar { height: 100vh; background-color: {{ brand_color }}; color: white; position: fixed; width: 250px; padding-top: 20px; z-index: 1000; }
-        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: white; display: block; transition: 0.2s; }
-        .sidebar a:hover { background-color: rgba(0,0,0,0.1); }
-        .sidebar a.active { background-color: rgba(255,255,255,0.2); border-left: 5px solid white; }
-        
-        .content { margin-left: 250px; padding: 30px; height: 100vh; display: flex; flex-direction: column; }
-        
-        /* CALENDAR STYLE */
-        #calendar {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-            flex-grow: 1; /* Fills remaining space */
-        }
-        
-        .fc-event { cursor: pointer; border: none; }
-        .fc-toolbar-title { font-size: 1.5rem !important; font-weight: bold; color: #555; }
-        .fc-button-primary { background-color: {{ brand_color }} !important; border-color: {{ brand_color }} !important; }
-        
-        .legend-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .fc-toolbar-title { font-size: 1.5rem !important; font-weight: bold; }
+        .fc-button-primary { background-color: var(--brand-color) !important; border: none !important; }
+        #calendar { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
     </style>
-</head>
-<body>
+{% endblock %}
 
-    <div class="sidebar">
-        <div class="text-center mb-4"><img src="{{ logo_url }}" width="150" style="border-radius:10px;"></div>
-        
-        <a href="/office-hub"><i class="fas fa-desktop me-2"></i> Dashboard</a>
-		<a href="/office/service-desk"><i class="fas fa-tools me-2"></i> Service Desk</a>
-        <a href="/office/calendar" class="active"><i class="fas fa-calendar-alt me-2"></i> Calendar</a>
-        <a href="/clients"><i class="fas fa-address-book me-2"></i> Client Database</a>
-        <a href="/office/staff"><i class="fas fa-users-cog me-2"></i> Staff Manager</a>
-        <a href="/office/fleet"><i class="fas fa-truck me-2"></i> Fleet Manager</a>        
-        
-        <a href="/launcher" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
-        <a href="/logout" class="text-warning"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
-    </div>
-
-    <div class="content">
-        
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="fw-bold text-secondary">Company Schedule</h2>
-            
-            <div class="bg-white p-2 rounded shadow-sm small">
-                <span class="me-3"><span class="legend-dot" style="background:#3788d8;"></span>Jobs</span>
-                <span class="me-3"><span class="legend-dot" style="background:#dc3545;"></span>MOT Due</span>
-                <span class="me-3"><span class="legend-dot" style="background:#ffc107;"></span>Tax Due</span>
-                <span class="me-3"><span class="legend-dot" style="background:#6f42c1;"></span>Service</span>
-            </div>
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold m-0">Master Schedule</h2>
+        <div class="bg-white px-3 py-2 rounded-pill shadow-sm small border">
+            <span class="me-3"><i class="fas fa-circle text-primary me-1"></i> Jobs</span>
+            <span class="me-3"><i class="fas fa-circle text-danger me-1"></i> MOT/Tax</span>
+            <span><i class="fas fa-circle text-warning me-1"></i> Service</span>
         </div>
-
-        <div id='calendar'></div>
-
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var calendarEl = document.getElementById('calendar');
-            var calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek,listWeek'
-                },
-                height: 'auto',
-                events: '/office/calendar/data', // This pulls from your Python route
-                
-                // Tooltip logic could go here, but default titles work well
-                eventClick: function(info) {
-                    if (info.event.url) {
-                        // If it's a job, open in new tab
-                        window.open(info.event.url);
-                        info.jsEvent.preventDefault();
-                    }
-                }
-            });
-            calendar.render();
-        });
-    </script>
+    <div id='calendar'></div>
+{% endblock %}
 
-</body>
-</html>
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var calendarEl = document.getElementById('calendar');
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,listWeek'
+            },
+            height: 'auto',
+            events: '/office/calendar/data', // Pulls data from your backend
+            eventClick: function(info) {
+                if (info.event.url) {
+                    window.open(info.event.url);
+                    info.jsEvent.preventDefault();
+                }
+            }
+        });
+        calendar.render();
+    });
+</script>
+{% endblock %}
