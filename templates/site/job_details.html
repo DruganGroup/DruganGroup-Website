@@ -6,23 +6,33 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; padding-bottom: 20px; }
+        body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; padding-bottom: 40px; }
         .header-bar { background-color: #333; color: white; padding: 15px; border-radius: 0 0 15px 15px; margin-bottom: 20px; }
-        .action-btn { border-radius: 12px; padding: 15px; font-weight: bold; font-size: 1.1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .action-btn { border-radius: 12px; padding: 15px; font-weight: bold; font-size: 1.1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; margin-bottom: 10px; }
+        .evidence-img { width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 2px solid #ddd; }
     </style>
 </head>
 <body>
 
     <div class="header-bar d-flex justify-content-between align-items-center">
         <a href="/site-hub" class="text-white"><i class="fas fa-arrow-left fa-lg"></i></a>
-        <h4 class="m-0 fw-bold">{{ job[1] }}</h4> <span class="badge bg-warning text-dark">{{ job[2] }}</span> </div>
+        <h4 class="m-0 fw-bold">{{ job[1] }}</h4> 
+        <span class="badge {{ 'bg-success' if job[2] == 'In Progress' else 'bg-warning text-dark' }}">{{ job[2] }}</span> 
+    </div>
 
     <div class="container">
         
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-success shadow-sm rounded-4 mb-3">{{ messages[0] }}</div>
+            {% endif %}
+        {% endwith %}
+
         <div class="card shadow-sm border-0 mb-3">
             <div class="card-body">
                 <h6 class="text-muted fw-bold text-uppercase small">Location</h6>
-                <h5 class="fw-bold mb-1">{{ job[7] }}</h5> <div class="d-grid gap-2 mt-3">
+                <h5 class="fw-bold mb-1">{{ job[7] }}</h5> 
+                <div class="d-grid gap-2 mt-3">
                     <a href="https://maps.google.com/?q={{ job[7] }}" target="_blank" class="btn btn-primary fw-bold">
                         <i class="fas fa-map-marked-alt me-2"></i> Open in Maps
                     </a>
@@ -48,30 +58,55 @@
         <div class="card shadow-sm border-0 mb-3">
             <div class="card-body">
                 <h6 class="text-muted fw-bold text-uppercase small mb-3">Work Order</h6>
-                
                 <div class="alert alert-secondary border-0">
-                    <i class="fas fa-info-circle me-2"></i> <strong>Issue:</strong> {{ job[8] }}
+                    <i class="fas fa-info-circle me-2"></i> <strong>Job:</strong> {{ job[8] }}
                 </div>
-
-                {% if job[4] %}
-                <div class="bg-light p-3 rounded border">
-                    <strong class="d-block mb-1">Office Notes:</strong>
-                    {{ job[4] }}
-                </div>
-                {% endif %}
             </div>
         </div>
 
-        <div class="d-grid gap-3">
-            <button class="btn btn-outline-dark action-btn">
-                <i class="fas fa-camera me-2"></i> Add Photos
-            </button>
-            <button class="btn btn-success action-btn text-white">
-                <i class="fas fa-check-circle me-2"></i> Mark Complete
-            </button>
+        <div class="mb-4">
+            {% if job[2] != 'In Progress' and job[2] != 'Completed' %}
+                <form method="POST" action="/site/job/{{ job[0] }}/update">
+                    <input type="hidden" name="action" value="start">
+                    <button type="submit" class="btn btn-success action-btn text-white">
+                        <i class="fas fa-play me-2"></i> Start Job
+                    </button>
+                </form>
+            {% endif %}
+
+            {% if job[2] == 'In Progress' %}
+                <button class="btn btn-outline-dark action-btn" onclick="document.getElementById('photoInput').click();">
+                    <i class="fas fa-camera me-2"></i> Add Evidence Photo
+                </button>
+                <form method="POST" action="/site/job/{{ job[0] }}/update" enctype="multipart/form-data" id="photoForm" style="display:none;">
+                    <input type="hidden" name="action" value="upload_photo">
+                    <input type="file" name="photo" id="photoInput" accept="image/*" capture="environment" onchange="document.getElementById('photoForm').submit();">
+                </form>
+
+                <form method="POST" action="/site/job/{{ job[0] }}/update" onsubmit="return confirm('Are you sure you are finished?');">
+                    <input type="hidden" name="action" value="complete">
+                    <button type="submit" class="btn btn-primary action-btn text-white mt-2">
+                        <i class="fas fa-check-circle me-2"></i> Mark Complete
+                    </button>
+                </form>
+            {% endif %}
         </div>
 
-    </div>
+        {% if photos %}
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <h6 class="text-muted fw-bold text-uppercase small mb-3">Evidence Gallery</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for p in photos %}
+                        <a href="/static/{{ p }}" target="_blank">
+                            <img src="/static/{{ p }}" class="evidence-img">
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
+    </div>
 </body>
 </html>
