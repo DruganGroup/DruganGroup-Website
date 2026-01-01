@@ -1,10 +1,14 @@
-from flask import Blueprint, render_template, session, redirect, url_for, request, flash
+from flask import Blueprint, render_template, session, redirect, url_for, request, flash, jsonify
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash
+import secrets
+import string
 import os
 import csv
 from io import TextIOWrapper
 from datetime import datetime, date 
 from db import get_db, get_site_config, allowed_file, UPLOAD_FOLDER
+from email_service import send_company_email  # Importing your real email service
 
 finance_bp = Blueprint('finance', __name__)
 
@@ -53,6 +57,36 @@ def finance_dashboard():
     return render_template('finance/finance_dashboard.html', total_income=income, total_expense=expense, total_balance=balance, transactions=transactions, brand_color=config['color'], logo_url=config['logo'])
 
 
+# --- 1.5 SALES LEDGER (INVOICES) ---
+@finance_bp.route('/finance/invoices')
+def finance_invoices():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    
+    company_id = session.get('company_id')
+    config = get_site_config(company_id)
+    conn = get_db(); cur = conn.cursor()
+    
+    # Fetch Invoices
+    cur.execute("""
+        SELECT i.id, i.reference, c.name, i.date, i.due_date, i.total, i.status 
+        FROM invoices i 
+        JOIN clients c ON i.client_id = c.id 
+        WHERE i.company_id = %s 
+        ORDER BY i.date DESC
+    """, (company_id,))
+    
+    invoices = []
+    rows = cur.fetchall()
+    for r in rows:
+        invoices.append({
+            'id': r[0], 'ref': r[1], 'client': r[2], 'date': r[3], 
+            'due': r[4], 'total': r[5], 'status': r[6]
+        })
+        
+    conn.close()
+    return render_template('finance/finance_invoices.html', invoices=invoices, brand_color=config['color'], logo_url=config['logo'])
+
+
 # --- 2. HR & STAFF ---
 @finance_bp.route('/finance/hr')
 def finance_hr():
@@ -66,7 +100,6 @@ def finance_hr():
         FROM staff WHERE company_id = %s ORDER BY name
     """, (comp_id,))
     
-    # FIX: Convert tuples to dictionaries so HTML can use {{ s.name }} instead of {{ s[1] }}
     rows = cur.fetchall()
     staff = []
     columns = ['id', 'name', 'position', 'dept', 'pay_rate', 'pay_model', 'access_level', 'email', 'phone', 'employment_type', 'address', 'tax_id']
@@ -81,30 +114,66 @@ def finance_hr():
 def add_staff():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
     
+    # 1. Get Data
     name = request.form.get('name'); position = request.form.get('position')
     email = request.form.get('email'); phone = request.form.get('phone')
     address = request.form.get('address'); emp_type = request.form.get('employment_type')
     dept = request.form.get('dept'); rate = request.form.get('rate') or 0
     model = request.form.get('model'); tax_id = request.form.get('tax_id')
-    access = request.form.get('access_level'); password = request.form.get('password')
+    access = request.form.get('access_level') 
+    
+    # We do NOT get 'password' from the form anymore.
     
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
+    
     try:
+        # 2. Create Staff Record
         cur.execute("""
             INSERT INTO staff (company_id, name, position, dept, pay_rate, pay_model, access_level, email, phone, address, employment_type, tax_id) 
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (comp_id, name, position, dept, rate, model, access, email, phone, address, emp_type, tax_id))
         
-        if access != "None" and email and password:
+        # 3. Security Logic: Auto-Generate User Login
+        if access != "None" and email:
+            # Check if user already exists
             cur.execute("SELECT id FROM users WHERE email=%s", (email,))
             if not cur.fetchone():
-                from werkzeug.security import generate_password_hash
+                # Generate Random Secure Password (12 chars)
+                alphabet = string.ascii_letters + string.digits + "!@#$%"
+                password = ''.join(secrets.choice(alphabet) for i in range(12))
+                
+                # Hash it
                 hashed_pw = generate_password_hash(password)
+                
+                # Create User
                 cur.execute("INSERT INTO users (username, email, password_hash, role, company_id) VALUES (%s, %s, %s, %s, %s)", (email, email, hashed_pw, access, comp_id))
-                flash(f"✅ Staff added and login created for {email}")
-            else: flash("⚠️ Staff added, but user email already exists.")
-        else: flash("✅ Staff member added successfully.")
+                
+                # 4. Notify via Real Email using your company settings
+                subject = "Your Staff Login Details"
+                body = f"""
+                <h3>Welcome to the Team, {name}!</h3>
+                <p>A new staff account has been created for you.</p>
+                <p><strong>Username:</strong> {email}</p>
+                <p><strong>Password:</strong> {password}</p>
+                <p>Please log in and change your password immediately.</p>
+                <hr>
+                <small>Sent from your company finance system.</small>
+                """
+                
+                # Send using the helper that pulls company-specific SMTP settings
+                success, msg = send_company_email(comp_id, email, subject, body)
+                
+                if success:
+                    flash(f"✅ Staff Added. Login details have been emailed to {email}.")
+                else:
+                    flash(f"⚠️ Staff Added, but email failed to send: {msg}")
+                    # In a real crisis, you might want to log the password here or show it once, but for security, we usually don't.
+            else: 
+                flash("⚠️ Staff added, but a user with this email already exists.")
+        else: 
+            flash("✅ Staff member added (No system access).")
+            
         conn.commit()
     except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
     finally: conn.close()
@@ -559,6 +628,14 @@ def settings_overheads():
     cur.execute("SELECT id, name FROM overhead_categories WHERE company_id = %s ORDER BY id ASC", (comp_id,))
     categories_raw = cur.fetchall()
     
+    # Simple Class to avoid dictionary method conflict
+    class CategoryObj:
+        def __init__(self, id, name, items, total):
+            self.id = id
+            self.name = name
+            self.items = items
+            self.total = total
+
     overheads = []
     total_overhead = 0.0
     
@@ -567,8 +644,8 @@ def settings_overheads():
         items = cur.fetchall()
         cat_total = sum([float(i[2]) for i in items])
         total_overhead += cat_total
-        # FIX: Renamed 'items' key to 'line_items' to avoid Jinja 'dict.items' conflict
-        overheads.append({'id': cat[0], 'name': cat[1], 'items': items, 'total': cat_total})
+        # Return an Object instead of a Dict so .items works in the template
+        overheads.append(CategoryObj(cat[0], cat[1], items, cat_total))
 
     conn.close()
     return render_template('finance/settings_overheads.html', settings=settings, overheads=overheads, total_overhead=total_overhead, active_tab='overheads', brand_color=config['color'], logo_url=config['logo'])
