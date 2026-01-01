@@ -343,3 +343,13 @@ def upload_compliance():
     except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
     finally: conn.close()
     return redirect(url_for('office.view_client', client_id=client_id))
+    
+    # --- DEBUG TOOL ---
+@office_bp.route('/debug/properties')
+def debug_properties():
+    conn = get_db(); cur = conn.cursor()
+    # Ask the database for the exact column names of the properties table
+    cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'properties'")
+    columns = [row[0] for row in cur.fetchall()]
+    conn.close()
+    return jsonify(columns)
