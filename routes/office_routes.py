@@ -287,7 +287,7 @@ def create_work_order():
     cur.execute("UPDATE service_requests SET status = 'In Progress' WHERE id = %s", (request.form.get('request_id'),))
     conn.commit(); conn.close(); return redirect(url_for('office.service_desk'))
 
-# --- 9. STAFF MANAGEMENT (Cards, History & Search) ---
+# --- 9. STAFF MANAGEMENT (Enforcing Driving Licenses) ---
 @office_bp.route('/office/staff', methods=['GET', 'POST'])
 def staff_list():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -295,70 +295,98 @@ def staff_list():
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
-
-    # Reuse Helper
-    def uk_date(d):
-        if not d: return ""
-        try: return d.strftime('%d/%m/%Y')
-        except: return str(d)
+    
+    # 1. Ensure DB Column Exists
+    try:
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS license_path TEXT")
+        conn.commit()
+    except: conn.rollback()
 
     if request.method == 'POST':
         action = request.form.get('action')
+        role = request.form.get('role')
+        
+        # File Handling Helper
+        file_path = None
+        if 'license_file' in request.files:
+            f = request.files['license_file']
+            if f and f.filename != '':
+                os.makedirs('static/uploads/licenses', exist_ok=True)
+                filename = secure_filename(f"license_{comp_id}_{int(datetime.now().timestamp())}_{f.filename}")
+                f.save(os.path.join('static/uploads/licenses', filename))
+                file_path = f"uploads/licenses/{filename}"
+
         try:
             if action == 'add_staff':
-                cur.execute("""
-                    INSERT INTO staff (company_id, name, email, phone, position, status) 
-                    VALUES (%s, %s, %s, %s, %s, 'Active')
-                """, (comp_id, request.form.get('name'), request.form.get('email'), request.form.get('phone'), request.form.get('role')))
-                flash("✅ Staff Member Added")
+                # RULE: If Driver, MUST have license
+                if role == 'Driver' and not file_path:
+                    flash("❌ Compliance Error: You cannot add a Driver without uploading a Driving License.")
+                else:
+                    cur.execute("""
+                        INSERT INTO staff (company_id, name, email, phone, position, status, license_path) 
+                        VALUES (%s, %s, %s, %s, %s, 'Active', %s)
+                    """, (comp_id, request.form.get('name'), request.form.get('email'), request.form.get('phone'), role, file_path))
+                    conn.commit(); flash("✅ Staff Member Added")
             
             elif action == 'edit_staff':
-                cur.execute("""
-                    UPDATE staff SET name=%s, email=%s, phone=%s, position=%s, status=%s
-                    WHERE id=%s AND company_id=%s
-                """, (request.form.get('name'), request.form.get('email'), request.form.get('phone'), 
-                      request.form.get('role'), request.form.get('status'), 
-                      request.form.get('staff_id'), comp_id))
-                flash("✅ Details Updated")
+                staff_id = request.form.get('staff_id')
+                
+                # Check Existing License if not uploading new one
+                if role == 'Driver' and not file_path:
+                    cur.execute("SELECT license_path FROM staff WHERE id = %s", (staff_id,))
+                    existing_license = cur.fetchone()[0]
+                    if not existing_license:
+                        flash("❌ Compliance Error: This staff member is set as a Driver but has no license on file. Please upload one.")
+                        raise Exception("Missing License")
 
-            conn.commit()
-        except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
+                # Build Query dynamically to handle file update only if needed
+                if file_path:
+                    cur.execute("""
+                        UPDATE staff SET name=%s, email=%s, phone=%s, position=%s, status=%s, license_path=%s
+                        WHERE id=%s AND company_id=%s
+                    """, (request.form.get('name'), request.form.get('email'), request.form.get('phone'), role, request.form.get('status'), file_path, staff_id, comp_id))
+                else:
+                    cur.execute("""
+                        UPDATE staff SET name=%s, email=%s, phone=%s, position=%s, status=%s
+                        WHERE id=%s AND company_id=%s
+                    """, (request.form.get('name'), request.form.get('email'), request.form.get('phone'), role, request.form.get('status'), staff_id, comp_id))
+                
+                conn.commit(); flash("✅ Details Updated")
+
+        except Exception as e: 
+            conn.rollback()
+            if "Missing License" not in str(e): flash(f"❌ Error: {e}")
 
     # 1. Fetch Staff List
     cur.execute("""
-        SELECT id, name, email, phone, position AS role, status 
+        SELECT id, name, email, phone, position AS role, status, license_path 
         FROM staff WHERE company_id = %s ORDER BY name ASC
     """, (comp_id,))
     cols = [desc[0] for desc in cur.description]
     staff_list = [dict(zip(cols, row)) for row in cur.fetchall()]
 
-    # 2. Fetch Job History for these staff members
+    # 2. Fetch Job History
     cur.execute("""
         SELECT j.id, j.ref, j.site_address, j.description, j.start_date, j.status, j.staff_id
-        FROM jobs j
-        WHERE j.company_id = %s AND j.staff_id IS NOT NULL
-        ORDER BY j.start_date DESC
+        FROM jobs j WHERE j.company_id = %s AND j.staff_id IS NOT NULL ORDER BY j.start_date DESC
     """, (comp_id,))
     
-    # Organize jobs by Staff ID
+    # Reuse Helper locally to avoid import issues
+    def fmt(d): 
+        try: return d.strftime('%d/%m/%Y')
+        except: return str(d)
+
     jobs_by_staff = {}
     for j in cur.fetchall():
         sid = j[6]
         if sid not in jobs_by_staff: jobs_by_staff[sid] = []
-        jobs_by_staff[sid].append({
-            'id': j[0], 'ref': j[1], 'address': j[2], 
-            'desc': j[3], 'date': uk_date(j[4]), 'status': j[5]
-        })
+        jobs_by_staff[sid].append({'id': j[0], 'ref': j[1], 'address': j[2], 'desc': j[3], 'date': fmt(j[4]), 'status': j[5]})
     
-    # Attach Jobs to Staff Objects
     for s in staff_list:
         s['history'] = jobs_by_staff.get(s['id'], [])
 
     conn.close()
-    return render_template('office/staff_management.html', 
-                         staff=staff_list, 
-                         brand_color=config['color'], 
-                         logo_url=config['logo'])
+    return render_template('office/staff_management.html', staff=staff_list, brand_color=config['color'], logo_url=config['logo'])
 
 # --- 10. CALENDAR ---
 @office_bp.route('/office/calendar')

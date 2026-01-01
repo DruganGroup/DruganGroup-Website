@@ -62,7 +62,12 @@
                                 </div>
                             </div>
                         </td>
-                        <td><span class="badge bg-light text-dark border">{{ s.role }}</span></td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ s.role }}</span>
+                            {% if s.license_path %}
+                                <span class="ms-1" title="License Verified"><i class="fas fa-id-card text-success"></i></span>
+                            {% endif %}
+                        </td>
                         <td class="small text-muted">
                             <div><i class="fas fa-envelope me-2" style="width:15px;"></i> {{ s.email or 'N/A' }}</div>
                             <div><i class="fas fa-phone me-2" style="width:15px;"></i> {{ s.phone or 'N/A' }}</div>
@@ -99,7 +104,7 @@
 
                                     <div class="tab-content">
                                         <div class="tab-pane fade show active p-4" id="details{{ s.id }}">
-                                            <form method="POST">
+                                            <form method="POST" enctype="multipart/form-data">
                                                 <input type="hidden" name="action" value="edit_staff">
                                                 <input type="hidden" name="staff_id" value="{{ s.id }}">
                                                 
@@ -124,6 +129,23 @@
                                                             <option value="Inactive" {% if s.status == 'Inactive' %}selected{% endif %}>Inactive</option>
                                                         </select>
                                                     </div>
+                                                    
+                                                    <div class="col-12">
+                                                        <div class="bg-light border rounded p-3">
+                                                            <label class="small fw-bold mb-2">Driving License (Required for Drivers)</label>
+                                                            <div class="d-flex align-items-center justify-content-between">
+                                                                <input type="file" name="license_file" class="form-control form-control-sm me-3">
+                                                                {% if s.license_path %}
+                                                                    <a href="/static/{{ s.license_path }}" target="_blank" class="btn btn-sm btn-outline-success fw-bold text-nowrap">
+                                                                        <i class="fas fa-check-circle me-1"></i> View License
+                                                                    </a>
+                                                                {% else %}
+                                                                    <span class="badge bg-secondary">No License</span>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
                                                     <div class="col-md-6">
                                                         <label class="small fw-bold text-muted">Email</label>
                                                         <input type="email" name="email" class="form-control" value="{{ s.email }}">
@@ -163,7 +185,7 @@
                                                 {% else %}
                                                 <div class="p-5 text-center text-muted">
                                                     <i class="fas fa-folder-open fa-2x mb-3 opacity-50"></i>
-                                                    <p class="mb-0">No job history found for this staff member.</p>
+                                                    <p class="mb-0">No job history found.</p>
                                                 </div>
                                                 {% endfor %}
                                             </div>
@@ -183,7 +205,7 @@
 
     <div class="modal fade" id="addStaffModal" tabindex="-1">
         <div class="modal-dialog">
-            <form method="POST" class="modal-content">
+            <form method="POST" enctype="multipart/form-data" class="modal-content">
                 <input type="hidden" name="action" value="add_staff">
                 <div class="modal-header text-white" style="background-color: var(--brand-color);">
                     <h5 class="modal-title fw-bold">Add Employee</h5>
@@ -196,13 +218,20 @@
                     </div>
                     <div class="mb-3">
                         <label class="small fw-bold">Role</label>
-                        <select name="role" class="form-select">
-                            <option>Driver</option>
-                            <option>Operative</option>
-                            <option>Site Manager</option>
-                            <option>Office</option>
+                        <select name="role" class="form-select" onchange="toggleLicense(this)">
+                            <option value="Laborer">Laborer</option>
+                            <option value="Driver">Driver</option>
+                            <option value="Site Manager">Site Manager</option>
+                            <option value="Office">Office Admin</option>
                         </select>
+                        <div class="form-text text-danger d-none" id="licenseAlert">Drivers must upload a license picture.</div>
                     </div>
+                    
+                    <div class="mb-3 d-none bg-light p-2 rounded border" id="licenseUploadDiv">
+                        <label class="small fw-bold text-danger">Upload Driving License (Required)</label>
+                        <input type="file" name="license_file" class="form-control form-control-sm">
+                    </div>
+
                     <div class="row g-2">
                         <div class="col-6">
                             <label class="small fw-bold">Email</label>
@@ -222,10 +251,21 @@
     </div>
 
     <script>
+        function toggleLicense(select) {
+            let div = document.getElementById('licenseUploadDiv');
+            let alert = document.getElementById('licenseAlert');
+            if(select.value === 'Driver') {
+                div.classList.remove('d-none');
+                alert.classList.remove('d-none');
+            } else {
+                div.classList.add('d-none');
+                alert.classList.add('d-none');
+            }
+        }
+
         document.getElementById('staffSearch').addEventListener('keyup', function() {
             let searchText = this.value.toLowerCase();
             let rows = document.querySelectorAll('#staffTable tbody tr.staff-row');
-            
             rows.forEach(row => {
                 let text = row.innerText.toLowerCase();
                 row.style.display = text.includes(searchText) ? '' : 'none';
