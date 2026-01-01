@@ -825,3 +825,12 @@ def upload_compliance():
         conn.close()
         
     return redirect(url_for('office.view_client', client_id=client_id))
+    
+    @office_bp.route('/debug/schema')
+def debug_schema():
+    conn = get_db(); cur = conn.cursor()
+    # List all columns in the 'jobs' table
+    cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'jobs'")
+    columns = [row[0] for row in cur.fetchall()]
+    conn.close()
+    return jsonify(columns)
