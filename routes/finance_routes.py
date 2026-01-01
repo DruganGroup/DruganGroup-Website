@@ -214,9 +214,137 @@ def delete_staff(id):
     return redirect(url_for('finance.finance_hr'))
 
 
-# --- 3. FINANCE FLEET (FIXED) ---
+# --- 3. FINANCE FLEET (UPGRADED WITH CREW & COST LOGIC) ---
 @finance_bp.route('/finance/fleet', methods=['GET', 'POST'])
 def finance_fleet():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # 1. Ensure Tables Exist (Crew & Logs)
+    cur.execute("CREATE TABLE IF NOT EXISTS vehicle_crew (vehicle_id INTEGER, staff_id INTEGER, PRIMARY KEY(vehicle_id, staff_id))")
+    conn.commit()
+    
+    # --- HANDLE POST REQUESTS ---
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'assign_crew':
+            # This logic fixes the "Click on it and add crew" feature
+            v_id = request.form.get('vehicle_id')
+            crew_ids = request.form.getlist('crew_ids') # Get list of checked staff
+            try:
+                # Clear old crew
+                cur.execute("DELETE FROM vehicle_crew WHERE vehicle_id = %s", (v_id,))
+                # Add new crew
+                for staff_id in crew_ids:
+                    cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (v_id, staff_id))
+                conn.commit()
+                flash("✅ Crew Assignments Updated")
+            except Exception as e:
+                conn.rollback(); flash(f"❌ Error assigning crew: {e}")
+
+        elif action == 'add_log':
+            v_id = request.form.get('vehicle_id'); l_type = request.form.get('log_type') 
+            desc = request.form.get('description'); log_date = request.form.get('date')
+            cost = request.form.get('cost') or 0
+            try:
+                cur.execute("INSERT INTO maintenance_logs (company_id, vehicle_id, type, description, date, cost) VALUES (%s, %s, %s, %s, %s, %s)", (comp_id, v_id, l_type, desc, log_date, cost))
+                conn.commit(); flash("✅ Cost Recorded")
+            except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
+                
+        elif action == 'add_vehicle':
+            reg = request.form.get('reg_number') or request.form.get('reg_plate') # Handle both naming conventions
+            model = request.form.get('make_model')
+            driver = request.form.get('driver_id')
+            cost = request.form.get('daily_cost') or 0
+            mot = request.form.get('mot_expiry') or None
+            tax = request.form.get('tax_due') or None
+            ins = request.form.get('insurance_due') or None
+            serv = request.form.get('service_due') or None
+            tracker = request.form.get('tracker_url')
+            try:
+                cur.execute("""INSERT INTO vehicles (company_id, reg_plate, make_model, assigned_driver_id, daily_cost, mot_due, tax_due, insurance_due, service_due, tracker_url, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')""", (comp_id, reg, model, driver if driver != 'None' and driver != '' else None, cost, mot, tax, ins, serv, tracker))
+                conn.commit(); flash("✅ Vehicle Added")
+            except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
+        
+        elif action == 'update_vehicle':
+            v_id = request.form.get('vehicle_id'); reg = request.form.get('reg_plate')
+            model = request.form.get('make_model'); driver = request.form.get('driver_id')
+            status = request.form.get('status'); mot = request.form.get('mot_expiry') or None
+            tax = request.form.get('tax_due') or None; ins = request.form.get('insurance_due') or None
+            serv = request.form.get('service_due') or None; tracker = request.form.get('tracker_url')
+            cost = request.form.get('daily_cost') or 0
+            try:
+                cur.execute("""UPDATE vehicles SET reg_plate=%s, make_model=%s, assigned_driver_id=%s, status=%s, mot_due=%s, tax_due=%s, insurance_due=%s, service_due=%s, tracker_url=%s, daily_cost=%s WHERE id=%s AND company_id=%s""", (reg, model, driver if driver != 'None' and driver != '' else None, status, mot, tax, ins, serv, tracker, cost, v_id, comp_id))
+                conn.commit(); flash("✅ Vehicle Updated")
+            except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
+
+    # --- FETCH VEHICLES & CALCULATE COSTS ---
+    cur.execute("""
+        SELECT v.id, v.reg_plate, v.make_model, v.status, v.mot_due, v.tax_due, v.insurance_due,
+            s.name as driver_name, v.assigned_driver_id, v.tracker_url, v.service_due, COALESCE(v.daily_cost, 0),
+            s.pay_rate, s.pay_model
+        FROM vehicles v LEFT JOIN staff s ON v.assigned_driver_id = s.id 
+        WHERE v.company_id = %s ORDER BY v.reg_plate
+    """, (comp_id,))
+    
+    raw_vehicles = cur.fetchall()
+    vehicles = []
+    cur2 = conn.cursor()
+
+    for row in raw_vehicles:
+        v_id = row[0]
+        daily_van_cost = float(row[11])
+        
+        # 1. Driver Cost (Assume 8 hour day if hourly)
+        driver_rate = float(row[12] or 0)
+        driver_model = row[13]
+        driver_daily = driver_rate * 8 if driver_model == 'Hour' else driver_rate
+        
+        # 2. Fetch Crew & Calculate Crew Cost
+        cur2.execute("""
+            SELECT s.id, s.name, s.position, s.pay_rate, s.pay_model 
+            FROM vehicle_crew vc 
+            JOIN staff s ON vc.staff_id = s.id 
+            WHERE vc.vehicle_id = %s
+        """, (v_id,))
+        crew_members = []
+        crew_daily_cost = 0
+        
+        for c in cur2.fetchall():
+            c_rate = float(c[3] or 0)
+            c_cost = c_rate * 8 if c[4] == 'Hour' else c_rate
+            crew_daily_cost += c_cost
+            crew_members.append({'id': c[0], 'name': c[1], 'role': c[2]})
+
+        # 3. Total Gang Cost (Van + Driver + Crew)
+        total_gang_cost = daily_van_cost + driver_daily + crew_daily_cost
+
+        # 4. Maintenance History
+        cur2.execute("SELECT COALESCE(SUM(cost), 0) FROM maintenance_logs WHERE vehicle_id = %s", (v_id,))
+        total_spend = cur2.fetchone()[0]
+        cur2.execute("SELECT date, type, description, cost FROM maintenance_logs WHERE vehicle_id = %s ORDER BY date DESC", (v_id,))
+        history = [{'date': r[0], 'type': r[1], 'desc': r[2], 'cost': r[3]} for r in cur2.fetchall()]
+
+        vehicles.append({
+            'id': row[0], 'reg_number': row[1], 'make_model': row[2], 'status': row[3],
+            'mot_expiry': parse_date(row[4]), 'tax_expiry': parse_date(row[5]), 'ins_expiry': parse_date(row[6]),
+            'driver_name': row[7], 'total_spend': total_spend, 'assigned_driver_id': row[8],
+            'tracker_url': row[9], 'service_due': parse_date(row[10]), 'daily_cost': daily_van_cost,
+            'total_gang_cost': total_gang_cost, # <--- THIS FIXES THE CRASH
+            'crew': crew_members, 
+            'history': history
+        })
+        
+    cur.execute("SELECT id, name, position as role FROM staff WHERE company_id = %s ORDER BY name ASC", (comp_id,))
+    staff_list = [dict(zip(['id', 'name', 'role'], row)) for row in cur.fetchall()]
+    cur2.close(); conn.close()
+    
+    return render_template('finance/finance_fleet.html', vehicles=vehicles, staff=staff_list, today=date.today(), brand_color=config['color'], logo_url=config['logo'])
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
