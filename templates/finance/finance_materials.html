@@ -8,60 +8,26 @@
             <h2 class="fw-bold m-0">Materials Database</h2>
             <p class="text-muted mb-0">Manage price lists and stock items</p>
         </div>
-        <div class="input-group w-auto">
-            <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
-            <input type="text" id="searchInput" onkeyup="filterTable()" class="form-control border-start-0 ps-0" placeholder="Search products...">
-        </div>
-    </div>
-
-    <div class="row g-4 mb-4">
-        <div class="col-md-8">
-            <div class="card p-3 shadow-sm border-0 bg-light h-100">
-                <h6 class="fw-bold text-muted mb-3 text-uppercase small">Add Single Item</h6>
-                <form method="POST" class="row g-2 align-items-end">
-                    <input type="hidden" name="action" value="add_material">
-                    <div class="col-md-3">
-                        <label class="small fw-bold">Supplier</label>
-                        <input type="text" name="supplier" class="form-control" required placeholder="e.g. Travis Perkins">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="small fw-bold">SKU</label>
-                        <input type="text" name="sku" class="form-control" placeholder="Optional">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="small fw-bold">Product Name</label>
-                        <input type="text" name="name" class="form-control" required>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="small fw-bold">Unit Price (£)</label>
-                        <input type="number" step="0.01" name="price" class="form-control" required>
-                    </div>
-                    <div class="col-md-2">
-                        <button type="submit" class="btn btn-success w-100 fw-bold"><i class="fas fa-plus"></i> Add</button>
-                    </div>
-                </form>
+        
+        <div class="d-flex gap-2">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" id="searchInput" onkeyup="filterTable()" class="form-control border-start-0 ps-0" placeholder="Search products...">
             </div>
-        </div>
 
-        <div class="col-md-4">
-            <div class="card p-3 shadow-sm border-0 bg-white border border-dashed h-100">
-                <h6 class="fw-bold text-muted mb-3 text-uppercase small">Bulk Import (CSV)</h6>
-                <form action="/finance/materials/import" method="POST" enctype="multipart/form-data" class="d-flex gap-2">
-                    <input type="file" name="file" class="form-control form-control-sm" required accept=".csv">
-                    <button type="submit" class="btn btn-dark btn-sm fw-bold"><i class="fas fa-upload"></i></button>
-                </form>
-                <small class="text-muted mt-2 d-block" style="font-size: 0.75rem;">
-                    Format: SKU, Name, Category, Unit, Price, Supplier
-                </small>
-            </div>
+            <button class="btn btn-outline-dark fw-bold text-nowrap" data-bs-toggle="modal" data-bs-target="#importModal">
+                <i class="fas fa-file-csv me-2"></i>Import CSV
+            </button>
+            <button class="btn btn-primary fw-bold text-nowrap shadow-sm" data-bs-toggle="modal" data-bs-target="#addMaterialModal">
+                <i class="fas fa-plus me-2"></i>New Item
+            </button>
         </div>
     </div>
 
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-        <div class="card-header bg-white p-2 border-bottom">
-            <div class="d-flex justify-content-between align-items-center">
-                <small class="text-muted fw-bold ps-2">Total Items: {{ materials|length }}</small>
-            </div>
+        <div class="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold m-0 text-secondary text-uppercase small ls-1">Inventory List</h6>
+            <span class="badge bg-light text-dark border">{{ materials|length }} Items</span>
         </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0" id="materialTable">
@@ -78,13 +44,15 @@
                 <tbody>
                     {% for m in materials %}
                     <tr>
-                        <td class="ps-4 text-muted small">{{ m.supplier }}</td>
-                        <td><span class="badge bg-light text-dark border">{{ m.sku }}</span></td>
+                        <td class="ps-4 text-muted small fw-bold">{{ m.supplier }}</td>
+                        <td><span class="badge bg-white text-dark border font-monospace">{{ m.sku }}</span></td>
                         <td class="fw-bold text-dark">{{ m.name }}</td>
-                        <td><span class="badge bg-secondary">{{ m.category }}</span></td>
+                        <td><span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ m.category }}</span></td>
                         <td class="text-end pe-4 fw-bold text-primary">£{{ "%.2f"|format(m.price) }}</td>
                         <td class="text-end">
-                            <a href="/finance/materials/delete/{{ m.id }}" class="btn btn-sm text-danger" onclick="return confirm('Delete this item?')"><i class="fas fa-trash"></i></a>
+                            <a href="/finance/materials/delete/{{ m.id }}" class="btn btn-sm btn-link text-danger p-0" onclick="return confirm('Delete this item?')">
+                                <i class="fas fa-trash-alt"></i>
+                            </a>
                         </td>
                     </tr>
                     {% else %}
@@ -92,6 +60,74 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <div class="modal fade" id="addMaterialModal" tabindex="-1">
+        <div class="modal-dialog">
+            <form method="POST" class="modal-content">
+                <input type="hidden" name="action" value="add_material">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Add New Material</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="small fw-bold text-muted">Product Name</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="small fw-bold text-muted">Supplier</label>
+                            <input type="text" name="supplier" class="form-control" placeholder="e.g. Travis Perkins">
+                        </div>
+                        <div class="col-6">
+                            <label class="small fw-bold text-muted">SKU / Code</label>
+                            <input type="text" name="sku" class="form-control">
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="small fw-bold text-muted">Category</label>
+                            <select name="category" class="form-select">
+                                <option value="General">General</option>
+                                <option value="Timber">Timber</option>
+                                <option value="Plumbing">Plumbing</option>
+                                <option value="Electrical">Electrical</option>
+                                <option value="Hardware">Hardware</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="small fw-bold text-muted">Unit Price (£)</label>
+                            <input type="number" step="0.01" name="price" class="form-control" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary fw-bold px-4">Save Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="importModal" tabindex="-1">
+        <div class="modal-dialog">
+            <form action="/finance/materials/import" method="POST" enctype="multipart/form-data" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Import CSV</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <i class="fas fa-file-csv fa-3x text-success mb-3"></i>
+                    <p class="text-muted mb-4">Upload a CSV file with columns:<br><strong>SKU, Name, Category, Unit, Price, Supplier</strong></p>
+                    
+                    <input type="file" name="file" class="form-control" required accept=".csv">
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="submit" class="btn btn-dark fw-bold w-100"><i class="fas fa-upload me-2"></i> Upload & Process</button>
+                </div>
+            </form>
         </div>
     </div>
 {% endblock %}
@@ -105,7 +141,6 @@
         var tr = table.getElementsByTagName("tr");
 
         for (var i = 1; i < tr.length; i++) {
-            // Check Name (col 2), SKU (col 1), Supplier (col 0)
             var tdSupp = tr[i].getElementsByTagName("td")[0];
             var tdSku = tr[i].getElementsByTagName("td")[1];
             var tdName = tr[i].getElementsByTagName("td")[2];
