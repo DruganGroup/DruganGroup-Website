@@ -1,12 +1,16 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request, jsonify
 from db import get_db, get_site_config
 from email_service import send_company_email
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
+from werkzeug.utils import secure_filename
+import os
 
+# Define the Blueprint
 office_bp = Blueprint('office', __name__)
 
-# Allowed roles for Office Hub
+# Constants
 ALLOWED_OFFICE_ROLES = ['Admin', 'SuperAdmin', 'Office']
+UPLOAD_FOLDER = 'static/uploads' # Ensure this matches your config
 
 # --- HELPER: CHECK PERMISSION ---
 def check_office_access():
@@ -23,11 +27,10 @@ def parse_date(d):
             return None
     return d
 
-# --- 1. OFFICE DASHBOARD (OPERATIONAL) ---
+# --- 1. OFFICE DASHBOARD ---
 @office_bp.route('/office-hub')
 @office_bp.route('/office-hub.html')
 def office_dashboard():
-    # Strict check: Site Managers cannot see this dashboard
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     company_id = session.get('company_id')
@@ -36,15 +39,13 @@ def office_dashboard():
     conn = get_db()
     cur = conn.cursor()
     
-    # STAT 1: New Service Requests (Operational Focus)
+    # Stats
     cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id = %s AND status != 'Completed'", (company_id,))
     pending_requests_count = cur.fetchone()[0]
 
-    # STAT 2: Active Jobs Count
     cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id = %s AND status != 'Completed'", (company_id,))
     active_jobs_count = cur.fetchone()[0]
 
-    # STAT 3: Pending Quotes List
     cur.execute("""
         SELECT q.id, c.name, q.reference, q.date, q.total, q.status 
         FROM quotes q LEFT JOIN clients c ON q.client_id = c.id
@@ -75,10 +76,7 @@ def create_quote():
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
 
-    if settings.get('vat_registered', 'no') == 'yes':
-        tax_rate = float(settings.get('tax_rate', '20')) / 100
-    else:
-        tax_rate = 0.0
+    tax_rate = float(settings.get('tax_rate', '20')) / 100 if settings.get('vat_registered', 'no') == 'yes' else 0.0
 
     if request.method == 'POST':
         try:
@@ -91,10 +89,7 @@ def create_quote():
                 new_name = request.form.get('new_client_name')
                 new_email = request.form.get('new_client_email')
                 new_address = request.form.get('new_client_address')
-                cur.execute("""
-                    INSERT INTO clients (company_id, name, email, address, status) 
-                    VALUES (%s, %s, %s, %s, 'Active') RETURNING id
-                """, (comp_id, new_name, new_email, new_address))
+                cur.execute("INSERT INTO clients (company_id, name, email, address, status) VALUES (%s, %s, %s, %s, 'Active') RETURNING id", (comp_id, new_name, new_email, new_address))
                 client_id = cur.fetchone()[0]
 
             if not client_id: client_id = request.form.get('client_id') 
@@ -103,10 +98,7 @@ def create_quote():
             ref = request.form.get('reference')
             notes = request.form.get('notes')
             
-            cur.execute("""
-                INSERT INTO quotes (company_id, client_id, reference, status, notes, date)
-                VALUES (%s, %s, %s, 'Draft', %s, CURRENT_DATE) RETURNING id
-            """, (comp_id, client_id, ref, notes))
+            cur.execute("INSERT INTO quotes (company_id, client_id, reference, status, notes, date) VALUES (%s, %s, %s, 'Draft', %s, CURRENT_DATE) RETURNING id", (comp_id, client_id, ref, notes))
             quote_id = cur.fetchone()[0]
             
             descriptions = request.form.getlist('desc[]')
@@ -123,10 +115,7 @@ def create_quote():
                     row_total = q * p
                     grand_subtotal += row_total
                     
-                    cur.execute("""
-                        INSERT INTO quote_items (quote_id, description, quantity, unit_price, total) 
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (quote_id, d, q, p, row_total))
+                    cur.execute("INSERT INTO quote_items (quote_id, description, quantity, unit_price, total) VALUES (%s, %s, %s, %s, %s)", (quote_id, d, q, p, row_total))
             
             tax_amount = grand_subtotal * tax_rate
             final_total = grand_subtotal + tax_amount
@@ -147,14 +136,7 @@ def create_quote():
     clients = cur.fetchall()
     
     conn.close()
-    return render_template('office/create_quote.html', 
-                           clients=clients, 
-                           new_ref=new_ref, 
-                           today=date.today(), 
-                           tax_rate=tax_rate, 
-                           settings=settings,
-                           brand_color=config['color'], 
-                           logo_url=config['logo'])
+    return render_template('office/create_quote.html', clients=clients, new_ref=new_ref, today=date.today(), tax_rate=tax_rate, settings=settings, brand_color=config['color'], logo_url=config['logo'])
 
 # --- 3. VIEW QUOTE ---
 @office_bp.route('/office/quote/<int:quote_id>')
@@ -185,7 +167,6 @@ def view_quote(quote_id):
     settings['brand_color'] = config['color']
     settings['logo_url'] = config['logo']
     
-    # ADDED: Get Staff list for "Approve & Schedule" Modal
     cur.execute("SELECT id, name, role FROM staff WHERE company_id = %s", (comp_id,))
     staff_list = [dict(zip(['id', 'name', 'role'], row)) for row in cur.fetchall()]
 
@@ -195,7 +176,6 @@ def view_quote(quote_id):
     if mode == 'pdf':
         return render_template('office/pdf_quote.html', quote=quote, items=items, settings=settings)
     else:
-        # Pass staff list to template
         return render_template('office/view_quote_dashboard.html', quote=quote, items=items, settings=settings, staff=staff_list)
 
 # --- 4. CONVERT QUOTE TO INVOICE ---
@@ -231,10 +211,7 @@ def convert_to_invoice(quote_id):
     items = cur.fetchall()
     
     for item in items:
-        cur.execute("""
-            INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (inv_id, item[0], item[1], item[2], item[3]))
+        cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, %s, %s, %s)", (inv_id, item[0], item[1], item[2], item[3]))
 
     cur.execute("UPDATE quotes SET status = 'Accepted' WHERE id = %s", (quote_id,))
     conn.commit(); conn.close()
@@ -256,7 +233,6 @@ def convert_quote_to_job():
         cur.execute("SELECT client_id, reference, notes FROM quotes WHERE id = %s", (quote_id,))
         quote = cur.fetchone()
         
-        # FIX: 'date' instead of 'scheduled_date'
         cur.execute("""
             INSERT INTO jobs (company_id, staff_id, client_id, date, type, status, reference, notes)
             VALUES (%s, %s, %s, %s, 'Quote Work', 'Scheduled', %s, %s)
@@ -272,7 +248,7 @@ def convert_quote_to_job():
         
     return redirect(url_for('office.office_dashboard'))
 
-# --- 6. SERVICE DESK (FIXED) ---
+# --- 6. SERVICE DESK ---
 @office_bp.route('/office/service-desk')
 def service_desk():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -280,15 +256,28 @@ def service_desk():
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
     
-    # !!! FIX: Changed 'p.address' to 'p.addr' !!!
-    cur.execute("""
-        SELECT r.id, p.addr, r.issue_description, c.name, r.severity, r.status, r.created_at
-        FROM service_requests r
-        JOIN properties p ON r.property_id = p.id
-        JOIN clients c ON r.client_id = c.id
-        WHERE r.company_id = %s AND r.status != 'Completed'
-        ORDER BY r.created_at DESC
-    """, (comp_id,))
+    # Using 'addr' here assuming you fixed the DB column or view. 
+    # If this fails, we will use the Smart Fetch technique here too.
+    try:
+        cur.execute("""
+            SELECT r.id, p.addr, r.issue_description, c.name, r.severity, r.status, r.created_at
+            FROM service_requests r
+            JOIN properties p ON r.property_id = p.id
+            JOIN clients c ON r.client_id = c.id
+            WHERE r.company_id = %s AND r.status != 'Completed'
+            ORDER BY r.created_at DESC
+        """, (comp_id,))
+    except:
+        # Fallback if 'addr' fails -> try 'address'
+        conn.rollback()
+        cur.execute("""
+            SELECT r.id, p.address, r.issue_description, c.name, r.severity, r.status, r.created_at
+            FROM service_requests r
+            JOIN properties p ON r.property_id = p.id
+            JOIN clients c ON r.client_id = c.id
+            WHERE r.company_id = %s AND r.status != 'Completed'
+            ORDER BY r.created_at DESC
+        """, (comp_id,))
     
     rows = cur.fetchall()
     requests_list = []
@@ -316,7 +305,6 @@ def create_work_order():
     
     conn = get_db(); cur = conn.cursor()
     try:
-        # FIX: 'date' instead of 'scheduled_date'
         cur.execute("""
             INSERT INTO jobs (company_id, request_id, staff_id, date, type, notes, status)
             VALUES (%s, %s, %s, %s, %s, %s, 'Scheduled')
@@ -350,7 +338,7 @@ def staff_list():
     conn.close()
     return render_template('office/staff_management.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# --- 9. FLEET MANAGEMENT (FIXED) ---
+# --- 9. FLEET MANAGEMENT ---
 @office_bp.route('/office/fleet', methods=['GET', 'POST'])
 def fleet_list():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -397,7 +385,7 @@ def fleet_list():
                 conn.commit(); flash("✅ Vehicle Details Updated")
             except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
 
-    # --- FETCH FLEET DATA (FIXED QUERY) ---
+    # --- FETCH FLEET DATA ---
     cur.execute("""
         SELECT v.id, v.reg_plate, v.make_model, v.status, v.mot_due, v.tax_due, v.insurance_due, v.service_due, 
                v.tracker_url, v.defect_notes, s.name, v.assigned_driver_id, 
@@ -430,7 +418,7 @@ def fleet_list():
             crew.append({'name': c[1], 'role': c[2]})
             crew_total_cost += float(c[3])
             
-        # 3. Cost Calc (Safe access because query asks for 14 columns)
+        # 3. Cost Calc
         labor_cost = (float(row[13]) + crew_total_cost) * 8 
         total_day_cost = float(row[12]) + labor_cost
 
@@ -468,7 +456,6 @@ def get_calendar_data():
 
     # A. Fetch JOBS
     try:
-        # FIX: 'date' instead of 'scheduled_date'
         cur.execute("""
             SELECT j.id, j.ref, j.date, c.name, j.status
             FROM jobs j 
@@ -501,13 +488,12 @@ def get_calendar_data():
     conn.close()
     return jsonify(events)
     
-# --- SEND RECEIPT (RESTORED) ---
+# --- SEND RECEIPT ---
 @office_bp.route('/office/send-receipt/<int:transaction_id>')
 def send_receipt(transaction_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     company_id = session.get('company_id')
-    # In a real app, you would fetch the client email from the transaction
     user_email = "client@example.com" 
     
     subject = f"Receipt for Transaction #{transaction_id}"
@@ -519,12 +505,8 @@ def send_receipt(transaction_id):
     else: flash(f"❌ Email Failed: {message}")
         
     return redirect(url_for('office.office_dashboard'))
-    
-# --- 12. CLIENT DETAILS & COMPLIANCE VIEW (UPGRADED) ---
-from datetime import timedelta # <--- MAKE SURE THIS IS IMPORTED AT TOP OF FILE
 
-@office_bp.route('/client/<int:client_id>')
-# --- 12. CLIENT DETAILS & COMPLIANCE VIEW (SMART FETCH) ---
+# --- 12. CLIENT DETAILS & COMPLIANCE VIEW (SMART FETCH - CRASH PROOF) ---
 @office_bp.route('/client/<int:client_id>')
 def view_client(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -539,62 +521,61 @@ def view_client(client_id):
     if not client: return "Client not found", 404
     client_data = {'id': client[0], 'name': client[1], 'email': client[2], 'phone': client[3], 'addr': client[4], 'notes': client[5]}
 
-    # 2. Fetch Properties (Safe Mode: SELECT *)
-    # We grab everything so we don't crash on column names
+    # 2. Fetch Properties (Smart Address Fetch)
     cur.execute("SELECT * FROM properties WHERE client_id = %s", (client_id,))
-    
-    # Map columns dynamically
-    cols = [desc[0] for desc in cur.description]
+    # Dynamically get column names from the database cursor
+    prop_cols = [desc[0] for desc in cur.description]
     raw_props = cur.fetchall()
     properties = []
     
     today = date.today()
 
     for row in raw_props:
-        p = dict(zip(cols, row))
+        p = dict(zip(prop_cols, row))
         
-        # Smart-find the address (Checks 'addr', 'address', 'street', etc.)
-        addr_val = p.get('addr') or p.get('address') or p.get('street') or p.get('name') or 'Unknown Address'
-        # Smart-find other fields (Safely defaults to empty if missing)
+        # Auto-detect Address Column
+        addr_val = p.get('addr') or p.get('address') or p.get('street') or 'Unknown Address'
+        # Auto-detect other columns
         postcode_val = p.get('postcode') or p.get('zip') or ''
         tenant_val = p.get('tenant_name') or p.get('tenant') or 'Vacant'
         tenant_phone_val = p.get('tenant_phone') or ''
         prop_id = p.get('id')
 
-        # 3. Compliance Logic (Traffic Lights)
-        cur.execute("""
-            SELECT type, date 
-            FROM jobs 
-            WHERE property_id = %s AND status = 'Completed' 
-            AND type IN ('Gas Safety', 'EICR', 'PAT Test', 'EPC')
-            ORDER BY date DESC
-        """, (prop_id,))
+        # 3. Compliance Logic (Smart Job Fetch)
+        cur.execute("SELECT * FROM jobs WHERE property_id = %s AND status = 'Completed'", (prop_id,))
+        job_cols = [desc[0] for desc in cur.description]
+        raw_jobs = cur.fetchall()
         
-        comp_jobs = cur.fetchall()
         compliance = {
             'Gas': {'date': None, 'status': 'Missing'},
             'EICR': {'date': None, 'status': 'Missing'},
             'PAT': {'date': None, 'status': 'Missing'}
         }
         
-        for job in comp_jobs:
-            j_type = job[0]; j_date = job[1]
+        for r in raw_jobs:
+            j = dict(zip(job_cols, r))
+            
+            # Auto-detect Job Type Column (checks 'type', 'job_type', 'title', 'service')
+            j_type = j.get('type') or j.get('job_type') or j.get('title') or j.get('service') or ''
+            j_date = j.get('date') 
+            
             key = None
             if 'Gas' in j_type: key = 'Gas'
             elif 'EICR' in j_type: key = 'EICR'
             elif 'PAT' in j_type: key = 'PAT'
             
-            if key and compliance[key]['status'] == 'Missing':
+            if key and j_date:
                 # 1 Year for Gas/PAT, 5 Years for EICR
                 valid_years = 5 if key == 'EICR' else 1
                 expiry_date = j_date + timedelta(days=365 * valid_years)
                 days_left = (expiry_date - today).days
                 
                 if days_left < 0: status = 'Expired'
-                elif days_left <= 30: status = 'Due Soon' # Amber Warning
+                elif days_left <= 30: status = 'Due Soon'
                 else: status = 'Valid'
                 
-                compliance[key] = {'date': j_date, 'status': status, 'expires': expiry_date}
+                if compliance[key]['status'] == 'Missing' or j_date > (compliance[key]['date'] or date.min):
+                    compliance[key] = {'date': j_date, 'status': status, 'expires': expiry_date}
 
         properties.append({
             'id': prop_id, 'addr': addr_val, 'postcode': postcode_val, 
@@ -602,163 +583,27 @@ def view_client(client_id):
             'compliance': compliance
         })
 
-    # 4. Active Jobs
-    cur.execute("SELECT id, type, status, date, notes FROM jobs WHERE client_id = %s AND status != 'Completed' ORDER BY date", (client_id,))
-    active_jobs = cur.fetchall()
+    # 4. Active Jobs (Smart Job Fetch)
+    cur.execute("SELECT * FROM jobs WHERE client_id = %s AND status != 'Completed' ORDER BY date", (client_id,))
+    active_job_cols = [desc[0] for desc in cur.description]
+    raw_active = cur.fetchall()
+    active_jobs = []
+    
+    for r in raw_active:
+        j = dict(zip(active_job_cols, r))
+        
+        j_id = j.get('id')
+        j_type = j.get('type') or j.get('job_type') or j.get('title') or 'General Job'
+        j_status = j.get('status') or 'Pending'
+        j_date = j.get('date')
+        j_notes = j.get('notes') or j.get('description') or ''
+        
+        active_jobs.append([j_id, j_type, j_status, j_date, j_notes])
 
     conn.close()
     return render_template('office/client_details.html', client=client_data, properties=properties, jobs=active_jobs, brand_color=config['color'], logo_url=config['logo'])
-    if not check_office_access(): return redirect(url_for('auth.login'))
-    
-    company_id = session.get('company_id')
-    config = get_site_config(company_id)
-    conn = get_db(); cur = conn.cursor()
 
-    # 1. Fetch Client
-    cur.execute("SELECT id, name, email, phone, address, notes FROM clients WHERE id = %s AND company_id = %s", (client_id, company_id))
-    client = cur.fetchone()
-    if not client: return "Client not found", 404
-    client_data = {'id': client[0], 'name': client[1], 'email': client[2], 'phone': client[3], 'addr': client[4], 'notes': client[5]}
-
-    # 2. Fetch Properties
-    cur.execute("SELECT id, addr, postcode, tenant_name, tenant_phone FROM properties WHERE client_id = %s ORDER BY addr", (client_id,))
-    raw_props = cur.fetchall()
-    properties = []
-
-    today = date.today()
-
-    for p in raw_props:
-        prop_id = p[0]
-        
-        # 3. Compliance Logic (With 30-Day Warning)
-        cur.execute("""
-            SELECT type, date 
-            FROM jobs 
-            WHERE property_id = %s AND status = 'Completed' 
-            AND type IN ('Gas Safety', 'EICR', 'PAT Test', 'EPC')
-            ORDER BY date DESC
-        """, (prop_id,))
-        
-        comp_jobs = cur.fetchall()
-        compliance = {
-            'Gas': {'date': None, 'status': 'Missing'},
-            'EICR': {'date': None, 'status': 'Missing'},
-            'PAT': {'date': None, 'status': 'Missing'}
-        }
-        
-        for job in comp_jobs:
-            j_type = job[0]; j_date = job[1]
-            
-            key = None
-            if 'Gas' in j_type: key = 'Gas'
-            elif 'EICR' in j_type: key = 'EICR'
-            elif 'PAT' in j_type: key = 'PAT'
-            
-            if key and compliance[key]['status'] == 'Missing':
-                # Determine Validity Period
-                valid_years = 5 if key == 'EICR' else 1
-                expiry_date = j_date + timedelta(days=365 * valid_years)
-                days_left = (expiry_date - today).days
-                
-                # Traffic Light Logic
-                if days_left < 0: status = 'Expired'        # Red
-                elif days_left <= 30: status = 'Due Soon'   # Amber (Warning)
-                else: status = 'Valid'                      # Green
-                
-                compliance[key] = {'date': j_date, 'status': status, 'expires': expiry_date}
-
-        properties.append({
-            'id': p[0], 'addr': p[1], 'postcode': p[2], 
-            'tenant': p[3], 'tenant_phone': p[4],
-            'compliance': compliance
-        })
-
-    # 4. Active Jobs
-    cur.execute("SELECT id, type, status, date, notes FROM jobs WHERE client_id = %s AND status != 'Completed' ORDER BY date", (client_id,))
-    active_jobs = cur.fetchall()
-
-    conn.close()
-    return render_template('office/client_details.html', client=client_data, properties=properties, jobs=active_jobs, brand_color=config['color'], logo_url=config['logo'])
-    if not check_office_access(): return redirect(url_for('auth.login'))
-    
-    company_id = session.get('company_id')
-    config = get_site_config(company_id)
-    conn = get_db(); cur = conn.cursor()
-
-    # 1. Fetch Client Info
-    cur.execute("SELECT id, name, email, phone, address, notes FROM clients WHERE id = %s AND company_id = %s", (client_id, company_id))
-    client = cur.fetchone()
-    
-    if not client: return "Client not found", 404
-    client_data = {'id': client[0], 'name': client[1], 'email': client[2], 'phone': client[3], 'addr': client[4], 'notes': client[5]}
-
-    # 2. Fetch Properties & Tenant Info
-    # Assumes 'tenant_name' and 'tenant_phone' are columns in 'properties' table 
-    # OR we join a tenants table if you have one. For now, we assume simple columns on property.
-    cur.execute("""
-        SELECT id, addr, postcode, tenant_name, tenant_phone 
-        FROM properties 
-        WHERE client_id = %s 
-        ORDER BY addr
-    """, (client_id,))
-    
-    raw_props = cur.fetchall()
-    properties = []
-
-    for p in raw_props:
-        prop_id = p[0]
-        
-        # 3. Fetch Compliance Status (Gas, PAT, EICR)
-        # We look for the MOST RECENT completed job of each type for this property
-        cur.execute("""
-            SELECT type, date 
-            FROM jobs 
-            WHERE property_id = %s AND status = 'Completed' 
-            AND type IN ('Gas Safety', 'EICR', 'PAT Test', 'EPC')
-            ORDER BY date DESC
-        """, (prop_id,))
-        
-        comp_jobs = cur.fetchall()
-        compliance = {
-            'Gas': {'date': None, 'status': 'Missing'},
-            'EICR': {'date': None, 'status': 'Missing'},
-            'PAT': {'date': None, 'status': 'Missing'}
-        }
-        
-        # Simple logic: If a job exists within 1 year, it's valid.
-        today = date.today()
-        for job in comp_jobs:
-            j_type = job[0]
-            j_date = job[1] # Date object
-            
-            # Map job types to our keys
-            key = None
-            if 'Gas' in j_type: key = 'Gas'
-            elif 'EICR' in j_type: key = 'EICR'
-            elif 'PAT' in j_type: key = 'PAT'
-            
-            if key and compliance[key]['status'] == 'Missing':
-                days_old = (today - j_date).days
-                valid_days = 365 # 1 year validity default
-                if key == 'EICR': valid_days = 365 * 5 # 5 years for EICR
-                
-                status = 'Valid' if days_old < valid_days else 'Expired'
-                compliance[key] = {'date': j_date, 'status': status}
-
-        properties.append({
-            'id': p[0], 'addr': p[1], 'postcode': p[2], 
-            'tenant': p[3], 'tenant_phone': p[4],
-            'compliance': compliance
-        })
-
-    # 4. Fetch Active Jobs
-    cur.execute("SELECT id, type, status, date, notes FROM jobs WHERE client_id = %s AND status != 'Completed' ORDER BY date", (client_id,))
-    active_jobs = cur.fetchall()
-
-    conn.close()
-    return render_template('office/client_details.html', client=client_data, properties=properties, jobs=active_jobs, brand_color=config['color'], logo_url=config['logo'])
-    
-    # --- 13. ADD PROPERTY & UPLOAD CERTIFICATES ---
+# --- 13. ADD PROPERTY & UPLOAD CERTIFICATES ---
 @office_bp.route('/client/<int:client_id>/add_property', methods=['POST'])
 def add_property(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -782,7 +627,6 @@ def add_property(client_id):
     except Exception as e:
         conn.rollback()
         flash(f"❌ Error adding property: {e}")
-        # Debug hint: if it fails, check if column is named 'addr' or 'address'
     finally:
         conn.close()
         
@@ -811,7 +655,6 @@ def upload_compliance():
     conn = get_db(); cur = conn.cursor()
     try:
         # Create a 'Completed' job to represent this certificate
-        # This fixes the traffic light logic automatically
         cur.execute("""
             INSERT INTO jobs (client_id, property_id, type, description, status, date, attachment_url)
             VALUES (%s, %s, %s, 'Compliance Certificate Uploaded', 'Completed', %s, %s)
@@ -825,8 +668,8 @@ def upload_compliance():
         conn.close()
         
     return redirect(url_for('office.view_client', client_id=client_id))
-    
-    @office_bp.route('/debug/schema')
+
+@office_bp.route('/debug/schema')
 def debug_schema():
     conn = get_db(); cur = conn.cursor()
     # List all columns in the 'jobs' table
