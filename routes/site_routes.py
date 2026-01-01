@@ -1,93 +1,121 @@
-from flask import Blueprint, render_template, session, redirect, url_for
+from flask import Blueprint, render_template, session, redirect, url_for, flash, request
 from db import get_db, get_site_config
+from werkzeug.utils import secure_filename
+import os
+from datetime import date
 
 site_bp = Blueprint('site', __name__)
+UPLOAD_FOLDER = 'static/uploads/van_checks'
 
-@site_bp.route('/site-hub')
-@site_bp.route('/site-companion', methods=['GET', 'POST'])
-@site_bp.route('/site_dashboard', methods=['GET', 'POST'])
+# --- HELPER: CHECK ACCESS ---
+def check_site_access():
+    if 'user_id' not in session: return False
+    return True
+
+# --- 1. SITE DASHBOARD (WORKER VIEW) ---
+@site_bp.route('/site-hub', methods=['GET', 'POST'])
 def site_dashboard():
-    if not session.get('user_id'): return redirect(url_for('auth.login'))
+    if not check_site_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
-    config = get_site_config(comp_id)
+    staff_id = session.get('user_id')
     conn = get_db(); cur = conn.cursor()
+
+    # --- HANDLE VAN CHECK SUBMISSION ---
+    if request.method == 'POST' and request.form.get('action') == 'van_check':
+        reg = request.form.get('reg_plate')
+        mileage = request.form.get('mileage')
+        safe = request.form.get('is_safe')
+        defects = request.form.get('defects')
+        
+        # Handle Photo
+        filename = None
+        if 'photo' in request.files:
+            file = request.files['photo']
+            if file.filename != '':
+                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                filename = secure_filename(f"{date.today()}_{reg}_{file.filename}")
+                file.save(os.path.join(UPLOAD_FOLDER, filename))
+
+        try:
+            # Get Vehicle ID from Reg
+            cur.execute("SELECT id FROM vehicles WHERE reg_plate = %s", (reg,))
+            v_row = cur.fetchone()
+            if v_row:
+                v_id = v_row[0]
+                # Log to Maintenance History
+                desc = f"Daily Check: {safe.upper()}. Mileage: {mileage}. Notes: {defects}"
+                status_log = 'Check Failed' if safe == 'no' else 'Daily Check'
+                
+                cur.execute("""
+                    INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost) 
+                    VALUES (%s, %s, CURRENT_DATE, %s, %s, 0)
+                """, (comp_id, v_id, status_log, desc))
+                conn.commit()
+                flash("✅ Van Check Submitted!")
+            else:
+                flash("❌ Vehicle not found.")
+        except Exception as e:
+            conn.rollback(); flash(f"Error: {e}")
+
+    # --- LOAD DASHBOARD DATA ---
     
-    # 1. Get Stats
-    cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id = %s AND status = 'Pending'", (comp_id,))
-    pending_count = cur.fetchone()[0]
+    # A. Fetch "My Jobs" (Assigned to this user, using correct columns)
+    # We use 'start_date' and 'staff_id' which we know exist.
+    cur.execute("""
+        SELECT j.id, j.status, j.ref, j.site_address, p.postcode, j.description, j.start_date
+        FROM jobs j
+        LEFT JOIN properties p ON j.site_address = p.address_line1 
+        WHERE j.company_id = %s AND j.staff_id = %s AND j.status != 'Completed'
+        ORDER BY j.start_date ASC
+    """, (comp_id, staff_id))
     
-    # (Assuming you have a 'jobs' table, if not, we use service_requests as a placeholder for now)
-    # If tables don't exist yet, these try/except blocks prevent crashing
-    active_jobs = 0
-    try:
-        cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id = %s AND status = 'Active'", (comp_id,))
-        active_jobs = cur.fetchone()[0]
-    except: pass
+    my_jobs = []
+    for r in cur.fetchall():
+        my_jobs.append({
+            'id': r[0], 'status': r[1], 'reference': r[2], 
+            'address': r[3], 'postcode': r[4] or '', 'notes': r[5]
+        })
 
-    active_gangs = 0
-    try:
-        cur.execute("SELECT COUNT(*) FROM staff WHERE company_id = %s AND role = 'Site Manager'", (comp_id,))
-        active_gangs = cur.fetchone()[0]
-    except: pass
-
-    # 2. Get Recent List
-    recent_jobs = []
-    try:
-        # Fetch actual jobs if table exists
-        cur.execute("""
-            SELECT id, reference, address, postcode, status, assigned_gang 
-            FROM jobs WHERE company_id = %s ORDER BY start_date DESC LIMIT 5
-        """, (comp_id,))
-        rows = cur.fetchall()
-        for r in rows:
-            recent_jobs.append({
-                'id': r[0], 'reference': r[1], 'address': r[2], 
-                'postcode': r[3], 'status': r[4], 'gang_name': r[5]
-            })
-    except:
-        pass # Return empty list if table not ready
-
+    # B. Fetch Vehicle List for Dropdown
+    cur.execute("SELECT reg_plate FROM vehicles WHERE company_id = %s AND status='Active' ORDER BY reg_plate", (comp_id,))
+    vehicles = [r[0] for r in cur.fetchall()]
+    
+    config = get_site_config(comp_id)
     conn.close()
     
-    return render_template('site/site_dashboard.html',
-                           brand_color=config['color'],
-                           logo_url=config['logo'],
-                           active_jobs_count=active_jobs,
-                           pending_req_count=pending_count,
-                           active_gangs_count=active_gangs,
-                           recent_jobs=recent_jobs)
-                           
-                           # --- VIEW SINGLE JOB DETAILS ---
+    return render_template('site_dashboard.html', 
+                         staff_name=session.get('user_name'), 
+                         my_jobs=my_jobs, 
+                         vehicles=vehicles,
+                         brand_color=config['color'], 
+                         logo_url=config['logo'])
+
+# --- 2. VIEW SINGLE JOB ---
 @site_bp.route('/site/job/<int:job_id>')
 def view_job(job_id):
-    if not session.get('user_id'): return redirect(url_for('auth.login'))
+    if not check_site_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
     
-    # 1. Fetch Job Details (Joined with Client & Request info)
+    # Corrected Query using 'site_address' and 'start_date'
     cur.execute("""
-        SELECT j.id, j.reference, j.status, j.scheduled_date, j.notes,
-               c.name, c.phone, c.address,
-               sr.issue_description, sr.severity
+        SELECT j.id, j.ref, j.status, j.start_date, j.description, 
+               c.name, c.phone, j.site_address, j.description
         FROM jobs j
-        LEFT JOIN service_requests sr ON j.request_id = sr.id
-        LEFT JOIN clients c ON sr.client_id = c.id
+        LEFT JOIN clients c ON j.client_id = c.id
         WHERE j.id = %s AND j.company_id = %s
     """, (job_id, comp_id))
-    job = cur.fetchone()
     
+    job = cur.fetchone()
     conn.close()
     
-    if not job:
-        return "Job not found", 404
-        
-    return render_template('site/job_details.html', job=job)
-    
-    # --- ADVERTISEMENT PAGE ---
+    if not job: return "Job not found", 404
+    return render_template('job_details.html', job=job)
+
+# --- 3. PUBLIC PAGES (Kept from your original file) ---
 @site_bp.route('/advertise')
 @site_bp.route('/business-better')
 def advertise_page():
-    # No login required for this page
     return render_template('public/advert-bb.html')
