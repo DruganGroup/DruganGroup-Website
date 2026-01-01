@@ -13,6 +13,9 @@
     .date-warn { color: #ffc107; font-weight: bold; }
     .date-ok { color: #198754; }
     .crew-checkbox { transform: scale(1.2); cursor: pointer; }
+    
+    /* FIX: Ensure the stretched link stays inside its box */
+    .crew-box { position: relative; } 
 </style>
 {% endblock %}
 
@@ -92,7 +95,7 @@
                                     <div class="row g-2 mb-3">
                                         {% for s in staff %}
                                         <div class="col-md-4 col-6">
-                                            <div class="form-check p-2 border rounded bg-light">
+                                            <div class="form-check p-2 border rounded bg-light position-relative crew-box">
                                                 <input class="form-check-input crew-checkbox me-2" type="checkbox" name="crew_ids" value="{{ s.id }}" id="s{{ v.id }}_{{ s.id }}">
                                                 <label class="form-check-label fw-bold small stretched-link" for="s{{ v.id }}_{{ s.id }}">
                                                     {{ s.name }}
