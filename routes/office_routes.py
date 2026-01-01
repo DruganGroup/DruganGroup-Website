@@ -62,6 +62,7 @@ def create_quote():
             client_mode = request.form.get('client_mode'); client_id = None
             if client_mode == 'existing': client_id = request.form.get('existing_client_id')
             elif client_mode == 'new':
+                # Note: Clients table uses 'address' (standard), but properties uses 'address_line1'. Keeping clients standard.
                 cur.execute("INSERT INTO clients (company_id, name, email, address, status) VALUES (%s, %s, %s, %s, 'Active') RETURNING id", (comp_id, request.form.get('new_client_name'), request.form.get('new_client_email'), request.form.get('new_client_address')))
                 client_id = cur.fetchone()[0]
 
@@ -149,7 +150,6 @@ def convert_quote_to_job():
     try:
         cur.execute("SELECT client_id, reference, notes FROM quotes WHERE id = %s", (quote_id,))
         quote = cur.fetchone()
-        # Using 'start_date' and 'description'
         cur.execute("INSERT INTO jobs (company_id, staff_id, client_id, start_date, description, status, ref) VALUES (%s, %s, %s, %s, %s, 'Scheduled', %s)", (session['company_id'], staff_id, quote[0], schedule_date, f"Quote Work: {quote[1]}", f"Ref: {quote[1]}"))
         cur.execute("UPDATE quotes SET status = 'Converted' WHERE id = %s", (quote_id,))
         conn.commit(); flash(f"✅ Job Created!")
@@ -163,14 +163,9 @@ def service_desk():
     if not check_office_access(): return redirect(url_for('auth.login'))
     comp_id = session.get('company_id'); config = get_site_config(comp_id); conn = get_db(); cur = conn.cursor()
     
-    # Using 'address' as per your properties schema confirmation
-    try:
-        cur.execute("SELECT r.id, p.address, r.issue_description, c.name, r.severity, r.status, r.created_at FROM service_requests r JOIN properties p ON r.property_id = p.id JOIN clients c ON r.client_id = c.id WHERE r.company_id = %s AND r.status != 'Completed' ORDER BY r.created_at DESC", (comp_id,))
-    except:
-        # Fallback in case I am wrong again, but 'address' is standard
-        conn.rollback()
-        cur.execute("SELECT r.id, p.site_address, r.issue_description, c.name, r.severity, r.status, r.created_at FROM service_requests r JOIN properties p ON r.property_id = p.id JOIN clients c ON r.client_id = c.id WHERE r.company_id = %s AND r.status != 'Completed' ORDER BY r.created_at DESC", (comp_id,))
-
+    # FIXED: Using address_line1 for properties
+    cur.execute("SELECT r.id, p.address_line1, r.issue_description, c.name, r.severity, r.status, r.created_at FROM service_requests r JOIN properties p ON r.property_id = p.id JOIN clients c ON r.client_id = c.id WHERE r.company_id = %s AND r.status != 'Completed' ORDER BY r.created_at DESC", (comp_id,))
+    
     rows = cur.fetchall()
     requests_list = []
     for r in rows:
@@ -187,7 +182,6 @@ def create_work_order():
     if not check_office_access(): return redirect(url_for('auth.login'))
     conn = get_db(); cur = conn.cursor()
     try:
-        # Using start_date and description
         cur.execute("INSERT INTO jobs (company_id, client_id, staff_id, start_date, description, status) VALUES (%s, %s, %s, %s, %s, 'Scheduled')", 
                    (session['company_id'], request.form.get('client_id'), request.form.get('assigned_staff_id'), request.form.get('schedule_date'), request.form.get('job_type')))
         cur.execute("UPDATE service_requests SET status = 'In Progress' WHERE id = %s", (request.form.get('request_id'),))
@@ -247,7 +241,7 @@ def fleet_list():
     conn.close()
     return render_template('office/fleet_management.html', vehicles=vehicles, staff=all_staff, today=date.today(), brand_color=config['color'], logo_url=config['logo'])
 
-# --- 12. CLIENT DETAILS (FIXED: ADDRESS COLUMNS) ---
+# --- 12. CLIENT DETAILS (FIXED: address_line1) ---
 @office_bp.route('/client/<int:client_id>')
 def view_client(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -266,32 +260,29 @@ def view_client(client_id):
 
     for row in cur.fetchall():
         p = dict(zip(prop_cols, row))
-        # Address handling - Corrected to prefer 'address'
-        addr_val = p.get('address') or p.get('addr') or p.get('site_address') or 'Unknown'
+        
+        # FIXED: Use address_line1
+        addr_val = p.get('address_line1') or 'Unknown Address'
         prop_id = p.get('id')
+        
+        # Pull due dates directly from DB (Priority)
+        gas_due = p.get('gas_safety_due')
+        eicr_due = p.get('eicr_due')
+        pat_due = p.get('pat_test_due')
 
-        # 3. Compliance Logic (USING START_DATE & DESCRIPTION)
         compliance = {'Gas': {'date': None, 'status': 'Missing'}, 'EICR': {'date': None, 'status': 'Missing'}, 'PAT': {'date': None, 'status': 'Missing'}}
         
-        # Link via site_address in jobs
-        cur.execute("SELECT start_date, description FROM jobs WHERE site_address = %s AND status = 'Completed'", (addr_val,))
-        for job in cur.fetchall():
-            j_date = job[0] # start_date
-            j_desc = job[1] or '' # description
-            
-            key = None
-            if 'Gas' in j_desc: key = 'Gas'
-            elif 'EICR' in j_desc: key = 'EICR'
-            elif 'PAT' in j_desc: key = 'PAT'
-            
-            if key and j_date:
-                valid_years = 5 if key == 'EICR' else 1
-                expiry_date = j_date + timedelta(days=365 * valid_years)
-                days_left = (expiry_date - today).days
-                status = 'Expired' if days_left < 0 else ('Due Soon' if days_left <= 30 else 'Valid')
-                
-                if compliance[key]['status'] == 'Missing' or j_date > (compliance[key]['date'] or date.min):
-                    compliance[key] = {'date': j_date, 'status': status}
+        # Helper for Traffic Light
+        def get_status(due_date):
+            if not due_date: return 'Missing'
+            if isinstance(due_date, str): due_date = parse_date(due_date)
+            days = (due_date - today).days
+            return 'Expired' if days < 0 else ('Due Soon' if days <= 30 else 'Valid')
+
+        # Set status based on DB columns
+        if gas_due: compliance['Gas'] = {'date': gas_due, 'status': get_status(gas_due)}
+        if eicr_due: compliance['EICR'] = {'date': eicr_due, 'status': get_status(eicr_due)}
+        if pat_due: compliance['PAT'] = {'date': pat_due, 'status': get_status(pat_due)}
 
         properties.append({'id': prop_id, 'addr': addr_val, 'postcode': p.get('postcode',''), 'tenant': p.get('tenant_name',''), 'tenant_phone': p.get('tenant_phone',''), 'compliance': compliance})
 
@@ -299,20 +290,20 @@ def view_client(client_id):
     cur.execute("SELECT id, description, status, start_date FROM jobs WHERE client_id = %s AND status != 'Completed' ORDER BY start_date", (client_id,))
     active_jobs = []
     for r in cur.fetchall():
-        active_jobs.append([r[0], r[1], r[2], r[3], r[1]]) # Mapping description to type/notes
+        active_jobs.append([r[0], r[1], r[2], r[3], r[1]]) 
 
     conn.close()
     return render_template('office/client_details.html', client=client_data, properties=properties, jobs=active_jobs, brand_color=config['color'], logo_url=config['logo'])
 
-# --- 13. ADD PROPERTY & UPLOAD ---
+# --- 13. ADD PROPERTY & UPLOAD (FIXED: address_line1 & Auto-Update Due Dates) ---
 @office_bp.route('/client/<int:client_id>/add_property', methods=['POST'])
 def add_property(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
     conn = get_db(); cur = conn.cursor()
     try:
-        # Corrected: Using 'address' (standard) instead of 'site_address' (from jobs)
-        cur.execute("INSERT INTO properties (client_id, address, postcode, tenant_name, tenant_phone) VALUES (%s, %s, %s, %s, %s)", 
-                   (client_id, request.form.get('address'), request.form.get('postcode'), request.form.get('tenant_name'), request.form.get('tenant_phone')))
+        # FIXED: Using address_line1
+        cur.execute("INSERT INTO properties (client_id, company_id, address_line1, postcode, tenant_name, tenant_phone, created_at) VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)", 
+                   (client_id, session['company_id'], request.form.get('address'), request.form.get('postcode'), request.form.get('tenant_name'), request.form.get('tenant_phone')))
         conn.commit(); flash("✅ Property Added")
     except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
     finally: conn.close()
@@ -321,11 +312,14 @@ def add_property(client_id):
 @office_bp.route('/compliance/upload', methods=['POST'])
 def upload_compliance():
     if not check_office_access(): return redirect(url_for('auth.login'))
-    client_id = request.form.get('client_id'); cert_type = request.form.get('cert_type'); comp_date = request.form.get('date')
+    
+    client_id = request.form.get('client_id'); prop_id = request.form.get('property_id')
+    cert_type = request.form.get('cert_type'); comp_date_str = request.form.get('date')
+    comp_date = datetime.strptime(comp_date_str, '%Y-%m-%d').date()
     
     conn = get_db(); cur = conn.cursor()
-    # Corrected: fetching 'address'
-    cur.execute("SELECT address FROM properties WHERE id = %s", (request.form.get('property_id'),))
+    # FIXED: fetching address_line1
+    cur.execute("SELECT address_line1 FROM properties WHERE id = %s", (prop_id,))
     prop_addr = cur.fetchone()[0]
 
     filename = "manual_entry"
@@ -336,20 +330,22 @@ def upload_compliance():
         file.save(os.path.join(save_path, safe_name)); filename = safe_name
 
     try:
-        # Saving into jobs: linking prop_addr (from properties) to site_address (in jobs)
+        # 1. Insert into jobs (History)
         cur.execute("INSERT INTO jobs (company_id, client_id, site_address, description, status, start_date) VALUES (%s, %s, %s, %s, 'Completed', %s)", 
-                   (session['company_id'], client_id, prop_addr, f"{cert_type} Certificate", comp_date))
-        conn.commit(); flash(f"✅ {cert_type} Uploaded")
+                   (session['company_id'], client_id, prop_addr, f"{cert_type} Certificate", comp_date_str))
+        
+        # 2. Update Properties Table (Future Due Date)
+        next_due = None
+        if 'Gas' in cert_type: next_due = comp_date + timedelta(days=365)
+        elif 'EICR' in cert_type: next_due = comp_date + timedelta(days=365*5)
+        elif 'PAT' in cert_type: next_due = comp_date + timedelta(days=365)
+        
+        if next_due:
+            col_map = {'Gas Safety': 'gas_safety_due', 'EICR': 'eicr_due', 'PAT Test': 'pat_test_due'}
+            if cert_type in col_map:
+                cur.execute(f"UPDATE properties SET {col_map[cert_type]} = %s WHERE id = %s", (next_due, prop_id))
+
+        conn.commit(); flash(f"✅ {cert_type} Uploaded & Next Due Date Updated")
     except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
     finally: conn.close()
     return redirect(url_for('office.view_client', client_id=client_id))
-    
-    # --- DEBUG TOOL ---
-@office_bp.route('/debug/properties')
-def debug_properties():
-    conn = get_db(); cur = conn.cursor()
-    # Ask the database for the exact column names of the properties table
-    cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'properties'")
-    columns = [row[0] for row in cur.fetchall()]
-    conn.close()
-    return jsonify(columns)
