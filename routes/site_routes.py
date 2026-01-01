@@ -2,6 +2,9 @@ from flask import Blueprint, render_template, session, redirect, url_for, flash,
 from db import get_db, get_site_config
 from werkzeug.utils import secure_filename
 import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import date, datetime
 
 site_bp = Blueprint('site', __name__)
@@ -12,6 +15,56 @@ JOB_EVIDENCE_FOLDER = 'static/uploads/job_evidence'
 def check_site_access():
     if 'user_id' not in session: return False
     return True
+
+# --- HELPER: SEND EMAIL (SAAS VERSION - DYNAMIC SMTP) ---
+def send_email_notification(company_id, to_email, client_name, job_ref, address):
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        # 1. Fetch Company Specific SMTP Settings
+        cur.execute("""
+            SELECT key, value FROM settings 
+            WHERE company_id = %s AND key IN ('smtp_host', 'smtp_port', 'smtp_email', 'smtp_password')
+        """, (company_id,))
+        
+        # Convert list of rows to a dictionary
+        settings = {row[0]: row[1] for row in cur.fetchall()}
+        
+        # Check if we have all required settings
+        required_keys = ['smtp_host', 'smtp_port', 'smtp_email', 'smtp_password']
+        if not all(k in settings for k in required_keys):
+            print(f"⚠️ Missing SMTP settings for Company {company_id}")
+            return False
+
+        # 2. Configure the Email
+        msg = MIMEMultipart()
+        msg['From'] = settings['smtp_email']
+        msg['To'] = to_email
+        msg['Subject'] = f"✅ Engineer Arrived: {job_ref}"
+
+        body = f"""
+        <h3>Hello {client_name},</h3>
+        <p>This is an automated update regarding your job reference <strong>{job_ref}</strong>.</p>
+        <p>Our engineer has arrived at <strong>{address}</strong> and work is starting now.</p>
+        <p>You will receive another update when the work is complete.</p>
+        <br>
+        <p>Best Regards,</p>
+        """
+        msg.attach(MIMEText(body, 'html'))
+
+        # 3. Connect & Send
+        server = smtplib.SMTP(settings['smtp_host'], int(settings['smtp_port']))
+        server.starttls()
+        server.login(settings['smtp_email'], settings['smtp_password'])
+        server.send_message(msg)
+        server.quit()
+        return True
+
+    except Exception as e:
+        print(f"❌ Email Failed for Company {company_id}: {e}")
+        return False
+    finally:
+        conn.close()
 
 # --- HELPER: SELF-REPAIR DATABASE ---
 def repair_site_tables(conn):
@@ -25,6 +78,16 @@ def repair_site_tables(conn):
                 filepath TEXT,
                 uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 uploaded_by INTEGER
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS client_notifications (
+                id SERIAL PRIMARY KEY,
+                job_id INTEGER,
+                client_id INTEGER,
+                message TEXT,
+                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT
             )
         """)
         conn.commit()
@@ -62,7 +125,7 @@ def site_dashboard():
                          brand_color=config['color'], 
                          logo_url=config['logo'])
 
-# --- 2. DEDICATED VAN CHECK PAGE (New) ---
+# --- 2. DEDICATED VAN CHECK PAGE ---
 @site_bp.route('/site/van-check', methods=['GET', 'POST'])
 def van_check_page():
     if not check_site_access(): return redirect(url_for('auth.login'))
@@ -75,7 +138,6 @@ def van_check_page():
         defects = request.form.get('defects') or "No Defects Reported"
         signature = request.form.get('signature')
         
-        # Handle Photo
         filename = None
         if 'photo' in request.files:
             file = request.files['photo']
@@ -89,11 +151,8 @@ def van_check_page():
             v_row = cur.fetchone()
             if v_row:
                 v_id = v_row[0]
-                # If there are defects, mark as failed, otherwise Passed.
                 is_safe = False if (defects and defects != "No Defects Reported") else True
                 status_log = 'Check Failed' if not is_safe else 'Daily Check'
-                
-                # We combine the checklist confirmation into the description
                 full_desc = f"Walkaround Complete. Signed by: {signature}. Mileage: {mileage}. Notes: {defects}"
                 
                 cur.execute("""
@@ -108,7 +167,6 @@ def van_check_page():
         except Exception as e:
             conn.rollback(); flash(f"Error: {e}")
 
-    # GET Request: Show form
     cur.execute("SELECT reg_plate FROM vehicles WHERE company_id = %s AND status='Active' ORDER BY reg_plate", (comp_id,))
     vehicles = [r[0] for r in cur.fetchall()]
     conn.close()
@@ -137,7 +195,7 @@ def view_job(job_id):
     if not job: return "Job not found", 404
     return render_template('site/job_details.html', job=job, photos=photos)
 
-# --- 4. UPDATE JOB ---
+# --- 4. UPDATE JOB (SAAS EMAIL & AUTO-INVOICE) ---
 @site_bp.route('/site/job/<int:job_id>/update', methods=['POST'])
 def update_job(job_id):
     if not check_site_access(): return redirect(url_for('auth.login'))
@@ -147,12 +205,77 @@ def update_job(job_id):
     conn = get_db(); cur = conn.cursor()
     
     try:
+        # --- A. START JOB (Triggers Dynamic Email) ---
         if action == 'start':
-            cur.execute("UPDATE jobs SET status = 'In Progress' WHERE id = %s AND company_id = %s", (job_id, comp_id))
-            flash("✅ Job Started - Timer Running")
+            cur.execute("UPDATE jobs SET status = 'In Progress', start_date = CURRENT_TIMESTAMP WHERE id = %s AND company_id = %s", (job_id, comp_id))
+            
+            # Fetch Client Email
+            cur.execute("""
+                SELECT c.id, c.name, c.email, j.ref, j.site_address 
+                FROM jobs j 
+                LEFT JOIN clients c ON j.client_id = c.id 
+                WHERE j.id = %s
+            """, (job_id,))
+            job_data = cur.fetchone()
+            
+            if job_data and job_data[2]: # If client has email
+                c_id, c_name, c_email, j_ref, j_addr = job_data
+                
+                # SEND EMAIL using Company's Own SMTP Settings
+                email_sent = send_email_notification(comp_id, c_email, c_name, j_ref, j_addr)
+                
+                status_msg = "Sent" if email_sent else "Failed (Check Settings)"
+                cur.execute("INSERT INTO client_notifications (job_id, client_id, message, status) VALUES (%s, %s, %s, %s)", 
+                           (job_id, c_id, f"Start Notification to {c_email}", status_msg))
+                
+                if email_sent:
+                    flash(f"✅ Job Started. Client notified.")
+                else:
+                    flash(f"✅ Job Started. (Notification failed - check Finance settings).")
+            else:
+                flash("✅ Job Started.")
+
+        # --- B. COMPLETE JOB (Triggers Invoice) ---
         elif action == 'complete':
-            cur.execute("UPDATE jobs SET status = 'Completed' WHERE id = %s AND company_id = %s", (job_id, comp_id))
-            flash("🎉 Job Completed!")
+            signature = request.form.get('signature')
+            
+            cur.execute("SELECT client_id, ref, description, start_date FROM jobs WHERE id = %s", (job_id,))
+            job_data = cur.fetchone()
+            client_id, job_ref, job_desc, job_date = job_data
+            clean_ref = job_ref.replace("Ref: ", "").replace("Quote Work: ", "").strip()
+
+            cur.execute("SELECT COUNT(*) FROM invoices WHERE company_id = %s", (comp_id,))
+            inv_ref = f"INV-{1000 + cur.fetchone()[0] + 1}"
+            
+            cur.execute("""
+                INSERT INTO invoices (company_id, client_id, quote_ref, reference, date, due_date, status, subtotal, tax, total, notes) 
+                VALUES (%s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE + 14, 'Unpaid', 0, 0, 0, %s) 
+                RETURNING id
+            """, (comp_id, client_id, clean_ref, inv_ref, f"Job Signed by: {signature}"))
+            inv_id = cur.fetchone()[0]
+            
+            cur.execute("SELECT id FROM quotes WHERE reference = %s AND company_id = %s", (clean_ref, comp_id))
+            quote_row = cur.fetchone()
+            
+            if quote_row:
+                quote_id = quote_row[0]
+                cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
+                items = cur.fetchall()
+                grand_total = 0
+                for item in items:
+                    cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, %s, %s, %s)",
+                               (inv_id, item[0], item[1], item[2], item[3]))
+                    grand_total += item[3]
+                cur.execute("UPDATE invoices SET subtotal = %s, total = %s WHERE id = %s", (grand_total, grand_total, inv_id))
+                flash(f"🎉 Job Completed & Invoice {inv_ref} Generated!")
+            else:
+                cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, 1, 0, 0)",
+                           (inv_id, f"Completed: {job_desc}",))
+                flash(f"🎉 Job Completed & Blank Invoice {inv_ref} Created.")
+
+            cur.execute("UPDATE jobs SET status = 'Completed' WHERE id = %s", (job_id,))
+            
+        # --- C. UPLOAD PHOTO ---
         elif action == 'upload_photo':
             if 'photo' in request.files:
                 file = request.files['photo']
@@ -163,6 +286,7 @@ def update_job(job_id):
                     file.save(os.path.join(JOB_EVIDENCE_FOLDER, filename))
                     cur.execute("INSERT INTO job_evidence (job_id, filepath, uploaded_by) VALUES (%s, %s, %s)", (job_id, db_path, session['user_id']))
                     flash("📷 Photo Uploaded")
+
         conn.commit()
     except Exception as e: conn.rollback(); flash(f"Error: {e}")
     finally: conn.close()

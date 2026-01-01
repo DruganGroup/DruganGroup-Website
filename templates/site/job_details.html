@@ -83,11 +83,25 @@
                     <input type="file" name="photo" id="photoInput" accept="image/*" capture="environment" onchange="document.getElementById('photoForm').submit();">
                 </form>
 
-                <form method="POST" action="/site/job/{{ job[0] }}/update" onsubmit="return confirm('Are you sure you are finished?');">
+                <form method="POST" action="/site/job/{{ job[0] }}/update">
                     <input type="hidden" name="action" value="complete">
-                    <button type="submit" class="btn btn-primary action-btn text-white mt-2">
-                        <i class="fas fa-check-circle me-2"></i> Mark Complete
-                    </button>
+                    
+                    {% if not photos %}
+                        <div class="alert alert-warning small">
+                            <i class="fas fa-exclamation-triangle"></i> You must upload a photo before completing the job.
+                        </div>
+                        <button type="button" class="btn btn-secondary action-btn" disabled>
+                            Add Photo First
+                        </button>
+                    {% else %}
+                        <div class="mb-3">
+                            <label class="fw-bold small ms-1">Client Signature (Type Name)</label>
+                            <input type="text" name="signature" class="form-control form-control-lg" placeholder="e.g. John Smith" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary action-btn text-white mt-2" onclick="return confirm('Confirm Job Completion and Generate Invoice?');">
+                            <i class="fas fa-check-circle me-2"></i> Sign Off & Complete
+                        </button>
+                    {% endif %}
                 </form>
             {% endif %}
         </div>
