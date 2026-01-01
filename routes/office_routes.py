@@ -4,33 +4,20 @@ from datetime import datetime, date, timedelta
 from werkzeug.utils import secure_filename
 import os
 
-# Define the Blueprint
 office_bp = Blueprint('office', __name__)
-
-# Constants
 ALLOWED_OFFICE_ROLES = ['Admin', 'SuperAdmin', 'Office']
-UPLOAD_FOLDER = 'static/uploads' 
 
-# --- HELPER: CHECK PERMISSION ---
 def check_office_access():
     if 'user_id' not in session: return False
     if session.get('role') not in ALLOWED_OFFICE_ROLES: return False
     return True
 
-# --- HELPER: FORCE DATE OBJECT ---
-def parse_date(d):
-    if isinstance(d, str):
-        try: return datetime.strptime(d, '%Y-%m-%d').date()
-        except: return None
-    return d
-
-# --- HELPER: SMART STAFF MAPPING ---
 def get_staff_list(cur, company_id):
     cur.execute("SELECT id, name, email, phone, position AS role, status FROM staff WHERE company_id = %s ORDER BY name", (company_id,))
     cols = [desc[0] for desc in cur.description]
     return [dict(zip(cols, row)) for row in cur.fetchall()]
 
-# --- 1. OFFICE DASHBOARD (Updated with "Ready to Invoice" Logic) ---
+# --- 1. OFFICE DASHBOARD (Updated with Live Ops) ---
 @office_bp.route('/office-hub')
 @office_bp.route('/office-hub.html')
 def office_dashboard():
@@ -39,23 +26,21 @@ def office_dashboard():
     config = get_site_config(company_id)
     conn = get_db(); cur = conn.cursor()
     
-    # Stats
+    # Basic Stats
     cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id = %s AND status != 'Completed'", (company_id,))
     pending_requests_count = cur.fetchone()[0]
 
     cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id = %s AND status != 'Completed'", (company_id,))
     active_jobs_count = cur.fetchone()[0]
 
-    # RECENT QUOTES
+    # Quotes
     cur.execute("SELECT q.id, c.name, q.reference, q.date, q.total, q.status FROM quotes q LEFT JOIN clients c ON q.client_id = c.id WHERE q.company_id = %s AND q.status = 'Draft' ORDER BY q.id DESC LIMIT 5", (company_id,))
     recent_quotes = cur.fetchall()
 
-    # --- NEW: FETCH COMPLETED JOBS READY FOR INVOICING ---
-    # We look for jobs that are 'Completed' but NOT 'Invoiced'
+    # Completed Jobs (Ready for Invoicing)
     cur.execute("""
         SELECT j.id, j.ref, j.site_address, c.name, j.description, j.start_date
-        FROM jobs j
-        LEFT JOIN clients c ON j.client_id = c.id
+        FROM jobs j LEFT JOIN clients c ON j.client_id = c.id
         WHERE j.company_id = %s AND j.status = 'Completed'
         ORDER BY j.start_date DESC
     """, (company_id,))
@@ -63,17 +48,49 @@ def office_dashboard():
     for r in cur.fetchall():
         completed_jobs.append({'id': r[0], 'ref': r[1], 'address': r[2], 'client': r[3], 'desc': r[4], 'date': r[5]})
 
+    # --- LIVE OPERATIONS BOARD logic ---
+    # Fetch jobs that are 'In Progress' right now
+    cur.execute("""
+        SELECT j.id, j.ref, j.site_address, s.name, j.start_date
+        FROM jobs j
+        LEFT JOIN staff s ON j.staff_id = s.id
+        WHERE j.company_id = %s AND j.status = 'In Progress'
+    """, (company_id,))
+    
+    live_ops = []
+    now = datetime.now()
+    for r in cur.fetchall():
+        start_time = r[4] # This is a datetime object from DB
+        duration_str = "Just Started"
+        
+        # Calculate Duration
+        if start_time:
+            # Handle edge case where DB returns date only
+            if isinstance(start_time, date) and not isinstance(start_time, datetime):
+                start_time = datetime.combine(start_time, datetime.min.time())
+            
+            diff = now - start_time
+            hours = diff.seconds // 3600
+            mins = (diff.seconds % 3600) // 60
+            duration_str = f"{hours}h {mins}m"
+
+        live_ops.append({
+            'id': r[0], 'ref': r[1], 'address': r[2], 
+            'staff': r[3], 'duration': duration_str
+        })
+
     conn.close()
 
     return render_template('office/office_dashboard.html', 
                          pending_requests_count=pending_requests_count, 
                          active_jobs_count=active_jobs_count, 
                          quotes=recent_quotes,
-                         completed_jobs=completed_jobs, # <--- Sending this to template
+                         completed_jobs=completed_jobs,
+                         live_ops=live_ops, # <--- Sending Live Data
                          brand_color=config['color'], 
                          logo_url=config['logo'])
 
-# --- 2. CONVERT COMPLETED JOB TO INVOICE (New Feature) ---
+# --- 2. MANUAL INVOICE GENERATION (Backup) ---
 @office_bp.route('/office/job/<int:job_id>/invoice', methods=['POST'])
 def generate_invoice_from_job(job_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -81,20 +98,13 @@ def generate_invoice_from_job(job_id):
     conn = get_db(); cur = conn.cursor()
 
     try:
-        # 1. Fetch Job Details
         cur.execute("SELECT client_id, ref, description, start_date FROM jobs WHERE id = %s", (job_id,))
         job = cur.fetchone()
-        if not job: raise Exception("Job not found")
-        
         client_id, job_ref, job_desc, job_date = job
-
-        # 2. Generate Invoice Reference (INV-100X)
+        
         cur.execute("SELECT COUNT(*) FROM invoices WHERE company_id = %s", (comp_id,))
-        count = cur.fetchone()[0]
-        new_ref = f"INV-{1000 + count + 1}"
+        new_ref = f"INV-{1000 + cur.fetchone()[0] + 1}"
 
-        # 3. Create Invoice Header
-        # We default to Unpaid, date = today, due = 14 days
         cur.execute("""
             INSERT INTO invoices (company_id, client_id, quote_ref, reference, date, due_date, status, subtotal, tax, total, notes) 
             VALUES (%s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE + 14, 'Unpaid', 0, 0, 0, %s) 
@@ -102,26 +112,12 @@ def generate_invoice_from_job(job_id):
         """, (comp_id, client_id, job_ref, new_ref, f"Generated from Job {job_ref}"))
         inv_id = cur.fetchone()[0]
 
-        # 4. Create Invoice Item (Using Job Description)
-        # Price is set to 0.00 for Office Admin to fill in (since we don't know the final price unless it was a quote)
-        cur.execute("""
-            INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) 
-            VALUES (%s, %s, 1, 0, 0)
-        """, (inv_id, f"Work Completed: {job_desc} ({job_date})"))
-
-        # 5. Mark Job as Invoiced so it leaves the dashboard
+        cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, 1, 0, 0)", (inv_id, f"Work Completed: {job_desc} ({job_date})"))
         cur.execute("UPDATE jobs SET status = 'Invoiced' WHERE id = %s", (job_id,))
-        
-        conn.commit()
-        flash(f"✅ Invoice {new_ref} Generated! Please add pricing.")
-        return redirect(url_for('office.view_quote', quote_id=inv_id)) # Note: Re-using quote view or redirect to finance
-
-    except Exception as e:
-        conn.rollback()
-        flash(f"❌ Error: {e}")
-        return redirect(url_for('office.office_dashboard'))
-    finally:
-        conn.close()
+        conn.commit(); flash(f"✅ Invoice {new_ref} Generated!")
+        return redirect(url_for('finance.finance_dashboard')) 
+    except Exception as e: conn.rollback(); flash(f"❌ Error: {e}"); return redirect(url_for('office.office_dashboard'))
+    finally: conn.close()
 
 # --- 3. CREATE QUOTE ---
 @office_bp.route('/office/quote/new', methods=['GET', 'POST'])
@@ -169,20 +165,16 @@ def create_quote():
     clients = cur.fetchall(); conn.close()
     return render_template('office/create_quote.html', clients=clients, new_ref=new_ref, today=date.today(), tax_rate=tax_rate, settings=settings, brand_color=config['color'], logo_url=config['logo'])
 
-# --- 4. VIEW QUOTE (Reused for Invoices in this simple version) ---
+# --- 4. VIEW QUOTE ---
 @office_bp.route('/office/quote/<int:quote_id>')
 def view_quote(quote_id):
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Office', 'Site Manager']: return redirect(url_for('auth.login'))
     comp_id = session.get('company_id'); config = get_site_config(comp_id); conn = get_db(); cur = conn.cursor()
 
-    # Try fetching as Quote
     cur.execute("SELECT q.id, c.name, c.address, c.email, q.reference, q.date, q.status, q.subtotal, q.tax, q.total, q.notes FROM quotes q JOIN clients c ON q.client_id = c.id WHERE q.id = %s AND q.company_id = %s", (quote_id, comp_id))
     quote = cur.fetchone()
     
-    # If not found, try Invoice (so we can redirect correctly)
-    if not quote:
-         # Simplified redirect logic for now
-         return redirect(url_for('finance.finance_dashboard')) 
+    if not quote: return redirect(url_for('finance.finance_dashboard')) 
 
     cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
     items = cur.fetchall()
@@ -200,10 +192,6 @@ def view_quote(quote_id):
 @office_bp.route('/office/quote/<int:quote_id>/convert')
 def convert_to_invoice(quote_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
-    comp_id = session.get('company_id'); conn = get_db(); cur = conn.cursor()
-    
-    # Logic similar to generate_invoice_from_job but sourcing from Quote table
-    # (Existing code kept briefly for continuity)
     return redirect(url_for('office.office_dashboard'))
 
 # --- 6. CONVERT QUOTE TO JOB ---
@@ -273,13 +261,6 @@ def staff_list():
 @office_bp.route('/office/fleet', methods=['GET', 'POST'])
 def fleet_list():
     if not check_office_access(): return redirect(url_for('auth.login'))
-    comp_id = session.get('company_id'); config = get_site_config(comp_id); conn = get_db(); cur = conn.cursor()
-    # (Standard fleet logic omitted for brevity, keeping same structure as previous)
-    # Ensure this matches the version we fixed with "Total Gang Cost" if needed
-    # For now, relying on your existing working Fleet code or re-using the logic
-    # To save space in this response, I'm assuming the previous Fleet code works.
-    # If you need the FULL file again with Fleet, let me know. 
-    # Returning redirect to Finance Fleet as a placeholder if needed, or keeping your code.
     return redirect(url_for('finance.finance_fleet')) 
 
 # --- 11. CALENDAR ---
@@ -302,15 +283,12 @@ def get_calendar_data():
     conn.close()
     return jsonify(events)
 
-# --- 12. CLIENTS ---
+# --- 12. CLIENTS & PROPERTIES ---
 @office_bp.route('/client/<int:client_id>')
 def view_client(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
-    # (Client Details Logic - Same as before)
-    return "Client View Placeholder" # You have this working already
+    return "Client View Placeholder" 
 
-# --- 13. ADD PROPERTY/UPLOAD ---
 @office_bp.route('/client/<int:client_id>/add_property', methods=['POST'])
 def add_property(client_id):
-    # (Same as before)
     return redirect(url_for('office.view_client', client_id=client_id))
