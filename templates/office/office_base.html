@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Office Hub | Business Better{% endblock %}</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root { --brand-color: {{ brand_color or '#2980b9' }}; } /* Default Blue for Office if unset */
+        
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
+        
+        /* OFFICE SIDEBAR - DISTINCT STYLE */
+        .sidebar { 
+            height: 100vh; 
+            background-color: var(--brand-color); 
+            color: white; 
+            position: fixed; 
+            width: 260px; 
+            padding-top: 25px; 
+            z-index: 1000;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.05);
+        }
+        
+        .sidebar a { 
+            padding: 12px 25px; 
+            text-decoration: none; 
+            font-size: 15px; 
+            color: rgba(255,255,255,0.9); 
+            display: block; 
+            transition: 0.2s;
+            border-left: 4px solid transparent;
+        }
+        
+        .sidebar a:hover { 
+            background-color: rgba(255,255,255,0.1); 
+            transform: translateX(5px);
+        }
+        
+        .sidebar a.active { 
+            background-color: rgba(255,255,255,0.2); 
+            color: white; 
+            border-left-color: white; 
+            font-weight: 700;
+        }
+        
+        .sidebar-heading { 
+            font-size: 0.7rem; 
+            text-transform: uppercase; 
+            letter-spacing: 1.5px; 
+            color: rgba(255,255,255,0.6); 
+            padding: 25px 25px 8px 25px; 
+            font-weight: bold; 
+        }
+
+        .content { margin-left: 260px; padding: 40px; }
+        
+        /* Utility for Stat Cards in Child Pages */
+        .hover-lift { transition: transform 0.2s; }
+        .hover-lift:hover { transform: translateY(-3px); }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+
+    {% if session.get('role') != 'Admin' and session.get('role') != 'Office' %}
+        <script>window.location.href = "/unauthorized";</script>
+    {% endif %}
+
+    <div class="sidebar">
+        <div class="text-center mb-4 px-4">
+            <div class="bg-white p-2 rounded-3 shadow-sm d-inline-block mb-2">
+                <img src="{{ logo_url }}" alt="Business Better" width="140" height="auto">
+            </div>
+            <div class="small text-white-50 text-uppercase fw-bold" style="letter-spacing: 1px;">Office Hub</div>
+        </div>
+        
+        <div class="sidebar-heading">Workflow</div>
+        <a href="/office-hub" class="{% if request.path == '/office-hub' %}active{% endif %}">
+            <i class="fas fa-columns me-3"></i> Dashboard
+        </a>
+        <a href="/office/calendar" class="{% if 'calendar' in request.path %}active{% endif %}">
+            <i class="fas fa-calendar-alt me-3"></i> Schedule
+        </a>
+        <a href="/office/service-desk" class="{% if 'service-desk' in request.path %}active{% endif %}">
+            <i class="fas fa-headset me-3"></i> Service Desk
+        </a>
+
+        <div class="sidebar-heading">Assets & CRM</div>
+        <a href="/clients" class="{% if 'client' in request.path %}active{% endif %}">
+            <i class="fas fa-address-book me-3"></i> Client Database
+        </a>
+        <a href="/office/staff" class="{% if 'staff' in request.path %}active{% endif %}">
+            <i class="fas fa-users-cog me-3"></i> Staff & HR
+        </a>
+        <a href="/office/fleet" class="{% if 'fleet' in request.path %}active{% endif %}">
+            <i class="fas fa-truck me-3"></i> Fleet Manager
+        </a>
+        
+        <div class="sidebar-heading">System</div>
+        <a href="/launcher" class="mt-4 text-warning">
+            <i class="fas fa-arrow-left me-3"></i> Main Menu
+        </a>
+        <a href="/logout" class="text-danger">
+            <i class="fas fa-sign-out-alt me-3"></i> Logout
+        </a>
+    </div>
+
+    <div class="content">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-primary shadow-sm border-0 d-flex align-items-center mb-4">
+                    <i class="fas fa-bell me-3 fa-lg"></i>
+                    <div>{{ messages[0] }}</div>
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
