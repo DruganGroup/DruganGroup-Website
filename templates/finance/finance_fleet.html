@@ -12,6 +12,9 @@
     .date-danger { color: #dc3545; font-weight: bold; }
     .date-warn { color: #ffc107; font-weight: bold; }
     .date-ok { color: #198754; }
+    /* Fix for checkbox clicking */
+    .crew-box { position: relative; }
+    .crew-checkbox { transform: scale(1.2); cursor: pointer; }
 </style>
 {% endblock %}
 
@@ -19,7 +22,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold m-0">Fleet Command</h2>
-            <p class="text-muted mb-0">Track vehicle compliance and crew assignments</p>
+            <p class="text-muted mb-0">Track vehicle costs and crew assignments</p>
         </div>
         <button class="btn btn-primary fw-bold shadow-sm" style="background-color: var(--brand-color); border:none;" data-bs-toggle="modal" data-bs-target="#addVehicleModal">
             <i class="fas fa-plus me-2"></i> Add Vehicle
@@ -62,11 +65,15 @@
                         <i class="fas fa-users me-1"></i> {{ v.crew|length }} Crew
                     </div>
                 </div>
+                
+                <div class="mt-2 text-end text-success fw-bold small">
+                    Daily Run: £{{ "%.2f"|format(v.total_gang_cost) }}
+                </div>
             </div>
         </div>
 
         <div class="modal fade" id="detailModal{{ v.id }}" tabindex="-1">
-            <div class="modal-dialog">
+            <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header bg-dark text-white">
                         <div>
@@ -86,7 +93,7 @@
                                 <div class="fs-4 fw-bold text-success">£{{ "%.2f"|format(v.total_gang_cost) }}</div>
                             </div>
                             <div class="px-3 pb-2 pt-1 small text-end text-muted fst-italic">
-                                Includes Van (£{{ v.daily_cost }}) + Driver + Crew Wages (8hrs)
+                                Breakdown: Van (£{{ v.daily_cost }}) + Driver + Crew Wages (8hrs)
                             </div>
 
                             <div class="p-3 border-bottom">
@@ -97,26 +104,31 @@
                                         <span class="fw-bold">{{ v.driver_name }}</span>
                                     {% else %}
                                         <span class="text-danger fw-bold">No Driver Assigned</span>
-                                        <a href="/finance/fleet" class="ms-auto btn btn-sm btn-outline-secondary">Assign in Finance</a>
                                     {% endif %}
                                 </div>
                             </div>
 
                             <div class="p-3">
-                                <label class="small fw-bold text-muted mb-2">Assign Crew Members</label>
-                                <div class="border rounded p-2" style="max-height: 250px; overflow-y: auto;">
+                                <label class="small fw-bold text-muted mb-2">Crew Members</label>
+                                <div class="alert alert-info py-2 small mb-2">
+                                    <i class="fas fa-info-circle me-1"></i> Changing crew here updates the Daily Cost instantly.
+                                </div>
+                                
+                                <div class="row g-2">
                                     {% for s in staff %}
                                         {% if s.id != v.assigned_driver_id %}
-                                        <div class="form-check py-1">
-                                            <input class="form-check-input" type="checkbox" name="crew_ids" value="{{ s.id }}" id="crew_{{ v.id }}_{{ s.id }}"
-                                                {% for member in v.crew %}
-                                                    {% if member.name == s.name %}checked{% endif %}
-                                                {% endfor %}
-                                            >
-                                            <label class="form-check-label w-100 d-flex justify-content-between" for="crew_{{ v.id }}_{{ s.id }}">
-                                                <span>{{ s.name }}</span>
-                                                <span class="text-muted small">{{ s.role }}</span>
-                                            </label>
+                                        <div class="col-md-6">
+                                            <div class="form-check p-2 border rounded bg-light position-relative crew-box">
+                                                <input class="form-check-input crew-checkbox me-2" type="checkbox" name="crew_ids" value="{{ s.id }}" id="crew_{{ v.id }}_{{ s.id }}"
+                                                    {% for member in v.crew %}
+                                                        {% if member.name == s.name %}checked{% endif %}
+                                                    {% endfor %}
+                                                >
+                                                <label class="form-check-label w-100 d-flex justify-content-between stretched-link" for="crew_{{ v.id }}_{{ s.id }}">
+                                                    <span class="fw-bold small">{{ s.name }}</span>
+                                                    <span class="text-muted small">{{ s.role }}</span>
+                                                </label>
+                                            </div>
                                         </div>
                                         {% endif %}
                                     {% endfor %}
@@ -125,7 +137,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-primary fw-bold">Save Crew & Update Costs</button>
+                            <button type="submit" class="btn btn-primary fw-bold">Update Crew & Recalculate</button>
                         </div>
                     </form>
                 </div>
