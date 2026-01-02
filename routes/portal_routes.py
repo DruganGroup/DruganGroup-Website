@@ -57,28 +57,26 @@ def portal_home():
     
     comp_id = session['portal_company_id']
     client_id = session['portal_client_id']
-    conn = get_db(); cur = conn.cursor()
     
-    # 1. GET COMPANY NAME
-    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'company_name'", (comp_id,))
-    row_name = cur.fetchone()
-    company_name = row_name[0] if row_name else "Client Portal"
-    session['portal_company_name'] = company_name
+    # --- FIX: Fetch Branding Config from Database ---
+    config = get_site_config(comp_id)
+    
+    conn = get_db(); cur = conn.cursor()
 
-    # 2. Get Client Name
+    # 1. Get Client Name (Refresh in case it changed)
     cur.execute("SELECT name FROM clients WHERE id = %s", (client_id,))
     res = cur.fetchone()
     client_name = res[0] if res else "Client"
 
-    # 3. Stats: Active Jobs
+    # 2. Stats: Active Jobs
     cur.execute("SELECT id FROM jobs WHERE client_id = %s AND status != 'Completed'", (client_id,))
     active_jobs = cur.fetchall()
     
-    # 4. Stats: Open Quotes
+    # 3. Stats: Open Quotes
     cur.execute("SELECT COUNT(*) FROM quotes WHERE client_id = %s AND status IN ('Draft', 'Sent')", (client_id,))
     open_quotes = cur.fetchone()[0]
 
-    # 5. Fetch Properties with Issue Count
+    # 4. Fetch Properties with Issue Count
     cur.execute("""
         SELECT 
             p.id, 
@@ -91,7 +89,7 @@ def portal_home():
     """, (client_id,))
     properties = cur.fetchall()
 
-    # 6. Recent Requests
+    # 5. Recent Requests
     cur.execute("""
         SELECT sr.id, p.address_line1, sr.issue_description, sr.status, sr.created_at, sr.severity
         FROM service_requests sr
@@ -104,19 +102,18 @@ def portal_home():
     conn.close()
     
     return render_template('portal/portal_home.html', 
-                         company_name=company_name, 
+                         company_name=config.get('name'), 
                          client_name=client_name,
                          properties=properties,
                          active_jobs=active_jobs,
                          open_quotes_count=open_quotes,
                          recent_requests=recent_requests,
-                         brand_color=session.get('portal_brand_color'),
-                         logo_url=session.get('portal_logo_url'))
+                         brand_color=config.get('color'),  # <-- Now uses DB value
+                         logo_url=config.get('logo'))      # <-- Now uses DB value
 
 # --- 4. LOGOUT ---
 @portal_bp.route('/portal/logout')
 def portal_logout():
-    # Capture company ID before clearing session for redirect
     comp_id = session.get('portal_company_id', 1)
     session.pop('portal_client_id', None)
     return redirect(url_for('portal.portal_login', company_id=comp_id))
@@ -250,12 +247,17 @@ def submit_request():
         
     return redirect(url_for('portal.property_detail', property_id=prop_id))
 
-# --- 9. VIEW REQUEST DETAILS (With Photos & Engineer) ---
+# --- 9. VIEW REQUEST DETAILS ---
 @portal_bp.route('/portal/request/<int:request_id>')
 def request_detail(request_id):
     if not check_portal_access(): return redirect(get_login_url())
     
     client_id = session['portal_client_id']
+    comp_id = session['portal_company_id']
+    
+    # --- FIX: Fetch Branding Config ---
+    config = get_site_config(comp_id)
+    
     conn = get_db(); cur = conn.cursor()
     
     # 1. Fetch Request
@@ -272,7 +274,7 @@ def request_detail(request_id):
         conn.close()
         return "Request not found", 404
 
-    # 2. Fetch Completion Details (The Job)
+    # 2. Fetch Completion Details
     completion_details = None
     if req[2] == 'Completed':
         cur.execute("""
@@ -290,8 +292,9 @@ def request_detail(request_id):
     return render_template('portal/portal_request_view.html', 
                          req=req, 
                          completion=completion_details,
-                         company_name=session.get('portal_company_name'),
-                         brand_color=session.get('portal_brand_color'))
+                         company_name=config.get('name'),
+                         brand_color=config.get('color'),
+                         logo_url=config.get('logo'))
 
 # --- 10. MY QUOTES PAGE ---
 @portal_bp.route('/portal/quotes')
@@ -323,7 +326,7 @@ def portal_quotes():
                          brand_color=config.get('color'),
                          quotes=quotes)
 
-# --- 11. QUOTE DETAILS & ACTIONS ---
+# --- 11. QUOTE DETAILS ---
 @portal_bp.route('/portal/quote/<int:quote_id>')
 def quote_detail(quote_id):
     if not check_portal_access(): return redirect(get_login_url())
@@ -331,6 +334,10 @@ def quote_detail(quote_id):
     client_id = session['portal_client_id']
     conn = get_db(); cur = conn.cursor()
     
+    # We also need config here if the quote view page uses the base template
+    comp_id = session['portal_company_id']
+    config = get_site_config(comp_id)
+
     cur.execute("SELECT id, reference, date, total, status FROM quotes WHERE id = %s AND client_id = %s", (quote_id, client_id))
     quote = cur.fetchone()
     
@@ -345,25 +352,12 @@ def quote_detail(quote_id):
     except: pass 
 
     conn.close()
-    return render_template('portal/portal_quote_view.html', quote=quote, items=items)
-
-@portal_bp.route('/portal/quote/<int:quote_id>/accept')
-def quote_accept(quote_id):
-    if not check_portal_access(): return redirect(get_login_url())
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("UPDATE quotes SET status = 'Accepted' WHERE id = %s AND client_id = %s", (quote_id, session['portal_client_id']))
-    conn.commit(); conn.close()
-    flash("✅ Quote Accepted!", "success")
-    return redirect(url_for('portal.quote_detail', quote_id=quote_id))
-
-@portal_bp.route('/portal/quote/<int:quote_id>/decline')
-def quote_decline(quote_id):
-    if not check_portal_access(): return redirect(get_login_url())
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("UPDATE quotes SET status = 'Declined' WHERE id = %s AND client_id = %s", (quote_id, session['portal_client_id']))
-    conn.commit(); conn.close()
-    flash("❌ Quote Declined.", "warning")
-    return redirect(url_for('portal.quote_detail', quote_id=quote_id))
+    return render_template('portal/portal_quote_view.html', 
+                           quote=quote, 
+                           items=items,
+                           company_name=config.get('name'),
+                           brand_color=config.get('color'),
+                           logo_url=config.get('logo'))
 
 # --- 12. PROFILE MANAGEMENT ---
 @portal_bp.route('/portal/profile', methods=['GET', 'POST'])
@@ -371,6 +365,11 @@ def portal_profile():
     if not check_portal_access(): return redirect(get_login_url())
     
     client_id = session['portal_client_id']
+    comp_id = session['portal_company_id']
+    
+    # --- FIX: Fetch Branding Config ---
+    config = get_site_config(comp_id)
+    
     conn = get_db(); cur = conn.cursor()
 
     if request.method == 'POST':
@@ -381,10 +380,8 @@ def portal_profile():
         confirm_pass = request.form.get('confirm_password')
 
         try:
-            # 1. Update Basic Info
             cur.execute("UPDATE clients SET name=%s, email=%s, phone=%s WHERE id=%s", (name, email, phone, client_id))
             
-            # 2. Update Password (only if user typed something)
             msg = "✅ Profile updated successfully."
             if new_pass:
                 if new_pass == confirm_pass:
@@ -401,12 +398,12 @@ def portal_profile():
             conn.rollback()
             flash(f"Error updating profile: {e}", "error")
 
-    # Fetch Client Data
     cur.execute("SELECT id, name, email, phone FROM clients WHERE id = %s", (client_id,))
     client = cur.fetchone()
     conn.close()
 
     return render_template('portal/portal_profile.html', 
                          client=client,
-                         company_name=session.get('portal_company_name'),
-                         brand_color=session.get('portal_brand_color'))
+                         company_name=config.get('name'),
+                         brand_color=config.get('color'), # <-- Now uses DB value
+                         logo_url=config.get('logo'))     # <-- Now uses DB value
