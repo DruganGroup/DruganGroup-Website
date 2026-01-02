@@ -383,3 +383,19 @@ def log_fuel():
             return redirect(url_for('site.site_dashboard'))
 
     return render_template('site/fuel_form.html', reg=v_reg)
+    
+    # --- TEMPORARY FIX: Add 'name' to users table ---
+@site_bp.route('/site/fix-users')
+def fix_users_db():
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Add the column
+        cur.execute("ALTER TABLE users ADD COLUMN name TEXT;")
+        # Set a default name for existing users (using their email or 'Staff' is safer)
+        cur.execute("UPDATE users SET name = 'Staff Member' WHERE name IS NULL;")
+        conn.commit()
+        return "✅ SUCCESS: Column 'name' added to users table. You can now load the Dashboard."
+    except Exception as e:
+        return f"Database Error: {e}"
+    finally:
+        conn.close()
