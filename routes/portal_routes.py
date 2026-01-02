@@ -46,7 +46,7 @@ def portal_auth():
     finally:
         conn.close()
 
-# --- 3. PORTAL HOME (Dashboard) ---
+# --- 3. PORTAL HOME (Dashboard) - FIXED ---
 @portal_bp.route('/portal/home')
 def portal_home():
     if not check_portal_access(): return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
@@ -57,13 +57,43 @@ def portal_home():
     
     conn = get_db(); cur = conn.cursor()
     
-    # Fetch Data for the Dashboard
-    cur.execute("SELECT id, ref, site_address, status FROM jobs WHERE client_id = %s AND status != 'Completed'", (client_id,))
-    active_jobs = [dict(zip(['id', 'ref', 'address', 'status'], r)) for r in cur.fetchall()]
+    # 1. Fetch Active Jobs
+    cur.execute("""
+        SELECT id, ref, site_address, status, description 
+        FROM jobs 
+        WHERE client_id = %s AND status != 'Completed'
+    """, (client_id,))
+    active_jobs = [dict(zip(['id', 'ref', 'address', 'status', 'desc'], r)) for r in cur.fetchall()]
     
-    cur.execute("SELECT id, address_line1, postcode, type, compliance_status FROM properties WHERE client_id = %s", (client_id,))
-    properties = cur.fetchall() # Raw list for template
+    # 2. Fetch Properties (MATCHING HTML INDICES)
+    # Template expects: p[0]=ID, p[1]=Postcode, p[2]=Type, p[3]=Address, p[4]=Tenant
+    cur.execute("""
+        SELECT id, postcode, type, address_line1, tenant_name 
+        FROM properties 
+        WHERE client_id = %s
+    """, (client_id,))
+    properties = cur.fetchall() 
     
+    # 3. Fetch Service Requests (MATCHING HTML INDICES)
+    # Template expects: r[7]=Date, r[1]=Address, r[4]=Issue, r[5]=Severity, r[6]=Status
+    # We use a JOIN to get the address (p.address_line1) into position 1
+    cur.execute("""
+        SELECT 
+            sr.id,                  -- 0
+            p.address_line1,        -- 1 (Address for display)
+            sr.property_id,         -- 2
+            sr.client_id,           -- 3
+            sr.issue_description,   -- 4 (Issue)
+            sr.severity,            -- 5 (Severity)
+            sr.status,              -- 6 (Status)
+            sr.created_at           -- 7 (Date)
+        FROM service_requests sr
+        LEFT JOIN properties p ON sr.property_id = p.id
+        WHERE sr.client_id = %s
+        ORDER BY sr.created_at DESC LIMIT 5
+    """, (client_id,))
+    requests = cur.fetchall()
+
     conn.close()
     
     return render_template('portal/portal_home.html',
@@ -73,8 +103,8 @@ def portal_home():
                          brand_color=config.get('color'),
                          active_jobs=active_jobs,
                          properties=properties,
-                         requests=[]) # Placeholder for requests
-
+                         requests=requests)
+                         
 # --- 4. LOGOUT ---
 @portal_bp.route('/portal/logout')
 def portal_logout():
