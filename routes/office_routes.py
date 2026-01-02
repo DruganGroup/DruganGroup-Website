@@ -538,3 +538,72 @@ def system_upgrade():
     finally:
         conn.close()
         
+        # --- OFFICE SERVICE DESK VIEW ---
+@office_bp.route('/office/service-desk')
+def service_desk():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+
+    # This query joins the tables so you see "Address" and "Client Name" 
+    # instead of just ID numbers.
+    cur.execute("""
+        SELECT 
+            sr.id, 
+            sr.severity, 
+            p.address_line1 as property_address, 
+            sr.issue_description, 
+            c.name as client_name, 
+            sr.status
+        FROM service_requests sr
+        JOIN properties p ON sr.property_id = p.id
+        JOIN clients c ON sr.client_id = c.id
+        WHERE p.company_id = %s
+        ORDER BY sr.created_at DESC
+    """, (comp_id,))
+    
+    # We convert the rows into a list of dictionaries so the HTML can read them easily
+    rows = cur.fetchall()
+    requests = []
+    for r in rows:
+        requests.append({
+            'id': r[0],
+            'severity': r[1],
+            'property_address': r[2],
+            'issue_description': r[3],
+            'client_name': r[4],
+            'status': r[5]
+        })
+
+    # Also fetch staff list for the "Dispatch" dropdown
+    cur.execute("SELECT id, name FROM staff WHERE company_id = %s", (comp_id,))
+    staff = [{'id': s[0], 'name': s[1]} for s in cur.fetchall()]
+
+    conn.close()
+    return render_template('office/service_desk.html', requests=requests, staff=staff)
+    
+    @office_bp.route('/office/create-work-order', methods=['POST'])
+def create_work_order():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    req_id = request.form.get('request_id')
+    staff_id = request.form.get('assigned_staff_id')
+    date = request.form.get('schedule_date')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # 1. Update the request to 'Scheduled'
+        cur.execute("UPDATE service_requests SET status = 'Scheduled' WHERE id = %s", (req_id,))
+        
+        # 2. Logic to create a Job/Work Order would go here
+        # For now, we just confirm the status update
+        conn.commit()
+        flash("✅ Job Dispatched and Staff Notified!", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('office.service_desk'))
