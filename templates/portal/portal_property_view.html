@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ prop[1] }} | {{ company_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root { --brand-color: {{ brand_color }}; }
+        body { background-color: #f4f7f6; }
+        .navbar { background-color: white; border-bottom: 3px solid var(--brand-color); }
+        .text-brand { color: var(--brand-color) !important; }
+        .card-header-brand { background-color: var(--brand-color); color: white; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg shadow-sm mb-4">
+    <div class="container">
+        <a href="/portal/home" class="btn btn-sm btn-outline-secondary me-3"><i class="fas fa-arrow-left"></i></a>
+        <h5 class="m-0 fw-bold text-brand">{{ prop[1] }}</h5>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row g-4">
+        <div class="col-md-4">
+<div class="card-body">
+    <h6 class="text-muted small fw-bold text-uppercase">Property Details</h6>
+    ...
+    <div class="mt-3 p-3 bg-light rounded border">
+        <small class="text-muted d-block mb-1">Access Code</small>
+        <strong class="text-danger">{{ prop[6] or 'No Code' }}</strong>
+    </div>
+
+    <button class="btn btn-warning w-100 fw-bold mt-3" data-bs-toggle="modal" data-bs-target="#requestModal">
+        <i class="fas fa-exclamation-triangle me-2"></i>Report a Fault
+    </button>
+</div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="m-0 fw-bold">Service & Job History</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Ref</th>
+                                <th>Description</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for job in job_history %}
+                            <tr>
+                                <td class="ps-4 fw-bold">{{ job[1] }}</td>
+                                <td>{{ job[3] }}</td>
+                                <td><span class="badge bg-secondary">{{ job[2] }}</span></td>
+                                <td>{{ job[4].strftime('%d/%m/%Y') if job[4] else 'N/A' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-5 text-muted">No previous jobs recorded for this property.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

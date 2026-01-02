@@ -524,6 +524,14 @@ def system_upgrade():
         except Exception as e:
             conn.rollback()
             log.append(f"ℹ️ Note on Property Upgrade: {e}")
+            
+        try:
+            cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS image_url TEXT")
+            conn.commit()
+            log.append("✅ Success: Added 'image_url' to Service Requests.")
+        except Exception as e:
+            conn.rollback()
+            log.append(f"ℹ️ Note: {e}")
         
     except Exception as e:
         return f"Error: {e}"
