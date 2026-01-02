@@ -173,7 +173,7 @@ def portal_profile():
                          brand_color=config.get('color'),
                          client=client)
 
-# --- 6. ADD PROPERTY (Action) ---
+# --- 6. ADD PROPERTY (Professional Version) ---
 @portal_bp.route('/portal/property/add', methods=['POST'])
 def add_property():
     if not check_portal_access(): return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
@@ -184,19 +184,24 @@ def add_property():
     # Get form data
     address = request.form.get('address')
     postcode = request.form.get('postcode')
-    p_type = request.form.get('type') # e.g. Residential, Commercial
-    tenant = request.form.get('tenant_name')
+    p_type = request.form.get('type')
+    
+    # New Details
+    tenant_name = request.form.get('tenant_name')
+    tenant_phone = request.form.get('tenant_phone')
+    key_code = request.form.get('key_code')
 
     conn = get_db(); cur = conn.cursor()
     
     try:
         cur.execute("""
-            INSERT INTO properties (company_id, client_id, address_line1, postcode, type, tenant_name)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (comp_id, client_id, address, postcode, p_type, tenant))
+            INSERT INTO properties 
+            (company_id, client_id, address_line1, postcode, type, tenant_name, tenant_phone, key_code)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (comp_id, client_id, address, postcode, p_type, tenant_name, tenant_phone, key_code))
         
         conn.commit()
-        flash("✅ New property added to your list.", "success")
+        flash("✅ Property added successfully.", "success")
     except Exception as e:
         conn.rollback()
         flash(f"Error adding property: {e}", "error")
