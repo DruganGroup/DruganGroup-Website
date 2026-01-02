@@ -560,3 +560,19 @@ def view_client(client_id): return "Client View Placeholder"
 def add_property(client_id): return redirect(url_for('office.view_client', client_id=client_id))
 @office_bp.route('/office/quote/<int:quote_id>/convert')
 def convert_to_invoice(quote_id): return redirect(url_for('office.office_dashboard'))
+
+# --- TEMPORARY: DELETE JOB ROUTE ---
+@office_bp.route('/office/delete-job/<int:job_id>')
+def delete_job_by_id(job_id):
+    if 'user_id' not in session: return redirect('/login')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Delete the job
+        cur.execute("DELETE FROM jobs WHERE id = %s", (job_id,))
+        conn.commit()
+        return f"✅ Job ID {job_id} has been deleted. <a href='/office/calendar'>Back to Calendar</a>"
+    except Exception as e:
+        return f"Error: {e}"
+    finally:
+        conn.close()
