@@ -104,15 +104,16 @@ def site_dashboard():
     conn = get_db(); cur = conn.cursor()
     
     # 1. User & Config
+    # We use a fallback "or 'Staff'" just in case the name is empty
     cur.execute("SELECT name, company_id FROM users WHERE id = %s", (session['user_id'],))
     user = cur.fetchone()
-    staff_name = user[0]
+    staff_name = user[0] if user and user[0] else "Staff Member"
     comp_id = user[1]
     config = get_site_config(comp_id)
     
     today = datetime.now().date()
 
-    # 2. TODAY'S SCHEDULE (Existing Logic)
+    # 2. TODAY'S SCHEDULE
     cur.execute("""
         SELECT j.id, j.status, j.ref, p.address_line1, p.postcode, j.description
         FROM jobs j
@@ -130,9 +131,9 @@ def site_dashboard():
     # 3. NEW: 7-DAY AGENDA CALENDAR
     calendar = []
     for i in range(7):
+        # Loop from Today + 0 days to Today + 6 days
         check_date = today + timedelta(days=i)
         
-        # Fetch jobs for this specific date
         cur.execute("""
             SELECT j.id, c.name, p.postcode, j.status
             FROM jobs j
@@ -146,7 +147,7 @@ def site_dashboard():
             'date': check_date,
             'day_name': check_date.strftime('%a'), # e.g. "Mon"
             'day_num': check_date.strftime('%d'),  # e.g. "12"
-            'jobs': daily_jobs # List of jobs for this day
+            'jobs': daily_jobs 
         })
 
     conn.close()
@@ -154,10 +155,9 @@ def site_dashboard():
     return render_template('site/site_dashboard.html', 
                          staff_name=staff_name,
                          my_jobs=my_jobs,
-                         calendar=calendar, # <--- Passing the new calendar data
+                         calendar=calendar, 
                          brand_color=config.get('color'),
                          logo_url=config.get('logo'))
-
 # --- 2. DEDICATED VAN CHECK PAGE ---
 @site_bp.route('/site/van-check', methods=['GET', 'POST'])
 def van_check_page():
@@ -383,19 +383,3 @@ def log_fuel():
             return redirect(url_for('site.site_dashboard'))
 
     return render_template('site/fuel_form.html', reg=v_reg)
-    
-    # --- TEMPORARY FIX: Add 'name' to users table ---
-@site_bp.route('/site/fix-users')
-def fix_users_db():
-    conn = get_db(); cur = conn.cursor()
-    try:
-        # Add the column
-        cur.execute("ALTER TABLE users ADD COLUMN name TEXT;")
-        # Set a default name for existing users (using their email or 'Staff' is safer)
-        cur.execute("UPDATE users SET name = 'Staff Member' WHERE name IS NULL;")
-        conn.commit()
-        return "✅ SUCCESS: Column 'name' added to users table. You can now load the Dashboard."
-    except Exception as e:
-        return f"Database Error: {e}"
-    finally:
-        conn.close()
