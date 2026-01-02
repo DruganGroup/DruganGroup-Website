@@ -109,7 +109,6 @@ def staff_list():
             
             elif action == 'edit_staff':
                 sid = request.form.get('staff_id')
-                # Use COALESCE logic in Python or SQL to keep old file if no new file uploaded
                 if file_path:
                     cur.execute("UPDATE staff SET name=%s, email=%s, phone=%s, position=%s, status=%s, license_path=%s WHERE id=%s AND company_id=%s", 
                                (name, request.form.get('email'), request.form.get('phone'), request.form.get('role'), request.form.get('status'), file_path, sid, comp_id))
@@ -415,12 +414,11 @@ def service_desk():
     conn.close()
     return render_template('office/service_desk.html', requests=requests, staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# --- 7. WORK ORDER DISPATCH (Now Creates Real Job) ---
+# --- 7. WORK ORDER DISPATCH ---
 @office_bp.route('/office/create-work-order', methods=['POST'])
 def create_work_order():
     if not check_office_access(): return redirect(url_for('auth.login'))
     
-    # 1. Get Data from the Modal Form
     req_id = request.form.get('request_id')
     staff_id = request.form.get('assigned_staff_id')
     start_date = request.form.get('schedule_date')
@@ -429,15 +427,11 @@ def create_work_order():
     comp_id = session.get('company_id')
 
     try:
-        # 2. Fetch info from the Request to copy into the Job
         cur.execute("SELECT client_id, property_id, issue_description FROM service_requests WHERE id=%s", (req_id,))
         req_data = cur.fetchone()
         
         if req_data:
             client_id, prop_id, desc = req_data
-            
-            # 3. INSERT into JOBS table (This pushes it to the Engineer's App)
-            # We generate a reference like "JOB-{req_id}"
             job_ref = f"JOB-{req_id}"
             
             cur.execute("""
@@ -445,9 +439,7 @@ def create_work_order():
                 VALUES (%s, %s, %s, %s, %s, 'Scheduled', %s, %s)
             """, (comp_id, client_id, prop_id, staff_id, desc, start_date, job_ref))
 
-            # 4. Update the Request Status to 'Scheduled' so we know it's handled
             cur.execute("UPDATE service_requests SET status = 'Scheduled' WHERE id = %s", (req_id,))
-            
             conn.commit()
             flash(f"✅ Job {job_ref} Created & Sent to Engineer's List!", "success")
         else:
@@ -460,7 +452,7 @@ def create_work_order():
         
     return redirect(url_for('office.service_desk'))
 
-# --- 8. SYSTEM REPAIR (Updated with Jobs Fix) ---
+# --- 8. SYSTEM REPAIR (ALL IN ONE) ---
 @office_bp.route('/office/system-upgrade')
 @office_bp.route('/office/repair-db')
 def system_upgrade():
@@ -470,7 +462,7 @@ def system_upgrade():
     log = []
     
     try:
-        # 1. Invoices Table
+        # Invoices Table
         cur.execute("""
             CREATE TABLE IF NOT EXISTS invoices (
                 id SERIAL PRIMARY KEY, company_id INTEGER NOT NULL, client_id INTEGER NOT NULL,
@@ -479,35 +471,30 @@ def system_upgrade():
             )
         """)
         
-        # 2. Property Columns (The one you fixed earlier)
+        # Property Columns
         cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS tenant_phone VARCHAR(50)")
         cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS key_code VARCHAR(100)")
         
-        # 3. Service Request Columns
+        # Service Request Columns
         cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS image_url TEXT")
-        
-        # 4. JOBS TABLE FIX (The new fix)
+
+        # Job Property Link
         cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS property_id INTEGER")
+
+        # Quote Items
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS quote_items (
+                id SERIAL PRIMARY KEY,
+                quote_id INTEGER,
+                description TEXT,
+                quantity INTEGER,
+                unit_price NUMERIC(10, 2),
+                total NUMERIC(10, 2)
+            )
+        """)
         
         conn.commit()
-        log.append("✅ Success: Database tables and columns verified.")
-        log.append("✅ Success: Added 'property_id' to Jobs table.")
-        
-       try:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS quote_items (
-                    id SERIAL PRIMARY KEY,
-                    quote_id INTEGER,
-                    description TEXT,
-                    quantity INTEGER,
-                    unit_price NUMERIC(10, 2),
-                    total NUMERIC(10, 2)
-                )
-            """)
-            conn.commit()
-            log.append("✅ Success: 'quote_items' table created.")
-        except Exception as e:
-            conn.rollback(); log.append(f"ℹ️ Note: {e}")
+        log.append("✅ Success: All database tables and columns verified.")
         
     except Exception as e:
         conn.rollback(); log.append(f"❌ Error: {e}")
