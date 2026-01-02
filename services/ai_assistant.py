@@ -69,3 +69,40 @@ def verify_license(file_path, staff_name):
         return {"success": True, "verified": result.get('match', False), "reason": result.get('reason')}
     except:
         return {"success": False}
+
+def universal_sort_document(file_path):
+    """
+    Analyzes a document to determine type and extract LINKING data.
+    """
+    client = get_ai_client()
+    if not client: return {"success": False, "error": "AI Config Missing"}
+
+    try:
+        base64_image = encode_image(file_path)
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a JSON data extractor for a construction company."},
+                {"role": "user", "content": [
+                    {"type": "text", "text": """
+                        Analyze this image. Classify and extract data.
+                        
+                        1. 'fuel_receipt': Look for total_cost, date, vendor. 
+                           CRITICAL: Look for a Vehicle Reg Plate (e.g. 'AB12 CDE'). Key: 'vehicle_reg'.
+                        
+                        2. 'supplier_invoice': Look for total, invoice_number, supplier_name.
+                           CRITICAL: Look for a Job Reference (e.g. 'JOB-101', 'Q-500') or Client Address. Key: 'job_ref'.
+                        
+                        3. 'driving_license': Look for expiry_date.
+                           CRITICAL: Extract the Full Name. Key: 'staff_name'.
+
+                        Return JSON: { "doc_type": "...", "data": { ... } }
+                    """},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                ]}
+            ],
+            response_format={"type": "json_object"}
+        )
+        return {"success": True, "result": json.loads(response.choices[0].message.content)}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

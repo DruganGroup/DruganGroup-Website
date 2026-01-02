@@ -18,6 +18,81 @@
         </div>
     </div>
 
+<div class="card border-0 shadow-sm mb-4 overflow-hidden position-relative" style="background: linear-gradient(135deg, var(--brand-color), #4a90e2);">
+        <div class="card-body p-4 text-center text-white" id="dropzone" style="cursor: pointer; border: 2px dashed rgba(255,255,255,0.3); border-radius: 12px; transition: 0.2s;">
+            <input type="file" id="fileInput" hidden onchange="handleFileUpload(this.files[0])">
+            
+            <div id="dropzone-content">
+                <i class="fas fa-magic fa-3x mb-3 opacity-75"></i>
+                <h4 class="fw-bold">Smart Upload Center</h4>
+                <p class="mb-0 opacity-75">Drag & Drop Invoices, Receipts, or Licenses.<br>The AI will sort them for you.</p>
+            </div>
+
+            <div id="uploadStatus" class="mt-3 d-none">
+                <div class="spinner-border text-light mb-2" role="status"></div>
+                <div class="fw-bold animate__animated animate__pulse animate__infinite">AI is analyzing document...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const content = document.getElementById('dropzone-content');
+        const status = document.getElementById('uploadStatus');
+
+        dropzone.addEventListener('click', () => fileInput.click());
+        
+        dropzone.addEventListener('dragover', (e) => { 
+            e.preventDefault(); 
+            dropzone.style.background = 'rgba(255,255,255,0.1)'; 
+        });
+        
+        dropzone.addEventListener('dragleave', () => { 
+            dropzone.style.background = ''; 
+        });
+        
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.style.background = '';
+            handleFileUpload(e.dataTransfer.files[0]);
+        });
+
+        function handleFileUpload(file) {
+            if (!file) return;
+            
+            content.classList.add('d-none');
+            status.classList.remove('d-none');
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/office/upload-center', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                status.innerHTML = ''; // Clear spinner
+                if (data.status === 'success') {
+                    status.innerHTML = `<div class="fs-1">✅</div><h5 class="fw-bold mt-2">${data.message}</h5>`;
+                    // Reload page after 2 seconds to show new data
+                    setTimeout(() => location.reload(), 2500);
+                } else {
+                    status.innerHTML = `<div class="fs-1">❌</div><h5 class="fw-bold mt-2">${data.message}</h5><p class="small">Try again</p>`;
+                    setTimeout(() => {
+                        status.classList.add('d-none');
+                        content.classList.remove('d-none');
+                    }, 4000);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                status.innerText = "Upload Failed";
+            });
+        }
+    </script>
+	
     {% if live_ops %}
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
