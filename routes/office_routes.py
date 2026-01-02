@@ -484,7 +484,7 @@ def enable_portal(client_id):
     finally:
         conn.close()
 
-    return redirect('/clients'))
+    return redirect('/clients')
     
 
     
