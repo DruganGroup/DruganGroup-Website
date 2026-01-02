@@ -55,28 +55,32 @@ def portal_home():
     client_id = session['portal_client_id']
     conn = get_db(); cur = conn.cursor()
     
-    # Get Client Name
+    # 1. GET COMPANY NAME (Fixes the "NONE" issue)
+    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'company_name'", (comp_id,))
+    row_name = cur.fetchone()
+    company_name = row_name[0] if row_name else "Client Portal"
+
+    # 2. Get Client Name
     cur.execute("SELECT name FROM clients WHERE id = %s", (client_id,))
     res = cur.fetchone()
     client_name = res[0] if res else "Client"
 
-    # Stats: Active Jobs
+    # 3. Stats: Active Jobs
     cur.execute("SELECT id FROM jobs WHERE client_id = %s AND status != 'Completed'", (client_id,))
     active_jobs = cur.fetchall()
     
-    # Stats: Open Quotes
+    # 4. Stats: Open Quotes
     cur.execute("SELECT COUNT(*) FROM quotes WHERE client_id = %s AND status IN ('Draft', 'Sent')", (client_id,))
     open_quotes = cur.fetchone()[0]
 
-    # --- UPDATED QUERY ---
-    # We now fetch a 5th item (Index 4): The count of open service requests
+    # 5. Fetch Properties with Issue Count
     cur.execute("""
         SELECT 
             p.id, 
             p.address_line1, 
             p.postcode, 
             p.type,
-            (SELECT COUNT(*) FROM service_requests sr WHERE sr.property_id = p.id AND sr.status != 'Completed') as open_issues
+            (SELECT COUNT(*) FROM service_requests sr WHERE sr.property_id = p.id AND sr.status != 'Pending' AND sr.status != 'Completed') as open_issues
         FROM properties p
         WHERE p.client_id = %s
     """, (client_id,))
@@ -85,7 +89,7 @@ def portal_home():
     conn.close()
     
     return render_template('portal/portal_home.html', 
-                         company_name=session.get('portal_company_name'),
+                         company_name=company_name,  # Now using the DB value
                          client_name=client_name,
                          properties=properties,
                          active_jobs=active_jobs,
@@ -253,7 +257,7 @@ def property_detail(property_id):
                          brand_color=config.get('color'),
                          prop=prop,
                          job_history=job_history)
-                         
+                         def portal_home():
     # --- 9. MY QUOTES PAGE ---
 @portal_bp.route('/portal/quotes')
 def portal_quotes():
@@ -274,7 +278,7 @@ def portal_quotes():
             WHERE client_id = %s 
             ORDER BY date DESC
         """, (client_id,))
-        quotes = cur.fetchall()
+        quotes = cur.fetchall()def portal_home():
     except Exception as e:
         # If table doesn't exist yet, just return empty list to prevent crash
         quotes = []
