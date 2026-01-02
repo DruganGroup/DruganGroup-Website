@@ -230,6 +230,65 @@ def convert_to_invoice(quote_id): return redirect(url_for('office.office_dashboa
 @office_bp.route('/office/create-work-order', methods=['POST'])
 def create_work_order(): return redirect(url_for('office.service_desk'))
 # --- ADD TO routes/office_routes.py ---
+
+# --- 8. SERVICE DESK (The Missing Route) ---
+@office_bp.route('/office/service-desk', methods=['GET', 'POST'])
+def service_desk():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+
+    if request.method == 'POST':
+        # Handle quick actions like marking complete
+        req_id = request.form.get('request_id')
+        action = request.form.get('action')
+        
+        try:
+            if action == 'complete':
+                cur.execute("UPDATE service_requests SET status = 'Completed' WHERE id = %s AND company_id = %s", (req_id, comp_id))
+                flash("✅ Request Marked as Completed")
+            elif action == 'delete':
+                cur.execute("DELETE FROM service_requests WHERE id = %s AND company_id = %s", (req_id, comp_id))
+                flash("🗑️ Request Deleted")
+            elif action == 'convert_job':
+                # Redirect to job creation (Simplified)
+                return redirect(url_for('office.office_calendar')) # Placeholder for job conversion logic
+                
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error updating request: {e}")
+
+    # Fetch All Service Requests
+    # Joins with Client and Property to show real names instead of IDs
+    cur.execute("""
+        SELECT sr.id, sr.issue_description, sr.severity, sr.status, sr.created_at, c.name, p.address_line1
+        FROM service_requests sr
+        LEFT JOIN clients c ON sr.client_id = c.id
+        LEFT JOIN properties p ON sr.property_id = p.id
+        WHERE sr.company_id = %s
+        ORDER BY 
+            CASE WHEN sr.status = 'Pending' THEN 1 ELSE 2 END, 
+            sr.created_at DESC
+    """, (comp_id,))
+    
+    rows = cur.fetchall()
+    requests = []
+    for r in rows:
+        requests.append({
+            'id': r[0],
+            'issue': r[1],
+            'severity': r[2],
+            'status': r[3],
+            'date': format_date(r[4]),
+            'client': r[5] or 'N/A',
+            'address': r[6] or 'General'
+        })
+
+    conn.close()
+    return render_template('office/service_desk.html', requests=requests, brand_color=config['color'], logo_url=config['logo'])
         
         # --- UNIVERSAL UPLOAD & AUTO-SORTER ---
 @office_bp.route('/office/upload-center', methods=['POST'])
