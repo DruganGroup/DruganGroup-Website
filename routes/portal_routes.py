@@ -254,44 +254,6 @@ def property_detail(property_id):
                          prop=prop,
                          job_history=job_history)
                          
- # --- 8. SUBMIT SERVICE REQUEST ---
-@portal_bp.route('/portal/request/submit', methods=['POST'])
-def submit_request():
-    if not check_portal_access(): return redirect(url_for('portal.portal_login'))
-    
-    client_id = session['portal_client_id']
-    comp_id = session['portal_company_id']
-    
-    property_id = request.form.get('property_id')
-    description = request.form.get('description')
-    severity = request.form.get('severity', 'Low')
-    
-    # Handle Image Upload
-    image_url = None
-    file = request.files.get('image')
-    if file and file.filename != '':
-        filename = secure_filename(f"req_{client_id}_{file.filename}")
-        upload_path = os.path.join('static/uploads/requests', filename)
-        # Ensure directory exists
-        os.makedirs('static/uploads/requests', exist_ok=True)
-        file.save(upload_path)
-        image_url = f"/static/uploads/requests/{filename}"
-
-    conn = get_db(); cur = conn.cursor()
-    try:
-        cur.execute("""
-            INSERT INTO service_requests (client_id, property_id, issue_description, severity, image_url, status)
-            VALUES (%s, %s, %s, %s, %s, 'Open')
-        """, (client_id, property_id, description, severity, image_url))
-        conn.commit()
-        flash("✅ Maintenance request submitted. We will contact you shortly.", "success")
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error: {e}", "error")
-    finally:
-        conn.close()
-
-    return redirect('/portal/home')
     # --- 9. MY QUOTES PAGE ---
 @portal_bp.route('/portal/quotes')
 def portal_quotes():
