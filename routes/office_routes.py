@@ -434,7 +434,7 @@ def create_work_order():
         
     return redirect(url_for('office.service_desk'))
 
-# --- 8. SYSTEM REPAIR (ALL IN ONE) ---
+# --- 8. SYSTEM REPAIR (Updated with Jobs Fix) ---
 @office_bp.route('/office/system-upgrade')
 @office_bp.route('/office/repair-db')
 def system_upgrade():
@@ -444,7 +444,7 @@ def system_upgrade():
     log = []
     
     try:
-        # Invoices Table
+        # 1. Invoices Table
         cur.execute("""
             CREATE TABLE IF NOT EXISTS invoices (
                 id SERIAL PRIMARY KEY, company_id INTEGER NOT NULL, client_id INTEGER NOT NULL,
@@ -453,15 +453,19 @@ def system_upgrade():
             )
         """)
         
-        # Property Columns
+        # 2. Property Columns (The one you fixed earlier)
         cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS tenant_phone VARCHAR(50)")
         cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS key_code VARCHAR(100)")
         
-        # Service Request Columns
+        # 3. Service Request Columns
         cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS image_url TEXT")
+        
+        # 4. JOBS TABLE FIX (The new fix)
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS property_id INTEGER")
         
         conn.commit()
         log.append("✅ Success: Database tables and columns verified.")
+        log.append("✅ Success: Added 'property_id' to Jobs table.")
         
     except Exception as e:
         conn.rollback(); log.append(f"❌ Error: {e}")
