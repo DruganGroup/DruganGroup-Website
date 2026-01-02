@@ -66,6 +66,7 @@
         .currency-text { font-family: 'Consolas', monospace; letter-spacing: -0.5px; }
     </style>
     {% block head %}{% endblock %}
+	<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
 </head>
 <body>
     {% if session.get('role') != 'Admin' and session.get('role') != 'Finance' %}
