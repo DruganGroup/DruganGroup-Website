@@ -46,10 +46,11 @@ def portal_auth():
     finally:
         conn.close()
 
-# --- 3. PORTAL HOME (Dashboard) - FIXED ---
+# --- 3. PORTAL HOME (Production Version) ---
 @portal_bp.route('/portal/home')
 def portal_home():
-    if not check_portal_access(): return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    if not check_portal_access(): 
+        return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
     
     client_id = session['portal_client_id']
     comp_id = session['portal_company_id']
@@ -58,15 +59,11 @@ def portal_home():
     conn = get_db(); cur = conn.cursor()
     
     # 1. Fetch Active Jobs
-    cur.execute("""
-        SELECT id, ref, site_address, status, description 
-        FROM jobs 
-        WHERE client_id = %s AND status != 'Completed'
-    """, (client_id,))
-    active_jobs = [dict(zip(['id', 'ref', 'address', 'status', 'desc'], r)) for r in cur.fetchall()]
+    # (Using empty list for now until we confirm the Jobs table structure, 
+    # but this is where we will hook it up next)
+    active_jobs = [] 
     
-    # 2. Fetch Properties (MATCHING HTML INDICES)
-    # Template expects: p[0]=ID, p[1]=Postcode, p[2]=Type, p[3]=Address, p[4]=Tenant
+    # 2. Fetch Properties (Now requesting the REAL 'type' column)
     cur.execute("""
         SELECT id, postcode, type, address_line1, tenant_name 
         FROM properties 
@@ -74,23 +71,13 @@ def portal_home():
     """, (client_id,))
     properties = cur.fetchall() 
     
-    # 3. Fetch Service Requests (MATCHING HTML INDICES)
-    # Template expects: r[7]=Date, r[1]=Address, r[4]=Issue, r[5]=Severity, r[6]=Status
-    # We use a JOIN to get the address (p.address_line1) into position 1
+    # 3. Fetch Service Requests
+    # This will now work because Step 1 created the table
     cur.execute("""
-        SELECT 
-            sr.id,                  -- 0
-            p.address_line1,        -- 1 (Address for display)
-            sr.property_id,         -- 2
-            sr.client_id,           -- 3
-            sr.issue_description,   -- 4 (Issue)
-            sr.severity,            -- 5 (Severity)
-            sr.status,              -- 6 (Status)
-            sr.created_at           -- 7 (Date)
-        FROM service_requests sr
-        LEFT JOIN properties p ON sr.property_id = p.id
-        WHERE sr.client_id = %s
-        ORDER BY sr.created_at DESC LIMIT 5
+        SELECT id, issue_description, status, created_at, severity
+        FROM service_requests 
+        WHERE client_id = %s 
+        ORDER BY created_at DESC LIMIT 5
     """, (client_id,))
     requests = cur.fetchall()
 
