@@ -484,7 +484,7 @@ def enable_portal(client_id):
     finally:
         conn.close()
 
-    return redirect(url_for('office.client_list'))
+    return redirect('/clients'))
     
 
     
