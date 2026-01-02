@@ -114,11 +114,12 @@ def site_dashboard():
     today = datetime.now().date()
 
     # 2. TODAY'S SCHEDULE
+    # FIX: Added ::DATE to j.start_date so it compares correctly
     cur.execute("""
         SELECT j.id, j.status, j.ref, p.address_line1, p.postcode, j.description
         FROM jobs j
         JOIN properties p ON j.property_id = p.id
-        WHERE j.engineer_id = %s AND j.start_date = %s AND j.status != 'Completed'
+        WHERE j.engineer_id = %s AND j.start_date::DATE = %s AND j.status != 'Completed'
     """, (session['user_id'], today))
     
     my_jobs = []
@@ -134,12 +135,13 @@ def site_dashboard():
         # Loop from Today + 0 days to Today + 6 days
         check_date = today + timedelta(days=i)
         
+        # FIX: Added ::DATE here too
         cur.execute("""
             SELECT j.id, c.name, p.postcode, j.status
             FROM jobs j
             JOIN clients c ON j.client_id = c.id
             JOIN properties p ON j.property_id = p.id
-            WHERE j.engineer_id = %s AND j.start_date = %s
+            WHERE j.engineer_id = %s AND j.start_date::DATE = %s
         """, (session['user_id'], check_date))
         daily_jobs = cur.fetchall()
         
@@ -158,6 +160,7 @@ def site_dashboard():
                          calendar=calendar, 
                          brand_color=config.get('color'),
                          logo_url=config.get('logo'))
+                         
 # --- 2. DEDICATED VAN CHECK PAGE ---
 @site_bp.route('/site/van-check', methods=['GET', 'POST'])
 def van_check_page():
