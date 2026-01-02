@@ -98,3 +98,32 @@ def portal_logout():
     # Only clear portal session
     session.pop('portal_client_id', None)
     return "Logged out. You can close this window."
+    # --- 4. MY INVOICES PAGE ---
+@portal_bp.route('/portal/invoices')
+def portal_invoices():
+    if not check_portal_access(): return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    
+    client_id = session['portal_client_id']
+    comp_id = session['portal_company_id']
+    config = get_site_config(comp_id)
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    # Fetch Invoices (Adjust column names if yours differ)
+    # We expect: id, invoice_number, date_issue, total_amount, status, file_path
+    cur.execute("""
+        SELECT id, invoice_number, date_issue, total_amount, status, file_path 
+        FROM invoices 
+        WHERE client_id = %s 
+        ORDER BY date_issue DESC
+    """, (client_id,))
+    invoices = cur.fetchall()
+    
+    conn.close()
+    
+    return render_template('portal/portal_invoices.html',
+                         client_name=session['portal_client_name'],
+                         company_name=config.get('name'),
+                         logo_url=config.get('logo'),
+                         brand_color=config.get('color'),
+                         invoices=invoices)
