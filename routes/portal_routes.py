@@ -327,4 +327,56 @@ def portal_quotes():
                          brand_color=config.get('color'),
                          quotes=quotes)
                          
+                         # --- QUOTE VIEW & ACTIONS ---
+@portal_bp.route('/portal/quote/<int:quote_id>')
+def quote_detail(quote_id):
+    # Check if user is logged in
+    if 'portal_client_id' not in session: 
+        return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    
+    client_id = session['portal_client_id']
+    conn = get_db(); cur = conn.cursor()
+    
+    # Fetch the Quote (Only if it belongs to this client)
+    cur.execute("SELECT id, reference, date, total, status FROM quotes WHERE id = %s AND client_id = %s", (quote_id, client_id))
+    quote = cur.fetchone()
+    
+    if not quote:
+        conn.close()
+        return "Quote not found or access denied", 404
+
+    # Fetch Line Items
+    items = []
+    try:
+        cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
+        items = cur.fetchall()
+    except:
+        pass 
+
+    conn.close()
+    
+    # Render the template you just uploaded
+    # Ensure 'portal_quote_view.html' is inside the 'templates/portal/' folder
+    return render_template('portal/portal_quote_view.html', 
+                         quote=quote, 
+                         items=items)
+
+@portal_bp.route('/portal/quote/<int:quote_id>/accept')
+def quote_accept(quote_id):
+    if 'portal_client_id' not in session: return redirect(url_for('portal.portal_home'))
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("UPDATE quotes SET status = 'Accepted' WHERE id = %s AND client_id = %s", (quote_id, session['portal_client_id']))
+    conn.commit(); conn.close()
+    flash("✅ Quote Accepted!", "success")
+    return redirect(url_for('portal.quote_detail', quote_id=quote_id))
+
+@portal_bp.route('/portal/quote/<int:quote_id>/decline')
+def quote_decline(quote_id):
+    if 'portal_client_id' not in session: return redirect(url_for('portal.portal_home'))
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("UPDATE quotes SET status = 'Declined' WHERE id = %s AND client_id = %s", (quote_id, session['portal_client_id']))
+    conn.commit(); conn.close()
+    flash("❌ Quote Declined.", "warning")
+    return redirect(url_for('portal.quote_detail', quote_id=quote_id))
+                         
                          
