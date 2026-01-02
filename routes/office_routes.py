@@ -415,20 +415,46 @@ def service_desk():
     conn.close()
     return render_template('office/service_desk.html', requests=requests, staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# --- 7. WORK ORDER DISPATCH ---
+# --- 7. WORK ORDER DISPATCH (Now Creates Real Job) ---
 @office_bp.route('/office/create-work-order', methods=['POST'])
 def create_work_order():
     if not check_office_access(): return redirect(url_for('auth.login'))
     
+    # 1. Get Data from the Modal Form
     req_id = request.form.get('request_id')
+    staff_id = request.form.get('assigned_staff_id')
+    start_date = request.form.get('schedule_date')
     
     conn = get_db(); cur = conn.cursor()
+    comp_id = session.get('company_id')
+
     try:
-        cur.execute("UPDATE service_requests SET status = 'Scheduled' WHERE id = %s", (req_id,))
-        conn.commit()
-        flash("✅ Job Dispatched and Staff Notified!", "success")
+        # 2. Fetch info from the Request to copy into the Job
+        cur.execute("SELECT client_id, property_id, issue_description FROM service_requests WHERE id=%s", (req_id,))
+        req_data = cur.fetchone()
+        
+        if req_data:
+            client_id, prop_id, desc = req_data
+            
+            # 3. INSERT into JOBS table (This pushes it to the Engineer's App)
+            # We generate a reference like "JOB-{req_id}"
+            job_ref = f"JOB-{req_id}"
+            
+            cur.execute("""
+                INSERT INTO jobs (company_id, client_id, property_id, staff_id, description, status, start_date, ref)
+                VALUES (%s, %s, %s, %s, %s, 'Scheduled', %s, %s)
+            """, (comp_id, client_id, prop_id, staff_id, desc, start_date, job_ref))
+
+            # 4. Update the Request Status to 'Scheduled' so we know it's handled
+            cur.execute("UPDATE service_requests SET status = 'Scheduled' WHERE id = %s", (req_id,))
+            
+            conn.commit()
+            flash(f"✅ Job {job_ref} Created & Sent to Engineer's List!", "success")
+        else:
+            flash("Error: Could not find original request details.", "error")
+
     except Exception as e:
-        conn.rollback(); flash(f"Error: {e}", "error")
+        conn.rollback(); flash(f"Error dispatching: {e}", "error")
     finally:
         conn.close()
         
@@ -466,6 +492,22 @@ def system_upgrade():
         conn.commit()
         log.append("✅ Success: Database tables and columns verified.")
         log.append("✅ Success: Added 'property_id' to Jobs table.")
+        
+       try:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS quote_items (
+                    id SERIAL PRIMARY KEY,
+                    quote_id INTEGER,
+                    description TEXT,
+                    quantity INTEGER,
+                    unit_price NUMERIC(10, 2),
+                    total NUMERIC(10, 2)
+                )
+            """)
+            conn.commit()
+            log.append("✅ Success: 'quote_items' table created.")
+        except Exception as e:
+            conn.rollback(); log.append(f"ℹ️ Note: {e}")
         
     except Exception as e:
         conn.rollback(); log.append(f"❌ Error: {e}")
