@@ -83,6 +83,9 @@ def staff_list():
     if request.method == 'POST':
         action = request.form.get('action')
         name = request.form.get('name')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        role = request.form.get('role')
         
         file_path = None
         if 'license_file' in request.files:
@@ -103,19 +106,40 @@ def staff_list():
 
         try:
             if action == 'add_staff':
-                cur.execute("INSERT INTO staff (company_id, name, email, phone, position, status, license_path) VALUES (%s, %s, %s, %s, %s, 'Active', %s)", 
-                           (comp_id, name, request.form.get('email'), request.form.get('phone'), request.form.get('role'), file_path))
-                conn.commit(); flash("✅ Staff Added")
+                # 1. Insert into Staff Directory
+                cur.execute("INSERT INTO staff (company_id, name, email, phone, position, status, license_path) VALUES (%s, %s, %s, %s, %s, 'Active', %s) RETURNING id", 
+                            (comp_id, name, email, phone, role, file_path))
+                staff_id = cur.fetchone()[0]
+
+                # 2. Automatically Create User Login (Syncs Staff & Users)
+                # Generates a random password for them to start
+                raw_password = generate_secure_password()
+                hashed_pw = generate_password_hash(raw_password)
+                
+                # Insert into USERS table so they can log into Site App
+                # We use the email as the username. If email is missing, we generate a fake one.
+                login_email = email if email else f"staff{staff_id}_{comp_id}@tradecore.com"
+                
+                cur.execute("""
+                    INSERT INTO users (company_id, name, email, password_hash, role) 
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (comp_id, name, login_email, hashed_pw, 'Staff'))
+                
+                conn.commit()
+                flash(f"✅ Staff Added & Login Created! Password: {raw_password}")
             
             elif action == 'edit_staff':
                 sid = request.form.get('staff_id')
-                # Use COALESCE logic in Python or SQL to keep old file if no new file uploaded
                 if file_path:
                     cur.execute("UPDATE staff SET name=%s, email=%s, phone=%s, position=%s, status=%s, license_path=%s WHERE id=%s AND company_id=%s", 
-                               (name, request.form.get('email'), request.form.get('phone'), request.form.get('role'), request.form.get('status'), file_path, sid, comp_id))
+                               (name, email, phone, role, request.form.get('status'), file_path, sid, comp_id))
                 else:
                     cur.execute("UPDATE staff SET name=%s, email=%s, phone=%s, position=%s, status=%s WHERE id=%s AND company_id=%s", 
-                               (name, request.form.get('email'), request.form.get('phone'), request.form.get('role'), request.form.get('status'), sid, comp_id))
+                               (name, email, phone, role, request.form.get('status'), sid, comp_id))
+                
+                # Also update the User Name in the users table to keep them in sync
+                cur.execute("UPDATE users SET name=%s WHERE email=%s AND company_id=%s", (name, email, comp_id))
+                
                 conn.commit(); flash("✅ Staff Updated")
 
         except Exception as e: conn.rollback(); flash(f"Error: {e}")
@@ -183,7 +207,7 @@ def fleet_list():
                                 flash("✨ AI Auto-filled receipt details!")
 
                 cur.execute("INSERT INTO maintenance_logs (company_id, vehicle_id, type, description, date, cost, receipt_path) VALUES (%s, %s, %s, %s, %s, %s, %s)", 
-                           (comp_id, request.form.get('vehicle_id'), request.form.get('log_type'), desc or 'Receipt', date_val or date.today(), cost or 0, file_url))
+                            (comp_id, request.form.get('vehicle_id'), request.form.get('log_type'), desc or 'Receipt', date_val or date.today(), cost or 0, file_url))
                 flash("✅ Log Added")
             
             conn.commit()

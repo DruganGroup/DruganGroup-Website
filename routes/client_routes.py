@@ -328,29 +328,3 @@ def fix_client_schema():
         return f"❌ Migration Error: {e}"
     finally: 
         conn.close()
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
-    conn = get_db(); cur = conn.cursor()
-    try:
-        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT;")
-        
-        # Create Properties Table if missing
-        cur.execute("""CREATE TABLE IF NOT EXISTS properties (
-            id SERIAL PRIMARY KEY, client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
-            company_id INTEGER, address_line1 TEXT NOT NULL, postcode TEXT, tenant_name TEXT, tenant_phone TEXT, 
-            access_info TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);""")
-            
-        # ADD COMPLIANCE COLUMNS AUTOMATICALLY
-        compliance_cols = ["gas_safety_due DATE", "eicr_due DATE", "pat_test_due DATE", "fire_risk_due DATE", "epc_expiry DATE"]
-        for col in compliance_cols:
-            try: cur.execute(f"ALTER TABLE properties ADD COLUMN IF NOT EXISTS {col};")
-            except: pass
-
-        cur.execute("""CREATE TABLE IF NOT EXISTS service_requests (
-            id SERIAL PRIMARY KEY, property_id INTEGER REFERENCES properties(id) ON DELETE CASCADE,
-            client_id INTEGER, company_id INTEGER, issue_description TEXT, severity TEXT, 
-            status TEXT DEFAULT 'Pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);""")
-            
-        conn.commit()
-        return "✅ Schema Updated: Compliance columns added to Properties."
-    except Exception as e: return f"Error: {e}"
-    finally: conn.close()
