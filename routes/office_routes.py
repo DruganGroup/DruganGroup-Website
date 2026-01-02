@@ -10,8 +10,8 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-# Import the new AI Brain
-from services.ai_assistant import scan_receipt, verify_license
+# Import the AI Brain
+from services.ai_assistant import scan_receipt, verify_license, universal_sort_document
 
 office_bp = Blueprint('office', __name__)
 ALLOWED_OFFICE_ROLES = ['Admin', 'SuperAdmin', 'Office']
@@ -22,10 +22,6 @@ def check_office_access():
     if 'user_id' not in session: return False
     if session.get('role') not in ALLOWED_OFFICE_ROLES: return False
     return True
-
-def get_date_fmt_str(company_id):
-    # Simplified for stability - defaults to UK
-    return '%d/%m/%Y'
 
 def format_date(d, fmt_str='%d/%m/%Y'):
     if not d: return ""
@@ -40,6 +36,10 @@ def parse_date(d):
         except: return None
     return d
 
+def generate_secure_password(length=10):
+    alphabet = string.ascii_letters + string.digits + "!@#$%"
+    return ''.join(secrets.choice(alphabet) for i in range(length))
+
 # --- 1. OFFICE DASHBOARD ---
 @office_bp.route('/office-hub')
 @office_bp.route('/office-hub.html')
@@ -48,12 +48,13 @@ def office_dashboard():
     company_id = session.get('company_id'); config = get_site_config(company_id)
     conn = get_db(); cur = conn.cursor()
     
+    # Stats
     cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id = %s AND status != 'Completed'", (company_id,))
     pending = cur.fetchone()[0]
     cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id = %s AND status != 'Completed'", (company_id,))
     active = cur.fetchone()[0]
     
-    # Quotes
+    # Recent Quotes
     cur.execute("SELECT q.id, c.name, q.reference, q.date, q.total, q.status FROM quotes q LEFT JOIN clients c ON q.client_id = c.id WHERE q.company_id = %s AND q.status = 'Draft' ORDER BY q.id DESC LIMIT 5", (company_id,))
     quotes = [(r[0], r[1], r[2], format_date(r[3]), r[4], r[5]) for r in cur.fetchall()]
 
@@ -70,13 +71,12 @@ def office_dashboard():
     conn.close()
     return render_template('office/office_dashboard.html', pending_requests_count=pending, active_jobs_count=active, quotes=quotes, completed_jobs=completed, live_ops=live, brand_color=config['color'], logo_url=config['logo'])
 
-# --- 9. STAFF MANAGEMENT (AI Powered) ---
+# --- 2. STAFF MANAGEMENT (AI Powered) ---
 @office_bp.route('/office/staff', methods=['GET', 'POST'])
 def staff_list():
     if not check_office_access(): return redirect(url_for('auth.login'))
     comp_id = session.get('company_id'); config = get_site_config(comp_id); conn = get_db(); cur = conn.cursor()
     
-    # Ensure License Column
     try: cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS license_path TEXT"); conn.commit()
     except: conn.rollback()
 
@@ -94,10 +94,10 @@ def staff_list():
                 f.save(full_sys_path)
                 file_path = f"uploads/licenses/{filename}"
                 
-                # --- AI VERIFICATION ---
+                # AI Verification
                 ai_check = verify_license(full_sys_path, name)
                 if ai_check['success'] and not ai_check['verified']:
-                    flash(f"⚠️ AI Warning: The name on this license does not match '{name}'. Please double check.", "warning")
+                    flash(f"⚠️ AI Warning: The name on this license does not match '{name}'.", "warning")
                 elif ai_check['success']:
                     flash("✅ AI Verified: License name matches staff member.")
 
@@ -109,6 +109,7 @@ def staff_list():
             
             elif action == 'edit_staff':
                 sid = request.form.get('staff_id')
+                # Use COALESCE logic in Python or SQL to keep old file if no new file uploaded
                 if file_path:
                     cur.execute("UPDATE staff SET name=%s, email=%s, phone=%s, position=%s, status=%s, license_path=%s WHERE id=%s AND company_id=%s", 
                                (name, request.form.get('email'), request.form.get('phone'), request.form.get('role'), request.form.get('status'), file_path, sid, comp_id))
@@ -137,7 +138,7 @@ def staff_list():
     conn.close()
     return render_template('office/staff_management.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# --- 10. FLEET (AI Powered Receipts) ---
+# --- 3. FLEET MANAGEMENT (AI Powered) ---
 @office_bp.route('/office/fleet', methods=['GET', 'POST'])
 def fleet_list():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -171,7 +172,7 @@ def fleet_list():
                         f.save(full_sys_path)
                         file_url = f"uploads/receipts/{filename}"
                         
-                        # --- AI AUTO-FILL ---
+                        # AI Auto-Fill
                         if not cost or cost == '0':
                             scan = scan_receipt(full_sys_path)
                             if scan['success']:
@@ -210,93 +211,7 @@ def fleet_list():
     
     return render_template('office/fleet_management.html', vehicles=vehicles, staff=staff, today=date.today(), date_fmt='%d/%m/%Y', brand_color=config['color'], logo_url=config['logo'])
 
-# --- OTHER ROUTES (Calendar/Service Desk) ---
-@office_bp.route('/office/calendar')
-def office_calendar():
-    if not check_office_access(): return redirect(url_for('auth.login'))
-    comp_id = session.get('company_id'); config = get_site_config(comp_id)
-    return render_template('office/calendar.html', brand_color=config['color'], logo_url=config['logo'])
-
-@office_bp.route('/office/calendar/data')
-def get_calendar_data():
-    if not check_office_access(): return jsonify([])
-    comp_id = session.get('company_id'); conn = get_db(); cur = conn.cursor(); events = []
-    try:
-        cur.execute("SELECT j.id, j.ref, j.start_date, c.name, j.status FROM jobs j LEFT JOIN clients c ON j.client_id = c.id WHERE j.company_id = %s AND j.start_date IS NOT NULL", (comp_id,))
-        for j in cur.fetchall(): events.append({'title': f"{j[1]} - {j[3]}", 'start': str(j[2]), 'color': '#28a745' if j[4] == 'Completed' else '#0d6efd', 'url': f"/site/job/{j[0]}", 'allDay': True})
-    except: pass
-    conn.close(); return jsonify(events)
-
-@office_bp.route('/client/<int:client_id>')
-def view_client(client_id): return "Client View Placeholder" 
-@office_bp.route('/client/<int:client_id>/add_property', methods=['POST'])
-def add_property(client_id): return redirect(url_for('office.view_client', client_id=client_id))
-@office_bp.route('/office/quote/<int:quote_id>/convert')
-def convert_to_invoice(quote_id): return redirect(url_for('office.office_dashboard'))
-@office_bp.route('/office/create-work-order', methods=['POST'])
-def create_work_order(): return redirect(url_for('office.service_desk'))
-# --- ADD TO routes/office_routes.py ---
-
-# --- 8. SERVICE DESK (The Missing Route) ---
-@office_bp.route('/office/service-desk', methods=['GET', 'POST'])
-def service_desk():
-    if not check_office_access(): return redirect(url_for('auth.login'))
-    
-    comp_id = session.get('company_id')
-    config = get_site_config(comp_id)
-    conn = get_db(); cur = conn.cursor()
-
-    if request.method == 'POST':
-        # Handle quick actions like marking complete
-        req_id = request.form.get('request_id')
-        action = request.form.get('action')
-        
-        try:
-            if action == 'complete':
-                cur.execute("UPDATE service_requests SET status = 'Completed' WHERE id = %s AND company_id = %s", (req_id, comp_id))
-                flash("✅ Request Marked as Completed")
-            elif action == 'delete':
-                cur.execute("DELETE FROM service_requests WHERE id = %s AND company_id = %s", (req_id, comp_id))
-                flash("🗑️ Request Deleted")
-            elif action == 'convert_job':
-                # Redirect to job creation (Simplified)
-                return redirect(url_for('office.office_calendar')) # Placeholder for job conversion logic
-                
-            conn.commit()
-        except Exception as e:
-            conn.rollback()
-            flash(f"Error updating request: {e}")
-
-    # Fetch All Service Requests
-    # Joins with Client and Property to show real names instead of IDs
-    cur.execute("""
-        SELECT sr.id, sr.issue_description, sr.severity, sr.status, sr.created_at, c.name, p.address_line1
-        FROM service_requests sr
-        LEFT JOIN clients c ON sr.client_id = c.id
-        LEFT JOIN properties p ON sr.property_id = p.id
-        WHERE sr.company_id = %s
-        ORDER BY 
-            CASE WHEN sr.status = 'Pending' THEN 1 ELSE 2 END, 
-            sr.created_at DESC
-    """, (comp_id,))
-    
-    rows = cur.fetchall()
-    requests = []
-    for r in rows:
-        requests.append({
-            'id': r[0],
-            'issue': r[1],
-            'severity': r[2],
-            'status': r[3],
-            'date': format_date(r[4]),
-            'client': r[5] or 'N/A',
-            'address': r[6] or 'General'
-        })
-
-    conn.close()
-    return render_template('office/service_desk.html', requests=requests, brand_color=config['color'], logo_url=config['logo'])
-        
-        # --- UNIVERSAL UPLOAD & AUTO-SORTER ---
+# --- 4. UNIVERSAL UPLOAD CENTER (AI) ---
 @office_bp.route('/office/upload-center', methods=['POST'])
 def universal_upload():
     if not check_office_access(): return jsonify({'error': 'Unauthorized'}), 403
@@ -315,7 +230,6 @@ def universal_upload():
     db_path = f"uploads/{comp_id}/inbox/{filename}"
 
     # 2. AI Analysis
-    from services.ai_assistant import universal_sort_document
     scan = universal_sort_document(full_path)
     
     if not scan['success']:
@@ -329,14 +243,11 @@ def universal_upload():
     msg = "File Processed"
     
     try:
-        # --- A. FUEL RECEIPT (Link to Van) ---
+        # A. FUEL RECEIPT
         if doc_type == 'fuel_receipt':
             v_id = None
             reg = data.get('vehicle_reg')
-            
-            # Try to match Reg Plate
             if reg:
-                # Remove spaces for better matching 'AB12 CDE' -> 'AB12CDE'
                 clean_reg = reg.replace(" ", "")
                 cur.execute("SELECT id FROM vehicles WHERE REPLACE(reg_plate, ' ', '') ILIKE %s AND company_id=%s", (f"%{clean_reg}%", comp_id))
                 row = cur.fetchone()
@@ -346,23 +257,18 @@ def universal_upload():
                 INSERT INTO maintenance_logs (company_id, vehicle_id, type, description, date, cost, receipt_path)
                 VALUES (%s, %s, 'Fuel', %s, %s, %s, %s)
             """, (comp_id, v_id, f"AI: {data.get('vendor')} ({reg or 'Unknown Van'})", data.get('date') or date.today(), data.get('total_cost') or 0, db_path))
-            
             msg = f"Fuel Logged. Linked to Van: {reg if v_id else 'No Match Found'}"
 
-        # --- B. INVOICE (Link to Job) ---
+        # B. INVOICE
         elif doc_type == 'supplier_invoice':
-            # Ensure table exists for job costs
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS job_expenses (
                     id SERIAL PRIMARY KEY, company_id INTEGER, job_id INTEGER, 
                     description TEXT, cost REAL, date DATE, receipt_path TEXT
                 )
             """)
-            
             j_id = None
             ref = data.get('job_ref')
-            
-            # Try to match Job Ref
             if ref:
                 cur.execute("SELECT id FROM jobs WHERE ref ILIKE %s AND company_id=%s", (f"%{ref}%", comp_id))
                 row = cur.fetchone()
@@ -372,21 +278,17 @@ def universal_upload():
                 INSERT INTO job_expenses (company_id, job_id, description, cost, date, receipt_path)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (comp_id, j_id, f"Invoice: {data.get('supplier_name')}", data.get('total') or 0, data.get('date') or date.today(), db_path))
-            
             msg = f"Invoice Filed. Linked to Job: {ref if j_id else 'Unassigned'}"
 
-        # --- C. LICENSE (Link to Staff) ---
+        # C. LICENSE
         elif doc_type == 'driving_license':
             s_name = data.get('staff_name')
             s_id = None
-            
             if s_name:
-                # Fuzzy match name (e.g. 'Nathan' matches 'Nathan Smith')
                 cur.execute("SELECT id FROM staff WHERE name ILIKE %s AND company_id=%s", (f"%{s_name}%", comp_id))
                 row = cur.fetchone()
                 if row: 
                     s_id = row[0]
-                    # Update the staff profile directly
                     cur.execute("UPDATE staff SET license_path = %s WHERE id = %s", (db_path, s_id))
                     msg = f"License Verified & Attached to {s_name}."
                 else:
@@ -402,13 +304,8 @@ def universal_upload():
         return jsonify({'status': 'error', 'message': str(e)})
     finally:
         conn.close()
-        
-        # --- HELPER: GENERATE RANDOM PASSWORD ---
-def generate_secure_password(length=10):
-    alphabet = string.ascii_letters + string.digits + "!@#$%"
-    return ''.join(secrets.choice(alphabet) for i in range(length))
 
-# --- ROUTE: ENABLE PORTAL & EMAIL CREDENTIALS ---
+# --- 5. ENABLE PORTAL ---
 @office_bp.route('/office/client/<int:client_id>/enable-portal', methods=['POST'])
 def enable_portal(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -417,7 +314,6 @@ def enable_portal(client_id):
     conn = get_db(); cur = conn.cursor()
 
     try:
-        # 1. Fetch Client Details
         cur.execute("SELECT name, email FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
         client = cur.fetchone()
         
@@ -426,27 +322,16 @@ def enable_portal(client_id):
             return redirect(url_for('office.view_client', client_id=client_id))
 
         client_name, client_email = client
-
-        # 2. Generate Password
         raw_password = generate_secure_password()
         hashed_password = generate_password_hash(raw_password)
 
-        # 3. Save to Database (We store the HASH, not the raw password)
-        # Ensure your clients table has a 'password_hash' column
         cur.execute("UPDATE clients SET password_hash = %s WHERE id = %s", (hashed_password, client_id))
         
-        # 4. Fetch SMTP Settings & Send Email
-        # (This uses the logic we saw in your site_routes.py)
         cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
         settings = {row[0]: row[1] for row in cur.fetchall()}
         
         if 'smtp_host' in settings:
-            import smtplib
-            from email.mime.text import MIMEText
-            from email.mime.multipart import MIMEMultipart
-
             login_url = url_for('portal.portal_login', company_id=comp_id, _external=True)
-            
             msg = MIMEMultipart()
             msg['From'] = settings.get('smtp_email')
             msg['To'] = client_email
@@ -460,7 +345,6 @@ def enable_portal(client_id):
                 <strong>Username:</strong> {client_email}<br>
                 <strong>Password:</strong> {raw_password}
             </div>
-            <p>Please keep these details safe.</p>
             """
             msg.attach(MIMEText(body, 'html'))
 
@@ -469,158 +353,144 @@ def enable_portal(client_id):
             server.login(settings['smtp_email'], settings['smtp_password'])
             server.send_message(msg)
             server.quit()
-            
             flash(f"✅ Access Granted! Password sent to {client_email}")
         else:
             flash("⚠️ Password generated, but Email Failed (SMTP Settings missing).", "warning")
-            # Ideally show the password on screen here if email fails
             
         conn.commit()
-
     except Exception as e:
-        conn.rollback()
-        flash(f"Error: {e}", "error")
-    
+        conn.rollback(); flash(f"Error: {e}", "error")
     finally:
         conn.close()
 
     return redirect('/clients')
-    
-    # --- TEMPORARY SYSTEM TOOL: CREATE INVOICES TABLE ---
-@office_bp.route('/office/system-upgrade')
-def system_upgrade():
-    # Security: Ensure only Admin can run this
-    if not check_office_access(): return redirect(url_for('auth.login'))
-    
-    conn = get_db()
-    cur = conn.cursor()
-    log = []
-    
-    try:
-        # Create the missing 'invoices' table
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS invoices (
-                id SERIAL PRIMARY KEY,
-                company_id INTEGER NOT NULL,
-                client_id INTEGER NOT NULL,
-                invoice_number VARCHAR(50),
-                date_issue DATE,
-                total_amount NUMERIC(10, 2),
-                status VARCHAR(20) DEFAULT 'Unpaid',
-                file_path TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.commit()
-        log.append("✅ Success: 'invoices' table created.")
-        
-        return "<br>".join(log)
-        
-        try:
-            cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS tenant_phone VARCHAR(50)")
-            cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS key_code VARCHAR(100)")
-            conn.commit()
-            log.append("✅ Success: Added 'tenant_phone' and 'key_code' to Properties.")
-        except Exception as e:
-            conn.rollback()
-            log.append(f"ℹ️ Note on Property Upgrade: {e}")
-            
-        try:
-            cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS image_url TEXT")
-            conn.commit()
-            log.append("✅ Success: Added 'image_url' to Service Requests.")
-        except Exception as e:
-            conn.rollback()
-            log.append(f"ℹ️ Note: {e}")
-        
-    except Exception as e:
-        return f"Error: {e}"
-    finally:
-        conn.close()
-        
-        # --- OFFICE SERVICE DESK VIEW ---
-@office_bp.route('/office/service-desk')
+
+# --- 6. SERVICE DESK ---
+@office_bp.route('/office/service-desk', methods=['GET', 'POST'])
 def service_desk():
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
 
-    # This query joins the tables so you see "Address" and "Client Name" 
-    # instead of just ID numbers.
+    if request.method == 'POST':
+        req_id = request.form.get('request_id')
+        action = request.form.get('action')
+        
+        try:
+            if action == 'complete':
+                cur.execute("UPDATE service_requests SET status = 'Completed' WHERE id = %s AND company_id = %s", (req_id, comp_id))
+                flash("✅ Request Marked as Completed")
+            elif action == 'delete':
+                cur.execute("DELETE FROM service_requests WHERE id = %s AND company_id = %s", (req_id, comp_id))
+                flash("🗑️ Request Deleted")
+            elif action == 'convert_job':
+                return redirect(url_for('office.office_calendar'))
+                
+            conn.commit()
+        except Exception as e:
+            conn.rollback(); flash(f"Error updating request: {e}")
+
     cur.execute("""
-        SELECT 
-            sr.id, 
-            sr.severity, 
-            p.address_line1 as property_address, 
-            sr.issue_description, 
-            c.name as client_name, 
-            sr.status
+        SELECT sr.id, sr.issue_description, sr.severity, sr.status, sr.created_at, c.name, p.address_line1
         FROM service_requests sr
-        JOIN properties p ON sr.property_id = p.id
-        JOIN clients c ON sr.client_id = c.id
-        WHERE p.company_id = %s
-        ORDER BY sr.created_at DESC
+        LEFT JOIN clients c ON sr.client_id = c.id
+        LEFT JOIN properties p ON sr.property_id = p.id
+        WHERE sr.company_id = %s
+        ORDER BY CASE WHEN sr.status = 'Pending' THEN 1 ELSE 2 END, sr.created_at DESC
     """, (comp_id,))
     
-    # We convert the rows into a list of dictionaries so the HTML can read them easily
     rows = cur.fetchall()
     requests = []
     for r in rows:
         requests.append({
-            'id': r[0],
-            'severity': r[1],
-            'property_address': r[2],
-            'issue_description': r[3],
-            'client_name': r[4],
-            'status': r[5]
+            'id': r[0], 'issue_description': r[1], 'severity': r[2], 'status': r[3], 'date': format_date(r[4]),
+            'client_name': r[5] or 'N/A', 'property_address': r[6] or 'General'
         })
 
-    # Also fetch staff list for the "Dispatch" dropdown
     cur.execute("SELECT id, name FROM staff WHERE company_id = %s", (comp_id,))
     staff = [{'id': s[0], 'name': s[1]} for s in cur.fetchall()]
 
     conn.close()
-    return render_template('office/service_desk.html', requests=requests, staff=staff)
-    
-    @office_bp.route('/office/create-work-order', methods=['POST'])
+    return render_template('office/service_desk.html', requests=requests, staff=staff, brand_color=config['color'], logo_url=config['logo'])
+
+# --- 7. WORK ORDER DISPATCH ---
+@office_bp.route('/office/create-work-order', methods=['POST'])
 def create_work_order():
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     req_id = request.form.get('request_id')
-    staff_id = request.form.get('assigned_staff_id')
-    date = request.form.get('schedule_date')
     
     conn = get_db(); cur = conn.cursor()
     try:
-        # 1. Update the request to 'Scheduled'
         cur.execute("UPDATE service_requests SET status = 'Scheduled' WHERE id = %s", (req_id,))
-        
-        # 2. Logic to create a Job/Work Order would go here
-        # For now, we just confirm the status update
         conn.commit()
         flash("✅ Job Dispatched and Staff Notified!", "success")
     except Exception as e:
-        conn.rollback()
-        flash(f"Error: {e}", "error")
+        conn.rollback(); flash(f"Error: {e}", "error")
     finally:
         conn.close()
         
     return redirect(url_for('office.service_desk'))
-    
-    # --- EMERGENCY DB FIX ---
+
+# --- 8. SYSTEM REPAIR (ALL IN ONE) ---
+@office_bp.route('/office/system-upgrade')
 @office_bp.route('/office/repair-db')
-def repair_db():
+def system_upgrade():
     if not check_office_access(): return redirect(url_for('auth.login'))
+    
     conn = get_db(); cur = conn.cursor()
+    log = []
+    
     try:
-        # This is exactly what the error is complaining about:
+        # Invoices Table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS invoices (
+                id SERIAL PRIMARY KEY, company_id INTEGER NOT NULL, client_id INTEGER NOT NULL,
+                invoice_number VARCHAR(50), date_issue DATE, total_amount NUMERIC(10, 2),
+                status VARCHAR(20) DEFAULT 'Unpaid', file_path TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Property Columns
         cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS tenant_phone VARCHAR(50)")
         cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS key_code VARCHAR(100)")
+        
+        # Service Request Columns
+        cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS image_url TEXT")
+        
         conn.commit()
-        return "✅ Database Repair Complete: 'key_code' and 'tenant_phone' added."
+        log.append("✅ Success: Database tables and columns verified.")
+        
     except Exception as e:
-        conn.rollback()
-        return f"❌ Repair Failed: {e}"
+        conn.rollback(); log.append(f"❌ Error: {e}")
     finally:
         conn.close()
+        
+    return "<br>".join(log)
+
+# --- 9. CALENDAR ROUTES ---
+@office_bp.route('/office/calendar')
+def office_calendar():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    comp_id = session.get('company_id'); config = get_site_config(comp_id)
+    return render_template('office/calendar.html', brand_color=config['color'], logo_url=config['logo'])
+
+@office_bp.route('/office/calendar/data')
+def get_calendar_data():
+    if not check_office_access(): return jsonify([])
+    comp_id = session.get('company_id'); conn = get_db(); cur = conn.cursor(); events = []
+    try:
+        cur.execute("SELECT j.id, j.ref, j.start_date, c.name, j.status FROM jobs j LEFT JOIN clients c ON j.client_id = c.id WHERE j.company_id = %s AND j.start_date IS NOT NULL", (comp_id,))
+        for j in cur.fetchall(): events.append({'title': f"{j[1]} - {j[3]}", 'start': str(j[2]), 'color': '#28a745' if j[4] == 'Completed' else '#0d6efd', 'url': f"/site/job/{j[0]}", 'allDay': True})
+    except: pass
+    conn.close(); return jsonify(events)
+
+# --- 10. PLACEHOLDER ROUTES (To prevent crashes) ---
+@office_bp.route('/client/<int:client_id>')
+def view_client(client_id): return "Client View Placeholder" 
+@office_bp.route('/client/<int:client_id>/add_property', methods=['POST'])
+def add_property(client_id): return redirect(url_for('office.view_client', client_id=client_id))
+@office_bp.route('/office/quote/<int:quote_id>/convert')
+def convert_to_invoice(quote_id): return redirect(url_for('office.office_dashboard'))
