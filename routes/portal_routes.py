@@ -47,51 +47,51 @@ def portal_auth():
     finally:
         conn.close()
 
-# --- 3. PORTAL HOME (Production Version) ---
 @portal_bp.route('/portal/home')
 def portal_home():
-    if not check_portal_access(): 
-        return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    if 'portal_client_id' not in session: return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
     
-    client_id = session['portal_client_id']
     comp_id = session['portal_company_id']
-    config = get_site_config(comp_id)
-    
+    client_id = session['portal_client_id']
     conn = get_db(); cur = conn.cursor()
     
-    # 1. Fetch Active Jobs
-    # (Using empty list for now until we confirm the Jobs table structure, 
-    # but this is where we will hook it up next)
-    active_jobs = [] 
-    
-    # 2. Fetch Properties (Now requesting the REAL 'type' column)
-    cur.execute("""
-        SELECT id, postcode, type, address_line1, tenant_name 
-        FROM properties 
-        WHERE client_id = %s
-    """, (client_id,))
-    properties = cur.fetchall() 
-    
-    # 3. Fetch Service Requests
-    # This will now work because Step 1 created the table
-    cur.execute("""
-        SELECT id, issue_description, status, created_at, severity
-        FROM service_requests 
-        WHERE client_id = %s 
-        ORDER BY created_at DESC LIMIT 5
-    """, (client_id,))
-    requests = cur.fetchall()
+    # Get Client Name
+    cur.execute("SELECT name FROM clients WHERE id = %s", (client_id,))
+    res = cur.fetchone()
+    client_name = res[0] if res else "Client"
 
+    # Stats: Active Jobs
+    cur.execute("SELECT id FROM jobs WHERE client_id = %s AND status != 'Completed'", (client_id,))
+    active_jobs = cur.fetchall()
+    
+    # Stats: Open Quotes
+    cur.execute("SELECT COUNT(*) FROM quotes WHERE client_id = %s AND status IN ('Draft', 'Sent')", (client_id,))
+    open_quotes = cur.fetchone()[0]
+
+    # --- UPDATED QUERY ---
+    # We now fetch a 5th item (Index 4): The count of open service requests
+    cur.execute("""
+        SELECT 
+            p.id, 
+            p.address_line1, 
+            p.postcode, 
+            p.type,
+            (SELECT COUNT(*) FROM service_requests sr WHERE sr.property_id = p.id AND sr.status != 'Completed') as open_issues
+        FROM properties p
+        WHERE p.client_id = %s
+    """, (client_id,))
+    properties = cur.fetchall()
+    
     conn.close()
     
-    return render_template('portal/portal_home.html',
-                         client_name=session['portal_client_name'],
-                         company_name=config.get('name'),
-                         logo_url=config.get('logo'),
-                         brand_color=config.get('color'),
-                         active_jobs=active_jobs,
+    return render_template('portal/portal_home.html', 
+                         company_name=session.get('portal_company_name'),
+                         client_name=client_name,
                          properties=properties,
-                         requests=requests)
+                         active_jobs=active_jobs,
+                         open_quotes_count=open_quotes,
+                         brand_color=session.get('portal_brand_color'),
+                         logo_url=session.get('portal_logo_url'))
                          
 # --- 4. LOGOUT ---
 @portal_bp.route('/portal/logout')
@@ -379,4 +379,38 @@ def quote_decline(quote_id):
     flash("❌ Quote Declined.", "warning")
     return redirect(url_for('portal.quote_detail', quote_id=quote_id))
                          
-                         
+    # --- PROPERTY VIEW ---
+@portal_bp.route('/portal/property/<int:property_id>')
+def property_view(property_id):
+    if 'portal_client_id' not in session: return redirect(url_for('portal.portal_home'))
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. Fetch Property Details (Indices: 0=id, 1=address, 2=postcode, 3=type, 4=tenant, 5=phone, 6=keycode)
+    cur.execute("""
+        SELECT id, address_line1, postcode, type, tenant_name, tenant_phone, key_code 
+        FROM properties 
+        WHERE id = %s AND client_id = %s
+    """, (property_id, session['portal_client_id']))
+    prop = cur.fetchone()
+    
+    if not prop:
+        conn.close()
+        return "Property not found or access denied", 404
+
+    # 2. Fetch Job History (Indices must match HTML: 1=Ref, 2=Status, 3=Desc, 4=Date)
+    cur.execute("""
+        SELECT id, ref, status, description, start_date 
+        FROM jobs 
+        WHERE property_id = %s 
+        ORDER BY start_date DESC
+    """, (property_id,))
+    job_history = cur.fetchall()
+    
+    conn.close()
+    
+    return render_template('portal/portal_property_view.html', 
+                         prop=prop, 
+                         job_history=job_history,
+                         company_name=session.get('portal_company_name'),
+                         brand_color=session.get('portal_brand_color'))

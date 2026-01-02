@@ -96,10 +96,23 @@
                         <h6 class="fw-bold mb-1">{{ p[1] }}</h6>
                         <p class="small text-muted mb-3">{{ p[2] }}</p>
                         
-                        <div class="mt-auto border-top pt-2 d-flex justify-content-between align-items-center">
-                            <small class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> Compliance OK</small>
-                            <a href="/portal/property/{{ p[0] }}" class="btn btn-sm btn-link text-decoration-none p-0">View History</a>
-                        </div>
+<div class="mt-auto border-top pt-2 d-flex justify-content-between align-items-center">
+    <a href="/portal/property/{{ p[0] }}" class="text-decoration-none">
+        {% if p[4] > 0 %}
+            <small class="text-danger fw-bold">
+                <i class="fas fa-exclamation-triangle me-1"></i> Attention Needed
+            </small>
+        {% else %}
+            <small class="text-success fw-bold">
+                <i class="fas fa-check-circle me-1"></i> Compliance OK
+            </small>
+        {% endif %}
+    </a>
+    
+    <a href="/portal/property/{{ p[0] }}" class="btn btn-sm btn-link text-decoration-none p-0">
+        View History
+    </a>
+</div>
                     </div>
                 </div>
                 {% endfor %}
