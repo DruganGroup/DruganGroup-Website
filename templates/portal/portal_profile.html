@@ -7,79 +7,87 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root { --brand-color: {{ brand_color }}; }
+        :root { --brand-color: {{ brand_color or '#0d6efd' }}; }
         body { background-color: #f4f7f6; font-family: 'Segoe UI', sans-serif; }
         .navbar { background-color: white; border-bottom: 3px solid var(--brand-color); }
-        .btn-brand { background-color: var(--brand-color); color: white; }
-        .text-brand { color: var(--brand-color) !important; }
-        .nav-link { color: #555; padding: 10px 15px; border-radius: 8px; margin-bottom: 5px; }
-        .nav-link:hover { background-color: #f8f9fa; color: var(--brand-color); }
+        .text-brand { color: var(--brand-color); }
+        .btn-brand { background-color: var(--brand-color); color: white; border: none; }
+        .btn-brand:hover { filter: brightness(0.9); color: white; }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg sticky-top shadow-sm mb-4">
+<nav class="navbar navbar-expand-lg shadow-sm mb-4">
     <div class="container">
-        {% if logo_url %}
-            <img src="{{ logo_url }}" height="40" alt="{{ company_name }}">
-        {% else %}
-            <h4 class="m-0 fw-bold text-brand">{{ company_name }}</h4>
-        {% endif %}
-        <div class="ms-auto">
-            <a href="/portal/logout" class="btn btn-sm btn-outline-danger">Logout</a>
-        </div>
+        <a href="/portal/home" class="btn btn-sm btn-outline-secondary me-3"><i class="fas fa-arrow-left"></i> Dashboard</a>
+        <h5 class="m-0 fw-bold text-brand">My Profile</h5>
     </div>
 </nav>
 
-<div class="container">
-    <div class="row g-4">
-        <div class="col-lg-3">
-            <div class="card p-3 border-0 shadow-sm">
-                <nav class="nav flex-column">
-                    <a class="nav-link" href="/portal/home"><i class="fas fa-home me-3"></i> Dashboard</a>
-                    <a class="nav-link" href="/portal/invoices"><i class="fas fa-file-invoice me-3"></i> My Invoices</a>
-                    <a class="nav-link active fw-bold bg-light" href="/portal/profile"><i class="fas fa-user-cog me-3 text-brand"></i> My Profile</a>
-                </nav>
-            </div>
-        </div>
+<div class="container" style="max-width: 700px;">
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 
-        <div class="col-lg-9">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-
-            <div class="card border-0 shadow-sm p-4">
-                <h4 class="fw-bold mb-4">Edit Profile</h4>
-                <form method="POST">
-                    <div class="mb-3">
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-4">Account Details</h5>
+            
+            <form action="/portal/profile" method="POST">
+                
+                <div class="row g-3 mb-4">
+                    <div class="col-md-12">
                         <label class="form-label">Full Name</label>
-                        <input type="text" name="name" class="form-control" value="{{ client[0] }}" required>
+                        <input type="text" name="name" class="form-control" value="{{ client[1] }}" required>
                     </div>
-                    <div class="mb-3">
+                    
+                    <div class="col-md-6">
                         <label class="form-label">Email Address</label>
-                        <input type="email" name="email" class="form-control" value="{{ client[1] }}" required>
+                        <input type="email" name="email" class="form-control" value="{{ client[2] }}" required>
                     </div>
                     
-                    <hr class="my-4">
-                    
-                    <div class="mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Phone Number</label>
+                        <input type="text" name="phone" class="form-control" value="{{ client[3] }}">
+                    </div>
+                </div>
+
+                <hr class="text-muted opacity-25 my-4">
+
+                <h5 class="fw-bold mb-3 text-danger"><i class="fas fa-lock me-2"></i>Security</h5>
+                <div class="alert alert-light border">
+                    <small class="text-muted">Leave these fields blank if you do not want to change your password.</small>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
                         <label class="form-label">New Password</label>
-                        <input type="password" name="password" class="form-control" placeholder="Leave blank to keep current password">
+                        <input type="password" name="new_password" class="form-control" placeholder="New Password">
                     </div>
-                    
-                    <button type="submit" class="btn btn-brand w-100">Update Profile</button>
-                </form>
-            </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Confirm Password</label>
+                        <input type="password" name="confirm_password" class="form-control" placeholder="Confirm New Password">
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end">
+                    <a href="/portal/home" class="btn btn-light me-2">Cancel</a>
+                    <button type="submit" class="btn btn-brand px-4 fw-bold">Save Changes</button>
+                </div>
+
+            </form>
         </div>
     </div>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
