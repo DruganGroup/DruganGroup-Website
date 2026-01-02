@@ -396,3 +396,104 @@ def universal_upload():
         return jsonify({'status': 'error', 'message': str(e)})
     finally:
         conn.close()
+        
+        # --- HELPER: GENERATE RANDOM PASSWORD ---
+def generate_secure_password(length=10):
+    alphabet = string.ascii_letters + string.digits + "!@#$%"
+    return ''.join(secrets.choice(alphabet) for i in range(length))
+
+# --- ROUTE: ENABLE PORTAL & EMAIL CREDENTIALS ---
+@office_bp.route('/office/client/<int:client_id>/enable-portal', methods=['POST'])
+def enable_portal(client_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+
+    try:
+        # 1. Fetch Client Details
+        cur.execute("SELECT name, email FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
+        client = cur.fetchone()
+        
+        if not client or not client[1]: 
+            flash("❌ Client needs an email address first.", "error")
+            return redirect(url_for('office.view_client', client_id=client_id))
+
+        client_name, client_email = client
+
+        # 2. Generate Password
+        raw_password = generate_secure_password()
+        hashed_password = generate_password_hash(raw_password)
+
+        # 3. Save to Database (We store the HASH, not the raw password)
+        # Ensure your clients table has a 'password_hash' column
+        cur.execute("UPDATE clients SET password_hash = %s WHERE id = %s", (hashed_password, client_id))
+        
+        # 4. Fetch SMTP Settings & Send Email
+        # (This uses the logic we saw in your site_routes.py)
+        cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+        settings = {row[0]: row[1] for row in cur.fetchall()}
+        
+        if 'smtp_host' in settings:
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+
+            login_url = url_for('portal.portal_login', company_id=comp_id, _external=True)
+            
+            msg = MIMEMultipart()
+            msg['From'] = settings.get('smtp_email')
+            msg['To'] = client_email
+            msg['Subject'] = "Your Client Portal Access"
+
+            body = f"""
+            <h3>Hello {client_name},</h3>
+            <p>An account has been created for you to track your jobs, quotes, and invoices.</p>
+            <div style="background:#f4f4f4; padding:15px; border-radius:5px; margin: 15px 0;">
+                <strong>Login URL:</strong> <a href="{login_url}">{login_url}</a><br>
+                <strong>Username:</strong> {client_email}<br>
+                <strong>Password:</strong> {raw_password}
+            </div>
+            <p>Please keep these details safe.</p>
+            """
+            msg.attach(MIMEText(body, 'html'))
+
+            server = smtplib.SMTP(settings['smtp_host'], int(settings['smtp_port']))
+            server.starttls()
+            server.login(settings['smtp_email'], settings['smtp_password'])
+            server.send_message(msg)
+            server.quit()
+            
+            flash(f"✅ Access Granted! Password sent to {client_email}")
+        else:
+            flash("⚠️ Password generated, but Email Failed (SMTP Settings missing).", "warning")
+            # Ideally show the password on screen here if email fails
+            
+        conn.commit()
+
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}", "error")
+    
+    finally:
+        conn.close()
+
+    return redirect(url_for('office.client_list'))
+    
+    # --- TEMP DATABASE FIXER (Paste at bottom of office_routes.py) ---
+@office_bp.route('/office/fix-db-passwords')
+def fix_db_passwords():
+    if not check_office_access(): return "Unauthorized"
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Add column to store secure password hashes
+        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT")
+        conn.commit()
+        return "✅ Success: 'password_hash' column added to Clients table."
+    except Exception as e:
+        return f"Error: {e}"
+    finally:
+        conn.close()
+    
+    
+    
