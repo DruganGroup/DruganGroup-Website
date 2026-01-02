@@ -10,6 +10,12 @@ def check_portal_access():
     if 'portal_client_id' not in session: return False
     return True
 
+# --- HELPER: GET LOGIN URL (Safe Fallback) ---
+def get_login_url():
+    # If session has no company_id, default to 1 to prevent crash
+    comp_id = session.get('portal_company_id', 1)
+    return url_for('portal.portal_login', company_id=comp_id)
+
 # --- 1. LOGIN PAGE ---
 @portal_bp.route('/portal/login/<int:company_id>', methods=['GET'])
 def portal_login(company_id):
@@ -47,42 +53,45 @@ def portal_auth():
 # --- 3. PORTAL DASHBOARD (HOME) ---
 @portal_bp.route('/portal/home')
 def portal_home():
-    if not check_portal_access(): 
-        return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    if not check_portal_access(): return redirect(get_login_url())
     
     comp_id = session['portal_company_id']
     client_id = session['portal_client_id']
     conn = get_db(); cur = conn.cursor()
     
-    # 1. Company Name
+    # 1. GET COMPANY NAME
     cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'company_name'", (comp_id,))
     row_name = cur.fetchone()
     company_name = row_name[0] if row_name else "Client Portal"
     session['portal_company_name'] = company_name
 
-    # 2. Client Name
+    # 2. Get Client Name
     cur.execute("SELECT name FROM clients WHERE id = %s", (client_id,))
     res = cur.fetchone()
     client_name = res[0] if res else "Client"
 
-    # 3. Active Jobs
+    # 3. Stats: Active Jobs
     cur.execute("SELECT id FROM jobs WHERE client_id = %s AND status != 'Completed'", (client_id,))
     active_jobs = cur.fetchall()
     
-    # 4. Open Quotes
+    # 4. Stats: Open Quotes
     cur.execute("SELECT COUNT(*) FROM quotes WHERE client_id = %s AND status IN ('Draft', 'Sent')", (client_id,))
     open_quotes = cur.fetchone()[0]
 
-    # 5. Properties Status
+    # 5. Fetch Properties with Issue Count
     cur.execute("""
-        SELECT p.id, p.address_line1, p.postcode, p.type,
-        (SELECT COUNT(*) FROM service_requests sr WHERE sr.property_id = p.id AND sr.status != 'Pending' AND sr.status != 'Completed') as open_issues
-        FROM properties p WHERE p.client_id = %s
+        SELECT 
+            p.id, 
+            p.address_line1, 
+            p.postcode, 
+            p.type,
+            (SELECT COUNT(*) FROM service_requests sr WHERE sr.property_id = p.id AND sr.status != 'Pending' AND sr.status != 'Completed') as open_issues
+        FROM properties p
+        WHERE p.client_id = %s
     """, (client_id,))
     properties = cur.fetchall()
 
-    # --- 6. NEW: Fetch Recent Service Requests ---
-    # We join with properties to get the address name
+    # 6. Recent Requests
     cur.execute("""
         SELECT sr.id, p.address_line1, sr.issue_description, sr.status, sr.created_at, sr.severity
         FROM service_requests sr
@@ -100,20 +109,22 @@ def portal_home():
                          properties=properties,
                          active_jobs=active_jobs,
                          open_quotes_count=open_quotes,
-                         recent_requests=recent_requests, # Passed to template
+                         recent_requests=recent_requests,
                          brand_color=session.get('portal_brand_color'),
                          logo_url=session.get('portal_logo_url'))
-                         
+
 # --- 4. LOGOUT ---
 @portal_bp.route('/portal/logout')
 def portal_logout():
+    # Capture company ID before clearing session for redirect
+    comp_id = session.get('portal_company_id', 1)
     session.pop('portal_client_id', None)
-    return "Logged out. You can close this window."
+    return redirect(url_for('portal.portal_login', company_id=comp_id))
 
 # --- 5. MY INVOICES PAGE ---
 @portal_bp.route('/portal/invoices')
 def portal_invoices():
-    if not check_portal_access(): return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    if not check_portal_access(): return redirect(get_login_url())
     
     client_id = session['portal_client_id']
     comp_id = session['portal_company_id']
@@ -139,7 +150,7 @@ def portal_invoices():
 # --- 6. ADD PROPERTY ---
 @portal_bp.route('/portal/property/add', methods=['POST'])
 def add_property():
-    if not check_portal_access(): return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    if not check_portal_access(): return redirect(get_login_url())
     
     client_id = session['portal_client_id']
     comp_id = session['portal_company_id']
@@ -171,7 +182,7 @@ def add_property():
 # --- 7. PROPERTY DETAIL VIEW ---
 @portal_bp.route('/portal/property/<int:property_id>')
 def property_detail(property_id):
-    if not check_portal_access(): return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    if not check_portal_access(): return redirect(get_login_url())
     
     client_id = session['portal_client_id']
     comp_id = session['portal_company_id']
@@ -214,7 +225,7 @@ def property_detail(property_id):
 # --- 8. SUBMIT SERVICE REQUEST ---
 @portal_bp.route('/portal/request/submit', methods=['POST'])
 def submit_request():
-    if not check_portal_access(): return redirect(url_for('portal.portal_home'))
+    if not check_portal_access(): return redirect(get_login_url())
     
     prop_id = request.form.get('property_id')
     desc = request.form.get('description')
@@ -239,10 +250,53 @@ def submit_request():
         
     return redirect(url_for('portal.property_detail', property_id=prop_id))
 
-# --- 9. MY QUOTES PAGE ---
+# --- 9. VIEW REQUEST DETAILS (With Photos & Engineer) ---
+@portal_bp.route('/portal/request/<int:request_id>')
+def request_detail(request_id):
+    if not check_portal_access(): return redirect(get_login_url())
+    
+    client_id = session['portal_client_id']
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. Fetch Request
+    cur.execute("""
+        SELECT sr.id, sr.issue_description, sr.status, sr.created_at, sr.severity, 
+               p.address_line1, p.postcode, sr.property_id
+        FROM service_requests sr
+        JOIN properties p ON sr.property_id = p.id
+        WHERE sr.id = %s AND sr.client_id = %s
+    """, (request_id, client_id))
+    req = cur.fetchone()
+    
+    if not req:
+        conn.close()
+        return "Request not found", 404
+
+    # 2. Fetch Completion Details (The Job)
+    completion_details = None
+    if req[2] == 'Completed':
+        cur.execute("""
+            SELECT j.description, j.end_date, j.completion_photos, 
+                   u.name as engineer_name
+            FROM jobs j
+            LEFT JOIN users u ON j.engineer_id = u.id
+            WHERE j.property_id = %s AND j.status = 'Completed'
+            ORDER BY j.end_date DESC LIMIT 1
+        """, (req[7],)) 
+        completion_details = cur.fetchone()
+
+    conn.close()
+    
+    return render_template('portal/portal_request_view.html', 
+                         req=req, 
+                         completion=completion_details,
+                         company_name=session.get('portal_company_name'),
+                         brand_color=session.get('portal_brand_color'))
+
+# --- 10. MY QUOTES PAGE ---
 @portal_bp.route('/portal/quotes')
 def portal_quotes():
-    if not check_portal_access(): return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    if not check_portal_access(): return redirect(get_login_url())
     
     client_id = session['portal_client_id']
     comp_id = session['portal_company_id']
@@ -269,10 +323,10 @@ def portal_quotes():
                          brand_color=config.get('color'),
                          quotes=quotes)
 
-# --- 10. QUOTE DETAILS & ACTIONS ---
+# --- 11. QUOTE DETAILS & ACTIONS ---
 @portal_bp.route('/portal/quote/<int:quote_id>')
 def quote_detail(quote_id):
-    if not check_portal_access(): return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    if not check_portal_access(): return redirect(get_login_url())
     
     client_id = session['portal_client_id']
     conn = get_db(); cur = conn.cursor()
@@ -295,7 +349,7 @@ def quote_detail(quote_id):
 
 @portal_bp.route('/portal/quote/<int:quote_id>/accept')
 def quote_accept(quote_id):
-    if not check_portal_access(): return redirect(url_for('portal.portal_home'))
+    if not check_portal_access(): return redirect(get_login_url())
     conn = get_db(); cur = conn.cursor()
     cur.execute("UPDATE quotes SET status = 'Accepted' WHERE id = %s AND client_id = %s", (quote_id, session['portal_client_id']))
     conn.commit(); conn.close()
@@ -304,17 +358,17 @@ def quote_accept(quote_id):
 
 @portal_bp.route('/portal/quote/<int:quote_id>/decline')
 def quote_decline(quote_id):
-    if not check_portal_access(): return redirect(url_for('portal.portal_home'))
+    if not check_portal_access(): return redirect(get_login_url())
     conn = get_db(); cur = conn.cursor()
     cur.execute("UPDATE quotes SET status = 'Declined' WHERE id = %s AND client_id = %s", (quote_id, session['portal_client_id']))
     conn.commit(); conn.close()
     flash("❌ Quote Declined.", "warning")
     return redirect(url_for('portal.quote_detail', quote_id=quote_id))
 
-# --- 11. PROFILE MANAGEMENT ---
+# --- 12. PROFILE MANAGEMENT ---
 @portal_bp.route('/portal/profile', methods=['GET', 'POST'])
 def portal_profile():
-    if not check_portal_access(): return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    if not check_portal_access(): return redirect(get_login_url())
     
     client_id = session['portal_client_id']
     conn = get_db(); cur = conn.cursor()
@@ -356,51 +410,3 @@ def portal_profile():
                          client=client,
                          company_name=session.get('portal_company_name'),
                          brand_color=session.get('portal_brand_color'))
-                         
-                         # --- VIEW REQUEST DETAILS (With Photos & Engineer) ---
-@portal_bp.route('/portal/request/<int:request_id>')
-def request_detail(request_id):
-    if not check_portal_access(): return redirect(url_for('portal.portal_home'))
-    
-    client_id = session['portal_client_id']
-    conn = get_db(); cur = conn.cursor()
-    
-    # 1. Fetch the Request Details
-    cur.execute("""
-        SELECT sr.id, sr.issue_description, sr.status, sr.created_at, sr.severity, 
-               p.address_line1, p.postcode, sr.property_id
-        FROM service_requests sr
-        JOIN properties p ON sr.property_id = p.id
-        WHERE sr.id = %s AND sr.client_id = %s
-    """, (request_id, client_id))
-    req = cur.fetchone()
-    
-    if not req:
-        conn.close()
-        return "Request not found", 404
-
-    # 2. Fetch Completion Details (The Job)
-    # This assumes we can link the Job to the Property and Date, or via a direct ID if you have it.
-    # We will look for the most recent COMPLETED job for this property.
-    completion_details = None
-    
-    if req[2] == 'Completed':
-        cur.execute("""
-            SELECT j.description, j.end_date, j.completion_photos, 
-                   u.name as engineer_name
-            FROM jobs j
-            LEFT JOIN users u ON j.engineer_id = u.id
-            WHERE j.property_id = %s AND j.status = 'Completed'
-            ORDER BY j.end_date DESC LIMIT 1
-        """, (req[7],)) # req[7] is property_id
-        completion_details = cur.fetchone()
-
-    conn.close()
-    
-    return render_template('portal/portal_request_view.html', 
-                         req=req, 
-                         completion=completion_details,
-                         company_name=session.get('portal_company_name'),
-                         brand_color=session.get('portal_brand_color'))
-                         
-                         
