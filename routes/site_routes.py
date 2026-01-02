@@ -99,32 +99,64 @@ def repair_site_tables(conn):
 @site_bp.route('/site-hub')
 @site_bp.route('/site-companion') 
 def site_dashboard():
-    if not check_site_access(): return redirect(url_for('auth.login'))
+    if 'user_id' not in session: return redirect('/')
     
-    comp_id = session.get('company_id')
-    staff_id = session.get('user_id')
-    conn = get_db(); repair_site_tables(conn); cur = conn.cursor()
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. User & Config
+    cur.execute("SELECT name, company_id FROM users WHERE id = %s", (session['user_id'],))
+    user = cur.fetchone()
+    staff_name = user[0]
+    comp_id = user[1]
+    config = get_site_config(comp_id)
+    
+    today = datetime.now().date()
 
-    # Fetch "My Jobs"
+    # 2. TODAY'S SCHEDULE (Existing Logic)
     cur.execute("""
-        SELECT j.id, j.status, j.ref, j.site_address, p.postcode, j.description, j.start_date
+        SELECT j.id, j.status, j.ref, p.address_line1, p.postcode, j.description
         FROM jobs j
-        LEFT JOIN properties p ON j.site_address = p.address_line1 
-        WHERE j.company_id = %s AND j.staff_id = %s AND j.status != 'Completed'
-        ORDER BY j.start_date ASC
-    """, (comp_id, staff_id))
+        JOIN properties p ON j.property_id = p.id
+        WHERE j.engineer_id = %s AND j.start_date = %s AND j.status != 'Completed'
+    """, (session['user_id'], today))
     
     my_jobs = []
-    for r in cur.fetchall():
-        my_jobs.append({'id': r[0], 'status': r[1], 'reference': r[2], 'address': r[3], 'postcode': r[4] or '', 'notes': r[5]})
+    for row in cur.fetchall():
+        my_jobs.append({
+            'id': row[0], 'status': row[1], 'reference': row[2],
+            'address': row[3], 'postcode': row[4], 'notes': row[5]
+        })
 
-    config = get_site_config(comp_id); conn.close()
+    # 3. NEW: 7-DAY AGENDA CALENDAR
+    calendar = []
+    for i in range(7):
+        check_date = today + timedelta(days=i)
+        
+        # Fetch jobs for this specific date
+        cur.execute("""
+            SELECT j.id, c.name, p.postcode, j.status
+            FROM jobs j
+            JOIN clients c ON j.client_id = c.id
+            JOIN properties p ON j.property_id = p.id
+            WHERE j.engineer_id = %s AND j.start_date = %s
+        """, (session['user_id'], check_date))
+        daily_jobs = cur.fetchall()
+        
+        calendar.append({
+            'date': check_date,
+            'day_name': check_date.strftime('%a'), # e.g. "Mon"
+            'day_num': check_date.strftime('%d'),  # e.g. "12"
+            'jobs': daily_jobs # List of jobs for this day
+        })
+
+    conn.close()
     
     return render_template('site/site_dashboard.html', 
-                         staff_name=session.get('user_name'), 
-                         my_jobs=my_jobs, 
-                         brand_color=config['color'], 
-                         logo_url=config['logo'])
+                         staff_name=staff_name,
+                         my_jobs=my_jobs,
+                         calendar=calendar, # <--- Passing the new calendar data
+                         brand_color=config.get('color'),
+                         logo_url=config.get('logo'))
 
 # --- 2. DEDICATED VAN CHECK PAGE ---
 @site_bp.route('/site/van-check', methods=['GET', 'POST'])

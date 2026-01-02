@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Site Hub | TradeCore</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; padding-bottom: 80px; }
@@ -120,14 +121,46 @@
             </div>
         </div>
         {% else %}
-        <div class="text-center py-5 text-muted">
+        <div class="text-center py-5 text-muted bg-white rounded-3 shadow-sm mb-4">
             <i class="fas fa-coffee fa-3x mb-3 opacity-25"></i>
             <p>No jobs assigned to you today.</p>
         </div>
         {% endfor %}
 
+        <h6 class="fw-bold text-muted text-uppercase mb-3 px-1 mt-5">Upcoming Week</h6>
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+            <div class="list-group list-group-flush">
+                {% for day in calendar %}
+                <div class="list-group-item p-3 d-flex align-items-center {{ 'bg-light' if loop.first else '' }}">
+                    <div class="text-center me-3" style="min-width: 50px;">
+                        <div class="small fw-bold text-uppercase text-muted">{{ day.day_name }}</div>
+                        <div class="h4 fw-bold mb-0 {{ 'text-primary' if loop.first else 'text-dark' }}">{{ day.day_num }}</div>
+                    </div>
+                    
+                    <div class="flex-grow-1 border-start ps-3">
+                        {% if day.jobs %}
+                            {% for job in day.jobs %}
+                            <a href="/site/job/{{ job[0] }}" class="text-decoration-none text-dark d-block mb-2">
+                                <span class="badge bg-primary me-1" style="width: 8px; height: 8px; padding: 0; border-radius: 50%;"> </span>
+                                <strong style="font-size: 0.95rem;">{{ job[1] }}</strong> 
+                                <span class="text-muted small ms-1">{{ job[2] }}</span>
+                                {% if job[3] == 'Completed' %}
+                                    <i class="fas fa-check-circle text-success small ms-1"></i>
+                                {% endif %}
+                            </a>
+                            {% endfor %}
+                        {% else %}
+                            <small class="text-muted fst-italic">No jobs scheduled</small>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
     </div>
-	<div class="modal fade" id="vanModal" tabindex="-1" aria-hidden="true">
+
+    <div class="modal fade" id="vanModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content rounded-4 border-0 shadow">
                 <div class="modal-header border-0 pb-0">
