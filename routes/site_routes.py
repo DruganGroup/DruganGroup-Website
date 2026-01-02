@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request
 from db import get_db, get_site_config
 from werkzeug.utils import secure_filename
+from services.ai_assistant import scan_receipt
 import os
 import smtplib
 from email.mime.text import MIMEText
@@ -298,3 +299,55 @@ def update_job(job_id):
 @site_bp.route('/advertise')
 @site_bp.route('/business-better')
 def advertise_page(): return render_template('public/advert-bb.html')
+
+# --- 5. DRIVER FUEL UPLOAD (AI POWERED) ---
+@site_bp.route('/site/log-fuel', methods=['GET', 'POST'])
+def log_fuel():
+    if not check_site_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    user_id = session.get('user_id')
+    conn = get_db(); cur = conn.cursor()
+
+    # 1. Find the Van assigned to this Driver
+    cur.execute("SELECT id, reg_plate FROM vehicles WHERE assigned_driver_id = %s", (user_id,))
+    vehicle = cur.fetchone()
+
+    if not vehicle:
+        flash("❌ You are not assigned to a vehicle.")
+        return redirect(url_for('site.site_dashboard'))
+    
+    v_id, v_reg = vehicle
+
+    if request.method == 'POST':
+        file = request.files.get('receipt')
+        if file and file.filename != '':
+            # Save File
+            filename = secure_filename(f"FUEL_{v_reg}_{int(datetime.now().timestamp())}_{file.filename}")
+            full_path = os.path.join(UPLOAD_FOLDER, filename)
+            file.save(full_path)
+            db_path = f"uploads/van_checks/{filename}" # Re-using van folder for simplicity
+
+            # --- AI MAGIC ---
+            cost = 0
+            desc = f"Fuel for {v_reg}"
+            scan = scan_receipt(full_path)
+            
+            if scan['success']:
+                data = scan['data']
+                cost = data.get('total_cost', 0)
+                if data.get('vendor'): desc = f"Fuel: {data.get('vendor')} ({v_reg})"
+                flash(f"✨ AI Scanned Receipt: £{cost} logged.")
+            else:
+                flash("✅ Receipt uploaded (AI could not read text, logged as £0).")
+
+            # Save to DB
+            cur.execute("""
+                INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost, receipt_path) 
+                VALUES (%s, %s, CURRENT_DATE, 'Fuel', %s, %s, %s)
+            """, (comp_id, v_id, desc, cost, db_path))
+            
+            conn.commit()
+            return redirect(url_for('site.site_dashboard'))
+
+    return render_template('site/fuel_form.html', reg=v_reg)
