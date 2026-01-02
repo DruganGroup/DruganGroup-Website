@@ -414,3 +414,31 @@ def property_view(property_id):
                          job_history=job_history,
                          company_name=session.get('portal_company_name'),
                          brand_color=session.get('portal_brand_color'))
+                         
+                         # --- SUBMIT SERVICE REQUEST ---
+@portal_bp.route('/portal/request/submit', methods=['POST'])
+def submit_request():
+    if 'portal_client_id' not in session: return redirect(url_for('portal.portal_home'))
+    
+    prop_id = request.form.get('property_id')
+    desc = request.form.get('description')
+    severity = request.form.get('severity')
+    client_id = session['portal_client_id']
+    comp_id = session['portal_company_id']
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    try:
+        cur.execute("""
+            INSERT INTO service_requests (company_id, client_id, property_id, issue_description, severity, status, created_at)
+            VALUES (%s, %s, %s, %s, %s, 'Pending', CURRENT_TIMESTAMP)
+        """, (comp_id, client_id, prop_id, desc, severity))
+        conn.commit()
+        flash("✅ Fault reported successfully. The Service Desk has been notified.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error reporting fault: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('portal.property_view', property_id=prop_id))
