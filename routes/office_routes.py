@@ -484,4 +484,39 @@ def enable_portal(client_id):
     finally:
         conn.close()
 
-    return redirect('/clients')    
+    return redirect('/clients')
+    
+    # --- TEMPORARY SYSTEM TOOL: CREATE INVOICES TABLE ---
+@office_bp.route('/office/system-upgrade')
+def system_upgrade():
+    # Security: Ensure only Admin can run this
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    log = []
+    
+    try:
+        # Create the missing 'invoices' table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS invoices (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER NOT NULL,
+                client_id INTEGER NOT NULL,
+                invoice_number VARCHAR(50),
+                date_issue DATE,
+                total_amount NUMERIC(10, 2),
+                status VARCHAR(20) DEFAULT 'Unpaid',
+                file_path TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+        log.append("✅ Success: 'invoices' table created.")
+        
+        return "<br>".join(log)
+        
+    except Exception as e:
+        return f"Error: {e}"
+    finally:
+        conn.close()
