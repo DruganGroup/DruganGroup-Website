@@ -607,3 +607,20 @@ def create_work_order():
         conn.close()
         
     return redirect(url_for('office.service_desk'))
+    
+    # --- EMERGENCY DB FIX ---
+@office_bp.route('/office/repair-db')
+def repair_db():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # This is exactly what the error is complaining about:
+        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS tenant_phone VARCHAR(50)")
+        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS key_code VARCHAR(100)")
+        conn.commit()
+        return "✅ Database Repair Complete: 'key_code' and 'tenant_phone' added."
+    except Exception as e:
+        conn.rollback()
+        return f"❌ Repair Failed: {e}"
+    finally:
+        conn.close()
