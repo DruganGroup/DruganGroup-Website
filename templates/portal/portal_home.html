@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Dashboard | {{ company_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root { --brand-color: {{ brand_color }}; }
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', sans-serif; }
+        
+        /* Brand Color Injection */
+        .navbar { background-color: white; border-bottom: 4px solid var(--brand-color); }
+        .text-brand { color: var(--brand-color); }
+        .btn-brand { background-color: var(--brand-color); color: white; border: none; font-weight: 600; }
+        .btn-brand:hover { filter: brightness(0.9); color: white; }
+        
+        .card { border: none; border-radius: 12px; box-shadow: 0 2px 15px rgba(0,0,0,0.03); }
+        .nav-link.active { color: var(--brand-color) !important; font-weight: bold; background: rgba(0,0,0,0.03); border-radius: 8px; }
+        .nav-link { color: #555; padding: 12px 15px; margin-bottom: 5px; }
+        .nav-link:hover { background: white; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg sticky-top shadow-sm mb-4">
+    <div class="container">
+        {% if logo_url %}
+            <img src="{{ logo_url }}" height="45" alt="{{ company_name }}">
+        {% else %}
+            <h4 class="m-0 fw-bold text-brand">{{ company_name }}</h4>
+        {% endif %}
+        
+        <div class="ms-auto d-flex align-items-center">
+            <span class="me-3 text-muted small d-none d-md-block">Logged in as <strong>{{ client_name }}</strong></span>
+            <a href="/portal/logout" class="btn btn-sm btn-outline-secondary">Sign Out</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row g-4">
+        <div class="col-md-3">
+            <div class="card p-3 mb-4">
+                <div class="text-center mb-3 pb-3 border-bottom">
+                    <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="width: 60px; height: 60px;">
+                        <span class="fs-4 fw-bold text-brand">{{ client_name[0] }}</span>
+                    </div>
+                    <h6 class="fw-bold m-0">{{ client_name }}</h6>
+                </div>
+                
+                <nav class="nav flex-column">
+                    <a class="nav-link active" href="/portal/home"><i class="fas fa-home me-3" style="width:20px"></i> Overview</a>
+                    <a class="nav-link" href="/portal/quotes"><i class="fas fa-file-signature me-3" style="width:20px"></i> Quotes ({{ open_quotes_count }})</a>
+                    <a class="nav-link" href="/portal/invoices"><i class="fas fa-file-invoice-dollar me-3" style="width:20px"></i> Invoices</a>
+                    <a class="nav-link" href="/portal/jobs"><i class="fas fa-hard-hat me-3" style="width:20px"></i> Job History</a>
+                </nav>
+            </div>
+            
+            <div class="card p-3 bg-light border-0">
+                <small class="text-muted fw-bold text-uppercase mb-2 d-block">Need Help?</small>
+                <p class="small mb-2">Contact {{ company_name }}:</p>
+                <a href="tel:{{ company_phone }}" class="btn btn-sm btn-outline-dark w-100 mb-2"><i class="fas fa-phone me-2"></i> Call Us</a>
+                <a href="mailto:{{ company_email }}" class="btn btn-sm btn-outline-dark w-100"><i class="fas fa-envelope me-2"></i> Email</a>
+            </div>
+        </div>
+
+        <div class="col-md-9">
+            
+            {% if active_jobs %}
+            <div class="card p-4 mb-4 text-white" style="background: linear-gradient(45deg, var(--brand-color), #333);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="fw-bold mb-1">Work in Progress</h4>
+                        <p class="mb-0 opacity-75">We have {{ active_jobs|length }} active job(s) at your properties.</p>
+                    </div>
+                    <i class="fas fa-tools fa-3x opacity-25"></i>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold m-0">Your Properties</h5>
+                <button class="btn btn-sm btn-brand shadow-sm" data-bs-toggle="modal" data-bs-target="#requestServiceModal">
+                    <i class="fas fa-plus me-2"></i>Request Service
+                </button>
+            </div>
+
+            <div class="row g-3">
+                {% for p in properties %}
+                <div class="col-md-6">
+                    <div class="card h-100 p-3 hover-shadow transition">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="badge bg-light text-dark border">{{ p.type or 'Property' }}</span>
+                            <small class="text-muted">ID: {{ p.id }}</small>
+                        </div>
+                        <h6 class="fw-bold mb-1">{{ p.address }}</h6>
+                        <p class="small text-muted mb-3">{{ p.postcode }}</p>
+                        
+                        <div class="mt-auto border-top pt-2 d-flex justify-content-between align-items-center">
+                            <small class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> Compliance OK</small>
+                            <a href="/portal/property/{{ p.id }}" class="btn btn-sm btn-link text-brand text-decoration-none p-0">View History &rarr;</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="requestServiceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form action="/portal/create-request" method="POST" class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Request a Service</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">This request will be sent directly to {{ company_name }}.</p>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Which Property?</label>
+                    <select name="property_id" class="form-select">
+                        {% for p in properties %}
+                        <option value="{{ p.id }}">{{ p.address }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">What's the issue?</label>
+                    <textarea name="description" class="form-control" rows="3" placeholder="e.g. Boiler is making a noise..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-brand">Send Request</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

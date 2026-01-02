@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Track Your Job | {{ company_name }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            display: flex; justify-content: center; align-items: center; height: 100vh;
+            font-family: 'Inter', sans-serif; margin: 0;
+        }
+        .login-card {
+            background: white; padding: 40px; border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            width: 100%; max-width: 400px; text-align: center;
+            border-top: 5px solid {{ brand_color }}; /* Tenant Brand Color */
+        }
+        .btn-primary {
+            background: {{ brand_color }}; color: white; border: none; padding: 14px; width: 100%;
+            border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 15px;
+            font-size: 1rem; transition: 0.2s;
+        }
+        .btn-primary:hover { filter: brightness(0.9); }
+        input {
+            width: 100%; padding: 14px; margin: 8px 0; 
+            border: 1px solid #e0e0e0; border-radius: 8px; 
+            box-sizing: border-box; background: #fafafa;
+            font-size: 0.95rem;
+        }
+        input:focus { outline: none; border-color: {{ brand_color }}; background: white; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        {% if logo_url %}
+            <img src="{{ logo_url }}" alt="{{ company_name }}" style="max-height: 60px; margin-bottom: 20px;">
+        {% else %}
+            <h2 style="color: {{ brand_color }};">{{ company_name }}</h2>
+        {% endif %}
+
+        <h3 style="margin: 0 0 10px 0; font-weight: 600;">Client Portal</h3>
+        <p style="color: #666; font-size: 0.9rem; margin-bottom: 25px; line-height: 1.5;">
+            Enter your Job Reference and Email to track progress, view invoices, and approve quotes.
+        </p>
+        
+        <form action="/portal/auth" method="POST">
+            <input type="hidden" name="company_id" value="{{ company_id }}">
+            
+            <input type="text" name="job_ref" placeholder="Job Reference (e.g. JB-1024)" required>
+            <input type="email" name="email" placeholder="Your Email Address" required>
+            
+            <button type="submit" class="btn-primary">Secure Login</button>
+        </form>
+        
+        <p style="margin-top: 30px; font-size: 0.75rem; color: #ccc;">
+            Powered by Secure Client Hub
+        </p>
+    </div>
+</body>
+</html>
