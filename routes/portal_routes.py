@@ -292,3 +292,37 @@ def submit_request():
         conn.close()
 
     return redirect('/portal/home')
+    # --- 9. MY QUOTES PAGE ---
+@portal_bp.route('/portal/quotes')
+def portal_quotes():
+    if not check_portal_access(): return redirect(url_for('portal.portal_login'))
+    
+    client_id = session['portal_client_id']
+    comp_id = session['portal_company_id']
+    config = get_site_config(comp_id)
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    # Fetch Quotes for this client
+    # We expect columns: id, reference, date, total, status
+    try:
+        cur.execute("""
+            SELECT id, reference, date, total, status 
+            FROM quotes 
+            WHERE client_id = %s 
+            ORDER BY date DESC
+        """, (client_id,))
+        quotes = cur.fetchall()
+    except Exception as e:
+        # If table doesn't exist yet, just return empty list to prevent crash
+        quotes = []
+        print(f"Quotes Error: {e}")
+        
+    conn.close()
+    
+    return render_template('portal/portal_quotes.html',
+                         client_name=session['portal_client_name'],
+                         company_name=config.get('name'),
+                         logo_url=config.get('logo'),
+                         brand_color=config.get('color'),
+                         quotes=quotes)

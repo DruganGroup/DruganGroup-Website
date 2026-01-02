@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Quotes | {{ company_name }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root { --brand-color: {{ brand_color }}; }
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', sans-serif; }
+        .navbar { background-color: white; border-bottom: 3px solid var(--brand-color); }
+        .text-brand { color: var(--brand-color) !important; }
+        .nav-link { color: #555; padding: 10px 15px; border-radius: 8px; margin-bottom: 5px; }
+        .nav-link:hover { background-color: #f8f9fa; color: var(--brand-color); }
+        .badge-Draft { background-color: #6c757d; }
+        .badge-Sent { background-color: #0dcaf0; color: black; }
+        .badge-Accepted { background-color: #198754; }
+        .badge-Declined { background-color: #dc3545; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg sticky-top shadow-sm mb-4">
+    <div class="container">
+        {% if logo_url %}
+            <img src="{{ logo_url }}" height="40" alt="{{ company_name }}">
+        {% else %}
+            <h4 class="m-0 fw-bold text-brand">{{ company_name }}</h4>
+        {% endif %}
+        <div class="ms-auto">
+            <a href="/portal/logout" class="btn btn-sm btn-outline-danger">Logout</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row g-4">
+        <div class="col-lg-3">
+            <div class="card p-3 border-0 shadow-sm">
+                <nav class="nav flex-column">
+                    <a class="nav-link" href="/portal/home"><i class="fas fa-home me-3"></i> Dashboard</a>
+                    <a class="nav-link" href="/portal/invoices"><i class="fas fa-file-invoice me-3"></i> My Invoices</a>
+                    <a class="nav-link active fw-bold bg-light" href="/portal/quotes"><i class="fas fa-file-signature me-3 text-brand"></i> Quotes</a>
+                    <a class="nav-link" href="/portal/profile"><i class="fas fa-user-cog me-3"></i> My Profile</a>
+                </nav>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <h4 class="fw-bold mb-3">Your Quotes & Estimates</h4>
+            
+            <div class="card border-0 shadow-sm overflow-hidden">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Reference</th>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th class="text-end pe-4">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for q in quotes %}
+                        <tr>
+                            <td class="ps-4 fw-bold text-brand">{{ q[1] }}</td>
+                            <td>{{ q[2] }}</td>
+                            <td>£{{ "%.2f"|format(q[3]) }}</td>
+                            <td><span class="badge badge-{{ q[4] }}">{{ q[4] }}</span></td>
+                            <td class="text-end pe-4">
+                                <button class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-eye me-1"></i> View
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="fas fa-clipboard-list fa-2x mb-3 opacity-25"></i>
+                                <p>No active quotes found.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
