@@ -351,23 +351,4 @@ def portal_profile():
                          company_name=session.get('portal_company_name'),
                          brand_color=session.get('portal_brand_color'))
                          
-                         # --- EMERGENCY PASSWORD RESET (DELETE AFTER USE) ---
-@portal_bp.route('/portal/emergency-reset/<email>')
-def emergency_reset(email):
-    # This sets the password for the given email to: password123
-    conn = get_db(); cur = conn.cursor()
-    
-    # Generate the hash for 'password123'
-    hashed_pw = generate_password_hash("password123")
-    
-    try:
-        cur.execute("UPDATE clients SET password_hash = %s WHERE email = %s", (hashed_pw, email))
-        conn.commit()
-        if cur.rowcount > 0:
-            return f"✅ SUCCESS: Password for {email} has been reset to: password123"
-        else:
-            return f"❌ ERROR: Email address {email} not found in database."
-    except Exception as e:
-        return f"Error: {e}"
-    finally:
-        conn.close()
+                         
