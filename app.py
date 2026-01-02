@@ -1,7 +1,9 @@
 import os
-import traceback  # <--- NEW: Needed to capture the crash details
+import traceback
 from flask import Flask, render_template, request, session
-from db import get_db  # <--- NEW: Needed to write the error to your database
+from db import get_db
+from routes.portal_routes import portal_bp
+app.register_blueprint(portal_bp)
 
 # Import the Blueprints
 from routes.public_routes import public_bp

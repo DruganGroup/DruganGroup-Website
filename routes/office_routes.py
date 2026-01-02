@@ -3,6 +3,12 @@ from db import get_db, get_site_config
 from datetime import datetime, date, timedelta
 from werkzeug.utils import secure_filename
 import os
+import secrets
+import string
+from werkzeug.security import generate_password_hash
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Import the new AI Brain
 from services.ai_assistant import scan_receipt, verify_license
@@ -480,20 +486,7 @@ def enable_portal(client_id):
 
     return redirect(url_for('office.client_list'))
     
-    # --- TEMP DATABASE FIXER (Paste at bottom of office_routes.py) ---
-@office_bp.route('/office/fix-db-passwords')
-def fix_db_passwords():
-    if not check_office_access(): return "Unauthorized"
-    conn = get_db(); cur = conn.cursor()
-    try:
-        # Add column to store secure password hashes
-        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT")
-        conn.commit()
-        return "✅ Success: 'password_hash' column added to Clients table."
-    except Exception as e:
-        return f"Error: {e}"
-    finally:
-        conn.close()
+
     
     
     
