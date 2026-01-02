@@ -6,7 +6,7 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import date, datetime
+from datetime import datetime, timedelta
 
 site_bp = Blueprint('site', __name__)
 UPLOAD_FOLDER = 'static/uploads/van_checks'
@@ -103,20 +103,22 @@ def site_dashboard():
     
     conn = get_db(); cur = conn.cursor()
     
-    # 1. User & Config
-    # We use a fallback "or 'Staff'" just in case the name is empty
+    # 1. Fetch User & Company Config
     cur.execute("SELECT name, company_id FROM users WHERE id = %s", (session['user_id'],))
     user = cur.fetchone()
     staff_name = user[0] if user and user[0] else "Staff Member"
     comp_id = user[1]
     config = get_site_config(comp_id)
     
+    # SYSTEM: Prepare for Universal Date Format (Default to UK if missing)
+    # In the future, we will pull this from the 'settings' table per country.
+    user_date_format = config.get('date_format', '%d/%m/%Y') 
+    
     today = datetime.now().date()
 
-    # 2. TODAY'S SCHEDULE
-    # FIX: Added ::DATE to j.start_date so it compares correctly
+    # 2. TODAY'S SCHEDULE (CRASH FIXED HERE with ::DATE)
     cur.execute("""
-        SELECT j.id, j.status, j.ref, p.address_line1, p.postcode, j.description
+        SELECT j.id, j.status, j.ref, p.address_line1, p.postcode, j.description, j.start_date
         FROM jobs j
         JOIN properties p ON j.property_id = p.id
         WHERE j.engineer_id = %s AND j.start_date::DATE = %s AND j.status != 'Completed'
@@ -126,18 +128,17 @@ def site_dashboard():
     for row in cur.fetchall():
         my_jobs.append({
             'id': row[0], 'status': row[1], 'reference': row[2],
-            'address': row[3], 'postcode': row[4], 'notes': row[5]
+            'address': row[3], 'postcode': row[4], 'notes': row[5],
+            'date_obj': row[6] # We pass the object so the template can format it
         })
 
-    # 3. NEW: 7-DAY AGENDA CALENDAR
+    # 3. 7-DAY AGENDA CALENDAR (CRASH FIXED HERE with ::DATE)
     calendar = []
     for i in range(7):
-        # Loop from Today + 0 days to Today + 6 days
         check_date = today + timedelta(days=i)
         
-        # FIX: Added ::DATE here too
         cur.execute("""
-            SELECT j.id, c.name, p.postcode, j.status
+            SELECT j.id, c.name, p.postcode, j.status, j.start_date
             FROM jobs j
             JOIN clients c ON j.client_id = c.id
             JOIN properties p ON j.property_id = p.id
@@ -147,9 +148,9 @@ def site_dashboard():
         
         calendar.append({
             'date': check_date,
-            'day_name': check_date.strftime('%a'), # e.g. "Mon"
-            'day_num': check_date.strftime('%d'),  # e.g. "12"
-            'jobs': daily_jobs 
+            'day_name': check_date.strftime('%a'),
+            'day_num': check_date.strftime('%d'),
+            'jobs': daily_jobs
         })
 
     conn.close()
@@ -159,7 +160,8 @@ def site_dashboard():
                          my_jobs=my_jobs,
                          calendar=calendar, 
                          brand_color=config.get('color'),
-                         logo_url=config.get('logo'))
+                         logo_url=config.get('logo'),
+                         date_format=user_date_format)
                          
 # --- 2. DEDICATED VAN CHECK PAGE ---
 @site_bp.route('/site/van-check', methods=['GET', 'POST'])
