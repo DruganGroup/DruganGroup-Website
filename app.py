@@ -2,10 +2,9 @@ import os
 import traceback
 from flask import Flask, render_template, request, session
 from db import get_db
-from routes.portal_routes import portal_bp
-app.register_blueprint(portal_bp)
 
-# Import the Blueprints
+# 1. Import all Blueprints (Just importing, not registering yet)
+from routes.portal_routes import portal_bp
 from routes.public_routes import public_bp
 from routes.auth_routes import auth_bp
 from routes.office_routes import office_bp
@@ -14,13 +13,15 @@ from routes.finance_routes import finance_bp
 from routes.admin_routes import admin_bp
 from routes.site_routes import site_bp
 
+# 2. CREATE THE APP (This must happen before we use 'app')
 app = Flask(__name__)
 
 # Configuration
 app.secret_key = os.environ.get("SECRET_KEY", "dev_key_123") 
 app.config['UPLOAD_FOLDER'] = '/opt/render/project/src/static/uploads/logos'
 
-# REGISTER BLUEPRINTS (This is what makes the routes work!)
+# 3. REGISTER BLUEPRINTS (Now 'app' exists, so this works!)
+app.register_blueprint(portal_bp)
 app.register_blueprint(public_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(office_bp)
@@ -30,7 +31,6 @@ app.register_blueprint(admin_bp)
 app.register_blueprint(site_bp)
 
 # --- NEW: "BLACK BOX" ERROR HANDLER ---
-# This ensures Business Better doesn't just crash, but records the issue.
 @app.errorhandler(Exception)
 def handle_exception(e):
     # 1. If it's just a 404 (Page Not Found), handle it gently
@@ -54,7 +54,6 @@ def handle_exception(e):
             conn.commit()
             conn.close()
     except Exception as db_err:
-        # If the database itself is down, print to the server console as a backup
         print(f"❌ CRITICAL: Failed to log error to DB: {db_err}")
 
     # 4. Show a professional error page to the user
@@ -67,11 +66,10 @@ def handle_exception(e):
         </div>
     """, 500
 
-# --- DEBUG ROUTE (Kept for your reference) ---
+# --- DEBUG ROUTE ---
 @app.route('/debug-files')
 def debug_files():
     output = "<h1>File System Debug</h1>"
-    # Walk through the templates folder and list everything
     root_dir = os.path.join(os.getcwd(), 'templates')
     for root, dirs, files in os.walk(root_dir):
         level = root.replace(root_dir, '').count(os.sep)
@@ -82,18 +80,17 @@ def debug_files():
             output += f"{subindent}{f}<br>"
     return output
     
-    # --- NEW: SYSTEM BROADCAST CONTEXT PROCESSOR ---
+# --- SYSTEM BROADCAST CONTEXT PROCESSOR ---
 @app.context_processor
 def inject_global_alert():
     alert_msg = None
     try:
-        # Check if we have a global alert saved in the database
         conn = get_db()
         if conn:
             cur = conn.cursor()
             cur.execute("SELECT value FROM system_settings WHERE key = 'global_alert'")
             row = cur.fetchone()
-            if row and row[0]: # If there is text in the setting
+            if row and row[0]: 
                 alert_msg = row[0]
             conn.close()
     except: pass
