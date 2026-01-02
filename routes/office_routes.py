@@ -516,7 +516,17 @@ def system_upgrade():
         
         return "<br>".join(log)
         
+        try:
+            cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS tenant_phone VARCHAR(50)")
+            cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS key_code VARCHAR(100)")
+            conn.commit()
+            log.append("✅ Success: Added 'tenant_phone' and 'key_code' to Properties.")
+        except Exception as e:
+            conn.rollback()
+            log.append(f"ℹ️ Note on Property Upgrade: {e}")
+        
     except Exception as e:
         return f"Error: {e}"
     finally:
         conn.close()
+        
