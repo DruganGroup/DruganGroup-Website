@@ -415,43 +415,75 @@ def service_desk():
     conn.close()
     return render_template('office/service_desk.html', requests=requests, staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# --- 7. WORK ORDER DISPATCH ---
+# --- DISPATCH JOB (Smart Update) ---
 @office_bp.route('/office/create-work-order', methods=['POST'])
 def create_work_order():
-    if not check_office_access(): return redirect(url_for('auth.login'))
-    
-    req_id = request.form.get('request_id')
+    if 'user_id' not in session: return redirect('/login')
+
+    request_id = request.form.get('request_id')
     staff_id = request.form.get('assigned_staff_id')
-    start_date = request.form.get('schedule_date')
-    
+    schedule_date = request.form.get('schedule_date')
+
     conn = get_db(); cur = conn.cursor()
-    comp_id = session.get('company_id')
 
     try:
-        cur.execute("SELECT client_id, property_id, issue_description FROM service_requests WHERE id=%s", (req_id,))
+        # 1. Get details from the Service Request
+        cur.execute("SELECT property_id, client_id, issue_description FROM service_requests WHERE id = %s", (request_id,))
         req_data = cur.fetchone()
         
-        if req_data:
-            client_id, prop_id, desc = req_data
-            job_ref = f"JOB-{req_id}"
-            
-            cur.execute("""
-                INSERT INTO jobs (company_id, client_id, property_id, staff_id, description, status, start_date, ref)
-                VALUES (%s, %s, %s, %s, %s, 'Scheduled', %s, %s)
-            """, (comp_id, client_id, prop_id, staff_id, desc, start_date, job_ref))
+        if not req_data:
+            flash("❌ Error: Service Request not found.", "error")
+            return redirect('/office/service-desk')
 
-            cur.execute("UPDATE service_requests SET status = 'Scheduled' WHERE id = %s", (req_id,))
-            conn.commit()
-            flash(f"✅ Job {job_ref} Created & Sent to Engineer's List!", "success")
+        prop_id, client_id, description = req_data
+
+        # 2. CHECK: Is there already an ACTIVE job for this property?
+        # We assume if it's not 'Completed', it's the one we are working on.
+        cur.execute("""
+            SELECT id FROM jobs 
+            WHERE property_id = %s AND status != 'Completed'
+        """, (prop_id,))
+        existing_job = cur.fetchone()
+
+        if existing_job:
+            # --- SCENARIO A: UPDATE EXISTING JOB ---
+            job_id = existing_job[0]
+            cur.execute("""
+                UPDATE jobs 
+                SET engineer_id = %s, start_date = %s 
+                WHERE id = %s
+            """, (staff_id, schedule_date, job_id))
+            
+            # Update the ticket status just in case it wasn't set
+            cur.execute("UPDATE service_requests SET status = 'In Progress' WHERE id = %s", (request_id,))
+            
+            flash(f"✅ Job updated! Reassigned to new engineer/date.", "info")
+
         else:
-            flash("Error: Could not find original request details.", "error")
+            # --- SCENARIO B: CREATE NEW JOB ---
+            # Generate a Job Ref (e.g., JOB-{prop_id}-{random})
+            import random
+            job_ref = f"JOB-{prop_id}-{random.randint(100,999)}"
+
+            cur.execute("""
+                INSERT INTO jobs (company_id, client_id, property_id, engineer_id, start_date, status, description, ref)
+                VALUES (%s, %s, %s, %s, %s, 'Scheduled', %s, %s)
+            """, (session['company_id'], client_id, prop_id, staff_id, schedule_date, description, job_ref))
+
+            # Mark the Ticket as 'In Progress' so the client sees it
+            cur.execute("UPDATE service_requests SET status = 'In Progress' WHERE id = %s", (request_id,))
+            
+            flash(f"✅ Job Created & Dispatched successfully!", "success")
+
+        conn.commit()
 
     except Exception as e:
-        conn.rollback(); flash(f"Error dispatching: {e}", "error")
+        conn.rollback()
+        flash(f"Error dispatching job: {e}", "error")
     finally:
         conn.close()
-        
-    return redirect(url_for('office.service_desk'))
+
+    return redirect('/office/service-desk')
 
 # --- 8. SYSTEM REPAIR ---
 @office_bp.route('/office/system-upgrade')
