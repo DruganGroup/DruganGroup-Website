@@ -127,3 +127,80 @@ def portal_invoices():
                          logo_url=config.get('logo'),
                          brand_color=config.get('color'),
                          invoices=invoices)
+                         
+                         # --- 5. MY PROFILE (View & Update) ---
+@portal_bp.route('/portal/profile', methods=['GET', 'POST'])
+def portal_profile():
+    if not check_portal_access(): return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    
+    client_id = session['portal_client_id']
+    comp_id = session['portal_company_id']
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+
+    if request.method == 'POST':
+        # Update Details
+        new_name = request.form.get('name')
+        new_email = request.form.get('email')
+        new_password = request.form.get('password')
+        
+        try:
+            # 1. Update Basic Info
+            cur.execute("UPDATE clients SET name = %s, email = %s WHERE id = %s", (new_name, new_email, client_id))
+            
+            # 2. Update Password (only if typed)
+            if new_password:
+                hashed = generate_password_hash(new_password)
+                cur.execute("UPDATE clients SET password_hash = %s WHERE id = %s", (hashed, client_id))
+                
+            conn.commit()
+            flash("✅ Profile updated successfully!", "success")
+            session['portal_client_name'] = new_name # Update session immediately
+            
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error updating profile: {e}", "error")
+
+    # Fetch current details to fill the form
+    cur.execute("SELECT name, email FROM clients WHERE id = %s", (client_id,))
+    client = cur.fetchone()
+    conn.close()
+    
+    return render_template('portal/portal_profile.html',
+                         client_name=session['portal_client_name'],
+                         company_name=config.get('name'),
+                         logo_url=config.get('logo'),
+                         brand_color=config.get('color'),
+                         client=client)
+
+# --- 6. ADD PROPERTY (Action) ---
+@portal_bp.route('/portal/property/add', methods=['POST'])
+def add_property():
+    if not check_portal_access(): return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    
+    client_id = session['portal_client_id']
+    comp_id = session['portal_company_id']
+    
+    # Get form data
+    address = request.form.get('address')
+    postcode = request.form.get('postcode')
+    p_type = request.form.get('type') # e.g. Residential, Commercial
+    tenant = request.form.get('tenant_name')
+
+    conn = get_db(); cur = conn.cursor()
+    
+    try:
+        cur.execute("""
+            INSERT INTO properties (company_id, client_id, address_line1, postcode, type, tenant_name)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (comp_id, client_id, address, postcode, p_type, tenant))
+        
+        conn.commit()
+        flash("✅ New property added to your list.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error adding property: {e}", "error")
+    finally:
+        conn.close()
+
+    return redirect('/portal/home')
