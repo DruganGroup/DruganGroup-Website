@@ -1,57 +1,54 @@
-from flask import Blueprint, render_template, session, redirect, url_for, flash, request
+from flask import Blueprint, render_template, session, redirect, url_for, flash, request, send_file, abort
 from db import get_db, get_site_config
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
+import os
 
 portal_bp = Blueprint('portal', __name__)
 
-# --- HELPER: CHECK PORTAL ACCESS ---
+# --- HELPERS ---
 def check_portal_access():
     if 'portal_client_id' not in session: return False
     return True
 
-# --- 1. LOGIN PAGE (The White Label Door) ---
-@portal_bp.route('/portal/login/<int:company_id>', methods=['GET'])
-def portal_login(company_id):
-    # Fetch Company Branding so the login page looks like "Ace Plumbing"
-    config = get_site_config(company_id)
-    return render_template('portal/client_login.html', 
-                         company_id=company_id,
-                         company_name=config.get('name', 'Client Portal'),
-                         logo_url=config.get('logo'),
-                         brand_color=config.get('color', '#333333'))
+def get_redirect_target():
+    # Helper to find the correct login page even if session is weird
+    comp_id = session.get('portal_company_id')
+    if comp_id:
+        return url_for('portal.portal_login', company_id=comp_id)
+    return '/' # Fallback if totally lost
 
-# --- 2. AUTHENTICATION (Check Password) ---
-@portal_bp.route('/portal/auth', methods=['POST'])
-def portal_auth():
-    company_id = request.form.get('company_id')
-    email = request.form.get('email')
-    password = request.form.get('password') # The new password field
+# --- 1. PORTAL LOGIN ---
+@portal_bp.route('/portal/login/<int:company_id>', methods=['GET', 'POST'])
+def portal_login(company_id):
+    config = get_site_config(company_id)
     
-    conn = get_db(); cur = conn.cursor()
-    
-    try:
-        # Fetch the stored HASH for this email and company
-        cur.execute("SELECT id, name, password_hash FROM clients WHERE email = %s AND company_id = %s", (email, company_id))
-        user = cur.fetchone()
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
         
-        # Verify Password
-        if user and user[2] and check_password_hash(user[2], password):
-            session['portal_client_id'] = user[0]
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("SELECT id, name, password_hash FROM clients WHERE email = %s AND company_id = %s", (email, company_id))
+        client = cur.fetchone()
+        conn.close()
+        
+        if client and client[2] and check_password_hash(client[2], password):
+            session['portal_client_id'] = client[0]
+            session['portal_client_name'] = client[1]
             session['portal_company_id'] = company_id
-            session['portal_client_name'] = user[1]
             return redirect(url_for('portal.portal_home'))
         else:
-            flash("❌ Invalid Email or Password.")
-            return redirect(url_for('portal.portal_login', company_id=company_id))
-    finally:
-        conn.close()
+            flash("Invalid email or password", "error")
+            
+    return render_template('portal/portal_login.html', 
+                         company_name=config.get('name'), 
+                         logo_url=config.get('logo'), 
+                         brand_color=config.get('color'))
 
-# --- 3. PORTAL HOME (Production Version) ---
+# --- 2. DASHBOARD ---
 @portal_bp.route('/portal/home')
 def portal_home():
-    if not check_portal_access(): 
-        return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    if not check_portal_access(): return redirect(get_redirect_target())
     
     client_id = session['portal_client_id']
     comp_id = session['portal_company_id']
@@ -59,28 +56,29 @@ def portal_home():
     
     conn = get_db(); cur = conn.cursor()
     
-    # 1. Fetch Active Jobs
-    # (Using empty list for now until we confirm the Jobs table structure, 
-    # but this is where we will hook it up next)
-    active_jobs = [] 
+    # 1. Fetch Properties (With new columns)
+    # Using '0' for missing phone/key codes to prevent crashes if columns are empty
+    try:
+        cur.execute("""
+            SELECT id, address_line1, postcode, type, tenant_name, tenant_phone, key_code 
+            FROM properties WHERE client_id = %s
+        """, (client_id,))
+        properties = cur.fetchall()
+    except:
+        # Fallback if upgrade script wasn't run yet
+        cur.execute("SELECT id, address_line1, postcode, type, tenant_name FROM properties WHERE client_id = %s", (client_id,))
+        properties = [r + (None, None) for r in cur.fetchall()]
+
+    # 2. Fetch Recent Invoices
+    cur.execute("SELECT id, invoice_number, date_issue, total_amount, status FROM invoices WHERE client_id = %s ORDER BY date_issue DESC LIMIT 3", (client_id,))
+    recent_invoices = cur.fetchall()
     
-    # 2. Fetch Properties (Now requesting the REAL 'type' column)
-    cur.execute("""
-        SELECT id, postcode, type, address_line1, tenant_name 
-        FROM properties 
-        WHERE client_id = %s
-    """, (client_id,))
-    properties = cur.fetchall() 
-    
-    # 3. Fetch Service Requests
-    # This will now work because Step 1 created the table
-    cur.execute("""
-        SELECT id, issue_description, status, created_at, severity
-        FROM service_requests 
-        WHERE client_id = %s 
-        ORDER BY created_at DESC LIMIT 5
-    """, (client_id,))
-    requests = cur.fetchall()
+    # 3. Fetch Recent Quotes
+    try:
+        cur.execute("SELECT id, reference, total, status FROM quotes WHERE client_id = %s ORDER BY date DESC LIMIT 3", (client_id,))
+        recent_quotes = cur.fetchall()
+    except:
+        recent_quotes = []
 
     conn.close()
     
@@ -89,37 +87,31 @@ def portal_home():
                          company_name=config.get('name'),
                          logo_url=config.get('logo'),
                          brand_color=config.get('color'),
-                         active_jobs=active_jobs,
                          properties=properties,
-                         requests=requests)
-                         
-# --- 4. LOGOUT ---
+                         recent_invoices=recent_invoices,
+                         recent_quotes=recent_quotes)
+
+# --- 3. LOGOUT ---
 @portal_bp.route('/portal/logout')
 def portal_logout():
-    # Only clear portal session
-    session.pop('portal_client_id', None)
-    return "Logged out. You can close this window."
-    # --- 4. MY INVOICES PAGE ---
+    comp_id = session.get('portal_company_id')
+    session.clear()
+    if comp_id:
+        return redirect(url_for('portal.portal_login', company_id=comp_id))
+    return "Logged out"
+
+# --- 4. MY INVOICES ---
 @portal_bp.route('/portal/invoices')
 def portal_invoices():
-    if not check_portal_access(): return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    if not check_portal_access(): return redirect(get_redirect_target())
     
     client_id = session['portal_client_id']
     comp_id = session['portal_company_id']
     config = get_site_config(comp_id)
     
     conn = get_db(); cur = conn.cursor()
-    
-    # Fetch Invoices (Adjust column names if yours differ)
-    # We expect: id, invoice_number, date_issue, total_amount, status, file_path
-    cur.execute("""
-        SELECT id, invoice_number, date_issue, total_amount, status, file_path 
-        FROM invoices 
-        WHERE client_id = %s 
-        ORDER BY date_issue DESC
-    """, (client_id,))
+    cur.execute("SELECT id, invoice_number, date_issue, total_amount, status, file_path FROM invoices WHERE client_id = %s ORDER BY date_issue DESC", (client_id,))
     invoices = cur.fetchall()
-    
     conn.close()
     
     return render_template('portal/portal_invoices.html',
@@ -128,11 +120,11 @@ def portal_invoices():
                          logo_url=config.get('logo'),
                          brand_color=config.get('color'),
                          invoices=invoices)
-                         
-                         # --- 5. MY PROFILE (View & Update) ---
+
+# --- 5. MY PROFILE (View & Update) ---
 @portal_bp.route('/portal/profile', methods=['GET', 'POST'])
 def portal_profile():
-    if not check_portal_access(): return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    if not check_portal_access(): return redirect(get_redirect_target())
     
     client_id = session['portal_client_id']
     comp_id = session['portal_company_id']
@@ -140,29 +132,23 @@ def portal_profile():
     conn = get_db(); cur = conn.cursor()
 
     if request.method == 'POST':
-        # Update Details
         new_name = request.form.get('name')
         new_email = request.form.get('email')
         new_password = request.form.get('password')
         
         try:
-            # 1. Update Basic Info
             cur.execute("UPDATE clients SET name = %s, email = %s WHERE id = %s", (new_name, new_email, client_id))
-            
-            # 2. Update Password (only if typed)
             if new_password:
                 hashed = generate_password_hash(new_password)
                 cur.execute("UPDATE clients SET password_hash = %s WHERE id = %s", (hashed, client_id))
                 
             conn.commit()
             flash("✅ Profile updated successfully!", "success")
-            session['portal_client_name'] = new_name # Update session immediately
-            
+            session['portal_client_name'] = new_name 
         except Exception as e:
             conn.rollback()
             flash(f"Error updating profile: {e}", "error")
 
-    # Fetch current details to fill the form
     cur.execute("SELECT name, email FROM clients WHERE id = %s", (client_id,))
     client = cur.fetchone()
     conn.close()
@@ -174,35 +160,29 @@ def portal_profile():
                          brand_color=config.get('color'),
                          client=client)
 
-# --- 6. ADD PROPERTY (Professional Version) ---
+# --- 6. ADD PROPERTY (Action) ---
 @portal_bp.route('/portal/property/add', methods=['POST'])
 def add_property():
-    if not check_portal_access(): return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    if not check_portal_access(): return redirect(get_redirect_target())
     
     client_id = session['portal_client_id']
     comp_id = session['portal_company_id']
     
-    # Get form data
     address = request.form.get('address')
     postcode = request.form.get('postcode')
     p_type = request.form.get('type')
-    
-    # New Details
     tenant_name = request.form.get('tenant_name')
     tenant_phone = request.form.get('tenant_phone')
     key_code = request.form.get('key_code')
 
     conn = get_db(); cur = conn.cursor()
-    
     try:
         cur.execute("""
-            INSERT INTO properties 
-            (company_id, client_id, address_line1, postcode, type, tenant_name, tenant_phone, key_code)
+            INSERT INTO properties (company_id, client_id, address_line1, postcode, type, tenant_name, tenant_phone, key_code)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """, (comp_id, client_id, address, postcode, p_type, tenant_name, tenant_phone, key_code))
-        
         conn.commit()
-        flash("✅ Property added successfully.", "success")
+        flash("✅ New property added to your list.", "success")
     except Exception as e:
         conn.rollback()
         flash(f"Error adding property: {e}", "error")
@@ -210,11 +190,11 @@ def add_property():
         conn.close()
 
     return redirect('/portal/home')
-    
-    # --- 7. PROPERTY DETAIL VIEW ---
+
+# --- 7. PROPERTY DETAIL VIEW ---
 @portal_bp.route('/portal/property/<int:property_id>')
 def property_detail(property_id):
-    if not check_portal_access(): return redirect(url_for('portal.portal_login', company_id=session.get('portal_company_id')))
+    if not check_portal_access(): return redirect(get_redirect_target())
     
     client_id = session['portal_client_id']
     comp_id = session['portal_company_id']
@@ -222,12 +202,18 @@ def property_detail(property_id):
     
     conn = get_db(); cur = conn.cursor()
     
-    # 1. Fetch Property Details (including the new fields)
-    cur.execute("""
-        SELECT id, address_line1, postcode, type, tenant_name, tenant_phone, key_code 
-        FROM properties 
-        WHERE id = %s AND client_id = %s
-    """, (property_id, client_id))
+    # Fetch Property (Robust check for new columns)
+    try:
+        cur.execute("""
+            SELECT id, address_line1, postcode, type, tenant_name, tenant_phone, key_code 
+            FROM properties WHERE id = %s AND client_id = %s
+        """, (property_id, client_id))
+    except:
+        cur.execute("""
+            SELECT id, address_line1, postcode, type, tenant_name, NULL, NULL 
+            FROM properties WHERE id = %s AND client_id = %s
+        """, (property_id, client_id))
+        
     prop = cur.fetchone()
     
     if not prop:
@@ -235,15 +221,24 @@ def property_detail(property_id):
         flash("Property not found or access denied.", "error")
         return redirect('/portal/home')
 
-    # 2. Fetch Job History for this specific property
-    cur.execute("""
-        SELECT id, ref, status, description, created_at 
-        FROM jobs 
-        WHERE property_id = %s 
-        ORDER BY created_at DESC
-    """, (property_id,))
-    job_history = cur.fetchall()
+    # Fetch Job History for this property
+    # Check if 'property_id' exists in jobs table first (via try/except query)
+    try:
+        cur.execute("""
+            SELECT id, ref, status, description, created_at 
+            FROM jobs WHERE property_id = %s ORDER BY created_at DESC
+        """, (property_id,))
+        job_history = cur.fetchall()
+    except:
+        job_history = [] # Jobs table might not be linked yet
 
+    conn.close()
+    
+    # Pass 'properties' list for the modal dropdown in case they want to log a ticket from this page
+    # (Re-fetching just the list for the modal)
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id, address_line1, postcode, type FROM properties WHERE client_id = %s", (client_id,))
+    properties_list = cur.fetchall()
     conn.close()
     
     return render_template('portal/portal_property_view.html',
@@ -252,27 +247,25 @@ def property_detail(property_id):
                          logo_url=config.get('logo'),
                          brand_color=config.get('color'),
                          prop=prop,
-                         job_history=job_history)
-                         
- # --- 8. SUBMIT SERVICE REQUEST ---
+                         job_history=job_history,
+                         properties=properties_list)
+
+# --- 8. SUBMIT SERVICE REQUEST ---
 @portal_bp.route('/portal/request/submit', methods=['POST'])
 def submit_request():
-    if not check_portal_access(): return redirect(url_for('portal.portal_login'))
+    if not check_portal_access(): return redirect(get_redirect_target())
     
     client_id = session['portal_client_id']
-    comp_id = session['portal_company_id']
     
     property_id = request.form.get('property_id')
     description = request.form.get('description')
     severity = request.form.get('severity', 'Low')
     
-    # Handle Image Upload
     image_url = None
     file = request.files.get('image')
     if file and file.filename != '':
         filename = secure_filename(f"req_{client_id}_{file.filename}")
         upload_path = os.path.join('static/uploads/requests', filename)
-        # Ensure directory exists
         os.makedirs('static/uploads/requests', exist_ok=True)
         file.save(upload_path)
         image_url = f"/static/uploads/requests/{filename}"
@@ -292,10 +285,11 @@ def submit_request():
         conn.close()
 
     return redirect('/portal/home')
-    # --- 9. MY QUOTES PAGE ---
+
+# --- 9. MY QUOTES PAGE ---
 @portal_bp.route('/portal/quotes')
 def portal_quotes():
-    if not check_portal_access(): return redirect(url_for('portal.portal_login'))
+    if not check_portal_access(): return redirect(get_redirect_target())
     
     client_id = session['portal_client_id']
     comp_id = session['portal_company_id']
@@ -303,20 +297,11 @@ def portal_quotes():
     
     conn = get_db(); cur = conn.cursor()
     
-    # Fetch Quotes for this client
-    # We expect columns: id, reference, date, total, status
     try:
-        cur.execute("""
-            SELECT id, reference, date, total, status 
-            FROM quotes 
-            WHERE client_id = %s 
-            ORDER BY date DESC
-        """, (client_id,))
+        cur.execute("SELECT id, reference, date, total, status FROM quotes WHERE client_id = %s ORDER BY date DESC", (client_id,))
         quotes = cur.fetchall()
-    except Exception as e:
-        # If table doesn't exist yet, just return empty list to prevent crash
+    except:
         quotes = []
-        print(f"Quotes Error: {e}")
         
     conn.close()
     
@@ -326,59 +311,65 @@ def portal_quotes():
                          logo_url=config.get('logo'),
                          brand_color=config.get('color'),
                          quotes=quotes)
-                         
-                         # --- 10. QUOTE DETAIL & ACTIONS ---
+
+# --- 10. QUOTE DETAIL & ACTIONS ---
 @portal_bp.route('/portal/quote/<int:quote_id>')
 def quote_detail(quote_id):
-    if not check_portal_access(): return redirect(url_for('portal.portal_login'))
+    if not check_portal_access(): return redirect(get_redirect_target())
     
+    client_id = session['portal_client_id']
     conn = get_db(); cur = conn.cursor()
     
-    # 1. Fetch Quote Header
-    cur.execute("""
-        SELECT id, reference, date, total, status, client_id 
-        FROM quotes WHERE id = %s AND client_id = %s
-    """, (quote_id, session['portal_client_id']))
+    cur.execute("SELECT id, reference, date, total, status FROM quotes WHERE id = %s AND client_id = %s", (quote_id, client_id))
     quote = cur.fetchone()
     
     if not quote:
+        conn.close()
         return "Quote not found", 404
 
-    # 2. Fetch Line Items (Ensure table exists first - see upgrade step below)
-    # We use a try/except in case you haven't added items yet
     items = []
     try:
         cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
         items = cur.fetchall()
     except:
-        pass # Table might not exist yet
+        pass 
 
+    config = get_site_config(session['portal_company_id'])
     conn.close()
     
     return render_template('portal/portal_quote_view.html',
-                         company_name=session.get('portal_company_name'), # Ensure this session var exists or fetch config
-                         brand_color='#333', # Default or fetch from config
+                         company_name=config.get('name'),
+                         brand_color=config.get('color'),
                          quote=quote,
                          items=items)
 
 @portal_bp.route('/portal/quote/<int:quote_id>/accept')
 def quote_accept(quote_id):
-    if not check_portal_access(): return redirect(url_for('auth.login'))
+    if not check_portal_access(): return redirect(get_redirect_target())
     conn = get_db(); cur = conn.cursor()
-    # Update status to Accepted
-    cur.execute("UPDATE quotes SET status = 'Accepted' WHERE id = %s AND client_id = %s", 
-               (quote_id, session['portal_client_id']))
+    cur.execute("UPDATE quotes SET status = 'Accepted' WHERE id = %s AND client_id = %s", (quote_id, session['portal_client_id']))
     conn.commit(); conn.close()
-    flash("✅ Quote Accepted! We will be in touch to schedule.", "success")
+    flash("✅ Quote Accepted! We will be in touch.", "success")
     return redirect(url_for('portal.portal_quotes'))
 
 @portal_bp.route('/portal/quote/<int:quote_id>/decline')
 def quote_decline(quote_id):
-    if not check_portal_access(): return redirect(url_for('auth.login'))
+    if not check_portal_access(): return redirect(get_redirect_target())
     conn = get_db(); cur = conn.cursor()
-    # Update status to Declined
-    cur.execute("UPDATE quotes SET status = 'Declined' WHERE id = %s AND client_id = %s", 
-               (quote_id, session['portal_client_id']))
+    cur.execute("UPDATE quotes SET status = 'Declined' WHERE id = %s AND client_id = %s", (quote_id, session['portal_client_id']))
     conn.commit(); conn.close()
     flash("❌ Quote Declined.", "warning")
     return redirect(url_for('portal.portal_quotes'))
+
+# --- 11. FILE DOWNLOAD (Handling Invoices) ---
+@portal_bp.route('/portal/download/<path:filename>')
+def download_file(filename):
+    if not check_portal_access(): return redirect(get_redirect_target())
+    
+    # Security: Ensure they can only download their own company files
+    # Note: In production, verify the file belongs to the user in DB
+    safe_path = os.path.join('static', filename)
+    if os.path.exists(safe_path):
+        return send_file(safe_path, as_attachment=True)
+    else:
+        return "File not found", 404
