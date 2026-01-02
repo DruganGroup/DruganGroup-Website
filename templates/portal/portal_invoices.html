@@ -1,94 +1,62 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>My Invoices | {{ company_name }}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        :root { --brand-color: {{ brand_color }}; }
-        body { background-color: #f4f7f6; font-family: 'Segoe UI', sans-serif; }
-        .navbar { background-color: white; border-bottom: 3px solid var(--brand-color); }
-        .text-brand { color: var(--brand-color) !important; }
-        .nav-link { color: #555; padding: 10px 15px; border-radius: 8px; margin-bottom: 5px; }
-        .nav-link:hover { background-color: #f8f9fa; color: var(--brand-color); }
-        .status-Paid { background-color: #d1e7dd; color: #0f5132; }
-        .status-Unpaid { background-color: #f8d7da; color: #842029; }
-    </style>
-</head>
-<body>
+{% extends "portal/portal_base.html" %}
 
-<nav class="navbar navbar-expand-lg sticky-top shadow-sm mb-4">
-    <div class="container">
-        {% if logo_url %}
-            <img src="{{ logo_url }}" height="40" alt="{{ company_name }}">
-        {% else %}
-            <h4 class="m-0 fw-bold text-brand">{{ company_name }}</h4>
-        {% endif %}
-        <div class="ms-auto">
-            <a href="/portal/logout" class="btn btn-sm btn-outline-danger">Logout</a>
-        </div>
-    </div>
-</nav>
+{% block title %}My Invoices | {{ company_name }}{% endblock %}
 
-<div class="container">
-    <div class="row g-4">
-        <div class="col-lg-3">
-            <div class="card p-3 border-0 shadow-sm">
-                <nav class="nav flex-column">
-                    <a class="nav-link" href="/portal/home"><i class="fas fa-home me-3"></i> Dashboard</a>
-                    <a class="nav-link active fw-bold bg-light" href="/portal/invoices"><i class="fas fa-file-invoice me-3 text-brand"></i> My Invoices</a>
-                    <a class="nav-link" href="#"><i class="fas fa-file-signature me-3"></i> Quotes</a>
-                </nav>
-            </div>
-        </div>
-
-        <div class="col-lg-9">
-            <h4 class="fw-bold mb-3">Invoice History</h4>
-            
-            <div class="card border-0 shadow-sm overflow-hidden">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="ps-4">Invoice #</th>
-                            <th>Date</th>
-                            <th>Amount</th>
-                            <th>Status</th>
-                            <th class="text-end pe-4">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for inv in invoices %}
-                        <tr>
-                            <td class="ps-4 fw-bold text-brand">{{ inv[1] }}</td>
-                            <td>{{ inv[2] }}</td>
-                            <td>£{{ "%.2f"|format(inv[3]) }}</td>
-                            <td><span class="badge status-{{ inv[4] }}">{{ inv[4] }}</span></td>
-                            <td class="text-end pe-4">
-                                {% if inv[5] %}
-                                <a href="{{ inv[5] }}" class="btn btn-sm btn-outline-secondary" download>
-                                    <i class="fas fa-download me-1"></i> PDF
-                                </a>
-                                {% else %}
-                                <span class="text-muted small">Generating...</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="5" class="text-center py-5 text-muted">
-                                <i class="fas fa-folder-open fa-2x mb-3 opacity-25"></i>
-                                <p>No invoices found on your account.</p>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold m-0">Invoice History</h2>
+        <p class="text-muted mb-0">View and download your past invoices.</p>
     </div>
 </div>
 
-</body>
-</html>
+<div class="card border-0 shadow-sm overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light small text-uppercase text-muted">
+                <tr>
+                    <th class="ps-4">Invoice #</th>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th class="text-end pe-4">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in invoices %}
+                <tr>
+                    <td class="ps-4 fw-bold text-brand">{{ inv[1] }}</td>
+                    <td>{{ inv[2] }}</td>
+                    <td>£{{ "%.2f"|format(inv[3]) }}</td>
+                    <td>
+                        {% if inv[4] == 'Paid' %}
+                            <span class="badge bg-success">Paid</span>
+                        {% elif inv[4] == 'Unpaid' %}
+                            <span class="badge bg-danger">Unpaid</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ inv[4] }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end pe-4">
+                        {% if inv[5] %}
+                        <a href="{{ inv[5] }}" class="btn btn-sm btn-outline-secondary" download>
+                            <i class="fas fa-download me-1"></i> PDF
+                        </a>
+                        {% else %}
+                        <span class="text-muted small">Processing...</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center py-5 text-muted">
+                        <i class="fas fa-folder-open fa-2x mb-3 opacity-25"></i>
+                        <p>No invoices found on your account.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
