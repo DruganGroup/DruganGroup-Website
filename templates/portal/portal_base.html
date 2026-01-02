@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}My Portal | {{ company_name }}{% endblock %}</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        /* BRANDING INJECTION */
+        :root { --brand-color: {{ brand_color or '#0d6efd' }}; }
+        
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', sans-serif; }
+        
+        /* SIDEBAR STYLING (Matches Office Hub) */
+        .sidebar { 
+            height: 100vh; 
+            background-color: var(--brand-color); 
+            color: white; 
+            position: fixed; 
+            width: 260px; 
+            padding-top: 25px; 
+            z-index: 1000;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        /* Custom Scrollbar */
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        
+        .sidebar a { 
+            padding: 12px 25px; 
+            text-decoration: none; 
+            font-size: 15px; 
+            color: rgba(255,255,255,0.9); 
+            display: block; 
+            transition: 0.2s;
+            border-left: 4px solid transparent;
+        }
+        .sidebar a:hover { background-color: rgba(255,255,255,0.1); color: white; }
+        .sidebar a.active { 
+            background-color: rgba(255,255,255,0.2); 
+            color: white; 
+            border-left-color: #ffc107; /* Gold accent for active state */
+            font-weight: 600;
+        }
+        
+        /* Avatar Circle in Sidebar */
+        .client-avatar {
+            width: 60px; height: 60px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        /* MAIN CONTENT AREA */
+        .content { margin-left: 260px; padding: 40px; }
+        
+        /* CARD STYLING */
+        .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+        /* MOBILE ADJUSTMENTS */
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; height: auto; position: relative; padding-bottom: 20px; }
+            .content { margin-left: 0; padding: 20px; }
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="text-center mb-4 px-4">
+            {% if logo_url %}
+                <div class="bg-white p-2 rounded-3 shadow-sm d-inline-block mb-3">
+                    <img src="{{ logo_url }}" alt="Logo" style="max-width: 140px; height: auto; max-height: 50px;">
+                </div>
+            {% else %}
+                <h4 class="fw-bold">{{ company_name }}</h4>
+            {% endif %}
+        </div>
+
+        <div class="text-center mb-4 px-3 pb-3 border-bottom border-white border-opacity-25">
+            <div class="client-avatar">
+                {{ client_name[0] if client_name else 'C' }}
+            </div>
+            <div class="small fw-bold">{{ client_name }}</div>
+            <div class="small text-white-50">Client Portal</div>
+        </div>
+
+        <a href="/portal/home" class="{% if request.endpoint == 'portal.portal_home' %}active{% endif %}">
+            <i class="fas fa-home me-3" style="width: 20px; text-align: center;"></i> Dashboard
+        </a>
+        <a href="/portal/quotes" class="{% if 'quote' in request.endpoint %}active{% endif %}">
+            <i class="fas fa-file-signature me-3" style="width: 20px; text-align: center;"></i> My Quotes
+        </a>
+        <a href="/portal/invoices" class="{% if 'invoice' in request.endpoint %}active{% endif %}">
+            <i class="fas fa-file-invoice-dollar me-3" style="width: 20px; text-align: center;"></i> My Invoices
+        </a>
+        <a href="/portal/profile" class="{% if 'profile' in request.endpoint %}active{% endif %}">
+            <i class="fas fa-user-cog me-3" style="width: 20px; text-align: center;"></i> Account Settings
+        </a>
+        
+        <div class="mt-4 pt-4 border-top border-white border-opacity-25 mx-4"></div>
+        
+        <a href="mailto:{{ company_email }}" class="text-warning">
+            <i class="fas fa-envelope me-3" style="width: 20px; text-align: center;"></i> Contact Support
+        </a>
+        <a href="/portal/logout" class="text-danger mb-5">
+            <i class="fas fa-sign-out-alt me-3" style="width: 20px; text-align: center;"></i> Sign Out
+        </a>
+    </div>
+
+    <div class="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} shadow-sm mb-4 border-0 border-start border-4 border-{{ 'danger' if category == 'error' else 'success' }}">
+                    {{ message }}
+                    <button type="button" class="btn-close float-end" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

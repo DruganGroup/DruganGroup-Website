@@ -1,52 +1,53 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>{{ prop[1] }} | {{ company_name }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        :root { --brand-color: {{ brand_color }}; }
-        body { background-color: #f4f7f6; }
-        .navbar { background-color: white; border-bottom: 3px solid var(--brand-color); }
-        .text-brand { color: var(--brand-color) !important; }
-        .card-header-brand { background-color: var(--brand-color); color: white; }
-    </style>
-</head>
-<body>
+{% extends "portal/portal_base.html" %}
 
-<nav class="navbar navbar-expand-lg shadow-sm mb-4">
-    <div class="container">
-        <a href="/portal/home" class="btn btn-sm btn-outline-secondary me-3"><i class="fas fa-arrow-left"></i></a>
-        <h5 class="m-0 fw-bold text-brand">{{ prop[1] }}</h5>
+{% block title %}{{ prop[1] }} | {{ company_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold m-0">{{ prop[1] }}</h2>
+        <p class="text-muted mb-0">{{ prop[2] }}</p>
     </div>
-</nav>
-
-<div class="container">
-    <div class="row g-4">
-        <div class="col-md-4">
-<div class="card-body">
-    <h6 class="text-muted small fw-bold text-uppercase">Property Details</h6>
-    
-    <h5 class="fw-bold mb-0">{{ prop[1] }}</h5> <p class="text-muted">{{ prop[2] }}</p>       <span class="badge bg-light text-dark border mb-3">{{ prop[3] }}</span> <div class="mt-3 p-3 bg-light rounded border">
-        <small class="text-muted d-block mb-1">Access Code</small>
-        <strong class="text-danger">{{ prop[6] or 'No Code' }}</strong>
-    </div>
-
-    <button class="btn btn-warning w-100 fw-bold mt-3" data-bs-toggle="modal" data-bs-target="#requestModal">
-        <i class="fas fa-exclamation-triangle me-2"></i>Report a Fault
-    </button>
+    <a href="/portal/home" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+    </a>
 </div>
-        </div>
 
-        <div class="col-md-8">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <h5 class="m-0 fw-bold">Service & Job History</h5>
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted small fw-bold text-uppercase mb-3">Property Details</h6>
+                
+                <span class="badge bg-light text-dark border mb-3 px-3 py-2">{{ prop[3] }}</span>
+
+                <div class="mt-2 p-3 bg-light rounded border mb-4">
+                    <small class="text-muted d-block mb-1">Access Code</small>
+                    <strong class="text-danger fs-5">{{ prop[6] or 'No Code' }}</strong>
                 </div>
-                <div class="card-body p-0">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
+
+                <hr class="text-muted opacity-25">
+                
+                <h6 class="text-muted small fw-bold text-uppercase mb-2">Tenant Info</h6>
+                <p class="mb-1"><i class="fas fa-user me-2 text-muted"></i> {{ prop[4] or 'Not Listed' }}</p>
+                <p class="mb-0"><i class="fas fa-phone me-2 text-muted"></i> {{ prop[5] or 'Not Listed' }}</p>
+
+                <button class="btn btn-warning w-100 fw-bold mt-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#requestModal">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Report a Fault
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3 border-0">
+                <h5 class="m-0 fw-bold">Service & Job History</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light small text-uppercase text-muted">
                             <tr>
                                 <th class="ps-4">Ref</th>
                                 <th>Description</th>
@@ -57,14 +58,17 @@
                         <tbody>
                             {% for job in job_history %}
                             <tr>
-                                <td class="ps-4 fw-bold">{{ job[1] }}</td>
+                                <td class="ps-4 fw-bold text-primary">#{{ job[1] }}</td>
                                 <td>{{ job[3] }}</td>
                                 <td><span class="badge bg-secondary">{{ job[2] }}</span></td>
                                 <td>{{ job[4].strftime('%d/%m/%Y') if job[4] else 'N/A' }}</td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="4" class="text-center py-5 text-muted">No previous jobs recorded for this property.</td>
+                                <td colspan="4" class="text-center py-5 text-muted">
+                                    <i class="fas fa-history fa-2x mb-3 opacity-25"></i><br>
+                                    No previous jobs recorded for this property.
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -74,6 +78,7 @@
         </div>
     </div>
 </div>
+
 <div class="modal fade" id="requestModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -81,10 +86,9 @@
                 <h5 class="modal-title fw-bold"><i class="fas fa-tools me-2"></i>Report a Fault</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="/portal/request/submit" method="POST" enctype="multipart/form-data">
+            <form action="/portal/request/submit" method="POST">
                 <div class="modal-body">
                     <input type="hidden" name="property_id" value="{{ prop[0] }}">
-                    
                     <p class="mb-3">Reporting an issue for: <strong>{{ prop[1] }}</strong></p>
 
                     <div class="mb-3">
@@ -103,12 +107,10 @@
                 </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-dark">Send to Service Desk</button>
+                    <button type="submit" class="btn btn-dark fw-bold">Send to Service Desk</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+{% endblock %}
