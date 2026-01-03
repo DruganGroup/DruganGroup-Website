@@ -172,18 +172,60 @@ def generate_pdf(template_name_ignored, context, output_filename):
         
         fill = not fill 
 
-    # --- TOTALS ---
+    # --- TOTALS & TAX CALCULATION ---
+    # 1. Calculate Subtotal fresh from items (safer than trusting DB total)
+    subtotal = sum(item.get('total', 0) for item in items)
+    
+    # 2. Check Tax Status & Country
+    vat_enabled = settings.get('vat_registered') == 'yes'
+    country = settings.get('country_code', 'UK')
+    
+    # 3. Determine Tax Rate
+    tax_rate = 0.0
+    tax_name = "Tax"
+    
+    if vat_enabled:
+        if country == 'UK':
+            tax_rate = 0.20; tax_name = "VAT (20%)"
+        elif country == 'AUS':
+            tax_rate = 0.10; tax_name = "GST (10%)"
+        elif country == 'NZ':
+            tax_rate = 0.15; tax_name = "GST (15%)"
+        elif country == 'CAN':
+            tax_rate = 0.05; tax_name = "GST (5%)"
+        elif country == 'EU':
+            tax_rate = 0.21; tax_name = "VAT (21%)"
+        else:
+            tax_rate = 0.0; tax_name = "Tax (0%)" # USA/Default
+
+    tax_amount = subtotal * tax_rate
+    grand_total = subtotal + tax_amount
+
+    # --- DRAW TOTALS SECTION ---
     pdf.ln(5)
     pdf.set_draw_color(*pdf.brand_color)
     pdf.line(135, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(2)
 
+    # 4. Draw Subtotal & Tax (Only if Tax is enabled)
+    if vat_enabled:
+        pdf.set_font('Helvetica', '', 10)
+        pdf.cell(155, 6, "Subtotal:", 0, 0, 'R')
+        pdf.cell(35, 6, f"{cur_sym}{subtotal:.2f}  ", 0, 1, 'R')
+        
+        pdf.cell(155, 6, tax_name + ":", 0, 0, 'R')
+        pdf.cell(35, 6, f"{cur_sym}{tax_amount:.2f}  ", 0, 1, 'R')
+        
+        # Extra line before Grand Total
+        pdf.set_draw_color(200, 200, 200)
+        pdf.line(160, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(1)
+
+    # 5. Grand Total
     pdf.set_font('Helvetica', 'B', 12)
+    pdf.set_text_color(*pdf.brand_color) # Use brand color for total
     pdf.cell(155, 10, "Grand Total:", 0, 0, 'R')
-    
-    pdf.set_text_color(*pdf.brand_color)
-    # --- CURRENCY FIX FOR TOTAL ---
-    pdf.cell(35, 10, f"{cur_sym}{invoice.get('total'):.2f}  ", 0, 1, 'R')
+    pdf.cell(35, 10, f"{cur_sym}{grand_total:.2f}  ", 0, 1, 'R')
     
     # --- FOOTER / TERMS ---
     pdf.set_y(-60)
