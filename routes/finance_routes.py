@@ -466,3 +466,43 @@ def setup_invoice_templates():
         return f"❌ Migration Error: {e}"
     finally:
         conn.close()
+        # --- UPDATE SETTINGS (MOVED TO FINANCE ROUTES) ---
+@finance_bp.route('/finance/settings/update', methods=['POST'])
+def update_settings():
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Manager']: 
+        return redirect(url_for('auth.login'))
+    
+    action = request.form.get('action')
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    
+    try:
+        if action == 'update_pdf_style':
+            theme = request.form.get('pdf_theme')
+            color = request.form.get('brand_color')
+            
+            # Update PDF Theme
+            cur.execute("""
+                INSERT INTO settings (company_id, key, value) 
+                VALUES (%s, 'pdf_theme', %s) 
+                ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+            """, (comp_id, theme))
+            
+            # Update Brand Color
+            cur.execute("""
+                INSERT INTO settings (company_id, key, value) 
+                VALUES (%s, 'brand_color', %s) 
+                ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+            """, (comp_id, color))
+            
+            conn.commit()
+            flash("✅ PDF Style & Branding Updated")
+
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error updating settings: {e}")
+    finally:
+        conn.close()
+
+    # Redirect back to the Finance Settings page
+    return redirect('/finance/settings') # Adjust this URL if your settings page is at a different path
