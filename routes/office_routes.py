@@ -673,4 +673,4 @@ def fix_invoice_schema():
         conn.rollback()
         return f"❌ Database Error: {e}"
     finally:
-        conn.close()
+    conn.close()
