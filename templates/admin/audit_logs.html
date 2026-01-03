@@ -84,51 +84,74 @@
         }
         
         .table-dark { --bs-table-bg: transparent; --bs-table-border-color: var(--border-light); }
+        
         .table-dark th { 
             text-transform: uppercase; 
             font-size: 0.75rem; 
             color: var(--primary-gold); 
             letter-spacing: 1px; 
-            padding: 15px; 
+            padding: 18px 15px; 
             font-family: 'Montserrat', sans-serif;
+            border-bottom: 2px solid var(--border-light);
         }
+
         .table-dark td { 
             vertical-align: middle; 
-            color: #ffffff !important; /* Force text to white for readability */
-            font-size: 0.9rem; 
+            color: #ffffff !important; 
+            font-size: 0.85rem; 
             padding: 15px; 
+            border-bottom: 1px solid #252525;
         }
 
+        /* ACTION BADGE - NO OVERLAP */
         .badge-action {
-            background: rgba(197, 160, 89, 0.15);
-            color: var(--primary-gold);
-            border: 1px solid rgba(197, 160, 89, 0.3);
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 0.75rem;
+            display: inline-block;
+            padding: 3px 10px;
+            font-size: 0.7rem;
             font-weight: 700;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--primary-gold);
+            border: 1px solid rgba(197, 160, 89, 0.4);
+            background: transparent;
+            border-radius: 4px;
+            white-space: nowrap;
         }
 
-        /* PAGINATION STYLES */
+        .details-text {
+            color: #b0b0b0;
+            font-size: 0.85rem;
+            max-width: 400px;
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .ip-text {
+            color: #666;
+            font-family: monospace;
+            font-size: 0.75rem;
+        }
+
+        /* PAGINATION */
         .pagination-container {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 20px;
-            background: rgba(0,0,0,0.2);
-            border-top: 1px solid var(--border-light);
+            background: rgba(0,0,0,0.1);
         }
 
         .btn-page {
             background: transparent;
             border: 1px solid var(--primary-gold);
             color: var(--primary-gold);
-            padding: 8px 16px;
-            border-radius: 6px;
+            padding: 6px 15px;
+            border-radius: 5px;
             text-decoration: none;
+            font-size: 0.85rem;
             font-weight: 600;
-            transition: 0.3s;
+            transition: 0.2s;
         }
 
         .btn-page:hover {
@@ -139,17 +162,8 @@
         .btn-page.disabled {
             opacity: 0.3;
             pointer-events: none;
-            border-color: #555;
-            color: #555;
-        }
-
-        .log-details-box {
-            color: #2ecc71; /* Bright green for the technical details */
-            font-family: monospace;
-            font-size: 0.85rem;
-            background: #000;
-            padding: 4px 8px;
-            border-radius: 4px;
+            border-color: #444;
+            color: #444;
         }
     </style>
 </head>
@@ -195,7 +209,7 @@
                 <h2 class="fw-bold mb-0 text-white">Audit <span style="color: var(--primary-gold);">Trail</span></h2>
             </div>
             <div>
-                <span class="text-muted" style="font-size: 0.9rem;">Tracking all admin actions</span>
+                <span class="text-muted" style="font-size: 0.85rem;">Tracking all administrative actions</span>
             </div>
         </div>
 
@@ -204,7 +218,7 @@
                 <thead>
                     <tr>
                         <th>Time</th>
-                        <th>Admin User</th>
+                        <th>Admin</th>
                         <th>Action</th>
                         <th>Target</th>
                         <th>Details</th>
@@ -214,17 +228,17 @@
                 <tbody>
                     {% for log in logs %}
                     <tr>
-                        <td class="text-muted" style="font-family: monospace;">{{ log[6].strftime('%d-%b %H:%M') }}</td> 
+                        <td style="color: #888; font-family: monospace;">{{ log[6].strftime('%d-%b %H:%M') }}</td> 
                         <td>
                             <div class="d-flex align-items-center gap-2">
                                 <i class="fas fa-user-circle text-secondary"></i>
-                                <strong>{{ log[1] }}</strong>
+                                <span style="font-weight: 600;">{{ log[1] }}</span>
                             </div>
                         </td> 
                         <td><span class="badge-action">{{ log[2] }}</span></td> 
-                        <td>{{ log[3] }}</td> 
-                        <td><span class="log-details-box">{{ log[4] }}</span></td>
-                        <td class="text-muted" style="font-family: monospace;">{{ log[5] }}</td> 
+                        <td style="color: #ccc;">{{ log[3] }}</td> 
+                        <td class="details-text">{{ log[4] }}</td>
+                        <td class="ip-text">{{ log[5] }}</td> 
                     </tr>
                     {% else %}
                     <tr><td colspan="6" class="text-center p-5 text-muted">No audit records found.</td></tr>
@@ -234,12 +248,12 @@
 
             <div class="pagination-container">
                 <div class="text-muted small">
-                    Showing page <strong>{{ page }}</strong> of {{ total_pages }}
+                    Page <strong>{{ page }}</strong> of {{ total_pages }}
                 </div>
                 <div class="d-flex gap-2">
                     <a href="{{ url_for('admin.view_audit_logs', page=page-1) }}" 
                        class="btn-page {{ 'disabled' if page <= 1 }}">
-                        <i class="fas fa-chevron-left me-1"></i> Previous
+                        <i class="fas fa-chevron-left me-1"></i> Prev
                     </a>
                     
                     <a href="{{ url_for('admin.view_audit_logs', page=page+1) }}" 
