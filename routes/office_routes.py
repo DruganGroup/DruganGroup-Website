@@ -658,7 +658,7 @@ def view_quote(quote_id):
     return render_template('office/view_quote_dashboard.html', quote=quote)
     
     return send_file(pdf_path, as_attachment=True, download_name=filename)
-    @office_bp.route('/office/fix-invoice-schema')
+@office_bp.route('/office/fix-invoice-schema')
 def fix_invoice_schema():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
     
