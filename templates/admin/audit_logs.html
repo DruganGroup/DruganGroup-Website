@@ -94,7 +94,7 @@
         }
         .table-dark td { 
             vertical-align: middle; 
-            color: #e0e0e0; 
+            color: #ffffff !important; /* Force text to white for readability */
             font-size: 0.9rem; 
             padding: 15px; 
         }
@@ -108,6 +108,48 @@
             font-size: 0.75rem;
             font-weight: 700;
             text-transform: uppercase;
+        }
+
+        /* PAGINATION STYLES */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: rgba(0,0,0,0.2);
+            border-top: 1px solid var(--border-light);
+        }
+
+        .btn-page {
+            background: transparent;
+            border: 1px solid var(--primary-gold);
+            color: var(--primary-gold);
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+
+        .btn-page:hover {
+            background: var(--primary-gold);
+            color: #000;
+        }
+
+        .btn-page.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+            border-color: #555;
+            color: #555;
+        }
+
+        .log-details-box {
+            color: #2ecc71; /* Bright green for the technical details */
+            font-family: monospace;
+            font-size: 0.85rem;
+            background: #000;
+            padding: 4px 8px;
+            border-radius: 4px;
         }
     </style>
 </head>
@@ -163,26 +205,49 @@
                     <tr>
                         <th>Time</th>
                         <th>Admin User</th>
-                        <th>Action Type</th>
+                        <th>Action</th>
                         <th>Target</th>
+                        <th>Details</th>
                         <th>IP Address</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for log in logs %}
                     <tr>
-                        <td class="text-muted" style="font-family: monospace;">{{ log[6].strftime('%d-%b %H:%M') }}</td> <td>
+                        <td class="text-muted" style="font-family: monospace;">{{ log[6].strftime('%d-%b %H:%M') }}</td> 
+                        <td>
                             <div class="d-flex align-items-center gap-2">
                                 <i class="fas fa-user-circle text-secondary"></i>
                                 <strong>{{ log[1] }}</strong>
                             </div>
                         </td> 
-                        <td><span class="badge-action">{{ log[2] }}</span></td> <td>{{ log[3] }}</td> <td class="text-muted" style="font-family: monospace;">{{ log[5] }}</td> </tr>
+                        <td><span class="badge-action">{{ log[2] }}</span></td> 
+                        <td>{{ log[3] }}</td> 
+                        <td><span class="log-details-box">{{ log[4] }}</span></td>
+                        <td class="text-muted" style="font-family: monospace;">{{ log[5] }}</td> 
+                    </tr>
                     {% else %}
-                    <tr><td colspan="5" class="text-center p-5 text-muted">No audit records found.</td></tr>
+                    <tr><td colspan="6" class="text-center p-5 text-muted">No audit records found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
+
+            <div class="pagination-container">
+                <div class="text-muted small">
+                    Showing page <strong>{{ page }}</strong> of {{ total_pages }}
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('admin.view_audit_logs', page=page-1) }}" 
+                       class="btn-page {{ 'disabled' if page <= 1 }}">
+                        <i class="fas fa-chevron-left me-1"></i> Previous
+                    </a>
+                    
+                    <a href="{{ url_for('admin.view_audit_logs', page=page+1) }}" 
+                       class="btn-page {{ 'disabled' if page >= total_pages }}">
+                        Next <i class="fas fa-chevron-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 

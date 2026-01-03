@@ -549,22 +549,52 @@ def setup_logs_db():
     finally: conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
 
-# --- VIEW: AUDIT LOGS ---
+# --- VIEW: AUDIT LOGS (With Pagination) ---
 @admin_bp.route('/admin/logs/audit')
 def view_audit_logs():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    offset = (page - 1) * per_page
+    
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 100")
+    # Get total count for pagination buttons
+    cur.execute("SELECT COUNT(*) FROM audit_logs")
+    total_logs = cur.fetchone()[0]
+    
+    # Get the 20 logs for this page
+    cur.execute("SELECT * FROM audit_logs ORDER BY id DESC LIMIT %s OFFSET %s", (per_page, offset))
     logs = cur.fetchall()
     conn.close()
-    return render_template('admin/audit_logs.html', logs=logs)
+    
+    total_pages = (total_logs // per_page) + (1 if total_logs % per_page > 0 else 0)
+    
+    return render_template('admin/audit_logs.html', 
+                           logs=logs, 
+                           page=page, 
+                           total_pages=total_pages)
 
-# --- VIEW: SYSTEM ERROR LOGS ---
+# --- VIEW: SYSTEM ERROR LOGS (With Pagination) ---
 @admin_bp.route('/admin/logs/system')
 def view_system_logs():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    offset = (page - 1) * per_page
+    
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT * FROM system_logs ORDER BY id DESC LIMIT 50")
+    cur.execute("SELECT COUNT(*) FROM system_logs")
+    total_logs = cur.fetchone()[0]
+    
+    cur.execute("SELECT * FROM system_logs ORDER BY id DESC LIMIT %s OFFSET %s", (per_page, offset))
     logs = cur.fetchall()
     conn.close()
-    return render_template('admin/system_logs.html', logs=logs)
+    
+    total_pages = (total_logs // per_page) + (1 if total_logs % per_page > 0 else 0)
+    
+    return render_template('admin/system_logs.html', 
+                           logs=logs, 
+                           page=page, 
+                           total_pages=total_pages)
