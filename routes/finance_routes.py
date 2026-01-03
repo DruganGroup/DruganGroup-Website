@@ -113,7 +113,7 @@ def finance_invoices():
     conn.close()
     return render_template('finance/finance_invoices.html', invoices=invoices, brand_color=config['color'], logo_url=config['logo'])
     
-# --- 1.6 GENERATE PDF INVOICE (With Smart Tax Data) ---
+# --- 1.6 GENERATE PDF INVOICE (Final Version with Notes) ---
 @finance_bp.route('/finance/invoice/<int:invoice_id>/pdf')
 def download_invoice_pdf(invoice_id):
     # Security Check
@@ -124,11 +124,12 @@ def download_invoice_pdf(invoice_id):
     conn = get_db()
     cur = conn.cursor()
     
-    # 1. Fetch Invoice & Client Data (Updated Query)
+    # 1. Fetch Invoice & Client Data (Now includes 'i.notes')
     cur.execute("""
         SELECT i.id, i.reference, i.date, i.due_date, 
                COALESCE(i.subtotal, 0), COALESCE(i.tax, 0), i.total, 
-               i.status, c.name, c.email, c.billing_address, c.phone, c.site_address
+               i.status, i.notes,
+               c.name, c.email, c.billing_address, c.phone, c.site_address
         FROM invoices i
         JOIN clients c ON i.client_id = c.id
         WHERE i.id = %s AND i.company_id = %s
@@ -142,9 +143,9 @@ def download_invoice_pdf(invoice_id):
     invoice_data = {
         'id': inv[0], 'ref': inv[1], 'date': inv[2], 'due_date': inv[3],
         'subtotal': float(inv[4]), 'tax': float(inv[5]), 'total': float(inv[6]), 
-        'status': inv[7],
-        'client_name': inv[8], 'client_email': inv[9], 
-        'client_address': inv[10], 'client_phone': inv[11], 'site_address': inv[12]
+        'status': inv[7], 'notes': inv[8],
+        'client_name': inv[9], 'client_email': inv[10], 
+        'client_address': inv[11], 'client_phone': inv[12], 'site_address': inv[13]
     }
 
     # 2. Fetch Line Items
