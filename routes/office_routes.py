@@ -658,6 +658,7 @@ def view_quote(quote_id):
     return render_template('office/view_quote_dashboard.html', quote=quote)
     
     return send_file(pdf_path, as_attachment=True, download_name=filename)
+
 @office_bp.route('/office/fix-invoice-schema')
 def fix_invoice_schema():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -665,18 +666,28 @@ def fix_invoice_schema():
     conn = get_db()
     cur = conn.cursor()
     try:
-        # 1. Add 'quote_ref'
+        # 1. Ensure 'invoice_items' table exists (The Fix for your current error)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS invoice_items (
+                id SERIAL PRIMARY KEY,
+                invoice_id INTEGER REFERENCES invoices(id) ON DELETE CASCADE,
+                description TEXT,
+                quantity NUMERIC(10, 2),
+                unit_price NUMERIC(10, 2),
+                total NUMERIC(10, 2)
+            );
+        """)
+
+        # 2. Add 'quote_ref' to invoices if missing
         cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS quote_ref TEXT;")
         
-        # 2. Add 'subtotal' & 'tax'
+        # 3. Add 'subtotal', 'tax', & 'notes' to invoices if missing
         cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS subtotal NUMERIC(10, 2) DEFAULT 0;")
         cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS tax NUMERIC(10, 2) DEFAULT 0;")
-        
-        # 3. Add 'notes' (The Fix for your current error)
         cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS notes TEXT;")
         
         conn.commit()
-        return "✅ SUCCESS: Database Updated. Columns added: quote_ref, subtotal, tax, and notes. You can now complete the job."
+        return "✅ SUCCESS: Tables & Columns Repaired. 'invoice_items' table created. You can now complete the job."
     except Exception as e:
         conn.rollback()
         return f"❌ Database Error: {e}"
