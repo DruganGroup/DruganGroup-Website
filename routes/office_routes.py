@@ -615,4 +615,31 @@ def download_quote_pdf(quote_id):
     # Using 'finance/pdf_invoice_template.html' as this is where the route logic usually points
     pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
     
+    # --- VIEW QUOTE (WEB PAGE) ---
+@office_bp.route('/office/quote/<int:quote_id>')
+def view_quote(quote_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    # Check if user wants the PDF directly
+    if request.args.get('mode') == 'pdf':
+        return download_quote_pdf(quote_id)
+
+    company_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    
+    cur.execute("""
+        SELECT q.id, c.name, q.reference, q.date, q.total, q.status, q.expiry_date
+        FROM quotes q 
+        LEFT JOIN clients c ON q.client_id = c.id 
+        WHERE q.id = %s AND q.company_id = %s
+    """, (quote_id, company_id))
+    quote = cur.fetchone()
+    
+    conn.close()
+    
+    if not quote: return "Quote not found", 404
+    
+    # This renders the "Quote Viewer" dashboard you uploaded earlier
+    return render_template('office/view_quote_dashboard.html', quote=quote)
+    
     return send_file(pdf_path, as_attachment=True, download_name=filename)

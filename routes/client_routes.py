@@ -133,23 +133,43 @@ def view_client(client_id):
     client = cur.fetchone()
     
     if not client:
+        conn.close()
         return "Client not found", 404
         
-    # Get Client Properties
+    # Get Client Properties (With Logic)
     cur.execute("""
         SELECT id, address_line1, postcode, tenant_name, 
-               gas_safety_due, eicr_due, pat_test_due, fire_risk_due, epc_expiry 
+               gas_safety_due, eicr_due, pat_test_due, fire_risk_due, epc_expiry, tenant_phone
         FROM properties WHERE client_id = %s ORDER BY id DESC
     """, (client_id,))
-    properties = cur.fetchall()
+    
+    raw_props = cur.fetchall()
+    properties = []
+    today = date.today()
+
+    def get_status(d):
+        if not d: return 'Missing'
+        if d < today: return 'Expired'
+        if (d - today).days <= 30: return 'Due'
+        return 'Valid'
+
+    for p in raw_props:
+        properties.append({
+            'id': p[0], 'addr': p[1], 'postcode': p[2], 'tenant': p[3], 'tenant_phone': p[9],
+            'compliance': {
+                'Gas': {'date': p[4], 'status': get_status(p[4])},
+                'EICR': {'date': p[5], 'status': get_status(p[5])},
+                'PAT': {'date': p[6], 'status': get_status(p[6])},
+                'Fire': {'date': p[7], 'status': get_status(p[7])},
+                'EPC': {'date': p[8], 'status': get_status(p[8])}
+            }
+        })
     
     conn.close()
     
-    # Map the tuple to a dictionary for easier HTML use
     client_data = {
-        'id': client[0], 'company_id': client[1], 'name': client[2], 'email': client[3],
-        'phone': client[4], 'billing_address': client[5], 'site_address': client[6],
-        'gate_code': client[7], 'notes': client[8], 'status': client[9]
+        'id': client[0], 'name': client[2], 'email': client[3],
+        'phone': client[4], 'addr': client[5] or client[6] 
     }
     
     return render_template('office/client_details.html', client=client_data, properties=properties)
