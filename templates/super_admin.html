@@ -276,47 +276,41 @@
                 </thead>
                 <tbody>
                     {% for c in companies %}
-                    <tr>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
-                                     style="width: 40px; height: 40px; background: rgba(255,255,255,0.1); color: var(--primary-gold); font-weight: 800; font-family: 'Montserrat';">
-                                    {{ c[1][:1] }}
-                                </div>
-                                <div>
-                                    <a href="/super-admin/company/{{ c[0] }}" class="comp-link">{{ c[1] }}</a>
-                                    <div style="font-size: 0.75rem; color: #aaa; font-family: 'Inter';">{{ c[2] }}.businessbetter.co.uk</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>{{ c[3] if c|length > 3 else '-' }}</td> 
-                        <td><span class="badge-plan">{{ c[4] if c|length > 4 else 'Starter' }}</span></td>
-                        <td><span class="text-muted">-</span></td>
-                        <td>
-                            {% set status = c[5] if c|length > 5 else 'Active' %}
-                            <span class="badge-status {{ 'status-active' if status == 'Active' else 'status-suspended' }}">
-                                {{ status }}
-                            </span>
-                        </td>
-                        <td class="text-end">
-                            <a href="/admin/suspend/{{ c[0] }}" class="btn-icon warning" title="Suspend">
-                                <i class="fas fa-pause"></i>
-                            </a>
-                            <a href="/admin/assign-me/{{ c[0] }}" class="btn-icon info" title="Login as Owner">
-                                <i class="fas fa-user-secret"></i>
-                            </a>
-                            <a href="/admin/delete-tenant/{{ c[0] }}" class="btn-icon danger" title="Delete Company" onclick="return confirm('⚠️ DANGER: Permanently delete?');">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">
-                            No companies found.
-                        </td>
-                    </tr>
-                    {% endfor %}
+<tr>
+    <td>
+        <div class="d-flex align-items-center">
+            <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
+                 style="width: 40px; height: 40px; background: rgba(255,255,255,0.1); color: var(--primary-gold); font-weight: 800; font-family: 'Montserrat';">
+                {{ c['name'][:1] }}
+            </div>
+            <div>
+                <a href="/super-admin/company/{{ c['id'] }}" class="comp-link">{{ c['name'] }}</a>
+                <div style="font-size: 0.75rem; color: #aaa; font-family: 'Inter';">{{ c['subdomain'] }}.businessbetter.co.uk</div>
+            </div>
+        </div>
+    </td>
+    <td>{{ c['created'] if 'created' in c else '-' }}</td> 
+    <td><span class="badge-plan">{{ c['plan'] if 'plan' in c else 'Starter' }}</span></td>
+    <td><span class="text-muted">-</span></td>
+    <td>
+        {% set status = c['status'] if 'status' in c else 'Active' %}
+        <span class="badge-status {{ 'status-active' if status == 'Active' else 'status-suspended' }}">
+            {{ status }}
+        </span>
+    </td>
+    <td class="text-end">
+        <a href="/admin/suspend/{{ c['id'] }}" class="btn-icon warning" title="Suspend">
+            <i class="fas fa-pause"></i>
+        </a>
+        <a href="/admin/assign-me/{{ c['id'] }}" class="btn-icon info" title="Login as Owner">
+            <i class="fas fa-user-secret"></i>
+        </a>
+        <a href="/admin/delete-tenant/{{ c['id'] }}" class="btn-icon danger" title="Delete Company" onclick="return confirm('⚠️ DANGER: Permanently delete?');">
+            <i class="fas fa-trash"></i>
+        </a>
+    </td>
+</tr>
+{% endfor %}
                 </tbody>
             </table>
         </div>

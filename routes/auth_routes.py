@@ -51,30 +51,16 @@ def main_launcher():
     if 'user_id' not in session: 
         return redirect(url_for('auth.login'))
     
-    # 2. SUPER ADMIN LOGIC (User ID 1)
+    # 2. REDIRECT SUPER ADMIN (User ID 1)
     if session.get('user_id') == 1:
-        try:
-            # Manually set Super Admin identity since you aren't in the 'companies' table
-            session['user_name'] = "Master Admin"
-            session['company_name'] = "Business Better HQ"
-            
-            conn = get_db()
-            cur = conn.cursor()
-            
-            # Fetch Companies
-            cur.execute("SELECT id, name, subdomain FROM companies ORDER BY id ASC")
-            companies = cur.fetchall()
-            
-            # Fetch Users
-            cur.execute("SELECT id, username, role, company_id FROM users ORDER BY id ASC")
-            users = cur.fetchall()
-            
-            conn.close()
-            
-            # Pass data to the template
-            return render_template('super_admin.html', companies=companies, users=users)
-        except Exception as e:
-            return f"Super Admin Database Error: {e}"
+        # Set these for the header
+        session['user_name'] = "Master Admin"
+        session['company_name'] = "Business Better HQ"
+        # Send you to the actual admin dashboard route
+        return redirect(url_for('admin.super_admin_dashboard'))
+
+    # 3. STAFF LOGIC (Everyone else)
+    return render_template('main_launcher.html', role=session.get('role'))
 
     # 3. STAFF LOGIC (Everyone else)
     return render_template('main_launcher.html', role=session.get('role'))
