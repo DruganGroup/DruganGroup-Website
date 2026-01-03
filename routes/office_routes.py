@@ -570,9 +570,10 @@ def download_quote_pdf(quote_id):
     conn = get_db()
     cur = conn.cursor()
     
-    # 1. Fetch Quote & Client Data
+    # FIX: Changed 'q.ref' to 'q.reference'
+    # Also removed 'q.expiry_date' just to be safe until you confirm the DB update
     cur.execute("""
-        SELECT q.id, q.ref, q.date, q.expiry_date, q.total, q.status, 
+        SELECT q.id, q.reference, q.date, q.total, q.status, 
                c.name, c.email, c.billing_address
         FROM quotes q
         JOIN clients c ON q.client_id = c.id
@@ -585,9 +586,15 @@ def download_quote_pdf(quote_id):
         return "Quote not found", 404
         
     quote_data = {
-        'id': q[0], 'ref': q[1], 'date': q[2], 'expiry': q[3],
-        'total': q[4], 'status': q[5], 'client_name': q[6], 
-        'client_email': q[7], 'client_address': q[8]
+        'id': q[0], 
+        'ref': q[1],       # Now correctly maps to q.reference
+        'date': q[2], 
+        'expiry': None,    # Placeholder to prevent crashes
+        'total': q[3], 
+        'status': q[4], 
+        'client_name': q[5], 
+        'client_email': q[6], 
+        'client_address': q[7]
     }
 
     # 2. Fetch Line Items
@@ -612,8 +619,10 @@ def download_quote_pdf(quote_id):
     
     filename = f"Quote_{quote_data['ref']}.pdf"
     
-    # Using 'finance/pdf_invoice_template.html' as this is where the route logic usually points
+    # Points to the PRO template
     pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
+    
+    return send_file(pdf_path, as_attachment=True, download_name=filename)
     
     # --- VIEW QUOTE (WEB PAGE) ---
 @office_bp.route('/office/quote/<int:quote_id>')
