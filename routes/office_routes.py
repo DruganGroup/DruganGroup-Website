@@ -659,37 +659,27 @@ def view_quote(quote_id):
     
     return send_file(pdf_path, as_attachment=True, download_name=filename)
 
-@office_bp.route('/office/fix-invoice-schema')
-def fix_invoice_schema():
+@office_bp.route('/office/fix-stuck-tickets')
+def fix_stuck_tickets():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
     
     conn = get_db()
     cur = conn.cursor()
     try:
-        # 1. Ensure 'invoice_items' table exists (The Fix for your current error)
+        # This SQL finds all Service Requests linked to properties 
+        # where the Job is already 'Completed', and marks the Request 'Completed' too.
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS invoice_items (
-                id SERIAL PRIMARY KEY,
-                invoice_id INTEGER REFERENCES invoices(id) ON DELETE CASCADE,
-                description TEXT,
-                quantity NUMERIC(10, 2),
-                unit_price NUMERIC(10, 2),
-                total NUMERIC(10, 2)
-            );
+            UPDATE service_requests
+            SET status = 'Completed'
+            FROM jobs
+            WHERE service_requests.property_id = jobs.property_id
+            AND jobs.status = 'Completed'
+            AND service_requests.status != 'Completed';
         """)
-
-        # 2. Add 'quote_ref' to invoices if missing
-        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS quote_ref TEXT;")
-        
-        # 3. Add 'subtotal', 'tax', & 'notes' to invoices if missing
-        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS subtotal NUMERIC(10, 2) DEFAULT 0;")
-        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS tax NUMERIC(10, 2) DEFAULT 0;")
-        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS notes TEXT;")
-        
         conn.commit()
-        return "✅ SUCCESS: Tables & Columns Repaired. 'invoice_items' table created. You can now complete the job."
+        return "✅ SUCCESS: All stuck tickets have been synced and closed."
     except Exception as e:
         conn.rollback()
-        return f"❌ Database Error: {e}"
+        return f"❌ Error: {e}"
     finally:
         conn.close()
