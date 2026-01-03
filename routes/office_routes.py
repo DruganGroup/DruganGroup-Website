@@ -658,3 +658,19 @@ def view_quote(quote_id):
     return render_template('office/view_quote_dashboard.html', quote=quote)
     
     return send_file(pdf_path, as_attachment=True, download_name=filename)
+    @office_bp.route('/office/fix-invoice-schema')
+def fix_invoice_schema():
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # The command to fix the missing column
+        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS quote_ref TEXT;")
+        conn.commit()
+        return "✅ SUCCESS: Column 'quote_ref' has been added to the invoices table. You can now complete the job."
+    except Exception as e:
+        conn.rollback()
+        return f"❌ Database Error: {e}"
+    finally:
+        conn.close()
