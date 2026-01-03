@@ -45,34 +45,23 @@ def login():
     # Render the login page (ensure this template exists in templates/public/login.html)
     return render_template('public/login.html')
 
-# --- 2. MAIN LAUNCHER (Hub) ---
 @auth_bp.route('/launcher')
 def main_launcher():
-    # Security Check
     if 'user_id' not in session: 
         return redirect(url_for('auth.login'))
     
     # --- SUPER ADMIN LOGIC (User ID 1) ---
-    # We check this FIRST. If it is the Super Admin, we show the SaaS Dashboard.
     if session.get('user_id') == 1:
         conn = get_db()
         cur = conn.cursor()
-        
-        # 1. Fetch Companies (Fixes the blank screen)
         cur.execute("SELECT id, name, subdomain FROM companies ORDER BY id ASC")
         companies = cur.fetchall()
-        
-        # 2. Fetch Users (So you can reset their passwords)
         cur.execute("SELECT id, username, role, company_id FROM users ORDER BY id ASC")
         users = cur.fetchall()
-        
         conn.close()
-        
-        # Pass both lists to the Super Admin template
         return render_template('super_admin.html', companies=companies, users=users)
 
     # --- STAFF LOGIC (Everyone else) ---
-    # Standard staff see the App Launcher (Office, Finance, etc.)
     return render_template('main_launcher.html', role=session.get('role'))
 
 # --- 3. LOGOUT ---
