@@ -103,11 +103,19 @@ def site_dashboard():
     
     conn = get_db(); cur = conn.cursor()
     
-    # 1. Fetch User & Company Config
-    cur.execute("SELECT name, company_id FROM users WHERE id = %s", (session['user_id'],))
+    # 1. Fetch User & Company Config (FIXED NAME LOGIC)
+    # Checks Staff table first (Real Name), then Users table (Username), then defaults.
+    cur.execute("""
+        SELECT u.company_id, COALESCE(s.name, u.name, u.username) 
+        FROM users u 
+        LEFT JOIN staff s ON u.email = s.email 
+        WHERE u.id = %s
+    """, (session['user_id'],))
+    
     user = cur.fetchone()
-    staff_name = user[0] if user and user[0] else "Staff Member"
-    comp_id = user[1]
+    comp_id = user[0]
+    staff_name = user[1] if user and user[1] else "Staff Member"
+    
     config = get_site_config(comp_id)
     
     # SYSTEM: Prepare for Universal Date Format (Default to UK if missing)
@@ -115,11 +123,14 @@ def site_dashboard():
     
     today = datetime.now().date()
 
-    # 2. TODAY'S SCHEDULE
+    # 2. TODAY'S SCHEDULE (FIXED: LEFT JOINs to ensure jobs show up even if data missing)
     cur.execute("""
-        SELECT j.id, j.status, j.ref, p.address_line1, p.postcode, j.description, j.start_date
+        SELECT j.id, j.status, j.ref, 
+               COALESCE(p.address_line1, 'Address Not Set'), 
+               COALESCE(p.postcode, ''), 
+               j.description, j.start_date
         FROM jobs j
-        JOIN properties p ON j.property_id = p.id
+        LEFT JOIN properties p ON j.property_id = p.id
         WHERE j.engineer_id = %s AND j.start_date::DATE = %s AND j.status != 'Completed'
     """, (session['user_id'], today))
     
@@ -131,16 +142,16 @@ def site_dashboard():
             'date_obj': row[6]
         })
 
-    # 3. 7-DAY AGENDA CALENDAR
+    # 3. 7-DAY AGENDA CALENDAR (FIXED: LEFT JOINs)
     calendar = []
     for i in range(7):
         check_date = today + timedelta(days=i)
         
         cur.execute("""
-            SELECT j.id, c.name, p.postcode, j.status, j.start_date
+            SELECT j.id, COALESCE(c.name, 'Client'), COALESCE(p.postcode, 'N/A'), j.status, j.start_date
             FROM jobs j
-            JOIN clients c ON j.client_id = c.id
-            JOIN properties p ON j.property_id = p.id
+            LEFT JOIN clients c ON j.client_id = c.id
+            LEFT JOIN properties p ON j.property_id = p.id
             WHERE j.engineer_id = %s AND j.start_date::DATE = %s
         """, (session['user_id'], check_date))
         daily_jobs = cur.fetchall()
