@@ -665,10 +665,17 @@ def fix_invoice_schema():
     conn = get_db()
     cur = conn.cursor()
     try:
-        # The command to fix the missing column
+        # 1. Add 'quote_ref' (The error you fixed before)
         cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS quote_ref TEXT;")
+        
+        # 2. Add 'subtotal' (The error you have now)
+        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS subtotal NUMERIC(10, 2) DEFAULT 0;")
+        
+        # 3. Add 'tax' (The error you would get next if we didn't do this)
+        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS tax NUMERIC(10, 2) DEFAULT 0;")
+        
         conn.commit()
-        return "✅ SUCCESS: Column 'quote_ref' has been added to the invoices table. You can now complete the job."
+        return "✅ SUCCESS: Database Columns Added: quote_ref, subtotal, and tax. You can now complete the job."
     except Exception as e:
         conn.rollback()
         return f"❌ Database Error: {e}"
