@@ -659,27 +659,53 @@ def view_quote(quote_id):
     
     return send_file(pdf_path, as_attachment=True, download_name=filename)
 
-@office_bp.route('/office/fix-stuck-tickets')
-def fix_stuck_tickets():
+@office_bp.route('/office/fix-invoice-schema')
+def fix_invoice_schema():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
     
     conn = get_db()
     cur = conn.cursor()
     try:
-        # This SQL finds all Service Requests linked to properties 
-        # where the Job is already 'Completed', and marks the Request 'Completed' too.
+        # 1. Enhancements for Job Completion
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS end_date TIMESTAMP;")
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS private_notes TEXT;")
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS work_summary TEXT;")
+
+        # 2. Master Timesheet Table (For your upcoming feature)
         cur.execute("""
-            UPDATE service_requests
-            SET status = 'Completed'
-            FROM jobs
-            WHERE service_requests.property_id = jobs.property_id
-            AND jobs.status = 'Completed'
-            AND service_requests.status != 'Completed';
+            CREATE TABLE IF NOT EXISTS staff_timesheets (
+                id SERIAL PRIMARY KEY,
+                staff_id INTEGER,
+                company_id INTEGER,
+                clock_in TIMESTAMP,
+                clock_out TIMESTAMP,
+                date DATE,
+                total_hours NUMERIC(5, 2)
+            );
         """)
+
+        # 3. Ensure Invoice Columns Exist
+        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS quote_ref TEXT;")
+        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS subtotal NUMERIC(10, 2) DEFAULT 0;")
+        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS tax NUMERIC(10, 2) DEFAULT 0;")
+        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS notes TEXT;")
+        
+        # 4. Ensure Invoice Items Table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS invoice_items (
+                id SERIAL PRIMARY KEY,
+                invoice_id INTEGER REFERENCES invoices(id) ON DELETE CASCADE,
+                description TEXT,
+                quantity NUMERIC(10, 2),
+                unit_price NUMERIC(10, 2),
+                total NUMERIC(10, 2)
+            );
+        """)
+        
         conn.commit()
-        return "✅ SUCCESS: All stuck tickets have been synced and closed."
+        return "✅ SUCCESS: Database ready for Two-Lane Workflow, Private Notes, and Timesheets."
     except Exception as e:
         conn.rollback()
-        return f"❌ Error: {e}"
+        return f"❌ Database Error: {e}"
     finally:
         conn.close()
