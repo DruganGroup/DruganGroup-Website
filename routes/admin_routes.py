@@ -568,19 +568,3 @@ def view_system_logs():
     logs = cur.fetchall()
     conn.close()
     return render_template('admin/system_logs.html', logs=logs)
-    
-    @admin_bp.route('/admin/add-expiry-column')
-def fix_quote_db():
-    if session.get('role') != 'SuperAdmin': return "Access Denied"
-    conn = get_db()
-    cur = conn.cursor()
-    try:
-        # This adds the missing column so your code works AND you keep the feature
-        cur.execute("ALTER TABLE quotes ADD COLUMN IF NOT EXISTS expiry_date DATE;")
-        conn.commit()
-        return "✅ SUCCESS: 'expiry_date' column added to database. You can now use Quotes."
-    except Exception as e:
-        conn.rollback()
-        return f"❌ Database Error: {e}"
-    finally:
-        conn.close()
