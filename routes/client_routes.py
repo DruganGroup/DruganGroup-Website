@@ -152,7 +152,7 @@ def view_client(client_id):
         'gate_code': client[7], 'notes': client[8], 'status': client[9]
     }
     
-    return render_template('clients/view_client.html', client=client_data, properties=properties)
+    return render_template('office/client_details.html', client=client_data, properties=properties)
 
 # --- 6. OFFICE VIEW: ADD PROPERTY (WITH COMPLIANCE DATES) ---
 @client_bp.route('/client/<int:client_id>/add-property', methods=['POST'])

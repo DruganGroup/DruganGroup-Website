@@ -1,18 +1,23 @@
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash
 from db import get_db
-# Ensure all security tools are imported
-from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.security import check_password_hash
 
 auth_bp = Blueprint('auth', __name__)
 
+# --- 1. STAFF & ADMIN LOGIN ---
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
+    # If already logged in, send them to the launcher
+    if 'user_id' in session:
+        return redirect(url_for('auth.main_launcher'))
+
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
         
         conn = get_db()
         cur = conn.cursor()
+        # Check users table and join with staff to get real name
         cur.execute("""
             SELECT u.id, u.username, u.password_hash, u.role, u.company_id, s.name 
             FROM users u 
@@ -30,45 +35,25 @@ def login():
             session['company_id'] = user[4]
             
             # STORE THE REAL NAME (User[5] is the name from the staff table)
-            # If no staff record is found, it falls back to the email
+            # If no staff record is found, it falls back to the username
             session['user_name'] = user[5] if user[5] else user[1] 
             
             return redirect(url_for('auth.main_launcher'))
         else:
             flash("❌ Invalid Staff Credentials")
             
-    return render_template('public/login.html', active_tab='staff')
-    
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        
-        conn = get_db()
-        cur = conn.cursor()
-        # Look in the CLIENTS table for Customers
-        cur.execute("SELECT id, name, company_id, password_hash FROM clients WHERE email = %s", (email,))
-        client = cur.fetchone()
-        conn.close()
-        
-        if client and check_password_hash(client[3], password):
-            session['client_id'] = client[0]
-            session['client_name'] = client[1]
-            session['company_id'] = client[2]
-            session['role'] = 'Client'
-            return redirect(url_for('client.client_portal_home'))
-        else:
-            flash("❌ Invalid Client Email or Password")
-    
-    return render_template('public/login', active_tab='client')
+    # Render the login page (ensure this template exists in templates/public/login.html)
+    return render_template('public/login.html')
 
+# --- 2. MAIN LAUNCHER (Hub) ---
 @auth_bp.route('/launcher')
 def main_launcher():
-    # 1. Security Check
+    # Security Check
     if 'user_id' not in session: 
         return redirect(url_for('auth.login'))
-    return render_template('main_launcher.html', role=session.get('role'))
     
     # --- SUPER ADMIN LOGIC (User ID 1) ---
+    # We check this FIRST. If it is the Super Admin, we show the SaaS Dashboard.
     if session.get('user_id') == 1:
         conn = get_db()
         cur = conn.cursor()
@@ -83,12 +68,14 @@ def main_launcher():
         
         conn.close()
         
-        # Pass both lists to the template
+        # Pass both lists to the Super Admin template
         return render_template('super_admin.html', companies=companies, users=users)
 
     # --- STAFF LOGIC (Everyone else) ---
+    # Standard staff see the App Launcher (Office, Finance, etc.)
     return render_template('main_launcher.html', role=session.get('role'))
 
+# --- 3. LOGOUT ---
 @auth_bp.route('/logout')
 def logout():
     session.clear()

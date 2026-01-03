@@ -578,8 +578,6 @@ def get_calendar_data():
     conn.close(); return jsonify(events)
 
 # --- 10. PLACEHOLDER ROUTES (To prevent crashes) ---
-@office_bp.route('/client/<int:client_id>')
-def view_client(client_id): return "Client View Placeholder" 
 @office_bp.route('/client/<int:client_id>/add_property', methods=['POST'])
 def add_property(client_id): return redirect(url_for('office.view_client', client_id=client_id))
 @office_bp.route('/office/quote/<int:quote_id>/convert')
