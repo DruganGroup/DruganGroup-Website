@@ -59,7 +59,7 @@
             <div class="card-body">
                 <h6 class="text-muted fw-bold text-uppercase small mb-3">Work Order</h6>
                 <div class="alert alert-secondary border-0">
-                    <i class="fas fa-info-circle me-2"></i> <strong>Job:</strong> {{ job[8] }}
+                    <i class="fas fa-info-circle me-2"></i> <strong>Desc:</strong> {{ job[8] }}
                 </div>
             </div>
         </div>
@@ -83,26 +83,15 @@
                     <input type="file" name="photo" id="photoInput" accept="image/*" capture="environment" onchange="document.getElementById('photoForm').submit();">
                 </form>
 
-                <form method="POST" action="/site/job/{{ job[0] }}/update">
-                    <input type="hidden" name="action" value="complete">
-                    
-                    {% if not photos %}
-                        <div class="alert alert-warning small">
-                            <i class="fas fa-exclamation-triangle"></i> You must upload a photo before completing the job.
-                        </div>
-                        <button type="button" class="btn btn-secondary action-btn" disabled>
-                            Add Photo First
-                        </button>
-                    {% else %}
-                        <div class="mb-3">
-                            <label class="fw-bold small ms-1">Client Signature (Type Name)</label>
-                            <input type="text" name="signature" class="form-control form-control-lg" placeholder="e.g. John Smith" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary action-btn text-white mt-2" onclick="return confirm('Confirm Job Completion and Generate Invoice?');">
-                            <i class="fas fa-check-circle me-2"></i> Sign Off & Complete
-                        </button>
-                    {% endif %}
-                </form>
+                {% if not photos %}
+                    <button type="button" class="btn btn-secondary action-btn" disabled>
+                        <i class="fas fa-exclamation-triangle me-2"></i> Add Photo to Complete
+                    </button>
+                {% else %}
+                    <button type="button" class="btn btn-primary action-btn text-white mt-2" data-bs-toggle="modal" data-bs-target="#completeJobModal">
+                        <i class="fas fa-check-circle me-2"></i> Sign Off & Complete
+                    </button>
+                {% endif %}
             {% endif %}
         </div>
 
@@ -122,5 +111,44 @@
         {% endif %}
 
     </div>
+
+    <div class="modal fade" id="completeJobModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header bg-primary text-white border-0">
+                    <h5 class="modal-title fw-bold">Job Completion</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form method="POST" action="/site/job/{{ job[0] }}/update">
+                        <input type="hidden" name="action" value="complete">
+                        
+                        <div class="mb-3">
+                            <label class="fw-bold small text-muted">Materials / Work Done (For Invoice)</label>
+                            <textarea name="work_summary" class="form-control" rows="3" placeholder="e.g. Replaced leaking pipe, used 2m copper..." required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="fw-bold small text-danger">Private Office Notes (Internal Only)</label>
+                            <textarea name="private_notes" class="form-control bg-light" rows="2" placeholder="e.g. Client was difficult, access code changed to 1234..."></textarea>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="fw-bold small text-muted">Client Signature (Type Name)</label>
+                            <input type="text" name="signature" class="form-control form-control-lg" placeholder="e.g. John Smith" required>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success btn-lg fw-bold">
+                                <i class="fas fa-check-circle me-2"></i> Submit & Finish
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

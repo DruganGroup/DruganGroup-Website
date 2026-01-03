@@ -255,70 +255,95 @@ def update_job(job_id):
             else:
                 flash("✅ Job Started.")
 
-        # --- B. COMPLETE JOB (Triggers Invoice + Smart Tax Logic) ---
+       # --- B. COMPLETE JOB (Two-Lane Workflow) ---
         elif action == 'complete':
             signature = request.form.get('signature')
+            work_summary = request.form.get('work_summary')
+            private_notes = request.form.get('private_notes')
             
+            # Fetch Job Data
             cur.execute("SELECT client_id, ref, description, start_date, property_id FROM jobs WHERE id = %s", (job_id,))
             job_data = cur.fetchone()
-            client_id, job_ref, job_desc, job_date, prop_id = job_data  # Added prop_id fetch
+            client_id, job_ref, job_desc, job_date, prop_id = job_data
             clean_ref = job_ref.replace("Ref: ", "").replace("Quote Work: ", "").strip()
 
-            cur.execute("SELECT COUNT(*) FROM invoices WHERE company_id = %s", (comp_id,))
-            inv_ref = f"INV-{1000 + cur.fetchone()[0] + 1}"
-            
-            # 1. FETCH TAX SETTINGS
-            cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
-            settings = {row[0]: row[1] for row in cur.fetchall()}
-            
-            vat_enabled = settings.get('vat_registered') == 'yes'
-            country = settings.get('country_code', 'UK')
-            
-            tax_rate = 0.0
-            if vat_enabled:
-                if country == 'UK': tax_rate = 0.20
-                elif country == 'AUS': tax_rate = 0.10
-                elif country == 'NZ': tax_rate = 0.15
-                elif country == 'CAN': tax_rate = 0.05
-                elif country == 'EU': tax_rate = 0.21
-
-            # 2. CREATE INVOICE SHELL
+            # 1. Update Job Record with Time & Notes
             cur.execute("""
-                INSERT INTO invoices (company_id, client_id, quote_ref, reference, date, due_date, status, subtotal, tax, total, notes) 
-                VALUES (%s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE + 14, 'Unpaid', 0, 0, 0, %s) 
-                RETURNING id
-            """, (comp_id, client_id, clean_ref, inv_ref, f"Job Signed by: {signature}"))
-            inv_id = cur.fetchone()[0]
-            
-            # 3. CALCULATE ITEMS & SUBTOTAL
+                UPDATE jobs 
+                SET status = 'Completed', end_date = CURRENT_TIMESTAMP, 
+                    work_summary = %s, private_notes = %s 
+                WHERE id = %s
+            """, (work_summary, private_notes, job_id))
+
+            # 2. Check for Quote (Lane 1 vs Lane 2)
             cur.execute("SELECT id FROM quotes WHERE reference = %s AND company_id = %s", (clean_ref, comp_id))
             quote_row = cur.fetchone()
-            
-            subtotal = 0.0
-            
+
+            # Generate Invoice Ref
+            cur.execute("SELECT COUNT(*) FROM invoices WHERE company_id = %s", (comp_id,))
+            inv_ref = f"INV-{1000 + cur.fetchone()[0] + 1}"
+
+            # LANE 1: QUOTED JOB (Auto-Invoice)
             if quote_row:
                 quote_id = quote_row[0]
+                
+                # Fetch Tax Settings
+                cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+                settings = {row[0]: row[1] for row in cur.fetchall()}
+                vat_enabled = settings.get('vat_registered') == 'yes'
+                country = settings.get('country_code', 'UK')
+                
+                tax_rate = 0.0
+                if vat_enabled:
+                    if country == 'UK': tax_rate = 0.20
+                    elif country == 'AUS': tax_rate = 0.10
+                    elif country == 'NZ': tax_rate = 0.15
+                    elif country == 'CAN': tax_rate = 0.05
+                    elif country == 'EU': tax_rate = 0.21
+
+                # Create Invoice Shell
+                cur.execute("""
+                    INSERT INTO invoices (company_id, client_id, quote_ref, reference, date, due_date, status, subtotal, tax, total, notes) 
+                    VALUES (%s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE + 14, 'Unpaid', 0, 0, 0, %s) 
+                    RETURNING id
+                """, (comp_id, client_id, clean_ref, inv_ref, f"Job Signed by: {signature}"))
+                inv_id = cur.fetchone()[0]
+
+                # Transfer Items
                 cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
                 items = cur.fetchall()
+                subtotal = 0.0
                 for item in items:
                     cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, %s, %s, %s)",
                                (inv_id, item[0], item[1], item[2], item[3]))
                     subtotal += float(item[3])
-                flash(f"🎉 Job Completed & Invoice {inv_ref} Generated!")
+                
+                # Calc Tax
+                tax_amount = subtotal * tax_rate
+                grand_total = subtotal + tax_amount
+                cur.execute("UPDATE invoices SET subtotal = %s, tax = %s, total = %s WHERE id = %s", (subtotal, tax_amount, grand_total, inv_id))
+                
+                flash(f"🎉 Job Completed. Quoted Invoice {inv_ref} generated automatically.")
+
+            # LANE 2: EMERGENCY JOB (Draft Invoice)
             else:
-                cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, 1, 0, 0)",
-                           (inv_id, f"Completed: {job_desc}",))
-                flash(f"🎉 Job Completed & Blank Invoice {inv_ref} Created.")
+                # Create 'Draft' Invoice with 0 Total
+                cur.execute("""
+                    INSERT INTO invoices (company_id, client_id, reference, date, due_date, status, subtotal, tax, total, notes) 
+                    VALUES (%s, %s, %s, CURRENT_DATE, CURRENT_DATE + 14, 'Draft', 0, 0, 0, %s) 
+                    RETURNING id
+                """, (comp_id, client_id, inv_ref, f"Pending Pricing. Work Done: {work_summary}. Signed: {signature}"))
+                inv_id = cur.fetchone()[0]
+                
+                # Add Placeholder Item
+                cur.execute("""
+                    INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) 
+                    VALUES (%s, %s, 1, 0, 0)
+                """, (inv_id, f"Work Completed: {work_summary}"))
+                
+                flash(f"✅ Job Completed. Draft Invoice {inv_ref} sent to Office for pricing.")
 
-            # 4. APPLY TAX MATH
-            tax_amount = subtotal * tax_rate
-            grand_total = subtotal + tax_amount
-
-            cur.execute("UPDATE invoices SET subtotal = %s, tax = %s, total = %s WHERE id = %s", (subtotal, tax_amount, grand_total, inv_id))
-            
-            # 5. CLOSE JOB & LINKED TICKET (The Fix)
-            cur.execute("UPDATE jobs SET status = 'Completed' WHERE id = %s", (job_id,))
-            # Find any 'In Progress' ticket for this property and close it
+            # Close Linked Service Ticket
             cur.execute("UPDATE service_requests SET status = 'Completed' WHERE property_id = %s AND status = 'In Progress'", (prop_id,))
             
         # --- C. UPLOAD PHOTO ---
