@@ -115,8 +115,6 @@ def super_admin_dashboard():
             cur.execute("INSERT INTO users (username, password_hash, email, role, company_id) VALUES (%s, %s, %s, 'Admin', %s)", (owner_email, secure_pass, owner_email, new_id))
             cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'brand_color', '#2c3e50')", (new_id,))
             
-            # EMAIL NOTIFICATION LOGIC
-            cur.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)") 
             cur.execute("SELECT key, value FROM system_settings")
             sys_conf = {row[0]: row[1] for row in cur.fetchall()}
             
@@ -165,26 +163,60 @@ def super_admin_dashboard():
 
         except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
             
-    # --- FETCH DATA (UPDATED FOR COMMAND CENTER) ---
+    # --- FETCH DATA ---
     cur.execute("""
-        SELECT c.id, c.name, s.plan_tier, s.status, u.email, c.subdomain
+        SELECT 
+            c.id, c.name, c.subdomain,
+            s.plan_tier, s.status, s.start_date,
+            u.email
         FROM companies c
         LEFT JOIN subscriptions s ON c.id = s.company_id
         LEFT JOIN users u ON c.id = u.company_id AND u.role = 'Admin'
         ORDER BY c.id DESC
     """)
-    companies = cur.fetchall() 
+    raw_companies = cur.fetchall()
+    
+    companies = []
+    today = date.today()
+
+    for c in raw_companies:
+        created_date = c[5] if c[5] else today
+        next_bill = "Unknown"
+        if created_date:
+            try:
+                if today.day > created_date.day:
+                    month = today.month + 1 if today.month < 12 else 1
+                    year = today.year if today.month < 12 else today.year + 1
+                    next_bill = date(year, month, created_date.day)
+                else:
+                    next_bill = date(today.year, today.month, created_date.day)
+            except:
+                next_bill = created_date + timedelta(days=30)
+
+        real_size_mb = get_real_company_usage(c[0], cur)
+        est_bandwidth = round(real_size_mb * 5, 2)
+        
+        companies.append({
+            'id': c[0], 'name': c[1], 'subdomain': c[2],
+            'plan': c[3] if c[3] else 'Basic', 
+            'status': c[4] if c[4] else 'Active', 
+            'email': c[6] if c[6] else 'No Admin',
+            'created': created_date,
+            'next_bill': next_bill,
+            'storage': real_size_mb, 
+            'bandwidth': est_bandwidth
+        })
     
     cur.execute("SELECT id, username, role, company_id FROM users WHERE role IN ('SuperAdmin', 'Admin') ORDER BY id ASC")
     users = cur.fetchall()
     
     cur.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)") 
+    conn.commit()
     cur.execute("SELECT key, value FROM system_settings")
     system_config = {row[0]: row[1] for row in cur.fetchall()}
     
     conn.close()
-    
-    return render_template('admin/super_admin_overview.html', companies=companies, users=users, config=system_config)
+    return render_template('super_admin.html', companies=companies, users=users, config=system_config)
 
 # --- 2. ANALYTICS ---
 @admin_bp.route('/super-admin/analytics')
@@ -536,9 +568,8 @@ def view_system_logs():
     logs = cur.fetchall()
     conn.close()
     return render_template('admin/system_logs.html', logs=logs)
-
-# --- DATABASE REPAIR TOOL (FIXES THE CRASH) ---
-@admin_bp.route('/admin/add-expiry-column')
+    
+    @admin_bp.route('/admin/add-expiry-column')
 def fix_quote_db():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
     conn = get_db()
