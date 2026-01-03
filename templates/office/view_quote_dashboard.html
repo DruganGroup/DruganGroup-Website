@@ -56,7 +56,7 @@
 
         <div class="mb-4">
             <label class="small text-muted text-uppercase fw-bold">Total Value</label>
-            <div class="fs-4 fw-bold text-success">£{{ "%.2f"|format(quote[4]) }}</div> </div>
+            <div class="fs-4 fw-bold text-success">{{ currency_symbol }}{{ "%.2f"|format(quote[4]) }}</div> </div>
         
         <div class="d-grid gap-2 mt-5">
             <a href="/office-hub" class="btn btn-outline-light"><i class="fas fa-arrow-left me-2"></i> Back to Dashboard</a>

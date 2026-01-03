@@ -20,7 +20,7 @@
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <h6 class="opacity-75 text-uppercase fw-bold">Total Income</h6>
-                        <h2 class="fw-bold mb-0 currency-text">£{{ "%.2f"|format(total_income) }}</h2>
+                        <h2 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(total_income) }}</h2>
                     </div>
                     <i class="fas fa-arrow-up fa-2x opacity-50"></i>
                 </div>
@@ -31,7 +31,7 @@
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <h6 class="opacity-75 text-uppercase fw-bold">Total Expense</h6>
-                        <h2 class="fw-bold mb-0 currency-text">£{{ "%.2f"|format(total_expense) }}</h2>
+                        <h2 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(total_expense) }}</h2>
                     </div>
                     <i class="fas fa-arrow-down fa-2x opacity-50"></i>
                 </div>
@@ -42,7 +42,7 @@
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <h6 class="opacity-75 text-uppercase fw-bold">Net Balance</h6>
-                        <h2 class="fw-bold mb-0 currency-text">£{{ "%.2f"|format(total_balance) }}</h2>
+                        <h2 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(total_balance) }}</h2>
                     </div>
                     <i class="fas fa-wallet fa-2x opacity-25"></i>
                 </div>
@@ -72,7 +72,7 @@
                         <td><span class="badge rounded-pill {{ 'bg-success-subtle text-success' if t[1] == 'Income' else 'bg-danger-subtle text-danger' }}">{{ t[1] }}</span></td>
                         <td>{{ t[2] }}</td>
                         <td class="text-muted">{{ t[3] }}</td>
-                        <td class="text-end fw-bold pe-3 currency-text">£{{ "%.2f"|format(t[4]) }}</td>
+                        <td class="text-end fw-bold pe-3 currency-text">{{ currency_symbol }}{{ "%.2f"|format(t[4]) }}</td>
                     </tr>
                     {% else %}
                     <tr><td colspan="5" class="text-center text-muted py-5">No recent activity found.</td></tr>
