@@ -35,7 +35,30 @@
     <a href="/finance/settings" style="background-color: rgba(255,255,255,0.2); border-left: 5px solid white;"><i class="fas fa-cogs me-2"></i> Settings</a>
     <a href="/launcher" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
 </div>
+<div class="card p-4 mt-4">
+    <h5 class="fw-bold text-secondary mb-4">Invoice & Quote Template</h5>
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="template-preview-box border rounded p-2 text-center {% if settings.get('invoice_template') == 'modern' %}border-primary border-3{% endif %}">
+                <img src="/static/images/template_modern_preview.png" class="img-fluid rounded mb-2" alt="Modern">
+                <div class="form-check justify-content-center d-flex">
+                    <input class="form-check-input me-2" type="radio" name="invoice_template" value="modern" id="temp1" {% if settings.get('invoice_template') == 'modern' or not settings.get('invoice_template') %}checked{% endif %}>
+                    <label class="form-check-label fw-bold" for="temp1">Modern Professional</label>
+                </div>
+            </div>
+        </div>
 
+        <div class="col-md-4">
+            <div class="template-preview-box border rounded p-2 text-center {% if settings.get('invoice_template') == 'classic' %}border-primary border-3{% endif %}">
+                <img src="/static/images/template_classic_preview.png" class="img-fluid rounded mb-2" alt="Classic">
+                <div class="form-check justify-content-center d-flex">
+                    <input class="form-check-input me-2" type="radio" name="invoice_template" value="classic" id="temp2" {% if settings.get('invoice_template') == 'classic' %}checked{% endif %}>
+                    <label class="form-check-label fw-bold" for="temp2">Classic Corporate</label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 <div class="content">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>

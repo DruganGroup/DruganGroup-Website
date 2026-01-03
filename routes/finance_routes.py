@@ -381,7 +381,7 @@ def settings_general():
     comp_id = session.get('company_id'); config = get_site_config(comp_id); conn = get_db(); cur = conn.cursor()
     if request.method == 'POST':
         # NOW SAVING 'company_country' FOR DATES
-        for k in ['company_name', 'company_email', 'company_phone', 'company_country', 'company_website', 'company_address', 'brand_color', 'smtp_host', 'smtp_port', 'smtp_email', 'smtp_password']:
+        for k in ['company_name', 'company_email', 'company_phone', 'company_country', 'company_website', 'company_address', 'brand_color', 'smtp_host', 'smtp_port', 'smtp_email', 'smtp_password', 'invoice_template']:
             cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, k, request.form.get(k)))
         if 'logo' in request.files:
             file = request.files['logo']

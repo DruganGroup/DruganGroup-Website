@@ -9,6 +9,8 @@ from werkzeug.security import generate_password_hash
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from services.pdf_generator import generate_pdf
+from flask import send_file
 
 # Import the AI Brain
 from services.ai_assistant import scan_receipt, verify_license, universal_sort_document
@@ -596,3 +598,57 @@ def fix_db_engineer():
         return f"Database Error: {e}"
     finally:
         conn.close()
+        
+        # --- GENERATE PDF QUOTE ---
+@office_bp.route('/office/quote/<int:quote_id>/pdf')
+def download_quote_pdf(quote_id):
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    company_id = session.get('company_id')
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # 1. Fetch Quote & Client Data
+    cur.execute("""
+        SELECT q.id, q.ref, q.date, q.expiry_date, q.total, q.status, 
+               c.name, c.email, c.billing_address
+        FROM quotes q
+        JOIN clients c ON q.client_id = c.id
+        WHERE q.id = %s AND q.company_id = %s
+    """, (quote_id, company_id))
+    q = cur.fetchone()
+    
+    if not q:
+        conn.close()
+        return "Quote not found", 404
+        
+    quote_data = {
+        'id': q[0], 'ref': q[1], 'date': q[2], 'expiry': q[3],
+        'total': q[4], 'status': q[5], 'client_name': q[6], 
+        'client_email': q[7], 'client_address': q[8]
+    }
+
+    # 2. Fetch Line Items
+    cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
+    items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
+    
+    # 3. Fetch Branding & Settings
+    config = get_site_config(company_id)
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    conn.close()
+    
+    # 4. Generate PDF
+    context = {
+        'invoice': quote_data, # We reuse the 'invoice' variable name so the template works for both
+        'items': items,
+        'settings': settings,
+        'config': config,
+        'is_quote': True, # This flag lets the template say "QUOTE" instead of "INVOICE"
+        'company': {'name': session.get('company_name')}
+    }
+    
+    filename = f"Quote_{quote_data['ref']}.pdf"
+    pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
+    
+    return send_file(pdf_path, as_attachment=True, download_name=filename)

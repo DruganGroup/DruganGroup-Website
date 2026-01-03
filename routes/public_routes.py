@@ -3,7 +3,7 @@ from flask import Blueprint, render_template
 # Create the Blueprint (this is like a mini-app)
 public_bp = Blueprint('public', __name__)
 
-@public_bp.route('/index')
+@public_bp.route('/')
 @public_bp.route('/index.html')
 def home():
     return render_template('public/index.html')
