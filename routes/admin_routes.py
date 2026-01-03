@@ -549,15 +549,22 @@ def setup_logs_db():
     finally: conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
 
-# --- VIEW: AUDIT LOGS ---
 @admin_bp.route('/admin/logs/audit')
 def view_audit_logs():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
+    
+    # 1. Get the current page number (default to 1 if missing)
+    page = request.args.get('page', 1, type=int)
+    
     conn = get_db(); cur = conn.cursor()
+    
+    # (Optional: You can add real pagination logic here later)
     cur.execute("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 100")
     logs = cur.fetchall()
     conn.close()
-    return render_template('admin/audit_logs.html', logs=logs)
+    
+    # 2. Pass 'page' to the template to stop the error
+    return render_template('admin/audit_logs.html', logs=logs, page=page)
 
 # --- VIEW: SYSTEM ERROR LOGS ---
 @admin_bp.route('/admin/logs/system')
