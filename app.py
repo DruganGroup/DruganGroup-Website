@@ -125,6 +125,45 @@ def inject_currency():
         
     except Exception:
         return dict(currency_symbol=default_sym)
+        
+        # --- GLOBAL BRANDING INJECTOR (Multi-Tenant Safe) ---
+@app.context_processor
+def inject_branding():
+    # Defaults
+    default_color = '#2c3e50'
+    default_logo = None
+    
+    # SAFETY CHECK: If no company is logged in, show defaults
+    if 'company_id' not in session:
+        return dict(brand_color=default_color, logo=default_logo)
+
+    # 1. Try Session (Fast)
+    color = session.get('brand_color')
+    logo = session.get('logo')
+
+    # 2. If missing, Check Database for THIS Company ID
+    if not color or not logo:
+        try:
+            conn = get_db()
+            cur = conn.cursor()
+            # The 'WHERE company_id = %s' ensures we only get THIS company's data
+            cur.execute("""
+                SELECT key, value FROM settings 
+                WHERE company_id = %s AND key IN ('brand_color', 'logo')
+            """, (session['company_id'],))
+            row_dict = dict(cur.fetchall())
+            conn.close()
+            
+            color = row_dict.get('brand_color', default_color)
+            logo = row_dict.get('logo')
+            
+            # Update session to keep it fast next time
+            session['brand_color'] = color
+            session['logo'] = logo
+        except Exception:
+            pass
+
+    return dict(brand_color=color or default_color, logo=logo)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
