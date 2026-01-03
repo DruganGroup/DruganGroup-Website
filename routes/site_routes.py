@@ -87,71 +87,74 @@ def send_email_notification(company_id, to_email, client_name, job_ref, address)
 @site_bp.route('/site-hub')
 @site_bp.route('/site-companion') 
 def site_dashboard():
-    if 'user_id' not in session: return redirect('/')
+    if not check_site_access(): return redirect(url_for('auth.login'))
     
-    conn = get_db(); cur = conn.cursor()
+    staff_id = session.get('staff_id')
     
-    # 1. RESOLVE IDENTITY (The Fix)
-    # This finds the correct Staff ID to look for in the Jobs table
-    staff_id, staff_name, comp_id = get_staff_identity(session['user_id'], cur)
+    conn = get_db()
+    cur = conn.cursor()
     
-    # Fallback: If no staff profile found, try using the User ID directly
-    # (Useful if you assigned the job to an Admin user ID directly in the DB)
-    search_id = staff_id if staff_id else session['user_id']
-
-    config = get_site_config(comp_id)
-    user_date_format = config.get('date_format', '%d/%m/%Y') 
-    today = datetime.now().date()
-
-    # 2. TODAY'S SCHEDULE
+    # 1. CHECK IF CLOCKED IN (The New Part)
+    cur.execute("SELECT id FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
+    is_clocked_in = cur.fetchone() is not None
+    
+    # 2. GET JOBS (Your existing logic)
+    # We fetch jobs assigned to this specific logged-in engineer
     cur.execute("""
-        SELECT j.id, j.status, j.ref, 
-               COALESCE(p.address_line1, 'Address Not Set'), 
-               COALESCE(p.postcode, ''), 
-               j.description, j.start_date
-        FROM jobs j
-        LEFT JOIN properties p ON j.property_id = p.id
-        WHERE j.engineer_id = %s AND j.start_date::DATE = %s AND j.status != 'Completed'
-    """, (search_id, today))
+        SELECT j.id, j.ref, j.site_address, c.name, j.description, j.start_date, j.status 
+        FROM jobs j 
+        LEFT JOIN clients c ON j.client_id = c.id 
+        WHERE j.engineer_id = %s AND j.status != 'Completed' 
+        ORDER BY j.start_date ASC
+    """, (staff_id,))
+    jobs = cur.fetchall()
     
-    my_jobs = []
-    for row in cur.fetchall():
-        my_jobs.append({
-            'id': row[0], 'status': row[1], 'reference': row[2],
-            'address': row[3], 'postcode': row[4], 'notes': row[5],
-            'date_obj': row[6]
-        })
-
-    # 3. 7-DAY AGENDA CALENDAR
-    calendar = []
-    for i in range(7):
-        check_date = today + timedelta(days=i)
-        
-        cur.execute("""
-            SELECT j.id, COALESCE(c.name, 'Client'), COALESCE(p.postcode, 'N/A'), j.status, j.start_date
-            FROM jobs j
-            LEFT JOIN clients c ON j.client_id = c.id
-            LEFT JOIN properties p ON j.property_id = p.id
-            WHERE j.engineer_id = %s AND j.start_date::DATE = %s
-        """, (search_id, check_date))
-        daily_jobs = cur.fetchall()
-        
-        calendar.append({
-            'date': check_date,
-            'day_name': check_date.strftime('%a'),
-            'day_num': check_date.strftime('%d'),
-            'jobs': daily_jobs
-        })
-
     conn.close()
     
-    return render_template('site/site_dashboard.html', 
-                         staff_name=staff_name,
-                         my_jobs=my_jobs,
-                         calendar=calendar, 
-                         brand_color=config.get('color'),
-                         logo_url=config.get('logo'),
-                         date_format=user_date_format)
+    # We pass 'is_clocked_in' to the HTML so it knows which button to show
+    return render_template('site/site_dashboard.html', jobs=jobs, is_clocked_in=is_clocked_in)
+
+# --- NEW: CLOCK IN ROUTE ---
+@site_bp.route('/site/clock-in', methods=['POST'])
+def clock_in():
+    if 'user_id' not in session: return redirect('/login')
+    staff_id = session.get('staff_id'); comp_id = session.get('company_id')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT id FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL AND date = CURRENT_DATE", (staff_id,))
+        if cur.fetchone():
+            flash("⚠️ You are already clocked in!", "warning")
+        else:
+            cur.execute("INSERT INTO staff_timesheets (staff_id, company_id, clock_in, date) VALUES (%s, %s, CURRENT_TIMESTAMP, CURRENT_DATE)", (staff_id, comp_id))
+            conn.commit(); flash("🕒 Clocked In Successfully!")
+    except Exception as e: conn.rollback(); flash(f"Error: {e}")
+    finally: conn.close()
+    return redirect('/site-hub')
+
+# --- NEW: CLOCK OUT ROUTE ---
+@site_bp.route('/site/clock-out', methods=['POST'])
+def clock_out():
+    if 'user_id' not in session: return redirect('/login')
+    staff_id = session.get('staff_id')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT id, clock_in FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL ORDER BY id DESC LIMIT 1", (staff_id,))
+        row = cur.fetchone()
+        if row:
+            sheet_id = row[0]; start_time = row[1]
+            # Calculate hours worked (simple subtraction)
+            diff = datetime.now() - start_time
+            hours = diff.total_seconds() / 3600
+            
+            cur.execute("UPDATE staff_timesheets SET clock_out = CURRENT_TIMESTAMP, total_hours = %s WHERE id = %s", (round(hours, 2), sheet_id))
+            conn.commit(); flash(f"🕒 Clocked Out. Shift: {round(hours, 2)} hrs.")
+        else:
+            flash("⚠️ Error: No active shift found.", "warning")
+    except Exception as e: conn.rollback(); flash(f"Error: {e}")
+    finally: conn.close()
+    return redirect('/site-hub')
                          
 # --- 2. DEDICATED VAN CHECK PAGE ---
 @site_bp.route('/site/van-check', methods=['GET', 'POST'])
@@ -421,3 +424,68 @@ def log_fuel():
             return redirect(url_for('site.site_dashboard'))
 
     return render_template('site/fuel_form.html', reg=v_reg)
+    
+    # --- TIME CLOCK ROUTES ---
+@site_bp.route('/site/clock-in', methods=['POST'])
+def clock_in():
+    if 'user_id' not in session: return redirect('/login')
+    
+    staff_id = session.get('staff_id')
+    comp_id = session.get('company_id')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Check if already clocked in today to prevent double clicking
+        cur.execute("SELECT id FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL AND date = CURRENT_DATE", (staff_id,))
+        if cur.fetchone():
+            flash("⚠️ You are already clocked in!", "warning")
+        else:
+            cur.execute("""
+                INSERT INTO staff_timesheets (staff_id, company_id, clock_in, date)
+                VALUES (%s, %s, CURRENT_TIMESTAMP, CURRENT_DATE)
+            """, (staff_id, comp_id))
+            conn.commit()
+            flash("🕒 Clocked In Successfully!")
+    except Exception as e:
+        conn.rollback(); flash(f"Error: {e}")
+    finally:
+        conn.close()
+        
+    return redirect('/site-hub')
+
+@site_bp.route('/site/clock-out', methods=['POST'])
+def clock_out():
+    if 'user_id' not in session: return redirect('/login')
+    
+    staff_id = session.get('staff_id')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Find the open shift
+        cur.execute("SELECT id, clock_in FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL ORDER BY id DESC LIMIT 1", (staff_id,))
+        row = cur.fetchone()
+        
+        if row:
+            sheet_id = row[0]
+            start_time = row[1]
+            
+            # Calculate total hours (Python math because SQL intervals can be tricky across DBs)
+            end_time = datetime.now()
+            duration = (end_time - start_time).total_seconds() / 3600 # Hours
+            
+            cur.execute("""
+                UPDATE staff_timesheets 
+                SET clock_out = CURRENT_TIMESTAMP, total_hours = %s 
+                WHERE id = %s
+            """, (round(duration, 2), sheet_id))
+            conn.commit()
+            flash(f"🕒 Clocked Out. Shift: {round(duration, 2)} hours.")
+        else:
+            flash("⚠️ Could not find an open shift to clock out of.", "warning")
+            
+    except Exception as e:
+        conn.rollback(); flash(f"Error: {e}")
+    finally:
+        conn.close()
+
+    return redirect('/site-hub')
