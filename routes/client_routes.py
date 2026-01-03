@@ -4,6 +4,7 @@ from email_service import send_company_email
 import random
 import string
 from werkzeug.security import generate_password_hash
+from datetime import date
 
 client_bp = Blueprint('client', __name__)
 
