@@ -18,7 +18,7 @@ app = Flask(__name__)
 
 # Configuration
 app.secret_key = os.environ.get("SECRET_KEY", "dev_key_123") 
-app.config['UPLOAD_FOLDER'] = '/opt/render/project/src/static/uploads/logos'
+app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'static', 'uploads', 'logos')
 
 # 3. REGISTER BLUEPRINTS (Now 'app' exists, so this works!)
 app.register_blueprint(portal_bp)

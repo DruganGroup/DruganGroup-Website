@@ -632,11 +632,21 @@ def download_quote_pdf(quote_id):
     cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
     items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
     
-    # 3. Fetch Branding & Settings
-    config = get_site_config(company_id)
-    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
-    settings = {row[0]: row[1] for row in cur.fetchall()}
-    conn.close()
+    # 3. Fetch Branding & Settings (ENSURE DEFAULTS)
+cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
+settings = {row[0]: row[1] for row in cur.fetchall()}
+
+# Get Logo/Color specifically
+site_config = get_site_config(company_id) 
+
+context = {
+    'invoice': quote_data, 
+    'items': items,
+    'settings': settings,
+    'config': site_config,  # <--- CRITICAL for Logo/Color
+    'is_quote': True, 
+    'company': {'name': session.get('company_name', 'My Company')}
+}
     
     # 4. Generate PDF
     context = {
