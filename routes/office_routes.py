@@ -665,17 +665,18 @@ def fix_invoice_schema():
     conn = get_db()
     cur = conn.cursor()
     try:
-        # 1. Add 'quote_ref' (The error you fixed before)
+        # 1. Add 'quote_ref'
         cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS quote_ref TEXT;")
         
-        # 2. Add 'subtotal' (The error you have now)
+        # 2. Add 'subtotal' & 'tax'
         cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS subtotal NUMERIC(10, 2) DEFAULT 0;")
-        
-        # 3. Add 'tax' (The error you would get next if we didn't do this)
         cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS tax NUMERIC(10, 2) DEFAULT 0;")
         
+        # 3. Add 'notes' (The Fix for your current error)
+        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS notes TEXT;")
+        
         conn.commit()
-        return "✅ SUCCESS: Database Columns Added: quote_ref, subtotal, and tax. You can now complete the job."
+        return "✅ SUCCESS: Database Updated. Columns added: quote_ref, subtotal, tax, and notes. You can now complete the job."
     except Exception as e:
         conn.rollback()
         return f"❌ Database Error: {e}"
