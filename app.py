@@ -96,6 +96,35 @@ def inject_global_alert():
     except: pass
     
     return dict(global_system_alert=alert_msg)
+    # --- GLOBAL CURRENCY INJECTOR ---
+@app.context_processor
+def inject_currency():
+    # Default to Pound if no user is logged in
+    default_sym = '£'
+    
+    if 'company_id' not in session:
+        return dict(currency_symbol=default_sym)
+    
+    try:
+        # Check if we already cached it in session (Optimization)
+        if 'currency_symbol' in session:
+            return dict(currency_symbol=session['currency_symbol'])
+            
+        # Otherwise, fetch from DB
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'currency_symbol'", (session['company_id'],))
+        row = cur.fetchone()
+        conn.close()
+        
+        symbol = row[0] if row else default_sym
+        
+        # Save to session so we don't hit DB on every click
+        session['currency_symbol'] = symbol
+        return dict(currency_symbol=symbol)
+        
+    except Exception:
+        return dict(currency_symbol=default_sym)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
