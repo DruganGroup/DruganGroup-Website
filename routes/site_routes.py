@@ -155,7 +155,7 @@ def clock_out():
     except Exception as e: conn.rollback(); flash(f"Error: {e}")
     finally: conn.close()
     return redirect('/site-hub')
-                         
+                          
 # --- 2. DEDICATED VAN CHECK PAGE ---
 @site_bp.route('/site/van-check', methods=['GET', 'POST'])
 def van_check_page():
@@ -424,68 +424,3 @@ def log_fuel():
             return redirect(url_for('site.site_dashboard'))
 
     return render_template('site/fuel_form.html', reg=v_reg)
-    
-    # --- TIME CLOCK ROUTES ---
-@site_bp.route('/site/clock-in', methods=['POST'])
-def clock_in():
-    if 'user_id' not in session: return redirect('/login')
-    
-    staff_id = session.get('staff_id')
-    comp_id = session.get('company_id')
-    
-    conn = get_db(); cur = conn.cursor()
-    try:
-        # Check if already clocked in today to prevent double clicking
-        cur.execute("SELECT id FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL AND date = CURRENT_DATE", (staff_id,))
-        if cur.fetchone():
-            flash("⚠️ You are already clocked in!", "warning")
-        else:
-            cur.execute("""
-                INSERT INTO staff_timesheets (staff_id, company_id, clock_in, date)
-                VALUES (%s, %s, CURRENT_TIMESTAMP, CURRENT_DATE)
-            """, (staff_id, comp_id))
-            conn.commit()
-            flash("🕒 Clocked In Successfully!")
-    except Exception as e:
-        conn.rollback(); flash(f"Error: {e}")
-    finally:
-        conn.close()
-        
-    return redirect('/site-hub')
-
-@site_bp.route('/site/clock-out', methods=['POST'])
-def clock_out():
-    if 'user_id' not in session: return redirect('/login')
-    
-    staff_id = session.get('staff_id')
-    
-    conn = get_db(); cur = conn.cursor()
-    try:
-        # Find the open shift
-        cur.execute("SELECT id, clock_in FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL ORDER BY id DESC LIMIT 1", (staff_id,))
-        row = cur.fetchone()
-        
-        if row:
-            sheet_id = row[0]
-            start_time = row[1]
-            
-            # Calculate total hours (Python math because SQL intervals can be tricky across DBs)
-            end_time = datetime.now()
-            duration = (end_time - start_time).total_seconds() / 3600 # Hours
-            
-            cur.execute("""
-                UPDATE staff_timesheets 
-                SET clock_out = CURRENT_TIMESTAMP, total_hours = %s 
-                WHERE id = %s
-            """, (round(duration, 2), sheet_id))
-            conn.commit()
-            flash(f"🕒 Clocked Out. Shift: {round(duration, 2)} hours.")
-        else:
-            flash("⚠️ Could not find an open shift to clock out of.", "warning")
-            
-    except Exception as e:
-        conn.rollback(); flash(f"Error: {e}")
-    finally:
-        conn.close()
-
-    return redirect('/site-hub')
