@@ -1,6 +1,4 @@
 Flask
 psycopg2-binary
 gunicorn
-weasyprint==52.5
-cairocffi>=1.0.0
-cffi>=1.0.0
+fpdf2==2.7.4
