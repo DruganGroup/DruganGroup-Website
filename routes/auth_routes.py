@@ -52,29 +52,27 @@ def main_launcher():
         return redirect(url_for('auth.login'))
     
     # 2. SUPER ADMIN LOGIC (User ID 1)
-    # We move this UP so it runs before the standard return
     if session.get('user_id') == 1:
         try:
             conn = get_db()
             cur = conn.cursor()
             
-            # Fetch Companies for the Command Center
+            # Fetch Companies
             cur.execute("SELECT id, name, subdomain FROM companies ORDER BY id ASC")
             companies = cur.fetchall()
             
-            # Fetch Users for management
+            # Fetch Users
             cur.execute("SELECT id, username, role, company_id FROM users ORDER BY id ASC")
             users = cur.fetchall()
             
             conn.close()
-            # If everything works, show the Super Admin dashboard
+            
+            # We pass the raw tuples to the template
             return render_template('super_admin.html', companies=companies, users=users)
         except Exception as e:
-            # If the database fails, this will tell us why instead of just showing an error page
             return f"Super Admin Database Error: {e}"
 
     # 3. STAFF LOGIC (Everyone else)
-    # This only runs if the user is NOT ID 1
     return render_template('main_launcher.html', role=session.get('role'))
 
 # --- 3. LOGOUT ---
