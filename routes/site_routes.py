@@ -17,27 +17,46 @@ def check_site_access():
     if 'user_id' not in session: return False
     return True
 
+# --- HELPER: GET STAFF ID FROM USER ID ---
+def get_staff_identity(user_id, cur):
+    """
+    Links the logged-in User to their Staff Profile via Email.
+    Returns: (staff_id, staff_name, company_id)
+    """
+    # 1. Try to find matching Staff record
+    cur.execute("""
+        SELECT s.id, s.name, u.company_id 
+        FROM users u
+        JOIN staff s ON LOWER(u.email) = LOWER(s.email) AND u.company_id = s.company_id
+        WHERE u.id = %s
+    """, (user_id,))
+    match = cur.fetchone()
+    
+    if match:
+        return match[0], match[1], match[2]
+    
+    # 2. Fallback: Just return User info (if they are Admin but not in Staff table)
+    cur.execute("SELECT company_id, name, username FROM users WHERE id = %s", (user_id,))
+    user = cur.fetchone()
+    if user:
+        return None, (user[1] or user[2]), user[0]
+    return None, "Unknown", None
+
 # --- HELPER: SEND EMAIL (SAAS VERSION - DYNAMIC SMTP) ---
 def send_email_notification(company_id, to_email, client_name, job_ref, address):
     conn = get_db()
     try:
         cur = conn.cursor()
-        # 1. Fetch Company Specific SMTP Settings
         cur.execute("""
             SELECT key, value FROM settings 
             WHERE company_id = %s AND key IN ('smtp_host', 'smtp_port', 'smtp_email', 'smtp_password')
         """, (company_id,))
-        
-        # Convert list of rows to a dictionary
         settings = {row[0]: row[1] for row in cur.fetchall()}
         
-        # Check if we have all required settings
         required_keys = ['smtp_host', 'smtp_port', 'smtp_email', 'smtp_password']
         if not all(k in settings for k in required_keys):
-            print(f"⚠️ Missing SMTP settings for Company {company_id}")
             return False
 
-        # 2. Configure the Email
         msg = MIMEMultipart()
         msg['From'] = settings['smtp_email']
         msg['To'] = to_email
@@ -53,47 +72,16 @@ def send_email_notification(company_id, to_email, client_name, job_ref, address)
         """
         msg.attach(MIMEText(body, 'html'))
 
-        # 3. Connect & Send
         server = smtplib.SMTP(settings['smtp_host'], int(settings['smtp_port']))
         server.starttls()
         server.login(settings['smtp_email'], settings['smtp_password'])
         server.send_message(msg)
         server.quit()
         return True
-
-    except Exception as e:
-        print(f"❌ Email Failed for Company {company_id}: {e}")
+    except Exception:
         return False
     finally:
         conn.close()
-
-# --- HELPER: SELF-REPAIR DATABASE ---
-def repair_site_tables(conn):
-    try:
-        cur = conn.cursor()
-        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS staff_id INTEGER")
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS job_evidence (
-                id SERIAL PRIMARY KEY,
-                job_id INTEGER,
-                filepath TEXT,
-                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                uploaded_by INTEGER
-            )
-        """)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS client_notifications (
-                id SERIAL PRIMARY KEY,
-                job_id INTEGER,
-                client_id INTEGER,
-                message TEXT,
-                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                status TEXT
-            )
-        """)
-        conn.commit()
-    except Exception as e:
-        conn.rollback(); print(f"⚠️ Auto-Repair Warning: {e}")
 
 # --- 1. SITE DASHBOARD ---
 @site_bp.route('/site-hub')
@@ -103,27 +91,19 @@ def site_dashboard():
     
     conn = get_db(); cur = conn.cursor()
     
-    # 1. Fetch User & Company Config (FIXED NAME LOGIC)
-    # Checks Staff table first (Real Name), then Users table (Username), then defaults.
-    cur.execute("""
-        SELECT u.company_id, COALESCE(s.name, u.name, u.username) 
-        FROM users u 
-        LEFT JOIN staff s ON u.email = s.email 
-        WHERE u.id = %s
-    """, (session['user_id'],))
+    # 1. RESOLVE IDENTITY (The Fix)
+    # This finds the correct Staff ID to look for in the Jobs table
+    staff_id, staff_name, comp_id = get_staff_identity(session['user_id'], cur)
     
-    user = cur.fetchone()
-    comp_id = user[0]
-    staff_name = user[1] if user and user[1] else "Staff Member"
-    
+    # Fallback: If no staff profile found, try using the User ID directly
+    # (Useful if you assigned the job to an Admin user ID directly in the DB)
+    search_id = staff_id if staff_id else session['user_id']
+
     config = get_site_config(comp_id)
-    
-    # SYSTEM: Prepare for Universal Date Format (Default to UK if missing)
     user_date_format = config.get('date_format', '%d/%m/%Y') 
-    
     today = datetime.now().date()
 
-    # 2. TODAY'S SCHEDULE (FIXED: LEFT JOINs to ensure jobs show up even if data missing)
+    # 2. TODAY'S SCHEDULE
     cur.execute("""
         SELECT j.id, j.status, j.ref, 
                COALESCE(p.address_line1, 'Address Not Set'), 
@@ -132,7 +112,7 @@ def site_dashboard():
         FROM jobs j
         LEFT JOIN properties p ON j.property_id = p.id
         WHERE j.engineer_id = %s AND j.start_date::DATE = %s AND j.status != 'Completed'
-    """, (session['user_id'], today))
+    """, (search_id, today))
     
     my_jobs = []
     for row in cur.fetchall():
@@ -142,7 +122,7 @@ def site_dashboard():
             'date_obj': row[6]
         })
 
-    # 3. 7-DAY AGENDA CALENDAR (FIXED: LEFT JOINs)
+    # 3. 7-DAY AGENDA CALENDAR
     calendar = []
     for i in range(7):
         check_date = today + timedelta(days=i)
@@ -153,7 +133,7 @@ def site_dashboard():
             LEFT JOIN clients c ON j.client_id = c.id
             LEFT JOIN properties p ON j.property_id = p.id
             WHERE j.engineer_id = %s AND j.start_date::DATE = %s
-        """, (session['user_id'], check_date))
+        """, (search_id, check_date))
         daily_jobs = cur.fetchall()
         
         calendar.append({
@@ -186,7 +166,6 @@ def van_check_page():
         defects = request.form.get('defects') or "No Defects Reported"
         signature = request.form.get('signature')
         
-        filename = None
         if 'photo' in request.files:
             file = request.files['photo']
             if file.filename != '':
@@ -229,7 +208,7 @@ def view_job(job_id):
     
     cur.execute("""
         SELECT j.id, j.ref, j.status, j.start_date, j.description, 
-               c.name, c.phone, j.site_address, j.description
+               c.name, c.phone, j.site_address, j.description, j.id
         FROM jobs j
         LEFT JOIN clients c ON j.client_id = c.id
         WHERE j.id = %s AND j.company_id = %s
@@ -253,11 +232,10 @@ def update_job(job_id):
     conn = get_db(); cur = conn.cursor()
     
     try:
-        # --- A. START JOB (Triggers Dynamic Email) ---
+        # --- A. START JOB ---
         if action == 'start':
             cur.execute("UPDATE jobs SET status = 'In Progress', start_date = CURRENT_TIMESTAMP WHERE id = %s AND company_id = %s", (job_id, comp_id))
             
-            # Fetch Client Email
             cur.execute("""
                 SELECT c.id, c.name, c.email, j.ref, j.site_address 
                 FROM jobs j 
@@ -266,20 +244,14 @@ def update_job(job_id):
             """, (job_id,))
             job_data = cur.fetchone()
             
-            if job_data and job_data[2]: # If client has email
+            if job_data and job_data[2]: 
                 c_id, c_name, c_email, j_ref, j_addr = job_data
-                
-                # SEND EMAIL using Company's Own SMTP Settings
                 email_sent = send_email_notification(comp_id, c_email, c_name, j_ref, j_addr)
                 
                 status_msg = "Sent" if email_sent else "Failed (Check Settings)"
                 cur.execute("INSERT INTO client_notifications (job_id, client_id, message, status) VALUES (%s, %s, %s, %s)", 
                            (job_id, c_id, f"Start Notification to {c_email}", status_msg))
-                
-                if email_sent:
-                    flash(f"✅ Job Started. Client notified.")
-                else:
-                    flash(f"✅ Job Started. (Notification failed - check Finance settings).")
+                flash("✅ Job Started." + (" Client notified." if email_sent else ""))
             else:
                 flash("✅ Job Started.")
 
@@ -375,11 +347,14 @@ def log_fuel():
     if not check_site_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
-    user_id = session.get('user_id')
     conn = get_db(); cur = conn.cursor()
 
-    # 1. Find the Van assigned to this Driver
-    cur.execute("SELECT id, reg_plate FROM vehicles WHERE assigned_driver_id = %s", (user_id,))
+    # RESOLVE IDENTITY (Staff ID logic here too)
+    staff_id, _, _ = get_staff_identity(session['user_id'], cur)
+    search_id = staff_id if staff_id else session['user_id']
+
+    # 1. Find the Van assigned to this Driver (using Staff ID)
+    cur.execute("SELECT id, reg_plate FROM vehicles WHERE assigned_driver_id = %s", (search_id,))
     vehicle = cur.fetchone()
 
     if not vehicle:
@@ -391,13 +366,11 @@ def log_fuel():
     if request.method == 'POST':
         file = request.files.get('receipt')
         if file and file.filename != '':
-            # Save File
             filename = secure_filename(f"FUEL_{v_reg}_{int(datetime.now().timestamp())}_{file.filename}")
             full_path = os.path.join(UPLOAD_FOLDER, filename)
             file.save(full_path)
-            db_path = f"uploads/van_checks/{filename}" # Re-using van folder for simplicity
+            db_path = f"uploads/van_checks/{filename}"
 
-            # --- AI MAGIC ---
             cost = 0
             desc = f"Fuel for {v_reg}"
             scan = scan_receipt(full_path)
@@ -410,7 +383,6 @@ def log_fuel():
             else:
                 flash("✅ Receipt uploaded (AI could not read text, logged as £0).")
 
-            # Save to DB
             cur.execute("""
                 INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost, receipt_path) 
                 VALUES (%s, %s, CURRENT_DATE, 'Fuel', %s, %s, %s)
