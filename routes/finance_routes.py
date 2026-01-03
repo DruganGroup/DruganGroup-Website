@@ -375,7 +375,7 @@ def finance_analysis():
 @finance_bp.route('/finance/settings')
 def settings_redirect(): return redirect(url_for('finance.settings_general'))
 
-# --- SETTINGS: GENERAL TAB (Handles Branding & PDF Theme) ---
+# --- SETTINGS: GENERAL TAB (Session Sync Fix) ---
 @finance_bp.route('/finance/settings/general', methods=['GET', 'POST'])
 def settings_general():
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']: 
@@ -386,14 +386,14 @@ def settings_general():
 
     if request.method == 'POST':
         try:
-            # 1. Update Company Info
+            # 1. Update Text Settings
             fields = [
-    'company_name', 'company_website', 'company_email', 'company_phone', 
-    'company_address', 'brand_color', 'smtp_host', 'smtp_port', 
-    'smtp_email', 'smtp_password', 'pdf_theme',
-    'country_code', 'currency_symbol', 'date_format',
-    'company_reg_number', 'tax_id', 
-    'vat_registered']
+                'company_name', 'company_website', 'company_email', 'company_phone', 
+                'company_address', 'brand_color', 'smtp_host', 'smtp_port', 
+                'smtp_email', 'smtp_password', 'pdf_theme',
+                'country_code', 'currency_symbol', 'date_format',
+                'company_reg_number', 'tax_id', 'vat_registered'
+            ]
             
             for field in fields:
                 val = request.form.get(field)
@@ -403,23 +403,40 @@ def settings_general():
                         VALUES (%s, %s, %s) 
                         ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
                     """, (comp_id, field, val))
-            
-            # 2. Handle Logo Upload (Existing logic)
+
+            # [FIX] Update Session immediately so Sidebar doesn't stay blue
+            new_color = request.form.get('brand_color')
+            if new_color:
+                session['brand_color'] = new_color
+
+            # 2. Handle Logo Upload
             if 'logo' in request.files:
                 f = request.files['logo']
                 if f and f.filename != '':
-                    # (Insert your standard upload logic here if not already separate)
-                    # For now, we assume simple path saving or existing logic handles it
-                    pass 
+                    # Ensure directory exists
+                    save_dir = os.path.join(current_app.static_folder, 'uploads', str(comp_id))
+                    os.makedirs(save_dir, exist_ok=True)
+                    
+                    # Save File
+                    filename = secure_filename(f"logo_{int(datetime.now().timestamp())}.png")
+                    full_path = os.path.join(save_dir, filename)
+                    f.save(full_path)
+                    
+                    # Save to DB
+                    web_path = f"/static/uploads/{comp_id}/{filename}"
+                    cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo', %s) ON CONFLICT (company_id, key) DO UPDATE SET value=EXCLUDED.value", (comp_id, web_path))
+                    
+                    # [FIX] Update Session immediately
+                    session['logo'] = web_path
 
             conn.commit()
-            flash("✅ General Settings & Branding Saved")
+            flash("✅ Settings Saved & Sidebar Updated")
             
         except Exception as e:
             conn.rollback()
             flash(f"Error saving settings: {e}")
 
-    # GET REQUEST: Fetch current settings to fill the form
+    # GET REQUEST: Fetch settings
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     conn.close()
@@ -427,18 +444,6 @@ def settings_general():
     return render_template('finance/settings_general.html', 
                            settings=settings, 
                            active_tab='general')
-
-@finance_bp.route('/finance/settings/compliance', methods=['GET', 'POST'])
-def settings_compliance():
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    comp_id = session.get('company_id'); config = get_site_config(comp_id); conn = get_db(); cur = conn.cursor()
-    if request.method == 'POST':
-        cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'vat_registered', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, 'yes' if request.form.get('vat_registered') else 'no'))
-        for k, v in request.form.items(): 
-            if k != 'vat_registered': cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, k, v))
-        conn.commit(); flash("Saved")
-    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,)); settings = {row[0]: row[1] for row in cur.fetchall()}; conn.close()
-    return render_template('finance/settings_compliance.html', settings=settings, active_tab='compliance', brand_color=config['color'], logo_url=config['logo'])
 
 @finance_bp.route('/finance/settings/banking', methods=['GET', 'POST'])
 def settings_banking():
@@ -502,35 +507,3 @@ def setup_invoice_templates():
         return f"❌ Migration Error: {e}"
     finally:
         conn.close()
-
-# --- DEBUGGING TOOL (Delete after use) ---
-@finance_bp.route('/finance/debug-settings')
-def debug_settings_view():
-    if 'company_id' not in session: return "Login required"
-    cid = session['company_id']
-    conn = get_db(); cur = conn.cursor()
-    
-    output = [f"<h1>Diagnostic for Company ID: {cid}</h1>"]
-    
-    # 1. Check for Duplicates (If this shows anything, your DB is broken)
-    cur.execute("SELECT key, count(*) FROM settings WHERE company_id=%s GROUP BY key HAVING count(*) > 1", (cid,))
-    dupes = cur.fetchall()
-    if dupes:
-        output.append(f"<h3 style='color:red'>⚠️ CRITICAL: DUPLICATE KEYS FOUND: {dupes}</h3>")
-        output.append("<p>This means your database allows multiple 'logos' or 'colors' at once. The code only reads the first one.</p>")
-    else:
-        output.append("<h3 style='color:green'>✅ No Duplicates Found (DB Constraint is working)</h3>")
-
-    # 2. Dump All Settings
-    cur.execute("SELECT key, value FROM settings WHERE company_id=%s ORDER BY key", (cid,))
-    rows = cur.fetchall()
-    
-    output.append("<table border='1' cellpadding='5'><tr><th>Key</th><th>Value</th></tr>")
-    for r in rows:
-        val = r[1]
-        if 'static' in str(val): # If it's a file path, show it as a link
-             val = f"{val} <br> <img src='{val}' height='50'>"
-        output.append(f"<tr><td><b>{r[0]}</b></td><td>{val}</td></tr>")
-    output.append("</table>")
-    
-    return "".join(output)
