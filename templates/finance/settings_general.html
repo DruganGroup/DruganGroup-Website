@@ -54,18 +54,18 @@
                         <label class="form-label text-muted small fw-bold" id="lbl_reg_number">Company Reg Number</label>
                         <input type="text" name="company_reg_number" class="form-control" value="{{ settings.get('company_reg_number', '') }}">
                     </div>
+                    
                     <div class="col-md-6">
-    <div class="d-flex justify-content-between align-items-center mb-1">
-        <label class="form-label text-muted small fw-bold mb-0" id="lbl_tax_id">Tax / VAT ID</label>
-        
-        <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" name="vat_registered" value="yes" id="vatToggle" 
-                   {% if settings.get('vat_registered') == 'yes' %}checked{% endif %}>
-            <label class="form-check-label small fw-bold text-success" for="vatToggle">Charge Tax?</label>
-        </div>
-    </div>
-    <input type="text" name="tax_id" class="form-control" value="{{ settings.get('tax_id', '') }}">
-</div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label text-muted small fw-bold mb-0" id="lbl_tax_id">Tax / VAT ID</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="vat_registered" value="yes" id="vatToggle" 
+                                       {% if settings.get('vat_registered') == 'yes' %}checked{% endif %}>
+                                <label class="form-check-label small fw-bold text-success" for="vatToggle">Charge Tax?</label>
+                            </div>
+                        </div>
+                        <input type="text" name="tax_id" class="form-control" value="{{ settings.get('tax_id', '') }}">
+                    </div>
 
                     <div class="col-12">
                         <label class="form-label text-muted small fw-bold">Registered Address</label>
@@ -76,29 +76,28 @@
         </div>
 
         <div class="col-md-4">
-    <div class="card p-4 h-100 shadow-sm border-0 bg-light">
-        <h5 class="fw-bold text-secondary mb-3">Visual Branding</h5>
-        
-        <div class="mb-3">
-            <label class="form-label text-muted small fw-bold">Brand Color</label>
-            <input type="color" name="brand_color" class="form-control form-control-color w-100" 
-                   value="{{ settings.get('brand_color', '#2c3e50') }}">
-        </div>
-
-        <div class="mb-2">
-            <label class="form-label text-muted small fw-bold">Company Logo</label>
-            <input type="file" name="logo" class="form-control mb-2">
-            
-            {% if settings.get('logo') %}
-                <div class="p-2 bg-white border rounded text-center d-inline-block">
-                    <img src="{{ settings.get('logo') }}" style="max-width: 80px; height: auto;">
-                    <div class="small text-muted mt-1">Current</div>
+            <div class="card p-4 h-100 shadow-sm border-0 bg-light">
+                <h5 class="fw-bold text-secondary mb-3">Visual Branding</h5>
+                
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold">Brand Color</label>
+                    <input type="color" name="brand_color" class="form-control form-control-color w-100" 
+                           value="{{ settings.get('brand_color', '#2c3e50') }}">
                 </div>
-            {% endif %}
-        </div>
-    </div>
-</div>
 
+                <div class="mb-2">
+                    <label class="form-label text-muted small fw-bold">Company Logo</label>
+                    <input type="file" name="logo" class="form-control mb-2">
+                    
+                    {% if settings.get('logo') %}
+                        <div class="p-2 bg-white border rounded text-center d-inline-block">
+                            <img src="{{ settings.get('logo') }}" style="max-width: 80px; height: auto;">
+                            <div class="small text-muted mt-1">Current</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="row g-4">
@@ -159,13 +158,11 @@
 function updateLocalization() {
     const country = document.getElementById('countrySelector').value;
     
-    // 1. TARGET THE INPUTS
     const currencyInput = document.getElementById('currencyInput');
     const dateInput = document.getElementById('dateFormatInput');
     const lblReg = document.getElementById('lbl_reg_number');
     const lblTax = document.getElementById('lbl_tax_id');
     
-    // 2. THE MASTER DATA MAP
     const maps = {
         'UK':  { cur: '£', date: '%d/%m/%Y', reg: 'Company Reg Number', tax: 'VAT Number' },
         'USA': { cur: '$', date: '%m/%d/%Y', reg: 'State Entity ID', tax: 'Federal EIN' },
@@ -175,7 +172,6 @@ function updateLocalization() {
         'EU':  { cur: '€', date: '%d.%m.%Y', reg: 'Commercial Register', tax: 'VAT ID' }
     };
 
-    // 3. UPDATE EVERYTHING
     if (maps[country]) {
         if(currencyInput) currencyInput.value = maps[country].cur;
         if(dateInput) dateInput.value = maps[country].date;
