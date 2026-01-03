@@ -393,7 +393,7 @@ def settings_general():
     'smtp_email', 'smtp_password', 'pdf_theme',
     'country_code', 'currency_symbol', 'date_format',
     'company_reg_number', 'tax_id', 
-    'vat_registered'
+    'vat_registered']
             
             for field in fields:
                 val = request.form.get(field)
