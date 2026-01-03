@@ -7,8 +7,32 @@
         
         <div class="col-md-8">
             <div class="card p-4 h-100 shadow-sm">
-                <h5 class="fw-bold text-secondary mb-4">Business Profile</h5>
+                <h5 class="fw-bold text-secondary mb-4">Business Profile & Localization</h5>
                 <div class="row g-3">
+                    
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small fw-bold">Primary Country</label>
+                        <select name="country_code" id="countrySelector" class="form-select" onchange="updateLocalization()">
+                            <option value="UK" {% if settings.get('country_code') == 'UK' %}selected{% endif %}>🇬🇧 United Kingdom</option>
+                            <option value="USA" {% if settings.get('country_code') == 'USA' %}selected{% endif %}>🇺🇸 United States</option>
+                            <option value="CAN" {% if settings.get('country_code') == 'CAN' %}selected{% endif %}>🇨🇦 Canada</option>
+                            <option value="AUS" {% if settings.get('country_code') == 'AUS' %}selected{% endif %}>🇦🇺 Australia</option>
+                            <option value="NZ" {% if settings.get('country_code') == 'NZ' %}selected{% endif %}>🇳🇿 New Zealand</option>
+                            <option value="EU" {% if settings.get('country_code') == 'EU' %}selected{% endif %}>🇪🇺 Europe (Euro)</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small fw-bold">Currency</label>
+                        <input type="text" name="currency_symbol" id="currencyInput" class="form-control bg-light" readonly 
+                               value="{{ settings.get('currency_symbol', '£') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small fw-bold">Date Format</label>
+                        <input type="text" name="date_format" id="dateFormatInput" class="form-control bg-light" readonly 
+                               value="{{ settings.get('date_format', '%d/%m/%Y') }}">
+                    </div>
+
                     <div class="col-md-6">
                         <label class="form-label text-muted small fw-bold">Company Name</label>
                         <input type="text" name="company_name" class="form-control" value="{{ settings.get('company_name', '') }}">
@@ -25,6 +49,16 @@
                         <label class="form-label text-muted small fw-bold">Phone Number</label>
                         <input type="text" name="company_phone" class="form-control" value="{{ settings.get('company_phone', '') }}">
                     </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small fw-bold" id="lbl_reg_number">Company Reg Number</label>
+                        <input type="text" name="company_reg_number" class="form-control" value="{{ settings.get('company_reg_number', '') }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small fw-bold" id="lbl_tax_id">Tax / VAT ID</label>
+                        <input type="text" name="tax_id" class="form-control" value="{{ settings.get('tax_id', '') }}">
+                    </div>
+
                     <div class="col-12">
                         <label class="form-label text-muted small fw-bold">Registered Address</label>
                         <textarea name="company_address" class="form-control" rows="3">{{ settings.get('company_address', '') }}</textarea>
@@ -43,9 +77,9 @@
                 <div class="mb-2">
                     <label class="form-label text-muted small fw-bold">Company Logo</label>
                     <input type="file" name="logo" class="form-control mb-2">
-                    {% if logo_url %}
+                    {% if settings.get('logo') %}
                         <div class="p-2 bg-white border rounded text-center d-inline-block">
-                            <img src="{{ logo_url }}" style="max-width: 80px; height: auto;">
+                            <img src="{{ settings.get('logo') }}" style="max-width: 80px; height: auto;">
                             <div class="small text-muted mt-1">Current</div>
                         </div>
                     {% endif %}
@@ -55,12 +89,9 @@
     </div>
 
     <div class="row g-4">
-        
         <div class="col-md-6">
             <div class="card p-4 h-100 shadow-sm border-0">
                 <h5 class="fw-bold text-secondary mb-3">Email System (SMTP)</h5>
-                <p class="small text-muted mb-3">Required to send quotes to clients.</p>
-                
                 <div class="mb-2">
                     <label class="form-label text-muted small fw-bold">SMTP Host</label>
                     <input type="text" name="smtp_host" class="form-control form-control-sm" value="{{ settings.get('smtp_host', '') }}" placeholder="smtp.gmail.com">
@@ -85,44 +116,60 @@
         <div class="col-md-6">
             <div class="card p-4 h-100 shadow-sm border-0">
                 <h5 class="fw-bold text-secondary mb-3">Quote & Invoice Style</h5>
-                <p class="small text-muted mb-3">Choose the layout for your PDFs.</p>
-                
                 <div class="d-flex flex-column gap-2">
                     <div class="form-check p-2 border rounded bg-white">
-                        <input class="form-check-input ms-1" type="radio" name="quote_template" id="tpl_modern" value="modern" 
-                               {% if settings.get('quote_template', 'modern') == 'modern' %}checked{% endif %}>
-                        <label class="form-check-label ms-2 w-100" for="tpl_modern" style="cursor:pointer;">
-                            <strong class="text-dark">Modern (Default)</strong>
-                            <div class="text-muted small" style="font-size: 0.75rem;">Clean, minimalist, left-aligned.</div>
-                        </label>
+                        <input class="form-check-input ms-1" type="radio" name="pdf_theme" id="tpl_modern" value="Modern" 
+                               {% if settings.get('pdf_theme', 'Modern') == 'Modern' %}checked{% endif %}>
+                        <label class="form-check-label ms-2 w-100 fw-bold" for="tpl_modern">Modern (Default)</label>
                     </div>
-
                     <div class="form-check p-2 border rounded bg-white">
-                        <input class="form-check-input ms-1" type="radio" name="quote_template" id="tpl_classic" value="classic" 
-                               {% if settings.get('quote_template') == 'classic' %}checked{% endif %}>
-                        <label class="form-check-label ms-2 w-100" for="tpl_classic" style="cursor:pointer;">
-                            <strong class="text-dark">Classic / Formal</strong>
-                            <div class="text-muted small" style="font-size: 0.75rem;">Boxed layout, serif font, traditional.</div>
-                        </label>
+                        <input class="form-check-input ms-1" type="radio" name="pdf_theme" id="tpl_classic" value="Classic" 
+                               {% if settings.get('pdf_theme') == 'Classic' %}checked{% endif %}>
+                        <label class="form-check-label ms-2 w-100 fw-bold" for="tpl_classic">Classic / Formal</label>
                     </div>
-
                     <div class="form-check p-2 border rounded bg-white">
-                        <input class="form-check-input ms-1" type="radio" name="quote_template" id="tpl_bold" value="bold" 
-                               {% if settings.get('quote_template') == 'bold' %}checked{% endif %}>
-                        <label class="form-check-label ms-2 w-100" for="tpl_bold" style="cursor:pointer;">
-                            <strong class="text-dark">Bold / Industrial</strong>
-                            <div class="text-muted small" style="font-size: 0.75rem;">High contrast headers using brand color.</div>
-                        </label>
+                        <input class="form-check-input ms-1" type="radio" name="pdf_theme" id="tpl_minimal" value="Minimal" 
+                               {% if settings.get('pdf_theme') == 'Minimal' %}checked{% endif %}>
+                        <label class="form-check-label ms-2 w-100 fw-bold" for="tpl_minimal">Minimal / Clean</label>
                     </div>
                 </div>
             </div>
         </div>
-        
     </div>
 
     <div class="text-end mt-4">
         <button type="submit" class="btn btn-primary fw-bold px-5 py-2"><i class="fas fa-save me-2"></i> Save Settings</button>
     </div>
-
 </form>
+
+<script>
+function updateLocalization() {
+    const country = document.getElementById('countrySelector').value;
+    
+    // 1. TARGET THE INPUTS
+    const currencyInput = document.getElementById('currencyInput');
+    const dateInput = document.getElementById('dateFormatInput');
+    const lblReg = document.getElementById('lbl_reg_number');
+    const lblTax = document.getElementById('lbl_tax_id');
+    
+    // 2. THE MASTER DATA MAP
+    const maps = {
+        'UK':  { cur: '£', date: '%d/%m/%Y', reg: 'Company Reg Number', tax: 'VAT Number' },
+        'USA': { cur: '$', date: '%m/%d/%Y', reg: 'State Entity ID', tax: 'Federal EIN' },
+        'CAN': { cur: '$', date: '%Y-%m-%d', reg: 'Corporation Number', tax: 'GST / HST Number' },
+        'AUS': { cur: '$', date: '%d/%m/%Y', reg: 'ABN', tax: 'GST Registration' },
+        'NZ':  { cur: '$', date: '%d/%m/%Y', reg: 'NZBN', tax: 'IRD Number' },
+        'EU':  { cur: '€', date: '%d.%m.%Y', reg: 'Commercial Register', tax: 'VAT ID' }
+    };
+
+    // 3. UPDATE EVERYTHING
+    if (maps[country]) {
+        if(currencyInput) currencyInput.value = maps[country].cur;
+        if(dateInput) dateInput.value = maps[country].date;
+        if(lblReg) lblReg.innerText = maps[country].reg;
+        if(lblTax) lblTax.innerText = maps[country].tax;
+    }
+}
+document.addEventListener('DOMContentLoaded', updateLocalization);
+</script>
 {% endblock %}
