@@ -76,24 +76,29 @@
         </div>
 
         <div class="col-md-4">
-            <div class="card p-4 h-100 shadow-sm border-0 bg-light">
-                <h5 class="fw-bold text-secondary mb-3">Visual Branding</h5>
-                <div class="mb-3">
-                    <label class="form-label text-muted small fw-bold">Brand Color</label>
-                    <input type="color" name="brand_color" class="form-control form-control-color w-100" value="{{ settings.get('brand_color', '#2c3e50') }}">
-                </div>
-                <div class="mb-2">
-                    <label class="form-label text-muted small fw-bold">Company Logo</label>
-                    <input type="file" name="logo" class="form-control mb-2">
-                    {% if settings.get('logo') %}
-                        <div class="p-2 bg-white border rounded text-center d-inline-block">
-                            <img src="{{ settings.get('logo') }}" style="max-width: 80px; height: auto;">
-                            <div class="small text-muted mt-1">Current</div>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
+    <div class="card p-4 h-100 shadow-sm border-0 bg-light">
+        <h5 class="fw-bold text-secondary mb-3">Visual Branding</h5>
+        
+        <div class="mb-3">
+            <label class="form-label text-muted small fw-bold">Brand Color</label>
+            <input type="color" name="brand_color" class="form-control form-control-color w-100" 
+                   value="{{ settings.get('brand_color', '#2c3e50') }}">
         </div>
+
+        <div class="mb-2">
+            <label class="form-label text-muted small fw-bold">Company Logo</label>
+            <input type="file" name="logo" class="form-control mb-2">
+            
+            {% if settings.get('logo') %}
+                <div class="p-2 bg-white border rounded text-center d-inline-block">
+                    <img src="{{ settings.get('logo') }}" style="max-width: 80px; height: auto;">
+                    <div class="small text-muted mt-1">Current</div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
     </div>
 
     <div class="row g-4">

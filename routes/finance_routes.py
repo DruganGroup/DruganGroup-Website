@@ -541,4 +541,50 @@ def update_settings():
         conn.close()
 
     # Redirect back to the Finance Settings page
-    return redirect('/finance/settings') # Adjust this URL if your settings page is at a different path
+    return redirect('/finance/settings')
+    
+    # --- ONE-TIME DATA FIXER ---
+@finance_bp.route('/finance/fix-branding')
+def fix_branding_data():
+    if 'company_id' not in session: return "Please log in first."
+    
+    conn = get_db(); cur = conn.cursor()
+    cid = session['company_id']
+    log = []
+    
+    # 1. FORCE MIGRATE COLOR
+    # Get the old 'color' value
+    cur.execute("SELECT value FROM settings WHERE company_id=%s AND key='color'", (cid,))
+    old_color = cur.fetchone()
+    
+    if old_color:
+        # Force overwrite 'brand_color' with the old value
+        cur.execute("""
+            INSERT INTO settings (company_id, key, value) VALUES (%s, 'brand_color', %s) 
+            ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+        """, (cid, old_color[0]))
+        # Delete the old key so it never confuses us again
+        cur.execute("DELETE FROM settings WHERE company_id=%s AND key='color'", (cid,))
+        log.append(f"✅ Recovered color: {old_color[0]}")
+    else:
+        log.append("ℹ️ No legacy 'color' found (already fixed?)")
+
+    # 2. FORCE MIGRATE LOGO
+    # Get the old 'logo_url' value
+    cur.execute("SELECT value FROM settings WHERE company_id=%s AND key='logo_url'", (cid,))
+    old_logo = cur.fetchone()
+    
+    if old_logo:
+        # Force overwrite 'logo' with the old value
+        cur.execute("""
+            INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo', %s) 
+            ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+        """, (cid, old_logo[0]))
+        # Delete the old key
+        cur.execute("DELETE FROM settings WHERE company_id=%s AND key='logo_url'", (cid,))
+        log.append(f"✅ Recovered logo: {old_logo[0]}")
+    else:
+        log.append("ℹ️ No legacy 'logo_url' found (already fixed?)")
+
+    conn.commit()
+    return "<br>".join(log) + "<br><br><a href='/finance/settings/general'>Back to Settings</a>"
