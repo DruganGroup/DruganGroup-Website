@@ -108,18 +108,13 @@ def staff_list():
 
         try:
             if action == 'add_staff':
-                # 1. Insert into Staff Directory
                 cur.execute("INSERT INTO staff (company_id, name, email, phone, position, status, license_path) VALUES (%s, %s, %s, %s, %s, 'Active', %s) RETURNING id", 
                             (comp_id, name, email, phone, role, file_path))
                 staff_id = cur.fetchone()[0]
 
-                # 2. Automatically Create User Login (Syncs Staff & Users)
-                # Generates a random password for them to start
                 raw_password = generate_secure_password()
                 hashed_pw = generate_password_hash(raw_password)
                 
-                # Insert into USERS table so they can log into Site App
-                # We use the email as the username. If email is missing, we generate a fake one.
                 login_email = email if email else f"staff{staff_id}_{comp_id}@tradecore.com"
                 
                 cur.execute("""
@@ -139,19 +134,16 @@ def staff_list():
                     cur.execute("UPDATE staff SET name=%s, email=%s, phone=%s, position=%s, status=%s WHERE id=%s AND company_id=%s", 
                                (name, email, phone, role, request.form.get('status'), sid, comp_id))
                 
-                # Also update the User Name in the users table to keep them in sync
                 cur.execute("UPDATE users SET name=%s WHERE email=%s AND company_id=%s", (name, email, comp_id))
                 
                 conn.commit(); flash("✅ Staff Updated")
 
         except Exception as e: conn.rollback(); flash(f"Error: {e}")
 
-    # Fetch Data
     cur.execute("SELECT id, name, email, phone, position AS role, status, license_path FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
     cols = [desc[0] for desc in cur.description]
     staff = [dict(zip(cols, row)) for row in cur.fetchall()]
     
-    # Fetch History
     cur.execute("SELECT j.id, j.ref, j.site_address, j.description, j.start_date, j.status, j.staff_id FROM jobs j WHERE j.company_id = %s AND j.staff_id IS NOT NULL ORDER BY j.start_date DESC", (comp_id,))
     jobs_by_staff = {}
     for j in cur.fetchall():
@@ -198,7 +190,6 @@ def fleet_list():
                         f.save(full_sys_path)
                         file_url = f"uploads/receipts/{filename}"
                         
-                        # AI Auto-Fill
                         if not cost or cost == '0':
                             scan = scan_receipt(full_sys_path)
                             if scan['success']:
@@ -215,7 +206,6 @@ def fleet_list():
             conn.commit()
         except Exception as e: conn.rollback(); flash(f"Error: {e}")
 
-    # Fetch Fleet Data
     cur.execute("""
         SELECT v.id, v.reg_plate, v.make_model, v.status, s.name, v.assigned_driver_id, v.mot_due, v.tax_due, v.insurance_due, v.tracker_url
         FROM vehicles v LEFT JOIN staff s ON v.assigned_driver_id = s.id 
@@ -246,7 +236,6 @@ def universal_upload():
     file = request.files.get('file')
     if not file: return jsonify({'error': 'No file'}), 400
 
-    # 1. Secure Storage
     save_dir = os.path.join('static', 'uploads', str(comp_id), 'inbox')
     os.makedirs(save_dir, exist_ok=True)
     
@@ -255,7 +244,6 @@ def universal_upload():
     file.save(full_path)
     db_path = f"uploads/{comp_id}/inbox/{filename}"
 
-    # 2. AI Analysis
     scan = universal_sort_document(full_path)
     
     if not scan['success']:
@@ -269,7 +257,6 @@ def universal_upload():
     msg = "File Processed"
     
     try:
-        # A. FUEL RECEIPT
         if doc_type == 'fuel_receipt':
             v_id = None
             reg = data.get('vehicle_reg')
@@ -285,7 +272,6 @@ def universal_upload():
             """, (comp_id, v_id, f"AI: {data.get('vendor')} ({reg or 'Unknown Van'})", data.get('date') or date.today(), data.get('total_cost') or 0, db_path))
             msg = f"Fuel Logged. Linked to Van: {reg if v_id else 'No Match Found'}"
 
-        # B. INVOICE
         elif doc_type == 'supplier_invoice':
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS job_expenses (
@@ -306,7 +292,6 @@ def universal_upload():
             """, (comp_id, j_id, f"Invoice: {data.get('supplier_name')}", data.get('total') or 0, data.get('date') or date.today(), db_path))
             msg = f"Invoice Filed. Linked to Job: {ref if j_id else 'Unassigned'}"
 
-        # C. LICENSE
         elif doc_type == 'driving_license':
             s_name = data.get('staff_name')
             s_id = None
@@ -441,7 +426,7 @@ def service_desk():
     conn.close()
     return render_template('office/service_desk.html', requests=requests, staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# --- DISPATCH JOB (Smart Update) ---
+# --- DISPATCH JOB ---
 @office_bp.route('/office/create-work-order', methods=['POST'])
 def create_work_order():
     if 'user_id' not in session: return redirect('/login')
@@ -453,7 +438,6 @@ def create_work_order():
     conn = get_db(); cur = conn.cursor()
 
     try:
-        # 1. Get details from the Service Request
         cur.execute("SELECT property_id, client_id, issue_description FROM service_requests WHERE id = %s", (request_id,))
         req_data = cur.fetchone()
         
@@ -463,8 +447,6 @@ def create_work_order():
 
         prop_id, client_id, description = req_data
 
-        # 2. CHECK: Is there already an ACTIVE job for this property?
-        # We assume if it's not 'Completed', it's the one we are working on.
         cur.execute("""
             SELECT id FROM jobs 
             WHERE property_id = %s AND status != 'Completed'
@@ -472,22 +454,15 @@ def create_work_order():
         existing_job = cur.fetchone()
 
         if existing_job:
-            # --- SCENARIO A: UPDATE EXISTING JOB ---
             job_id = existing_job[0]
             cur.execute("""
                 UPDATE jobs 
                 SET engineer_id = %s, start_date = %s 
                 WHERE id = %s
             """, (staff_id, schedule_date, job_id))
-            
-            # Update the ticket status just in case it wasn't set
             cur.execute("UPDATE service_requests SET status = 'In Progress' WHERE id = %s", (request_id,))
-            
             flash(f"✅ Job updated! Reassigned to new engineer/date.", "info")
-
         else:
-            # --- SCENARIO B: CREATE NEW JOB ---
-            # Generate a Job Ref (e.g., JOB-{prop_id}-{random})
             import random
             job_ref = f"JOB-{prop_id}-{random.randint(100,999)}"
 
@@ -496,9 +471,7 @@ def create_work_order():
                 VALUES (%s, %s, %s, %s, %s, 'Scheduled', %s, %s)
             """, (session['company_id'], client_id, prop_id, staff_id, schedule_date, description, job_ref))
 
-            # Mark the Ticket as 'In Progress' so the client sees it
             cur.execute("UPDATE service_requests SET status = 'In Progress' WHERE id = %s", (request_id,))
-            
             flash(f"✅ Job Created & Dispatched successfully!", "success")
 
         conn.commit()
@@ -521,7 +494,6 @@ def system_upgrade():
     log = []
     
     try:
-        # 1. Invoices Table
         cur.execute("""
             CREATE TABLE IF NOT EXISTS invoices (
                 id SERIAL PRIMARY KEY, company_id INTEGER NOT NULL, client_id INTEGER NOT NULL,
@@ -529,18 +501,10 @@ def system_upgrade():
                 status VARCHAR(20) DEFAULT 'Unpaid', file_path TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
-        # 2. Property Columns
         cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS tenant_phone VARCHAR(50)")
         cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS key_code VARCHAR(100)")
-        
-        # 3. Service Request Columns
         cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS image_url TEXT")
-        
-        # 4. Jobs Column
         cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS property_id INTEGER")
-        
-        # 5. Quote Items Table
         cur.execute("""
             CREATE TABLE IF NOT EXISTS quote_items (
                 id SERIAL PRIMARY KEY,
@@ -579,27 +543,25 @@ def get_calendar_data():
     except: pass
     conn.close(); return jsonify(events)
 
-# --- 10. PLACEHOLDER ROUTES (To prevent crashes) ---
+# --- 10. PLACEHOLDER ROUTES ---
 @office_bp.route('/client/<int:client_id>/add_property', methods=['POST'])
 def add_property(client_id): return redirect(url_for('office.view_client', client_id=client_id))
 @office_bp.route('/office/quote/<int:quote_id>/convert')
 def convert_to_invoice(quote_id): return redirect(url_for('office.office_dashboard'))
 
-# --- TEMPORARY FIX: Add engineer_id column ---
 @office_bp.route('/office/fix-db')
 def fix_db_engineer():
     conn = get_db(); cur = conn.cursor()
     try:
-        # This adds the missing column to the 'jobs' table
         cur.execute("ALTER TABLE jobs ADD COLUMN engineer_id INTEGER;")
         conn.commit()
-        return "✅ SUCCESS: Column 'engineer_id' added to jobs table. You can now Dispatch."
+        return "✅ SUCCESS: Column 'engineer_id' added to jobs table."
     except Exception as e:
         return f"Database Error: {e}"
     finally:
         conn.close()
-        
-        # --- GENERATE PDF QUOTE ---
+
+# --- GENERATE PDF QUOTE ---
 @office_bp.route('/office/quote/<int:quote_id>/pdf')
 def download_quote_pdf(quote_id):
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -632,33 +594,25 @@ def download_quote_pdf(quote_id):
     cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
     items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
     
-    # 3. Fetch Branding & Settings (ENSURE DEFAULTS)
-cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
-settings = {row[0]: row[1] for row in cur.fetchall()}
-
-# Get Logo/Color specifically
-site_config = get_site_config(company_id) 
-
-context = {
-    'invoice': quote_data, 
-    'items': items,
-    'settings': settings,
-    'config': site_config,  # <--- CRITICAL for Logo/Color
-    'is_quote': True, 
-    'company': {'name': session.get('company_name', 'My Company')}
-}
+    # 3. Fetch Branding & Settings
+    config = get_site_config(company_id)
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    conn.close()
     
     # 4. Generate PDF
     context = {
-        'invoice': quote_data, # We reuse the 'invoice' variable name so the template works for both
+        'invoice': quote_data, 
         'items': items,
         'settings': settings,
         'config': config,
-        'is_quote': True, # This flag lets the template say "QUOTE" instead of "INVOICE"
+        'is_quote': True, 
         'company': {'name': session.get('company_name')}
     }
     
     filename = f"Quote_{quote_data['ref']}.pdf"
+    
+    # Using 'finance/pdf_invoice_template.html' as this is where the route logic usually points
     pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
     
     return send_file(pdf_path, as_attachment=True, download_name=filename)
