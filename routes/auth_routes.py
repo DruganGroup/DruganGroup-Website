@@ -54,6 +54,10 @@ def main_launcher():
     # 2. SUPER ADMIN LOGIC (User ID 1)
     if session.get('user_id') == 1:
         try:
+            # Manually set Super Admin identity since you aren't in the 'companies' table
+            session['user_name'] = "Master Admin"
+            session['company_name'] = "Business Better HQ"
+            
             conn = get_db()
             cur = conn.cursor()
             
@@ -67,7 +71,7 @@ def main_launcher():
             
             conn.close()
             
-            # We pass the raw tuples to the template
+            # Pass data to the template
             return render_template('super_admin.html', companies=companies, users=users)
         except Exception as e:
             return f"Super Admin Database Error: {e}"
