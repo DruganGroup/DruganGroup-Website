@@ -494,41 +494,39 @@ def system_upgrade():
     log = []
     
     try:
-        # 1. Standard Table Checks (Keep existing checks)
+        # 1. FIX INVOICE TABLE COLUMNS (Rename to match Python code)
+        try:
+            cur.execute("ALTER TABLE invoices RENAME COLUMN invoice_number TO reference")
+            log.append("✅ Fixed: Renamed 'invoice_number' to 'reference'")
+        except: conn.rollback() # Ignore if already done
+        
+        try:
+            cur.execute("ALTER TABLE invoices RENAME COLUMN date_issue TO date")
+            log.append("✅ Fixed: Renamed 'date_issue' to 'date'")
+        except: conn.rollback()
+
+        try:
+            cur.execute("ALTER TABLE invoices RENAME COLUMN total_amount TO total")
+            log.append("✅ Fixed: Renamed 'total_amount' to 'total'")
+        except: conn.rollback()
+        
+        # 2. Add 'due_date' if missing
+        try:
+            cur.execute("ALTER TABLE invoices ADD COLUMN due_date DATE")
+            conn.commit()
+            log.append("✅ Fixed: Added missing 'due_date' column")
+        except: conn.rollback()
+
+        # 3. Create Table if it doesn't exist (Safety net)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS invoices (
                 id SERIAL PRIMARY KEY, company_id INTEGER NOT NULL, client_id INTEGER NOT NULL,
-                invoice_number VARCHAR(50), date_issue DATE, total_amount NUMERIC(10, 2),
+                reference VARCHAR(50), date DATE, due_date DATE, total NUMERIC(10, 2),
                 status VARCHAR(20) DEFAULT 'Unpaid', file_path TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        # ... (Include other table creates if you had them, or just skip to migration) ...
-        
-        # 2. DATA MIGRATION: Fix "Color" to "Brand Color"
-        # We update the key 'color' to 'brand_color', but only if 'brand_color' doesn't exist yet to avoid crashes
-        cur.execute("""
-            UPDATE settings 
-            SET key = 'brand_color' 
-            WHERE key = 'color' 
-            AND NOT EXISTS (
-                SELECT 1 FROM settings s2 
-                WHERE s2.company_id = settings.company_id AND s2.key = 'brand_color'
-            )
-        """)
-        
-        # 3. DATA MIGRATION: Fix "Logo URL" to "Logo"
-        cur.execute("""
-            UPDATE settings 
-            SET key = 'logo' 
-            WHERE key = 'logo_url' 
-            AND NOT EXISTS (
-                SELECT 1 FROM settings s2 
-                WHERE s2.company_id = settings.company_id AND s2.key = 'logo'
             )
         """)
         
         conn.commit()
-        log.append("✅ Data Migration: Legacy keys ('color', 'logo_url') upgraded to standard keys.")
         log.append("✅ Database Integrity Check Passed.")
         
     except Exception as e:
