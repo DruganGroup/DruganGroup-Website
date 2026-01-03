@@ -162,9 +162,9 @@
             font-weight: 800; padding: 5px 10px; border-radius: 4px;
         }
 
-        .badge-status { padding: 4px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
-        .status-active { background: rgba(46, 204, 113, 0.1); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3); }
-        .status-suspended { background: rgba(231, 76, 60, 0.1); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3); }
+        .badge-status { padding: 6px 12px; border-radius: 30px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+        .status-active { background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3); }
+        .status-suspended { background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3); }
 
         .btn-icon { 
             width: 32px; height: 32px; 
@@ -175,6 +175,14 @@
         .btn-icon:hover { color: #fff; background: #555; }
         .btn-icon.danger:hover { background: #e74c3c; color: white; }
         .btn-icon.warning:hover { background: #f39c12; color: black; }
+        .btn-icon.info:hover { background: var(--primary-gold); color: black; }
+
+        /* FORM INPUTS */
+        .form-control, .form-select, .input-group-text {
+            background-color: #121212 !important; border-color: #333 !important; color: #ffffff !important;
+        }
+        .form-control::placeholder { color: #666 !important; opacity: 1; }
+        .form-label { color: #ccc !important; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
     </style>
 </head>
 <body>
@@ -235,21 +243,11 @@
             </form>
         </div>
 
-        <div class="card p-4 mb-4 border-warning">
-            <h5 class="mb-3 text-warning"><i class="fas fa-broadcast-tower me-2"></i> System Broadcast Center</h5>
-            <form action="/admin/broadcast" method="POST">
-                <div class="input-group">
-                    <input type="text" name="global_alert" class="form-control" placeholder="Maintenance alert, updates, or news..." value="{{ global_alert }}">
-                    <button type="submit" class="btn-gold">Update Message</button>
-                </div>
-                <small class="text-muted mt-2 d-block">This message appears at the top of every user's dashboard.</small>
-            </form>
-        </div>
-
         <div class="d-flex justify-content-end mb-4 gap-2">
             <button class="btn-outline-gold" data-bs-toggle="modal" data-bs-target="#settingsModal">
-                <i class="fas fa-cogs me-2"></i> SMTP Settings
+                <i class="fas fa-cogs me-2"></i> System Settings
             </button>
+            
             <button class="btn-gold" data-bs-toggle="modal" data-bs-target="#newCompanyModal">
                 <i class="fas fa-plus me-2"></i> New Company
             </button>
@@ -271,68 +269,82 @@
                         <th>Company</th>
                         <th>Joined</th>
                         <th>Plan</th>
+                        <th>Next Bill</th>
                         <th>Status</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for c in companies %}
-                    <tr>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
-                                     style="width: 40px; height: 40px; background: rgba(255,255,255,0.1); color: var(--primary-gold); font-weight: 800; font-family: 'Montserrat';">
-                                    {{ c['name'][:1] }}
-                                </div>
-                                <div>
-                                    <a href="/super-admin/company/{{ c['id'] }}" class="comp-link">{{ c['name'] }}</a>
-                                    <div style="font-size: 0.75rem; color: #aaa; font-family: 'Inter';">{{ c['subdomain'] }}.businessbetter.co.uk</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="text-white">{{ c['created'] }}</td> 
-                        <td><span class="badge-plan">{{ c['plan'] }}</span></td>
-                        <td>
-                            <span class="badge-status {{ 'status-active' if c['status'] == 'Active' else 'status-suspended' }}">
-                                {{ c['status'] }}
-                            </span>
-                        </td>
-                        <td class="text-end">
-                            <a href="/admin/suspend/{{ c['id'] }}" class="btn-icon warning" title="Suspend">
-                                <i class="fas fa-pause"></i>
-                            </a>
-                            <a href="/admin/delete-tenant/{{ c['id'] }}" class="btn-icon danger" title="Delete Company" onclick="return confirm('⚠️ DANGER: Permanently delete?');">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
+<tr>
+    <td>
+        <div class="d-flex align-items-center">
+            <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
+                 style="width: 40px; height: 40px; background: rgba(255,255,255,0.1); color: var(--primary-gold); font-weight: 800; font-family: 'Montserrat';">
+                {{ c['name'][:1] }}
+            </div>
+            <div>
+                <a href="/super-admin/company/{{ c['id'] }}" class="comp-link">{{ c['name'] }}</a>
+                <div style="font-size: 0.75rem; color: #aaa; font-family: 'Inter';">{{ c['subdomain'] }}.businessbetter.co.uk</div>
+            </div>
+        </div>
+    </td>
+    <td>{{ c['created'] if 'created' in c else '-' }}</td> 
+    <td><span class="badge-plan">{{ c['plan'] if 'plan' in c else 'Starter' }}</span></td>
+    <td><span class="text-muted">-</span></td>
+    <td>
+        {% set status = c['status'] if 'status' in c else 'Active' %}
+        <span class="badge-status {{ 'status-active' if status == 'Active' else 'status-suspended' }}">
+            {{ status }}
+        </span>
+    </td>
+    <td class="text-end">
+        <a href="/admin/suspend/{{ c['id'] }}" class="btn-icon warning" title="Suspend">
+            <i class="fas fa-pause"></i>
+        </a>
+        <a href="/admin/assign-me/{{ c['id'] }}" class="btn-icon info" title="Login as Owner">
+            <i class="fas fa-user-secret"></i>
+        </a>
+        <a href="/admin/delete-tenant/{{ c['id'] }}" class="btn-icon danger" title="Delete Company" onclick="return confirm('⚠️ DANGER: Permanently delete?');">
+            <i class="fas fa-trash"></i>
+        </a>
+    </td>
+</tr>
+{% endfor %}
                 </tbody>
             </table>
         </div>
+
     </div>
 
     <div class="modal fade" id="newCompanyModal" tabindex="-1">
         <div class="modal-dialog">
-            <div class="modal-content" style="background: #1f1f1f; border: 1px solid #333;">
+            <div class="modal-content" style="background: #1f1f1f; color: white; border: 1px solid #333;">
                 <div class="modal-header border-secondary">
-                    <h5 class="modal-title">Deploy New Company</h5>
+                    <h5 class="modal-title" style="font-family: 'Montserrat'; font-weight: 700;">Deploy New Company</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST">
                     <div class="modal-body">
-                        <div class="mb-3"><label class="form-label">COMPANY NAME</label><input type="text" name="company_name" class="form-control" required></div>
-                        <div class="mb-3"><label class="form-label">OWNER EMAIL</label><input type="email" name="owner_email" class="form-control" required></div>
+                        <div class="mb-3">
+                            <label class="form-label">COMPANY NAME</label>
+                            <input type="text" name="company_name" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">OWNER EMAIL</label>
+                            <input type="email" name="owner_email" class="form-control" required>
+                        </div>
                         <div class="mb-3">
                             <label class="form-label">SUBSCRIPTION PLAN</label>
                             <select name="plan" class="form-select">
-                                <option value="Starter">Starter</option>
-                                <option value="Professional">Professional</option>
-                                <option value="Enterprise">Enterprise</option>
+                                <option value="Starter">Starter (Free)</option>
+                                <option value="Professional">Professional (£50/mo)</option>
+                                <option value="Enterprise">Enterprise (£150/mo)</option>
                             </select>
                         </div>
                     </div>
                     <div class="modal-footer border-secondary">
+                        <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn-gold">Deploy System</button>
                     </div>
                 </form>
@@ -342,13 +354,19 @@
 
     <div class="modal fade" id="settingsModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
-            <div class="modal-content" style="background: #1f1f1f; border: 1px solid #333;">
+            <div class="modal-content" style="background: #1f1f1f; color: white; border: 1px solid #333;">
                 <div class="modal-header border-secondary">
-                    <h5 class="modal-title">SMTP Email Settings</h5>
+                    <h5 class="modal-title" style="font-family: 'Montserrat'; font-weight: 700;">System Configuration</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <form action="/admin/settings" method="POST">
                     <div class="modal-body">
+                        <h6 class="text-warning mb-3 border-bottom border-secondary pb-2">Global Notifications</h6>
+                        <div class="mb-4">
+                            <label class="form-label">SYSTEM-WIDE ALERT MESSAGE</label>
+                            <input type="text" name="global_alert" class="form-control" placeholder="e.g. System Maintenance..." value="{{ config.get('global_alert', '') }}">
+                        </div>
+                        <h6 class="text-primary mb-3 border-bottom border-secondary pb-2">SMTP Email Settings</h6>
                         <div class="row g-3">
                             <div class="col-md-8"><label class="form-label">SMTP SERVER</label><input type="text" name="smtp_server" class="form-control" value="{{ config.get('smtp_server', '') }}"></div>
                             <div class="col-md-4"><label class="form-label">PORT</label><input type="text" name="smtp_port" class="form-control" value="{{ config.get('smtp_port', '587') }}"></div>
@@ -357,6 +375,7 @@
                         </div>
                     </div>
                     <div class="modal-footer border-secondary">
+                        <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn-gold">Save Configuration</button>
                     </div>
                 </form>
