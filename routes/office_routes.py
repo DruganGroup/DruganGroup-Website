@@ -561,7 +561,7 @@ def fix_db_engineer():
     finally:
         conn.close()
 
-# --- GENERATE PDF QUOTE ---
+# --- GENERATE PDF QUOTE (PREVIEW MODE) ---
 @office_bp.route('/office/quote/<int:quote_id>/pdf')
 def download_quote_pdf(quote_id):
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -570,8 +570,6 @@ def download_quote_pdf(quote_id):
     conn = get_db()
     cur = conn.cursor()
     
-    # FIX: Changed 'q.ref' to 'q.reference'
-    # Also removed 'q.expiry_date' just to be safe until you confirm the DB update
     cur.execute("""
         SELECT q.id, q.reference, q.date, q.total, q.status, 
                c.name, c.email, c.billing_address
@@ -587,9 +585,9 @@ def download_quote_pdf(quote_id):
         
     quote_data = {
         'id': q[0], 
-        'ref': q[1],       # Now correctly maps to q.reference
+        'ref': q[1],       
         'date': q[2], 
-        'expiry': None,    # Placeholder to prevent crashes
+        'expiry': None,    
         'total': q[3], 
         'status': q[4], 
         'client_name': q[5], 
@@ -597,17 +595,14 @@ def download_quote_pdf(quote_id):
         'client_address': q[7]
     }
 
-    # 2. Fetch Line Items
     cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
     items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
     
-    # 3. Fetch Branding & Settings
     config = get_site_config(company_id)
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     conn.close()
     
-    # 4. Generate PDF
     context = {
         'invoice': quote_data, 
         'items': items,
@@ -619,10 +614,11 @@ def download_quote_pdf(quote_id):
     
     filename = f"Quote_{quote_data['ref']}.pdf"
     
-    # Points to the PRO template
+    # Generate the file
     pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
     
-    return send_file(pdf_path, as_attachment=True, download_name=filename)
+    # FIX: Send as 'inline' so it shows in the browser/iframe instead of downloading
+    return send_file(pdf_path, mimetype='application/pdf')
     
     # --- VIEW QUOTE (WEB PAGE) ---
 @office_bp.route('/office/quote/<int:quote_id>')
