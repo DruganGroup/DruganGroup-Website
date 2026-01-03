@@ -259,9 +259,9 @@ def update_job(job_id):
         elif action == 'complete':
             signature = request.form.get('signature')
             
-            cur.execute("SELECT client_id, ref, description, start_date FROM jobs WHERE id = %s", (job_id,))
+            cur.execute("SELECT client_id, ref, description, start_date, property_id FROM jobs WHERE id = %s", (job_id,))
             job_data = cur.fetchone()
-            client_id, job_ref, job_desc, job_date = job_data
+            client_id, job_ref, job_desc, job_date, prop_id = job_data  # Added prop_id fetch
             clean_ref = job_ref.replace("Ref: ", "").replace("Quote Work: ", "").strip()
 
             cur.execute("SELECT COUNT(*) FROM invoices WHERE company_id = %s", (comp_id,))
@@ -310,12 +310,16 @@ def update_job(job_id):
                            (inv_id, f"Completed: {job_desc}",))
                 flash(f"🎉 Job Completed & Blank Invoice {inv_ref} Created.")
 
-            # 4. CALCULATE TAX & GRAND TOTAL
+            # 4. APPLY TAX MATH
             tax_amount = subtotal * tax_rate
             grand_total = subtotal + tax_amount
 
             cur.execute("UPDATE invoices SET subtotal = %s, tax = %s, total = %s WHERE id = %s", (subtotal, tax_amount, grand_total, inv_id))
+            
+            # 5. CLOSE JOB & LINKED TICKET (The Fix)
             cur.execute("UPDATE jobs SET status = 'Completed' WHERE id = %s", (job_id,))
+            # Find any 'In Progress' ticket for this property and close it
+            cur.execute("UPDATE service_requests SET status = 'Completed' WHERE property_id = %s AND status = 'In Progress'", (prop_id,))
             
         # --- C. UPLOAD PHOTO ---
         elif action == 'upload_photo':
