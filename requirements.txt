@@ -1,4 +1,4 @@
 Flask
 psycopg2-binary
 gunicorn
-WeasyPrint==60.1
+weasyprint==59.0
