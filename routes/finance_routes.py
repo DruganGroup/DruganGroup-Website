@@ -502,89 +502,35 @@ def setup_invoice_templates():
         return f"❌ Migration Error: {e}"
     finally:
         conn.close()
-        # --- UPDATE SETTINGS (MOVED TO FINANCE ROUTES) ---
-@finance_bp.route('/finance/settings/update', methods=['POST'])
-def update_settings():
-    if session.get('role') not in ['Admin', 'SuperAdmin', 'Manager']: 
-        return redirect(url_for('auth.login'))
-    
-    action = request.form.get('action')
-    comp_id = session.get('company_id')
-    conn = get_db(); cur = conn.cursor()
-    
-    try:
-        if action == 'update_pdf_style':
-            theme = request.form.get('pdf_theme')
-            color = request.form.get('brand_color')
-            
-            # Update PDF Theme
-            cur.execute("""
-                INSERT INTO settings (company_id, key, value) 
-                VALUES (%s, 'pdf_theme', %s) 
-                ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
-            """, (comp_id, theme))
-            
-            # Update Brand Color
-            cur.execute("""
-                INSERT INTO settings (company_id, key, value) 
-                VALUES (%s, 'brand_color', %s) 
-                ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
-            """, (comp_id, color))
-            
-            conn.commit()
-            flash("✅ PDF Style & Branding Updated")
 
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error updating settings: {e}")
-    finally:
-        conn.close()
-
-    # Redirect back to the Finance Settings page
-    return redirect('/finance/settings')
-    
-    # --- ONE-TIME DATA FIXER ---
-@finance_bp.route('/finance/fix-branding')
-def fix_branding_data():
-    if 'company_id' not in session: return "Please log in first."
-    
-    conn = get_db(); cur = conn.cursor()
+# --- DEBUGGING TOOL (Delete after use) ---
+@finance_bp.route('/finance/debug-settings')
+def debug_settings_view():
+    if 'company_id' not in session: return "Login required"
     cid = session['company_id']
-    log = []
+    conn = get_db(); cur = conn.cursor()
     
-    # 1. FORCE MIGRATE COLOR
-    # Get the old 'color' value
-    cur.execute("SELECT value FROM settings WHERE company_id=%s AND key='color'", (cid,))
-    old_color = cur.fetchone()
+    output = [f"<h1>Diagnostic for Company ID: {cid}</h1>"]
     
-    if old_color:
-        # Force overwrite 'brand_color' with the old value
-        cur.execute("""
-            INSERT INTO settings (company_id, key, value) VALUES (%s, 'brand_color', %s) 
-            ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
-        """, (cid, old_color[0]))
-        # Delete the old key so it never confuses us again
-        cur.execute("DELETE FROM settings WHERE company_id=%s AND key='color'", (cid,))
-        log.append(f"✅ Recovered color: {old_color[0]}")
+    # 1. Check for Duplicates (If this shows anything, your DB is broken)
+    cur.execute("SELECT key, count(*) FROM settings WHERE company_id=%s GROUP BY key HAVING count(*) > 1", (cid,))
+    dupes = cur.fetchall()
+    if dupes:
+        output.append(f"<h3 style='color:red'>⚠️ CRITICAL: DUPLICATE KEYS FOUND: {dupes}</h3>")
+        output.append("<p>This means your database allows multiple 'logos' or 'colors' at once. The code only reads the first one.</p>")
     else:
-        log.append("ℹ️ No legacy 'color' found (already fixed?)")
+        output.append("<h3 style='color:green'>✅ No Duplicates Found (DB Constraint is working)</h3>")
 
-    # 2. FORCE MIGRATE LOGO
-    # Get the old 'logo_url' value
-    cur.execute("SELECT value FROM settings WHERE company_id=%s AND key='logo_url'", (cid,))
-    old_logo = cur.fetchone()
+    # 2. Dump All Settings
+    cur.execute("SELECT key, value FROM settings WHERE company_id=%s ORDER BY key", (cid,))
+    rows = cur.fetchall()
     
-    if old_logo:
-        # Force overwrite 'logo' with the old value
-        cur.execute("""
-            INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo', %s) 
-            ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
-        """, (cid, old_logo[0]))
-        # Delete the old key
-        cur.execute("DELETE FROM settings WHERE company_id=%s AND key='logo_url'", (cid,))
-        log.append(f"✅ Recovered logo: {old_logo[0]}")
-    else:
-        log.append("ℹ️ No legacy 'logo_url' found (already fixed?)")
-
-    conn.commit()
-    return "<br>".join(log) + "<br><br><a href='/finance/settings/general'>Back to Settings</a>"
+    output.append("<table border='1' cellpadding='5'><tr><th>Key</th><th>Value</th></tr>")
+    for r in rows:
+        val = r[1]
+        if 'static' in str(val): # If it's a file path, show it as a link
+             val = f"{val} <br> <img src='{val}' height='50'>"
+        output.append(f"<tr><td><b>{r[0]}</b></td><td>{val}</td></tr>")
+    output.append("</table>")
+    
+    return "".join(output)
