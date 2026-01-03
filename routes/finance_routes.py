@@ -387,9 +387,13 @@ def settings_general():
     if request.method == 'POST':
         try:
             # 1. Update Company Info
-            fields = ['company_name', 'company_website', 'company_email', 'company_phone', 
-                      'company_address', 'brand_color', 'smtp_host', 'smtp_port', 
-                      'smtp_email', 'smtp_password', 'quote_template'] # <--- Matches your HTML name
+            fields = [
+    'company_name', 'company_website', 'company_email', 'company_phone', 
+    'company_address', 'brand_color', 'smtp_host', 'smtp_port', 
+    'smtp_email', 'smtp_password', 'pdf_theme',
+    'country_code', 'currency_symbol', 'date_format',
+    'company_reg_number', 'tax_id', 
+    'vat_registered'
             
             for field in fields:
                 val = request.form.get(field)
