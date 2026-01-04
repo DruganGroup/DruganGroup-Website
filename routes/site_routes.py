@@ -156,15 +156,23 @@ def clock_out():
     finally: conn.close()
     return redirect('/site-hub')
                           
-# --- 4. VAN CHECK ---
+# --- 4. VAN CHECK (Smart Link) ---
 @site_bp.route('/site/van-check', methods=['GET', 'POST'])
 def van_check_page():
     if not check_site_access(): return redirect(url_for('auth.login'))
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
 
+    # 1. Identify Driver & Assigned Van
+    staff_id, _, _ = get_staff_identity(session['user_id'], cur)
+    search_id = staff_id if staff_id else session['user_id']
+    
+    cur.execute("SELECT id, reg_plate FROM vehicles WHERE assigned_driver_id = %s", (search_id,))
+    assigned_van = cur.fetchone() # Returns (id, 'AB12 CDE') or None
+
     if request.method == 'POST':
-        reg = request.form.get('reg_plate')
+        # If locked to a van, use that. Otherwise, take from form.
+        reg = assigned_van[1] if assigned_van else request.form.get('reg_plate')
         mileage = request.form.get('mileage')
         defects = request.form.get('defects') or "No Defects Reported"
         signature = request.form.get('signature')
@@ -177,8 +185,10 @@ def van_check_page():
                 file.save(os.path.join(UPLOAD_FOLDER, filename))
 
         try:
+            # Re-verify ID (Safe check)
             cur.execute("SELECT id FROM vehicles WHERE reg_plate = %s", (reg,))
             v_row = cur.fetchone()
+            
             if v_row:
                 v_id = v_row[0]
                 is_safe = False if (defects and defects != "No Defects Reported") else True
@@ -193,10 +203,16 @@ def van_check_page():
                 flash("❌ Vehicle not found.")
         except Exception as e: conn.rollback(); flash(f"Error: {e}")
 
-    cur.execute("SELECT reg_plate FROM vehicles WHERE company_id = %s AND status='Active' ORDER BY reg_plate", (comp_id,))
-    vehicles = [r[0] for r in cur.fetchall()]
+    # If no assigned van, fetch list for dropdown fallback
+    vehicles = []
+    if not assigned_van:
+        cur.execute("SELECT reg_plate FROM vehicles WHERE company_id = %s AND status='Active' ORDER BY reg_plate", (comp_id,))
+        vehicles = [r[0] for r in cur.fetchall()]
+    
     conn.close()
-    return render_template('site/van_check_form.html', vehicles=vehicles)
+    
+    # Pass 'assigned_van' (tuple) or 'vehicles' (list)
+    return render_template('site/van_check_form.html', vehicles=vehicles, assigned_van=assigned_van)
 
 # --- 5. VIEW SINGLE JOB (Updated to show Materials) ---
 @site_bp.route('/site/job/<int:job_id>')
