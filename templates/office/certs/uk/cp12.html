@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create CP12 | Gas Safety</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+        .cert-container { max-width: 900px; margin: 30px auto; background: white; padding: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-top: 6px solid #ffc107; }
+        .section-header { background: #212529; color: white; padding: 8px 15px; font-weight: bold; text-transform: uppercase; margin-top: 25px; font-size: 0.85rem; letter-spacing: 0.5px; }
+        .form-label { font-size: 0.75rem; font-weight: bold; color: #555; text-transform: uppercase; }
+        
+        .pass-fail-group { display: flex; border: 1px solid #dee2e6; border-radius: 4px; overflow: hidden; }
+        .pass-fail-group input { display: none; }
+        .pass-fail-group label { flex: 1; text-align: center; padding: 4px; font-size: 0.75rem; cursor: pointer; background: #fff; transition: 0.2s; font-weight: bold; }
+        .pass-fail-group input[value="Pass"]:checked + label { background: #198754; color: white; }
+        .pass-fail-group input[value="Fail"]:checked + label { background: #dc3545; color: white; }
+        .pass-fail-group label:hover { background: #f8f9fa; }
+    </style>
+</head>
+<body>
+
+<div class="cert-container">
+    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+        <div>
+            <h3 class="fw-bold m-0 text-dark">LANDLORD GAS SAFETY RECORD</h3>
+            <p class="text-muted small m-0">Regulation 36(3) Gas Safety (Installation & Use) Regulations 1998</p>
+        </div>
+        <div class="text-end">
+            <h2 class="fw-bold text-warning mb-0"><i class="fas fa-burn me-2"></i>CP12</h2>
+            <div class="badge bg-dark text-white">UK / EU STANDARD</div>
+        </div>
+    </div>
+
+    <form>
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="p-3 border rounded bg-light h-100">
+                    <label class="form-label text-primary">Site Address</label>
+                    <div class="fw-bold fs-5">{{ prop.address }}</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-3 border rounded bg-light h-100">
+                    <label class="form-label text-primary">Landlord / Client</label>
+                    <div class="fw-bold fs-5">{{ prop.client }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-header">Appliance #1 Check</div>
+        <div class="p-3 border rounded mb-3">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Location</label>
+                    <select class="form-select form-select-sm fw-bold">
+                        <option>Kitchen</option><option>Utility</option><option>Hallway</option><option>Loft</option><option>Garage</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Type</label>
+                    <select class="form-select form-select-sm fw-bold">
+                        <option>Combi Boiler</option><option>System Boiler</option><option>Gas Hob</option><option>Gas Fire</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Make</label>
+                    <input type="text" class="form-control form-control-sm fw-bold" placeholder="e.g. Worcester">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Model</label>
+                    <input type="text" class="form-control form-control-sm fw-bold" placeholder="e.g. 4000i">
+                </div>
+            </div>
+
+            <div class="row g-3 mt-2 pt-3 border-top">
+                <div class="col-md-2">
+                    <label class="form-label text-center d-block">Operating Pressure</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control text-center fw-bold">
+                        <span class="input-group-text">mbar</span>
+                    </div>
+                </div>
+                
+                <div class="col-md-2">
+                    <label class="form-label text-center d-block">Combustion</label>
+                    <div class="pass-fail-group">
+                        <input type="radio" name="c1" id="c1p" value="Pass"><label for="c1p">PASS</label>
+                        <input type="radio" name="c1" id="c1f" value="Fail"><label for="c1f">FAIL</label>
+                    </div>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label text-center d-block">Ventilation</label>
+                    <div class="pass-fail-group">
+                        <input type="radio" name="v1" id="v1p" value="Pass"><label for="v1p">PASS</label>
+                        <input type="radio" name="v1" id="v1f" value="Fail"><label for="v1f">FAIL</label>
+                    </div>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label text-center d-block">Flue Flow</label>
+                    <div class="pass-fail-group">
+                        <input type="radio" name="f1" id="f1p" value="Pass"><label for="f1p">PASS</label>
+                        <input type="radio" name="f1" id="f1f" value="Fail"><label for="f1f">FAIL</label>
+                    </div>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label text-center d-block">Spillage Test</label>
+                    <div class="pass-fail-group">
+                        <input type="radio" name="s1" id="s1p" value="Pass"><label for="s1p">PASS</label>
+                        <input type="radio" name="s1" id="s1f" value="Fail"><label for="s1f">FAIL</label>
+                    </div>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label text-center d-block text-danger">Safe to Use?</label>
+                    <div class="pass-fail-group">
+                        <input type="radio" name="safe1" id="safe1p" value="Pass"><label for="safe1p" class="bg-success text-white">YES</label>
+                        <input type="radio" name="safe1" id="safe1f" value="Fail"><label for="safe1f" class="bg-danger text-white">NO</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-header">Final Declaration</div>
+        <div class="row mt-3">
+            <div class="col-md-8">
+                <div class="form-check form-switch p-3 border rounded mb-2 bg-light">
+                    <input class="form-check-input" type="checkbox" id="coAlarm">
+                    <label class="form-check-label fw-bold" for="coAlarm">CO Alarm Tested & Working?</label>
+                </div>
+                <div class="form-check form-switch p-3 border rounded bg-light">
+                    <input class="form-check-input" type="checkbox" id="gasTightness">
+                    <label class="form-check-label fw-bold" for="gasTightness">Gas Tightness Test Passed?</label>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="border p-3 rounded text-center bg-warning-subtle border-warning h-100 d-flex flex-column justify-content-center">
+                    <small class="text-muted d-block text-uppercase fw-bold mb-1">Next Inspection Due</small>
+                    <input type="date" class="form-control form-control fw-bold text-center border-warning" value="{{ today }}">
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-5 align-items-end">
+            <div class="col-6">
+                <label class="form-label">Engineer Signature</label>
+                <div class="border rounded bg-white d-flex align-items-center justify-content-center text-muted small" style="height: 60px; border-style: dashed !important;">
+                    (Sign on Screen Logic Here)
+                </div>
+            </div>
+            <div class="col-6 text-end">
+                <button type="button" class="btn btn-dark fw-bold btn-lg w-100 shadow">
+                    <i class="fas fa-file-pdf me-2"></i> Issue Certificate
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>

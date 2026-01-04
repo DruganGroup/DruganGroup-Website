@@ -381,8 +381,28 @@ def update_job(job_id):
             cur.execute("SELECT SUM(total) FROM invoice_items WHERE invoice_id = %s", (inv_id,))
             new_subtotal = cur.fetchone()[0] or 0.0
             
-            # Simple VAT Logic (20%) - Adjust if needed
-            new_tax = float(new_subtotal) * 0.20
+# --- SMART TAX CALCULATION (Updated) ---
+            # 1. Get All Settings
+            cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+            settings = {row[0]: row[1] for row in cur.fetchall()}
+            
+            is_vat = settings.get('vat_registered') == 'yes'
+            country = settings.get('country_code', 'UK')
+
+            # 2. Determine Rate
+            tax_rate = 0.0
+            if is_vat:
+                if country == 'UK': tax_rate = 0.20
+                elif country == 'US': tax_rate = 0.08    # Avg Sales Tax
+                elif country == 'IE': tax_rate = 0.23    # VAT
+                elif country == 'AUS': tax_rate = 0.10
+                elif country == 'NZ': tax_rate = 0.15
+                elif country == 'CAN': tax_rate = 0.05
+                elif country == 'EU': tax_rate = 0.21
+                else: tax_rate = 0.20
+
+            # 3. Apply Tax
+            new_tax = float(new_subtotal) * tax_rate
             new_total = float(new_subtotal) + new_tax
             
             cur.execute("UPDATE invoices SET subtotal = %s, tax = %s, total = %s WHERE id = %s", 

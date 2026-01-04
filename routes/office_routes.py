@@ -715,3 +715,28 @@ def upgrade_materials_db():
     except Exception as e:
         conn.rollback(); return f"Error: {e}"
     finally: conn.close()
+    
+    # --- GENERATE CP12 (GAS SAFETY) ---
+@office_bp.route('/office/cert/cp12/create')
+def create_cp12():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    prop_id = request.args.get('prop_id')
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    # Auto-fill Address & Client
+    cur.execute("""
+        SELECT p.address_line1, p.postcode, c.name 
+        FROM properties p 
+        JOIN clients c ON p.client_id = c.id 
+        WHERE p.id = %s AND p.company_id = %s
+    """, (prop_id, comp_id))
+    data = cur.fetchone()
+    conn.close()
+    
+    prop_data = {'address': f"{data[0]}, {data[1]}", 'client': data[2]} if data else {}
+    
+    return render_template('office/certs/create_cp12.html', prop=prop_data, today=date.today(), brand_color=config['color'])
