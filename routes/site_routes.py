@@ -84,7 +84,7 @@ def send_email_notification(company_id, to_email, client_name, job_ref, address)
         conn.close()
 
 @site_bp.route('/site-hub')
-@site_bp.route('/site-companion') 
+@site_bp.route('/site-companion')
 def site_dashboard():
     if not check_site_access(): return redirect(url_for('auth.login'))
     
@@ -102,7 +102,7 @@ def site_dashboard():
         cur.execute("SELECT id FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
         is_clocked_in = cur.fetchone() is not None
     
-    # B. 7-DAY CALENDAR SCHEDULE
+    # B. 7-DAY CALENDAR SCHEDULE (FIXED: Added ::DATE)
     jobs = []
     if staff_id:
         cur.execute("""
@@ -111,8 +111,8 @@ def site_dashboard():
             LEFT JOIN clients c ON j.client_id = c.id 
             WHERE j.engineer_id = %s 
             AND j.status != 'Completed'
-            AND j.start_date >= CURRENT_DATE 
-            AND j.start_date <= CURRENT_DATE + INTERVAL '7 days'
+            AND j.start_date::DATE >= CURRENT_DATE 
+            AND j.start_date::DATE <= CURRENT_DATE + INTERVAL '7 days'
             ORDER BY j.start_date ASC
         """, (staff_id,))
         jobs = cur.fetchall()
