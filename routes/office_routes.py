@@ -659,53 +659,30 @@ def view_quote(quote_id):
     
     return send_file(pdf_path, as_attachment=True, download_name=filename)
 
-@office_bp.route('/office/fix-invoice-schema')
-def fix_invoice_schema():
+@office_bp.route('/office/fix-stuck-tickets')
+def fix_stuck_tickets():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
     
     conn = get_db()
     cur = conn.cursor()
     try:
-        # 1. Enhancements for Job Completion
-        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS end_date TIMESTAMP;")
-        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS private_notes TEXT;")
-        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS work_summary TEXT;")
-
-        # 2. Master Timesheet Table (For your upcoming feature)
+        # 1. Fix Stuck Service Tickets
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS staff_timesheets (
-                id SERIAL PRIMARY KEY,
-                staff_id INTEGER,
-                company_id INTEGER,
-                clock_in TIMESTAMP,
-                clock_out TIMESTAMP,
-                date DATE,
-                total_hours NUMERIC(5, 2)
-            );
+            UPDATE service_requests
+            SET status = 'Completed'
+            FROM jobs
+            WHERE service_requests.property_id = jobs.property_id
+            AND jobs.status = 'Completed'
+            AND service_requests.status != 'Completed';
         """)
-
-        # 3. Ensure Invoice Columns Exist
-        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS quote_ref TEXT;")
-        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS subtotal NUMERIC(10, 2) DEFAULT 0;")
-        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS tax NUMERIC(10, 2) DEFAULT 0;")
-        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS notes TEXT;")
         
-        # 4. Ensure Invoice Items Table
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS invoice_items (
-                id SERIAL PRIMARY KEY,
-                invoice_id INTEGER REFERENCES invoices(id) ON DELETE CASCADE,
-                description TEXT,
-                quantity NUMERIC(10, 2),
-                unit_price NUMERIC(10, 2),
-                total NUMERIC(10, 2)
-            );
-        """)
+        # 2. DELETE BROKEN "GHOST" TIMESHEETS (The Fix for you)
+        cur.execute("DELETE FROM staff_timesheets WHERE staff_id IS NULL;")
         
         conn.commit()
-        return "✅ SUCCESS: Database ready for Two-Lane Workflow, Private Notes, and Timesheets."
+        return "✅ SUCCESS: Stuck tickets fixed AND Ghost Timesheets deleted. Try clocking in again."
     except Exception as e:
         conn.rollback()
-        return f"❌ Database Error: {e}"
+        return f"❌ Error: {e}"
     finally:
         conn.close()
