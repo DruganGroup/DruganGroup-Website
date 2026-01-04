@@ -35,7 +35,8 @@
     <a href="/finance/settings" style="background-color: rgba(255,255,255,0.2); border-left: 5px solid white;"><i class="fas fa-cogs me-2"></i> Settings</a>
     <a href="/launcher" class="mt-5"><i class="fas fa-arrow-left me-2"></i> Main Menu</a>
 </div>
-<div class="card p-4 mt-4">
+
+<div class="card p-4 mt-4" style="margin-left: 250px; margin-right: 30px;">
     <h5 class="fw-bold text-secondary mb-4">Invoice & Quote Template</h5>
     <div class="row g-3">
         <div class="col-md-4">
@@ -59,6 +60,7 @@
         </div>
     </div>
 </div>
+
 <div class="content">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -94,14 +96,14 @@
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label">Primary Country</label>
-<select name="country_code" id="countrySelector" class="form-select bg-light border-secondary" onchange="updateLabels()">
-    <option value="UK" {% if settings.get('country_code') == 'UK' %}selected{% endif %}>🇬🇧 United Kingdom (UK)</option>
-    <option value="US" {% if settings.get('country_code') == 'US' %}selected{% endif %}>🇺🇸 United States (US)</option>
-    <option value="IE" {% if settings.get('country_code') == 'IE' %}selected{% endif %}>🇮🇪 Ireland (IE)</option>
-    <option value="CAN" {% if settings.get('country_code') == 'CAN' %}selected{% endif %}>🇨🇦 Canada (CAN)</option>
-    <option value="AUS" {% if settings.get('country_code') == 'AUS' %}selected{% endif %}>🇦🇺 Australia (AUS)</option>
-    <option value="NZ" {% if settings.get('country_code') == 'NZ' %}selected{% endif %}>🇳🇿 New Zealand (NZ)</option>
-</select>
+                                    <select name="country_code" id="countrySelector" class="form-select bg-light border-secondary" onchange="updateLabels()">
+                                        <option value="UK" {% if settings.get('country_code') == 'UK' %}selected{% endif %}>🇬🇧 United Kingdom (UK)</option>
+                                        <option value="US" {% if settings.get('country_code') == 'US' %}selected{% endif %}>🇺🇸 United States (US)</option>
+                                        <option value="IE" {% if settings.get('country_code') == 'IE' %}selected{% endif %}>🇮🇪 Ireland (IE)</option>
+                                        <option value="CAN" {% if settings.get('country_code') == 'CAN' %}selected{% endif %}>🇨🇦 Canada (CAN)</option>
+                                        <option value="AUS" {% if settings.get('country_code') == 'AUS' %}selected{% endif %}>🇦🇺 Australia (AUS)</option>
+                                        <option value="NZ" {% if settings.get('country_code') == 'NZ' %}selected{% endif %}>🇳🇿 New Zealand (NZ)</option>
+                                    </select>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Currency</label>
@@ -121,6 +123,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Contact Email</label>
+                                    <input type="email" name="company_email" class="form-control" value="{{ settings.get('company_email', '') }}">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Phone Number</label>
@@ -352,49 +355,42 @@
 <script>
     function updateLabels() {
         const country = document.getElementById('countrySelector').value;
+        const currencySelect = document.querySelector('select[name="currency_symbol"]');
+        
         const lblReg = document.getElementById('lbl_reg');
         const lblTax = document.getElementById('lbl_tax_id');
         const lblRef = document.getElementById('lbl_utr');
         const lblPaye = document.getElementById('lbl_paye');
         const lblSort = document.getElementById('lbl_sort');
 
-        if (country === 'UK') {
-            lblReg.innerText = "Company Reg Number (CRN)";
-            lblTax.innerText = "VAT Registration Number";
-            // ...
-        } 
-        else if (country === 'US') { // Changed from USA to US
-            lblReg.innerText = "State Registration ID";
-            lblTax.innerText = "Sales Tax ID / Reseller Cert";
-            // ...
-        }
-        else if (country === 'IE') { // Added Ireland
-            lblReg.innerText = "Company Number (CRO)";
-            lblTax.innerText = "VAT Number";
-            lblRef.innerText = "Tax Ref Number (TRN)";
-            lblPaye.innerText = "Employer Reg Number";
-            lblSort.innerText = "Sort Code";
-        }
-        else if (country === 'CAN') {
-            lblReg.innerText = "Provincial Corp Number";
-            lblTax.innerText = "GST / HST Number";
-            lblRef.innerText = "Business Number (BN)";
-            lblPaye.innerText = "Payroll Program Account (RP)";
-            lblSort.innerText = "Transit Number";
-        }
-        else if (country === 'AUS') {
-            lblReg.innerText = "ACN (Australian Company Number)";
-            lblTax.innerText = "GST Registration";
-            lblRef.innerText = "ABN (Australian Business Number)";
-            lblPaye.innerText = "TFN (Tax File Number)";
-            lblSort.innerText = "BSB Number";
-        }
-        else if (country === 'NZ') {
-            lblReg.innerText = "NZBN (New Zealand Business Num)";
-            lblTax.innerText = "GST Number";
-            lblRef.innerText = "IRD Number";
-            lblPaye.innerText = "Employer Registration (IRD)";
-            lblSort.innerText = "Bank Branch Number";
+        const logic = {
+            'UK':  { labels: ["Company Reg Number (CRN)", "VAT Registration Number", "Unique Tax Ref (UTR)", "Employer PAYE Reference", "Sort Code"], currency: '£' },
+            'US':  { labels: ["State Registration ID", "Sales Tax ID / Reseller Cert", "Federal EIN (Employer ID)", "State Unemployment ID", "Routing Number (ABA)"], currency: '$' },
+            'IE':  { labels: ["Company Number (CRO)", "VAT Number", "Tax Ref Number (TRN)", "Employer Reg Number", "Sort Code"], currency: '€' },
+            'CAN': { labels: ["Provincial Corp Number", "GST / HST Number", "Business Number (BN)", "Payroll Program Account (RP)", "Transit Number"], currency: '$' },
+            'AUS': { labels: ["ACN (Australian Company Number)", "GST Registration", "ABN (Australian Business Number)", "TFN (Tax File Number)", "BSB Number"], currency: '$' },
+            'NZ':  { labels: ["NZBN (New Zealand Business Num)", "GST Number", "IRD Number", "Employer Registration (IRD)", "Bank Branch Number"], currency: '$' }
+        };
+
+        const data = logic[country];
+
+        if (data) {
+            // Update Text Labels
+            if(lblReg) lblReg.innerText = data.labels[0];
+            if(lblTax) lblTax.innerText = data.labels[1];
+            if(lblRef) lblRef.innerText = data.labels[2];
+            if(lblPaye) lblPaye.innerText = data.labels[3];
+            if(lblSort) lblSort.innerText = data.labels[4];
+
+            // AUTO-UPDATE CURRENCY
+            if (currencySelect) {
+                for (let i = 0; i < currencySelect.options.length; i++) {
+                    if (currencySelect.options[i].value === data.currency) {
+                        currencySelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
         }
     }
 
