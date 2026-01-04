@@ -11,21 +11,24 @@
                 <div class="row g-3">
                     
                     <div class="col-md-6">
-                        <label class="form-label">Primary Country</label>
-                                    <select name="country_code" id="countrySelector" class="form-select bg-light border-secondary" onchange="updateLabels()">
-                                        <option value="UK" {% if settings.get('country_code') == 'UK' %}selected{% endif %}>🇬🇧 United Kingdom</option>
-                                        <option value="US" {% if settings.get('country_code') == 'US' %}selected{% endif %}>🇺🇸 United States</option>
-                                        <option value="IE" {% if settings.get('country_code') == 'IE' %}selected{% endif %}>🇮🇪 Ireland</option>
-                                        <option value="CAN" {% if settings.get('country_code') == 'CAN' %}selected{% endif %}>🇨🇦 Canada</option>
-                                        <option value="AUS" {% if settings.get('country_code') == 'AUS' %}selected{% endif %}>🇦🇺 Australia</option>
-                                        <option value="NZ" {% if settings.get('country_code') == 'NZ' %}selected{% endif %}>🇳🇿 New Zealand</option>
-                                    </select>
+                        <label class="form-label text-muted small fw-bold">Primary Country</label>
+                        <select name="country_code" id="countrySelector" class="form-select bg-light border-secondary" onchange="updateLocalization()">
+                            <option value="UK" {% if settings.get('country_code') == 'UK' %}selected{% endif %}>🇬🇧 United Kingdom (UK)</option>
+                            <option value="US" {% if settings.get('country_code') == 'US' %}selected{% endif %}>🇺🇸 United States (US)</option>
+                            <option value="IE" {% if settings.get('country_code') == 'IE' %}selected{% endif %}>🇮🇪 Ireland (IE)</option>
+                            <option value="CAN" {% if settings.get('country_code') == 'CAN' %}selected{% endif %}>🇨🇦 Canada (CAN)</option>
+                            <option value="AUS" {% if settings.get('country_code') == 'AUS' %}selected{% endif %}>🇦🇺 Australia (AUS)</option>
+                            <option value="NZ" {% if settings.get('country_code') == 'NZ' %}selected{% endif %}>🇳🇿 New Zealand (NZ)</option>
+                        </select>
                     </div>
 
                     <div class="col-md-3">
                         <label class="form-label text-muted small fw-bold">Currency</label>
-                        <input type="text" name="currency_symbol" id="currencyInput" class="form-control bg-light" readonly 
-                               value="{{ settings.get('currency_symbol', '£') }}">
+                        <select name="currency_symbol" id="currencySelector" class="form-select bg-light">
+                            <option value="£" {% if settings.get('currency_symbol') == '£' %}selected{% endif %}>£ (GBP)</option>
+                            <option value="$" {% if settings.get('currency_symbol') == '$' %}selected{% endif %}>$ (USD/AUD/CAD)</option>
+                            <option value="€" {% if settings.get('currency_symbol') == '€' %}selected{% endif %}>€ (EUR)</option>
+                        </select>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label text-muted small fw-bold">Date Format</label>
@@ -158,27 +161,41 @@
 function updateLocalization() {
     const country = document.getElementById('countrySelector').value;
     
-    const currencyInput = document.getElementById('currencyInput');
+    // Get Elements
+    const currencySelect = document.getElementById('currencySelector'); // Corrected ID
     const dateInput = document.getElementById('dateFormatInput');
     const lblReg = document.getElementById('lbl_reg_number');
     const lblTax = document.getElementById('lbl_tax_id');
     
+    // Logic Map
     const maps = {
-        'UK':  { cur: '£', date: '%d/%m/%Y', reg: 'Company Reg Number', tax: 'VAT Number' },
-        'USA': { cur: '$', date: '%m/%d/%Y', reg: 'State Entity ID', tax: 'Federal EIN' },
-        'CAN': { cur: '$', date: '%Y-%m-%d', reg: 'Corporation Number', tax: 'GST / HST Number' },
-        'AUS': { cur: '$', date: '%d/%m/%Y', reg: 'ABN', tax: 'GST Registration' },
-        'NZ':  { cur: '$', date: '%d/%m/%Y', reg: 'NZBN', tax: 'IRD Number' },
-        'EU':  { cur: '€', date: '%d.%m.%Y', reg: 'Commercial Register', tax: 'VAT ID' }
+        'UK':  { cur: '£', date: '%d/%m/%Y', reg: 'Company Reg Number (CRN)', tax: 'VAT Registration Number' },
+        'US':  { cur: '$', date: '%m/%d/%Y', reg: 'State Registration ID',    tax: 'Sales Tax ID / EIN' },
+        'IE':  { cur: '€', date: '%d/%m/%Y', reg: 'Company Number (CRO)',     tax: 'VAT Number' },
+        'CAN': { cur: '$', date: '%Y-%m-%d', reg: 'Corporation Number',       tax: 'GST / HST Number' },
+        'AUS': { cur: '$', date: '%d/%m/%Y', reg: 'ACN / ABN',                tax: 'GST Registration' },
+        'NZ':  { cur: '$', date: '%d/%m/%Y', reg: 'NZBN',                     tax: 'GST Number' }
     };
 
     if (maps[country]) {
-        if(currencyInput) currencyInput.value = maps[country].cur;
+        // 1. Update Labels & Formats
         if(dateInput) dateInput.value = maps[country].date;
         if(lblReg) lblReg.innerText = maps[country].reg;
         if(lblTax) lblTax.innerText = maps[country].tax;
+
+        // 2. Auto-Select Currency in Dropdown
+        if (currencySelect) {
+            for (let i = 0; i < currencySelect.options.length; i++) {
+                if (currencySelect.options[i].value === maps[country].cur) {
+                    currencySelect.selectedIndex = i;
+                    break;
+                }
+            }
+        }
     }
 }
+
+// Run on load to set initial state
 document.addEventListener('DOMContentLoaded', updateLocalization);
 </script>
 {% endblock %}
