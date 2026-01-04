@@ -226,7 +226,7 @@ def view_job(job_id):
     if not job: return "Job not found", 404
     return render_template('site/job_details.html', job=job, photos=photos, materials=materials)
     
-    # --- NEW: ADD MATERIAL TO JOB ---
+# --- NEW: ADD MATERIAL TO JOB ---
 @site_bp.route('/site/job/<int:job_id>/add-material', methods=['POST'])
 def add_job_material(job_id):
     if 'user_id' not in session: return redirect('/login')
@@ -253,7 +253,7 @@ def add_job_material(job_id):
     
     return redirect(url_for('site.view_job', job_id=job_id))
 
-# --- 6. UPDATE JOB (With Manual Notes/Draft Invoice) ---
+# --- 6. UPDATE JOB (With Auto-Billing) ---
 @site_bp.route('/site/job/<int:job_id>/update', methods=['POST'])
 def update_job(job_id):
     if not check_site_access(): return redirect(url_for('auth.login'))
@@ -276,7 +276,7 @@ def update_job(job_id):
             else:
                 flash("✅ Job Started.")
 
-# --- B. COMPLETE JOB (With Auto-Material Billing) ---
+        # B. COMPLETE JOB (With Auto-Material Billing)
         elif action == 'complete':
             signature = request.form.get('signature')
             work_summary = request.form.get('work_summary')
@@ -374,6 +374,24 @@ def update_job(job_id):
 
             # Close Service Ticket
             cur.execute("UPDATE service_requests SET status = 'Completed' WHERE property_id = %s AND status = 'In Progress'", (prop_id,))
+
+        # C. UPLOAD PHOTO
+        elif action == 'upload_photo':
+            if 'photo' in request.files:
+                file = request.files['photo']
+                if file.filename != '':
+                    os.makedirs(JOB_EVIDENCE_FOLDER, exist_ok=True)
+                    filename = secure_filename(f"JOB_{job_id}_{int(datetime.now().timestamp())}_{file.filename}")
+                    db_path = f"uploads/job_evidence/{filename}"
+                    file.save(os.path.join(JOB_EVIDENCE_FOLDER, filename))
+                    cur.execute("INSERT INTO job_evidence (job_id, filepath, uploaded_by) VALUES (%s, %s, %s)", (job_id, db_path, session['user_id']))
+                    flash("📷 Photo Uploaded")
+
+        conn.commit()
+    except Exception as e: conn.rollback(); flash(f"Error: {e}")
+    finally: conn.close()
+    if action == 'complete': return redirect(url_for('site.site_dashboard'))
+    return redirect(url_for('site.view_job', job_id=job_id))
 
 # --- PUBLIC PAGES ---
 @site_bp.route('/advertise')
