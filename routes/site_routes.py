@@ -306,7 +306,7 @@ def update_job(job_id):
 @site_bp.route('/business-better')
 def advertise_page(): return render_template('public/advert-bb.html')
 
-# --- 7. LOG FUEL (Analytics Ready) ---
+# --- 7. LOG FUEL (With Manual Cost for Accuracy) ---
 @site_bp.route('/site/log-fuel', methods=['GET', 'POST'])
 def log_fuel():
     if not check_site_access(): return redirect(url_for('auth.login'))
@@ -314,7 +314,7 @@ def log_fuel():
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
 
-    # 1. Identify the Driver & Their Van
+    # 1. Identify Driver & Van
     staff_id, _, _ = get_staff_identity(session['user_id'], cur)
     search_id = staff_id if staff_id else session['user_id']
 
@@ -331,6 +331,7 @@ def log_fuel():
         # Get Inputs
         mileage = request.form.get('mileage')
         litres = request.form.get('litres')
+        total_cost = request.form.get('total_cost') # Driver Entered
         fuel_type = request.form.get('fuel_type')
         file = request.files.get('receipt')
         
@@ -343,34 +344,32 @@ def log_fuel():
                 file.save(full_path)
                 db_path = f"uploads/van_checks/{filename}"
 
-                cost = 0.0
+                # Use Driver's Cost
+                final_cost = float(total_cost) if total_cost else 0.0
                 desc = f"{fuel_type} ({litres}L) for {v_reg}. Mileage: {mileage}"
                 
-                # AI Scan (Safe Mode - Just getting Cost for now)
+                # AI Scan (Optional - Just for Vendor Name now)
                 if scan_receipt:
                     try:
                         scan = scan_receipt(full_path)
                         if scan['success']:
                             data = scan['data']
-                            cost = float(data.get('total_cost', 0))
-                            # Future: We will update AI to override litres if it reads it clearly
                             if data.get('vendor'): desc += f" @ {data.get('vendor')}"
-                            flash(f"✨ Receipt Scanned: £{cost}")
                     except Exception as ai_error:
                         print(f"AI Error: {ai_error}") 
 
-                # A. Log the Maintenance Event (With new columns)
+                # A. Log Event
                 cur.execute("""
                     INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost, receipt_path, litres, fuel_type) 
                     VALUES (%s, %s, CURRENT_DATE, 'Fuel', %s, %s, %s, %s, %s)
-                """, (comp_id, v_id, desc, cost, db_path, litres, fuel_type))
+                """, (comp_id, v_id, desc, final_cost, db_path, litres, fuel_type))
 
-                # B. Update Vehicle Mileage (Crucial for MPG math)
+                # B. Update Mileage
                 if mileage:
                     cur.execute("UPDATE vehicles SET mileage = %s WHERE id = %s", (mileage, v_id))
                 
                 conn.commit()
-                flash("✅ Fuel, Litres & Mileage Logged!")
+                flash("✅ Fuel Logged Successfully!")
                 return redirect(url_for('site.site_dashboard'))
             except Exception as e:
                 conn.rollback(); flash(f"Error saving log: {e}")
