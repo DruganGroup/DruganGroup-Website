@@ -730,3 +730,60 @@ def add_property(client_id):
 # Placeholder routes
 @office_bp.route('/office/quote/<int:quote_id>/convert')
 def convert_to_invoice(quote_id): return redirect(url_for('office.office_dashboard'))
+
+@office_bp.route('/office/upgrade-certs-db')
+def upgrade_certs_db():
+    if 'user_id' not in session: return "Not logged in"
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Create a dedicated table for storing detailed Certificate Data (Drafts & Finals)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS certificates (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER,
+                property_id INTEGER,
+                type VARCHAR(20), -- 'EICR', 'CP12', 'PAT'
+                status VARCHAR(20), -- 'Draft', 'Issued'
+                data JSONB, -- Stores the complex circuit/test data
+                engineer_name VARCHAR(100),
+                date_issued DATE,
+                expiry_date DATE,
+                pdf_path TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn.commit()
+        return "✅ SUCCESS: Certificate Storage Engine (JSON) Ready."
+    except Exception as e:
+        conn.rollback()
+        return f"Database Error: {e}"
+    finally:
+        conn.close()
+        
+        @office_bp.route('/office/cert/eicr/create')
+def create_eicr_cert():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    prop_id = request.args.get('prop_id')
+    comp_id = session.get('company_id')
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    # Get Property Data
+    cur.execute("""
+        SELECT p.address_line1, p.city, p.postcode, c.name 
+        FROM properties p 
+        JOIN clients c ON p.client_id = c.id 
+        WHERE p.id = %s AND p.company_id = %s
+    """, (prop_id, comp_id))
+    data = cur.fetchone()
+    conn.close()
+    
+    prop_data = {}
+    if data:
+        # Re-using the smart address joiner logic
+        parts = [data[0], data[1], data[2]]
+        full_addr = ", ".join([p for p in parts if p])
+        prop_data = {'id': prop_id, 'address': full_addr, 'client': data[3]}
+        
+    return render_template('office/certs/uk/eicr.html', prop=prop_data, next_five_years=(date.today() + timedelta(days=365*5)))

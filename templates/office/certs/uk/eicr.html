@@ -1,0 +1,196 @@
+{% extends "office/office_base.html" %}
+
+{% block title %}Create EICR | Electrical Report{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <form id="eicrForm">
+        <input type="hidden" name="prop_id" value="{{ prop.id }}">
+        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold text-primary"><i class="fas fa-bolt me-2"></i>Electrical Installation Condition Report (EICR)</h2>
+                <div class="text-muted">{{ prop.address }}</div>
+            </div>
+            <div>
+                <button type="button" class="btn btn-secondary me-2" onclick="saveDraft()">Save Draft</button>
+                <button type="button" class="btn btn-success fw-bold" onclick="generatePDF()"><i class="fas fa-check-circle me-2"></i>Issue Certificate</button>
+            </div>
+        </div>
+
+        <ul class="nav nav-tabs mb-4" id="eicrTabs" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-target="#details" data-bs-toggle="tab">1. Details & Supply</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-target="#circuits" data-bs-toggle="tab">2. Circuit Schedule (DB)</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-target="#observations" data-bs-toggle="tab">3. Observations</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-target="#declaration" data-bs-toggle="tab">4. Declaration</button></li>
+        </ul>
+
+        <div class="tab-content">
+            
+            <div class="tab-pane fade show active" id="details">
+                <div class="card p-4 shadow-sm">
+                    <h5 class="fw-bold mb-3">Supply Characteristics & Earthing</h5>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="small fw-bold">Earthing System</label>
+                            <select name="earthing_type" class="form-select">
+                                <option>TN-C-S (PME)</option>
+                                <option>TN-S</option>
+                                <option>TT</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small fw-bold">Main Fuse (Amps)</label>
+                            <input type="number" name="main_fuse" class="form-control" placeholder="e.g. 100">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small fw-bold">Ze (Ω)</label>
+                            <input type="number" step="0.01" name="ze" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small fw-bold">PFC (kA)</label>
+                            <input type="number" step="0.01" name="pfc" class="form-control">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="circuits">
+                <div class="card p-4 shadow-sm">
+                    <div class="d-flex justify-content-between mb-3">
+                        <h5 class="fw-bold">Distribution Board Schedule</h5>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="addCircuitRow()"><i class="fas fa-plus"></i> Add Circuit</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm text-center align-middle" style="font-size: 0.8rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th rowspan="2">No.</th>
+                                    <th rowspan="2" style="width:20%">Description</th>
+                                    <th colspan="2">Protection</th>
+                                    <th colspan="2">Conductors (mm²)</th>
+                                    <th colspan="2">Insulation (MΩ)</th>
+                                    <th rowspan="2">Zs (Ω)</th>
+                                    <th rowspan="2">RCD (ms)</th>
+                                    <th rowspan="2">Action</th>
+                                </tr>
+                                <tr>
+                                    <th>Type</th><th>Rating</th>
+                                    <th>Live</th><th>CPC</th>
+                                    <th>L-L/N</th><th>L-E</th>
+                                </tr>
+                            </thead>
+                            <tbody id="circuitBody">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="observations">
+                <div class="card p-4 shadow-sm">
+                    <div class="d-flex justify-content-between mb-3">
+                        <h5 class="fw-bold">Observations & Recommendations</h5>
+                        <button type="button" class="btn btn-sm btn-warning text-dark" onclick="addObsRow()"><i class="fas fa-exclamation-triangle"></i> Add Defect</button>
+                    </div>
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Observation Details</th>
+                                <th style="width:150px">Code</th>
+                                <th style="width:50px"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="obsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="declaration">
+                <div class="card p-4 shadow-sm">
+                    <h5 class="fw-bold mb-3">Final Result</h5>
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <label class="fw-bold d-block mb-2">Overall Assessment</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="outcome" id="sat" value="Satisfactory" checked>
+                                <label class="btn btn-outline-success p-3" for="sat"><i class="fas fa-check me-2"></i>SATISFACTORY</label>
+
+                                <input type="radio" class="btn-check" name="outcome" id="unsat" value="Unsatisfactory">
+                                <label class="btn btn-outline-danger p-3" for="unsat"><i class="fas fa-times me-2"></i>UNSATISFACTORY</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small fw-bold">Re-Inspection Date</label>
+                            <input type="date" name="next_date" class="form-control" value="{{ next_five_years }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="small fw-bold">Engineer Signature</label>
+                            <div class="border rounded p-2 bg-light text-center" style="height: 100px;">
+                                <small class="text-muted">(Signature Pad Implementation Here)</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </form>
+</div>
+
+<script>
+    // DYNAMIC CIRCUIT ROW
+    function addCircuitRow() {
+        const tbody = document.getElementById('circuitBody');
+        const rowCount = tbody.rows.length + 1;
+        const row = `
+            <tr>
+                <td><input type="text" name="c_no[]" value="${rowCount}" class="form-control form-control-sm text-center p-0"></td>
+                <td><input type="text" name="c_desc[]" placeholder="e.g. Kitchen Skts" class="form-control form-control-sm p-1"></td>
+                <td>
+                    <select name="c_type[]" class="form-select form-select-sm p-0">
+                        <option>B</option><option>C</option><option>D</option><option>BS3036</option>
+                    </select>
+                </td>
+                <td><input type="number" name="c_rating[]" class="form-control form-control-sm text-center p-0" placeholder="32"></td>
+                <td><input type="text" name="c_cable[]" class="form-control form-control-sm text-center p-0" placeholder="2.5"></td>
+                <td><input type="text" name="c_cpc[]" class="form-control form-control-sm text-center p-0" placeholder="1.5"></td>
+                <td><input type="text" name="ir_ll[]" class="form-control form-control-sm text-center p-0" placeholder=">299"></td>
+                <td><input type="text" name="ir_le[]" class="form-control form-control-sm text-center p-0" placeholder=">299"></td>
+                <td><input type="text" name="zs[]" class="form-control form-control-sm text-center p-0"></td>
+                <td><input type="text" name="rcd[]" class="form-control form-control-sm text-center p-0"></td>
+                <td><button type="button" class="btn btn-sm text-danger" onclick="this.closest('tr').remove()"><i class="fas fa-times"></i></button></td>
+            </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', row);
+    }
+
+    // DYNAMIC OBSERVATION ROW
+    function addObsRow() {
+        const tbody = document.getElementById('obsBody');
+        const row = `
+            <tr>
+                <td><input type="text" name="obs_desc[]" class="form-control" placeholder="Describe the fault..."></td>
+                <td>
+                    <select name="obs_code[]" class="form-select fw-bold">
+                        <option value="C1" class="text-danger">C1 (Danger)</option>
+                        <option value="C2" class="text-warning">C2 (Pot. Danger)</option>
+                        <option value="C3" class="text-info">C3 (Improvement)</option>
+                        <option value="FI">FI (Further Inv)</option>
+                    </select>
+                </td>
+                <td><button type="button" class="btn btn-sm text-danger mt-1" onclick="this.closest('tr').remove()"><i class="fas fa-times"></i></button></td>
+            </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', row);
+    }
+
+    // Add first row by default
+    document.addEventListener('DOMContentLoaded', addCircuitRow);
+
+    function generatePDF() {
+        // Collect data and send to backend (Phase 2)
+        alert("EICR Data captured. PDF Generation Engine linking next.");
+    }
+</script>
+{% endblock %}
