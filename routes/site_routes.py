@@ -198,12 +198,13 @@ def van_check_page():
     conn.close()
     return render_template('site/van_check_form.html', vehicles=vehicles)
 
-# --- 5. JOB DETAILS ---
+# --- 5. VIEW SINGLE JOB (Updated to show Materials) ---
 @site_bp.route('/site/job/<int:job_id>')
 def view_job(job_id):
     if not check_site_access(): return redirect(url_for('auth.login'))
     comp_id = session.get('company_id'); conn = get_db(); cur = conn.cursor()
     
+    # 1. Get Job Details
     cur.execute("""
         SELECT j.id, j.ref, j.status, j.start_date, j.description, 
                c.name, c.phone, j.site_address, j.description, j.id
@@ -213,11 +214,44 @@ def view_job(job_id):
     """, (job_id, comp_id))
     job = cur.fetchone()
 
+    # 2. Get Photos
     cur.execute("SELECT filepath FROM job_evidence WHERE job_id = %s ORDER BY uploaded_at DESC", (job_id,))
     photos = [r[0] for r in cur.fetchall()]
+
+    # 3. Get Materials (NEW)
+    cur.execute("SELECT description, quantity, unit_price FROM job_materials WHERE job_id = %s ORDER BY added_at ASC", (job_id,))
+    materials = cur.fetchall()
+
     conn.close()
     if not job: return "Job not found", 404
-    return render_template('site/job_details.html', job=job, photos=photos)
+    return render_template('site/job_details.html', job=job, photos=photos, materials=materials)
+    
+    # --- NEW: ADD MATERIAL TO JOB ---
+@site_bp.route('/site/job/<int:job_id>/add-material', methods=['POST'])
+def add_job_material(job_id):
+    if 'user_id' not in session: return redirect('/login')
+    
+    description = request.form.get('description')
+    quantity = request.form.get('quantity')
+    
+    # Optional: If your staff knows the price, they enter it. If not, default to 0 for Office to fix.
+    price = request.form.get('price') or 0 
+
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO job_materials (job_id, description, quantity, unit_price)
+            VALUES (%s, %s, %s, %s)
+        """, (job_id, description, quantity, price))
+        conn.commit()
+        flash("✅ Item Added")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error adding item: {e}")
+    finally:
+        conn.close()
+    
+    return redirect(url_for('site.view_job', job_id=job_id))
 
 # --- 6. UPDATE JOB (With Manual Notes/Draft Invoice) ---
 @site_bp.route('/site/job/<int:job_id>/update', methods=['POST'])

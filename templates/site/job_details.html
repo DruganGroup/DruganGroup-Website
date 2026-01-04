@@ -6,10 +6,12 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; padding-bottom: 40px; }
+        body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; padding-bottom: 80px; }
         .header-bar { background-color: #333; color: white; padding: 15px; border-radius: 0 0 15px 15px; margin-bottom: 20px; }
         .action-btn { border-radius: 12px; padding: 15px; font-weight: bold; font-size: 1.1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; margin-bottom: 10px; }
         .evidence-img { width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 2px solid #ddd; }
+        .material-item { border-bottom: 1px solid #eee; padding: 10px 0; }
+        .material-item:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
@@ -64,6 +66,32 @@
             </div>
         </div>
 
+        {% if job[2] == 'In Progress' %}
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-white border-bottom-0 d-flex justify-content-between align-items-center">
+                <h6 class="text-muted fw-bold text-uppercase small m-0">Materials & Parts</h6>
+                <button class="btn btn-sm btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#addMaterialModal">
+                    <i class="fas fa-plus me-1"></i> Add Item
+                </button>
+            </div>
+            <div class="card-body pt-0">
+                {% if materials %}
+                    {% for mat in materials %}
+                    <div class="material-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-light text-dark border me-2">{{ mat[1] }}x</span>
+                            <strong>{{ mat[0] }}</strong>
+                        </div>
+                        <div class="text-muted small">£{{ mat[2] }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center text-muted small py-2">No items added yet.</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
         <div class="mb-4">
             {% if job[2] != 'In Progress' and job[2] != 'Completed' %}
                 <form method="POST" action="/site/job/{{ job[0] }}/update">
@@ -112,6 +140,38 @@
 
     </div>
 
+    <div class="modal fade" id="addMaterialModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold">Add Material</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 pt-0">
+                    <form method="POST" action="/site/job/{{ job[0] }}/add-material">
+                        <div class="mb-3">
+                            <label class="small fw-bold text-muted">Item Name / Description</label>
+                            <input type="text" name="description" class="form-control form-control-lg" placeholder="e.g. 15mm Copper Elbow" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-6">
+                                <label class="small fw-bold text-muted">Quantity</label>
+                                <input type="number" name="quantity" class="form-control form-control-lg" value="1" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="small fw-bold text-muted">Unit Price (£)</label>
+                                <input type="number" step="0.01" name="price" class="form-control form-control-lg" placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg fw-bold">Add to Job</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="completeJobModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow rounded-4">
@@ -124,17 +184,18 @@
                         <input type="hidden" name="action" value="complete">
                         
                         <div class="mb-3">
-                            <label class="fw-bold small text-muted">Materials / Work Done (For Invoice)</label>
-                            <textarea name="work_summary" class="form-control" rows="3" placeholder="e.g. Replaced leaking pipe, used 2m copper..." required></textarea>
+                            <label class="fw-bold small text-muted">Work Summary (For Invoice)</label>
+                            <textarea name="work_summary" class="form-control" rows="3" placeholder="e.g. Replaced leaking pipe..." required></textarea>
+                            <div class="form-text small text-primary"><i class="fas fa-magic me-1"></i> Materials listed above will be auto-added to the invoice.</div>
                         </div>
 
                         <div class="mb-3">
-                            <label class="fw-bold small text-danger">Private Office Notes (Internal Only)</label>
-                            <textarea name="private_notes" class="form-control bg-light" rows="2" placeholder="e.g. Client was difficult, access code changed to 1234..."></textarea>
+                            <label class="fw-bold small text-danger">Private Office Notes</label>
+                            <textarea name="private_notes" class="form-control bg-light" rows="2" placeholder="Internal notes..."></textarea>
                         </div>
 
                         <div class="mb-4">
-                            <label class="fw-bold small text-muted">Client Signature (Type Name)</label>
+                            <label class="fw-bold small text-muted">Client Signature</label>
                             <input type="text" name="signature" class="form-control form-control-lg" placeholder="e.g. John Smith" required>
                         </div>
 
