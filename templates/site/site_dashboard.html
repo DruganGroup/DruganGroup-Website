@@ -1,75 +1,89 @@
 {% extends "site/site_base.html" %}
 
-{% block title %}My Jobs | Site Hub{% endblock %}
+{% block title %}Site Hub | Business Better{% endblock %}
 
 {% block content %}
     <div class="card shadow-sm border-0 mb-4 {{ 'bg-success text-white' if is_clocked_in else 'bg-white' }}">
-        <div class="card-body d-flex justify-content-between align-items-center">
+        <div class="card-body d-flex justify-content-between align-items-center p-3">
             <div>
-                <h5 class="fw-bold m-0">{{ 'ON SHIFT' if is_clocked_in else 'OFF SHIFT' }}</h5>
-                <small class="{{ 'text-white-50' if is_clocked_in else 'text-muted' }}">
-                    {{ 'You are clocked in.' if is_clocked_in else 'Ready to start work?' }}
+                <h5 class="fw-bold m-0 text-uppercase">{{ 'On Shift' if is_clocked_in else 'Off Shift' }}</h5>
+                <small class="{{ 'text-white-50' if is_clocked_in else 'text-muted' }}" style="font-size: 0.8rem;">
+                    {{ 'Time is being logged.' if is_clocked_in else 'Tap to start your day.' }}
                 </small>
             </div>
             
             {% if is_clocked_in %}
                 <form action="/site/clock-out" method="POST" class="m-0">
                     <button type="submit" class="btn btn-danger fw-bold shadow">
-                        <i class="fas fa-stop-circle me-2"></i> Clock Out
+                        <i class="fas fa-stop me-2"></i> Stop
                     </button>
                 </form>
             {% else %}
                 <form action="/site/clock-in" method="POST" class="m-0">
                     <button type="submit" class="btn btn-success fw-bold shadow">
-                        <i class="fas fa-play-circle me-2"></i> Clock In
+                        <i class="fas fa-play me-2"></i> Start
                     </button>
                 </form>
             {% endif %}
         </div>
     </div>
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="fw-bold text-secondary m-0">My Schedule</h5>
-        <span class="badge bg-primary rounded-pill">{{ jobs|length }} Active</span>
+    <div class="row g-2 mb-4">
+        <div class="col-6">
+            <a href="/site/van-check" class="text-decoration-none">
+                <div class="card shadow-sm border-0 text-center py-4 h-100">
+                    <i class="fas fa-shuttle-van fa-2x text-primary mb-2"></i>
+                    <h6 class="fw-bold text-dark m-0 small">Van Check</h6>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-6">
+            <a href="/site/log-fuel" class="text-decoration-none">
+                <div class="card shadow-sm border-0 text-center py-4 h-100">
+                    <i class="fas fa-gas-pump fa-2x text-warning mb-2"></i>
+                    <h6 class="fw-bold text-dark m-0 small">Log Fuel</h6>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+        <h6 class="fw-bold text-uppercase text-secondary m-0 small">Today's Schedule</h6>
+        <span class="badge bg-light text-dark border">{{ jobs|length }} Jobs</span>
     </div>
 
     {% if jobs %}
         {% for job in jobs %}
-        <div class="card shadow-sm border-0 mb-3">
-            <div class="card-body p-3">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        {% if job[6] == 'In Progress' %}
-                            <span class="badge bg-success mb-2">In Progress</span>
-                        {% elif job[6] == 'Scheduled' %}
-                            <span class="badge bg-primary mb-2">Scheduled</span>
-                        {% else %}
-                            <span class="badge bg-secondary mb-2">{{ job[6] }}</span>
-                        {% endif %}
-                        
-                        <h5 class="fw-bold m-0">{{ job[3] }}</h5> <div class="text-muted small mb-2">{{ job[2] }}</div> </div>
-                    <small class="fw-bold text-dark border px-2 py-1 rounded bg-light">
-                        {{ job[1] }} </small>
-                </div>
-                
-                <hr class="my-2">
-                
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="small text-muted">
-                        <i class="far fa-calendar-alt me-1"></i> {{ job[5] }}
+        <a href="/site/job/{{ job[0] }}" class="text-decoration-none text-dark">
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            {% if job[6] == 'In Progress' %}
+                                <span class="badge bg-success mb-2">Active</span>
+                            {% elif job[6] == 'Scheduled' %}
+                                <span class="badge bg-primary mb-2">{{ job[5].strftime('%H:%M') if job[5] else 'Today' }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary mb-2">{{ job[6] }}</span>
+                            {% endif %}
+                            
+                            <h6 class="fw-bold m-0">{{ job[3] or 'Unknown Client' }}</h6>
+                            <div class="text-muted small text-truncate" style="max-width: 200px;">
+                                <i class="fas fa-map-marker-alt me-1 text-danger"></i> {{ job[2] or 'No Address' }}
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right text-muted mt-3"></i>
                     </div>
-                    <a href="/site/job/{{ job[0] }}" class="btn btn-dark btn-sm rounded-pill px-3 fw-bold">
-                        Open Job <i class="fas fa-arrow-right ms-1"></i>
-                    </a>
                 </div>
             </div>
-        </div>
+        </a>
         {% endfor %}
     
     {% else %}
         <div class="text-center py-5 text-muted">
-            <i class="fas fa-clipboard-check fa-3x mb-3 text-light-emphasis"></i>
-            <p>No active jobs assigned to you.</p>
+            <i class="fas fa-mug-hot fa-3x mb-3 text-light-emphasis"></i>
+            <p class="small">No jobs assigned.<br>Enjoy your brew!</p>
         </div>
     {% endif %}
 
