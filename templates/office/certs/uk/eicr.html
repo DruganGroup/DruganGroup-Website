@@ -6,6 +6,7 @@
 <div class="container-fluid">
     <form id="eicrForm">
         <input type="hidden" name="prop_id" value="{{ prop.id }}">
+        <input type="hidden" name="cert_id" value=""> 
         
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
@@ -139,7 +140,7 @@
 </div>
 
 <script>
-    // DYNAMIC CIRCUIT ROW
+    // --- 1. DYNAMIC ROW FUNCTIONS ---
     function addCircuitRow() {
         const tbody = document.getElementById('circuitBody');
         const rowCount = tbody.rows.length + 1;
@@ -165,7 +166,6 @@
         tbody.insertAdjacentHTML('beforeend', row);
     }
 
-    // DYNAMIC OBSERVATION ROW
     function addObsRow() {
         const tbody = document.getElementById('obsBody');
         const row = `
@@ -185,12 +185,83 @@
         tbody.insertAdjacentHTML('beforeend', row);
     }
 
-    // Add first row by default
+    // Add first row by default when page loads
     document.addEventListener('DOMContentLoaded', addCircuitRow);
 
+
+    // --- 2. DATA COLLECTION (The "Brain") ---
+    function getFormData() {
+        const form = document.getElementById('eicrForm');
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+
+        // Harvest Circuits Table
+        const circuits = [];
+        const rows = document.querySelectorAll('#circuitBody tr');
+        rows.forEach((row, index) => {
+            const inputs = row.querySelectorAll('input, select');
+            if(inputs.length > 0) {
+                circuits.push({
+                    id: index + 1,
+                    desc: inputs[1].value,
+                    type: inputs[2].value,
+                    rating: inputs[3].value,
+                    cable: inputs[4].value,
+                    cpc: inputs[5].value,
+                    ir_ll: inputs[6].value,
+                    ir_le: inputs[7].value,
+                    zs: inputs[8].value,
+                    rcd: inputs[9].value
+                });
+            }
+        });
+        data.circuits = circuits; // Pack into main data
+
+        // Harvest Observations Table
+        const obs = [];
+        const obsRows = document.querySelectorAll('#obsBody tr');
+        obsRows.forEach(row => {
+            const inputs = row.querySelectorAll('input, select');
+            if(inputs.length > 0) {
+                obs.push({ desc: inputs[0].value, code: inputs[1].value });
+            }
+        });
+        data.observations = obs; // Pack into main data
+
+        return data;
+    }
+
+    // --- 3. SEND TO SERVER ---
+    function saveDraft() {
+        const data = getFormData();
+        data.status = 'Draft';
+        sendToServer(data);
+    }
+
     function generatePDF() {
-        // Collect data and send to backend (Phase 2)
-        alert("EICR Data captured. PDF Generation Engine linking next.");
+        if(!confirm("Are you sure? This will Issue the certificate.")) return;
+        const data = getFormData();
+        data.status = 'Issued';
+        sendToServer(data);
+    }
+
+    function sendToServer(payload) {
+        fetch('/compliance/eicr/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert("✅ " + data.message);
+                if(data.cert_id) document.querySelector('input[name="cert_id"]').value = data.cert_id; // Store ID for updates
+                if(payload.status === 'Issued') window.location.href = '/office-hub';
+            } else {
+                alert("❌ Error: " + data.error);
+            }
+        })
+        .catch(err => alert("Network Error: " + err));
     }
 </script>
 {% endblock %}

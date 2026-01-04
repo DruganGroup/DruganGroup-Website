@@ -8,6 +8,7 @@ from routes.portal_routes import portal_bp
 from routes.public_routes import public_bp
 from routes.auth_routes import auth_bp
 from routes.office_routes import office_bp
+from routes.compliance_routes import compliance_bp
 from routes.client_routes import client_bp
 from routes.finance_routes import finance_bp
 from routes.admin_routes import admin_bp
@@ -25,6 +26,7 @@ app.register_blueprint(portal_bp)
 app.register_blueprint(public_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(office_bp)
+app.register_blueprint(compliance_bp)
 app.register_blueprint(client_bp)
 app.register_blueprint(finance_bp)
 app.register_blueprint(admin_bp)
