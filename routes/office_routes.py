@@ -659,30 +659,28 @@ def view_quote(quote_id):
     
     return send_file(pdf_path, as_attachment=True, download_name=filename)
 
-@office_bp.route('/office/fix-stuck-tickets')
-def fix_stuck_tickets():
-    if 'user_id' not in session: return redirect(url_for('auth.login'))
+@office_bp.route('/office/force-fix-clock')
+def force_fix_clock():
+    if 'user_id' not in session: return "Not logged in"
     
     conn = get_db()
     cur = conn.cursor()
     try:
-        # 1. Fix Stuck Service Tickets
-        cur.execute("""
-            UPDATE service_requests
-            SET status = 'Completed'
-            FROM jobs
-            WHERE service_requests.property_id = jobs.property_id
-            AND jobs.status = 'Completed'
-            AND service_requests.status != 'Completed';
-        """)
-        
-        # 2. DELETE BROKEN "GHOST" TIMESHEETS (The Fix for you)
+        # 1. Delete broken 'Ghost' entries (The main cause)
         cur.execute("DELETE FROM staff_timesheets WHERE staff_id IS NULL;")
         
+        # 2. Find YOUR Staff ID
+        cur.execute("SELECT s.id FROM staff s JOIN users u ON LOWER(u.email) = LOWER(s.email) WHERE u.id = %s", (session['user_id'],))
+        staff = cur.fetchone()
+        
+        # 3. Force-close YOUR open shifts
+        if staff:
+            cur.execute("DELETE FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL", (staff[0],))
+            
         conn.commit()
-        return "✅ SUCCESS: Stuck tickets fixed AND Ghost Timesheets deleted. Try clocking in again."
+        return "✅ FIXED. Clock reset."
     except Exception as e:
         conn.rollback()
-        return f"❌ Error: {e}"
+        return f"Error: {e}"
     finally:
         conn.close()
