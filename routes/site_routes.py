@@ -83,36 +83,42 @@ def send_email_notification(company_id, to_email, client_name, job_ref, address)
     finally:
         conn.close()
 
-# --- 1. SITE DASHBOARD ---
 @site_bp.route('/site-hub')
 @site_bp.route('/site-companion') 
 def site_dashboard():
     if not check_site_access(): return redirect(url_for('auth.login'))
     
-    staff_id = session.get('staff_id')
+    conn = get_db(); cur = conn.cursor()
     
-    conn = get_db()
-    cur = conn.cursor()
+    # Resolves your ID correctly so the Clock In works
+    staff_id = None
+    cur.execute("SELECT s.id FROM staff s JOIN users u ON LOWER(u.email) = LOWER(s.email) WHERE u.id = %s", (session['user_id'],))
+    match = cur.fetchone()
+    if match: staff_id = match[0]
     
-    # 1. CHECK IF CLOCKED IN (The New Part)
-    cur.execute("SELECT id FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
-    is_clocked_in = cur.fetchone() is not None
+    # A. CLOCK STATUS
+    is_clocked_in = False
+    if staff_id:
+        cur.execute("SELECT id FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
+        is_clocked_in = cur.fetchone() is not None
     
-    # 2. GET JOBS (Your existing logic)
-    # We fetch jobs assigned to this specific logged-in engineer
-    cur.execute("""
-        SELECT j.id, j.ref, j.site_address, c.name, j.description, j.start_date, j.status 
-        FROM jobs j 
-        LEFT JOIN clients c ON j.client_id = c.id 
-        WHERE j.engineer_id = %s AND j.status != 'Completed' 
-        ORDER BY j.start_date ASC
-    """, (staff_id,))
-    jobs = cur.fetchall()
+    # B. 7-DAY CALENDAR SCHEDULE
+    jobs = []
+    if staff_id:
+        cur.execute("""
+            SELECT j.id, j.ref, j.site_address, c.name, j.description, j.start_date, j.status 
+            FROM jobs j 
+            LEFT JOIN clients c ON j.client_id = c.id 
+            WHERE j.engineer_id = %s 
+            AND j.status != 'Completed'
+            AND j.start_date >= CURRENT_DATE 
+            AND j.start_date <= CURRENT_DATE + INTERVAL '7 days'
+            ORDER BY j.start_date ASC
+        """, (staff_id,))
+        jobs = cur.fetchall()
     
     conn.close()
-    
-    # We pass 'is_clocked_in' to the HTML so it knows which button to show
-    return render_template('site/site_dashboard.html', jobs=jobs, is_clocked_in=is_clocked_in)
+    return render_template('site/site_dashboard.html', jobs=jobs, is_clocked_in=is_clocked_in)  
 
 # --- NEW: CLOCK IN ROUTE ---
 @site_bp.route('/site/clock-in', methods=['POST'])
@@ -373,7 +379,6 @@ def update_job(job_id):
 @site_bp.route('/business-better')
 def advertise_page(): return render_template('public/advert-bb.html')
 
-# --- 5. DRIVER FUEL UPLOAD (AI POWERED) ---
 @site_bp.route('/site/log-fuel', methods=['GET', 'POST'])
 def log_fuel():
     if not check_site_access(): return redirect(url_for('auth.login'))
@@ -381,16 +386,18 @@ def log_fuel():
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
 
-    # RESOLVE IDENTITY (Staff ID logic here too)
-    staff_id, _, _ = get_staff_identity(session['user_id'], cur)
-    search_id = staff_id if staff_id else session['user_id']
+    # Get Staff ID
+    staff_id = None
+    cur.execute("SELECT s.id FROM staff s JOIN users u ON LOWER(u.email) = LOWER(s.email) WHERE u.id = %s", (session['user_id'],))
+    match = cur.fetchone()
+    search_id = match[0] if match else session['user_id']
 
-    # 1. Find the Van assigned to this Driver (using Staff ID)
+    # Find Van
     cur.execute("SELECT id, reg_plate FROM vehicles WHERE assigned_driver_id = %s", (search_id,))
     vehicle = cur.fetchone()
 
     if not vehicle:
-        flash("❌ You are not assigned to a vehicle.")
+        flash("❌ No vehicle assigned to you.")
         return redirect(url_for('site.site_dashboard'))
     
     v_id, v_reg = vehicle
@@ -398,29 +405,38 @@ def log_fuel():
     if request.method == 'POST':
         file = request.files.get('receipt')
         if file and file.filename != '':
-            filename = secure_filename(f"FUEL_{v_reg}_{int(datetime.now().timestamp())}_{file.filename}")
-            full_path = os.path.join(UPLOAD_FOLDER, filename)
-            file.save(full_path)
-            db_path = f"uploads/van_checks/{filename}"
+            try:
+                filename = secure_filename(f"FUEL_{v_reg}_{int(datetime.now().timestamp())}_{file.filename}")
+                full_path = os.path.join(UPLOAD_FOLDER, filename)
+                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                file.save(full_path)
+                db_path = f"uploads/van_checks/{filename}"
 
-            cost = 0
-            desc = f"Fuel for {v_reg}"
-            scan = scan_receipt(full_path)
-            
-            if scan['success']:
-                data = scan['data']
-                cost = data.get('total_cost', 0)
-                if data.get('vendor'): desc = f"Fuel: {data.get('vendor')} ({v_reg})"
-                flash(f"✨ AI Scanned Receipt: £{cost} logged.")
-            else:
-                flash("✅ Receipt uploaded (AI could not read text, logged as £0).")
+                cost = 0.0
+                desc = f"Fuel for {v_reg}"
+                
+                # AI Scan (Wrapped in Try/Except to stop 502 Crashes)
+                try:
+                    from services.ai_assistant import scan_receipt
+                    scan = scan_receipt(full_path)
+                    if scan['success']:
+                        data = scan['data']
+                        cost = float(data.get('total_cost', 0))
+                        if data.get('vendor'): desc = f"Fuel: {data.get('vendor')} ({v_reg})"
+                        flash(f"✨ Receipt Scanned: £{cost}")
+                except Exception as ai_error:
+                    print(f"AI Error: {ai_error}") # Log it but don't crash the page
+                    flash("⚠️ AI failed to read receipt. Please check amount manually.")
 
-            cur.execute("""
-                INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost, receipt_path) 
-                VALUES (%s, %s, CURRENT_DATE, 'Fuel', %s, %s, %s)
-            """, (comp_id, v_id, desc, cost, db_path))
-            
-            conn.commit()
-            return redirect(url_for('site.site_dashboard'))
+                cur.execute("""
+                    INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost, receipt_path) 
+                    VALUES (%s, %s, CURRENT_DATE, 'Fuel', %s, %s, %s)
+                """, (comp_id, v_id, desc, cost, db_path))
+                
+                conn.commit()
+                return redirect(url_for('site.site_dashboard'))
+            except Exception as e:
+                conn.rollback()
+                flash(f"Error saving log: {e}")
 
     return render_template('site/fuel_form.html', reg=v_reg)
