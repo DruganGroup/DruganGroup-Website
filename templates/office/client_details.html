@@ -4,14 +4,14 @@
 
 {% block head %}
 <style>
-    .comp-badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border: 1px solid transparent; font-weight: bold; }
+    .comp-badge { font-size: 0.7rem; padding: 4px 6px; border-radius: 4px; border: 1px solid transparent; font-weight: bold; display: block; margin-bottom: 2px; }
     .comp-Valid { background-color: #d1e7dd; color: #0f5132; border-color: #badbcc; }
     .comp-Expired { background-color: #f8d7da; color: #842029; border-color: #f5c2c7; animation: pulse 2s infinite; }
     .comp-Due { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
     .comp-Missing { background-color: #e2e3e5; color: #41464b; border-color: #d3d6d8; }
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
     
-    .btn-upload { font-size: 0.7rem; padding: 2px 6px; margin-top: 4px; }
+    .btn-upload { font-size: 0.65rem; padding: 1px 4px; }
 </style>
 {% endblock %}
 
@@ -32,26 +32,6 @@
         </div>
     </div>
 
-    {% if jobs %}
-    <div class="card mb-4 border-warning border-2">
-        <div class="card-header bg-warning-subtle fw-bold text-dark">
-            <i class="fas fa-tools me-2"></i> Active Management Tasks
-        </div>
-        <div class="list-group list-group-flush">
-            {% for job in jobs %}
-            <div class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="badge bg-dark me-2">{{ job[1] }}</span>
-                    <span class="text-muted small">{{ job[3] }}</span>
-                    <span class="ms-2 fw-bold">{{ job[4] }}</span>
-                </div>
-                <span class="badge bg-warning text-dark">{{ job[2] }}</span>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="fw-bold m-0">Property Portfolio ({{ properties|length }})</h5>
         <button class="btn btn-sm btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
@@ -64,7 +44,7 @@
         <div class="col-12">
             <div class="card p-3 shadow-sm h-100">
                 <div class="row align-items-center">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <h6 class="fw-bold mb-1">{{ prop.addr }}</h6>
                         <span class="badge bg-light text-dark border">{{ prop.postcode }}</span>
                     </div>
@@ -77,29 +57,42 @@
                         {% endif %}
                     </div>
 
-                    <div class="col-md-5 border-start">
+                    <div class="col-md-4 border-start">
                         <small class="text-muted fw-bold text-uppercase mb-2 d-block">Compliance Status</small>
                         <div class="d-flex gap-2">
-                            <div class="text-center">
-                                <div class="comp-badge comp-{{ prop.compliance.Gas.status }}">Gas Safety</div>
+                            <div class="text-center flex-fill">
+                                <div class="comp-badge comp-{{ prop.compliance.Gas.status }}">Gas</div>
                                 <div class="small text-muted" style="font-size:0.65rem">{{ prop.compliance.Gas.date or 'N/A' }}</div>
-                                <button class="btn btn-sm btn-outline-secondary btn-upload w-100" 
-                                    onclick="openUploadModal('{{ prop.id }}', 'Gas Safety')"><i class="fas fa-upload"></i> Update</button>
                             </div>
-                            <div class="text-center">
-                                <div class="comp-badge comp-{{ prop.compliance.EICR.status }}">EICR (Elec)</div>
+                            <div class="text-center flex-fill">
+                                <div class="comp-badge comp-{{ prop.compliance.EICR.status }}">Elec</div>
                                 <div class="small text-muted" style="font-size:0.65rem">{{ prop.compliance.EICR.date or 'N/A' }}</div>
-                                <button class="btn btn-sm btn-outline-secondary btn-upload w-100" 
-                                    onclick="openUploadModal('{{ prop.id }}', 'EICR')"><i class="fas fa-upload"></i> Update</button>
                             </div>
-                            <div class="text-center">
-                                <div class="comp-badge comp-{{ prop.compliance.PAT.status }}">PAT Test</div>
+                            <div class="text-center flex-fill">
+                                <div class="comp-badge comp-{{ prop.compliance.PAT.status }}">PAT</div>
                                 <div class="small text-muted" style="font-size:0.65rem">{{ prop.compliance.PAT.date or 'N/A' }}</div>
-                                <button class="btn btn-sm btn-outline-secondary btn-upload w-100" 
-                                    onclick="openUploadModal('{{ prop.id }}', 'PAT Test')"><i class="fas fa-upload"></i> Update</button>
                             </div>
                         </div>
                     </div>
+
+                    <div class="col-md-2 border-start text-end">
+                        <div class="dropdown">
+                            <button class="btn btn-primary btn-sm fw-bold dropdown-toggle w-100" type="button" data-bs-toggle="dropdown">
+                                Manage
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow">
+                                <li><h6 class="dropdown-header">Jobs</h6></li>
+                                <li><a class="dropdown-item" href="/office/create-job?property_id={{ prop.id }}"><i class="fas fa-tools me-2 text-muted"></i>Book Repair</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header">Compliance</h6></li>
+                                <li><a class="dropdown-item" href="/office/cert/gas/create?prop_id={{ prop.id }}"><i class="fas fa-burn me-2 text-danger"></i>Create CP12 (Gas)</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="alert('Coming soon!')"><i class="fas fa-bolt me-2 text-warning"></i>Create EICR (Elec)</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item small text-muted" href="#" onclick="openUploadModal('{{ prop.id }}', 'Gas Safety')"><i class="fas fa-upload me-2"></i>Upload Old PDF</a></li>
+                            </ul>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
