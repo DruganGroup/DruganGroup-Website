@@ -659,28 +659,18 @@ def view_quote(quote_id):
     
     return send_file(pdf_path, as_attachment=True, download_name=filename)
 
-@office_bp.route('/office/force-fix-clock')
-def force_fix_clock():
+@office_bp.route('/office/upgrade-fuel-db')
+def upgrade_fuel_db():
     if 'user_id' not in session: return "Not logged in"
-    
-    conn = get_db()
-    cur = conn.cursor()
+    conn = get_db(); cur = conn.cursor()
     try:
-        # 1. Delete broken 'Ghost' entries (The main cause)
-        cur.execute("DELETE FROM staff_timesheets WHERE staff_id IS NULL;")
+        # Add Litres (Decimal for accuracy)
+        cur.execute("ALTER TABLE maintenance_logs ADD COLUMN IF NOT EXISTS litres NUMERIC(10,2);")
+        # Add Fuel Type (Text)
+        cur.execute("ALTER TABLE maintenance_logs ADD COLUMN IF NOT EXISTS fuel_type VARCHAR(50);")
         
-        # 2. Find YOUR Staff ID
-        cur.execute("SELECT s.id FROM staff s JOIN users u ON LOWER(u.email) = LOWER(s.email) WHERE u.id = %s", (session['user_id'],))
-        staff = cur.fetchone()
-        
-        # 3. Force-close YOUR open shifts
-        if staff:
-            cur.execute("DELETE FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL", (staff[0],))
-            
         conn.commit()
-        return "✅ FIXED. Clock reset."
+        return "✅ SUCCESS: Database upgraded. Ready for Analytics."
     except Exception as e:
-        conn.rollback()
-        return f"Error: {e}"
-    finally:
-        conn.close()
+        conn.rollback(); return f"Error: {e}"
+    finally: conn.close()
