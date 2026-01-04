@@ -740,3 +740,70 @@ def create_cp12():
     prop_data = {'address': f"{data[0]}, {data[1]}", 'client': data[2]} if data else {}
     
     return render_template('office/certs/create_cp12.html', prop=prop_data, today=date.today(), brand_color=config['color'])
+    
+    # --- SAVE & GENERATE CERTIFICATE ---
+@office_bp.route('/office/cert/gas/save', methods=['POST'])
+def save_gas_cert():
+    if not check_office_access(): return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.json
+    prop_id = data.get('prop_id')
+    comp_id = session.get('company_id')
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    try:
+        # 1. Generate Filename
+        ref = f"CP12-{prop_id}-{int(datetime.now().timestamp())}"
+        filename = f"{ref}.pdf"
+        
+        # 2. Get Property Info (Address for PDF)
+        cur.execute("SELECT p.address_line1, p.postcode, c.name, c.email FROM properties p JOIN clients c ON p.client_id = c.id WHERE p.id = %s", (prop_id,))
+        p_row = cur.fetchone()
+        prop_info = {
+            'address': f"{p_row[0]}, {p_row[1]}",
+            'client': p_row[2],
+            'client_email': p_row[3],
+            'id': prop_id
+        }
+        
+        # 3. Generate PDF
+        # We re-use the same HTML template, but pass the 'data' and 'signature_url' to it.
+        # This fills the inputs with values and replaces the canvas with an <img> tag.
+        
+        pdf_context = {
+            'prop': prop_info,
+            'data': data,
+            'signature_url': data.get('signature_img'),
+            'next_year_date': data.get('next_date'),
+            'today': date.today().strftime('%d/%m/%Y')
+        }
+        
+        # NOTE: ensure 'services.pdf_generator' can accept a template path
+        pdf_path = generate_pdf('office/certs/uk/cp12.html', pdf_context, filename)
+        
+        # 4. Save Record to Database (Update Property Compliance)
+        # Assuming you have a 'gas_expiry' column on 'properties'
+        next_due = data.get('next_date')
+        if next_due:
+            cur.execute("UPDATE properties SET gas_expiry = %s WHERE id = %s", (next_due, prop_id))
+            
+        # 5. (Optional) Email Client
+        client_email = prop_info['client_email']
+        if client_email:
+            # You can insert your email sending logic here
+            # send_email_with_attachment(client_email, "Gas Safety Cert", "Attached is your CP12.", pdf_path)
+            pass 
+
+        conn.commit()
+        
+        return jsonify({
+            'success': True, 
+            'redirect_url': url_for('office.office_dashboard') # Or back to client view
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+    finally:
+        conn.close()
