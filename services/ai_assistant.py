@@ -23,7 +23,7 @@ def encode_image(image_path):
 
 def scan_receipt(file_path):
     """
-    Reads a receipt and extracts Cost, Date, and Vendor.
+    Reads a receipt and extracts Cost, Date, Vendor, Litres, and Fuel Type.
     """
     client = get_ai_client()
     if not client: return {"success": False, "error": "AI Not Configured"}
@@ -35,7 +35,16 @@ def scan_receipt(file_path):
             messages=[
                 {"role": "system", "content": "You are a data extraction assistant. Output ONLY valid JSON."},
                 {"role": "user", "content": [
-                    {"type": "text", "text": "Extract these fields from this receipt image: 'total_cost' (number), 'date' (YYYY-MM-DD), 'vendor' (string). If unsure, return null."},
+                    {"type": "text", "text": """
+                        Extract these fields from this fuel receipt: 
+                        1. 'total_cost' (number)
+                        2. 'date' (YYYY-MM-DD)
+                        3. 'vendor' (string)
+                        4. 'litres' (number, volume of fuel)
+                        5. 'fuel_type' (string, e.g. Diesel, Petrol, Unleaded, AdBlue)
+
+                        If any field is unclear or missing, return null for that field.
+                    """},
                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
                 ]}
             ],
@@ -87,7 +96,7 @@ def universal_sort_document(file_path):
                     {"type": "text", "text": """
                         Analyze this image. Classify and extract data.
                         
-                        1. 'fuel_receipt': Look for total_cost, date, vendor. 
+                        1. 'fuel_receipt': Look for total_cost, date, vendor, litres, fuel_type. 
                            CRITICAL: Look for a Vehicle Reg Plate (e.g. 'AB12 CDE'). Key: 'vehicle_reg'.
                         
                         2. 'supplier_invoice': Look for total, invoice_number, supplier_name.

@@ -16,15 +16,36 @@
                     Vehicle <strong>{{ reg }}</strong> is linked to your profile.
                 </div>
 
+                <div class="row">
+                    <div class="col-6">
+                         <div class="mb-3">
+                            <label class="form-label fw-bold small">Current Mileage</label>
+                            <input type="number" name="mileage" class="form-control fw-bold" placeholder="e.g. 54000" required>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">Litres Filled</label>
+                            <input type="number" step="0.01" name="litres" class="form-control fw-bold" placeholder="e.g. 50.5" required>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Current Mileage</label>
-                    <input type="number" name="mileage" class="form-control form-control-lg fw-bold" placeholder="e.g. 54000" required>
+                    <label class="form-label fw-bold small">Fuel Type</label>
+                    <select name="fuel_type" class="form-select fw-bold">
+                        <option value="Diesel" selected>Diesel</option>
+                        <option value="Petrol">Petrol / Unleaded</option>
+                        <option value="Premium Diesel">Premium Diesel</option>
+                        <option value="Premium Petrol">Premium Petrol</option>
+                        <option value="AdBlue">AdBlue</option>
+                    </select>
                 </div>
                 
                 <div class="mb-4">
                     <label class="form-label fw-bold">Upload Receipt</label>
                     <input type="file" name="receipt" class="form-control" accept="image/*" capture="environment" required>
-                    <div class="form-text small text-muted">AI will attempt to read the price automatically.</div>
+                    <div class="form-text small text-muted">AI will verify price and liters.</div>
                 </div>
 
                 <button type="submit" class="btn btn-warning w-100 fw-bold py-3 shadow-sm">

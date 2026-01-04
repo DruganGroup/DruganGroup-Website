@@ -306,7 +306,7 @@ def update_job(job_id):
 @site_bp.route('/business-better')
 def advertise_page(): return render_template('public/advert-bb.html')
 
-# --- 7. LOG FUEL (Fixed Template & Added Mileage) ---
+# --- 7. LOG FUEL (Analytics Ready) ---
 @site_bp.route('/site/log-fuel', methods=['GET', 'POST'])
 def log_fuel():
     if not check_site_access(): return redirect(url_for('auth.login'))
@@ -328,7 +328,10 @@ def log_fuel():
     v_id, v_reg = vehicle
 
     if request.method == 'POST':
+        # Get Inputs
         mileage = request.form.get('mileage')
+        litres = request.form.get('litres')
+        fuel_type = request.form.get('fuel_type')
         file = request.files.get('receipt')
         
         if file and file.filename != '':
@@ -341,32 +344,33 @@ def log_fuel():
                 db_path = f"uploads/van_checks/{filename}"
 
                 cost = 0.0
-                desc = f"Fuel for {v_reg}. Mileage: {mileage}"
+                desc = f"{fuel_type} ({litres}L) for {v_reg}. Mileage: {mileage}"
                 
-                # AI Scan (Safe Mode)
+                # AI Scan (Safe Mode - Just getting Cost for now)
                 if scan_receipt:
                     try:
                         scan = scan_receipt(full_path)
                         if scan['success']:
                             data = scan['data']
                             cost = float(data.get('total_cost', 0))
+                            # Future: We will update AI to override litres if it reads it clearly
                             if data.get('vendor'): desc += f" @ {data.get('vendor')}"
                             flash(f"✨ Receipt Scanned: £{cost}")
                     except Exception as ai_error:
                         print(f"AI Error: {ai_error}") 
 
-                # A. Log the Maintenance Event
+                # A. Log the Maintenance Event (With new columns)
                 cur.execute("""
-                    INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost, receipt_path) 
-                    VALUES (%s, %s, CURRENT_DATE, 'Fuel', %s, %s, %s)
-                """, (comp_id, v_id, desc, cost, db_path))
+                    INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost, receipt_path, litres, fuel_type) 
+                    VALUES (%s, %s, CURRENT_DATE, 'Fuel', %s, %s, %s, %s, %s)
+                """, (comp_id, v_id, desc, cost, db_path, litres, fuel_type))
 
-                # B. Update Vehicle Mileage (Keep fleet records current)
+                # B. Update Vehicle Mileage (Crucial for MPG math)
                 if mileage:
                     cur.execute("UPDATE vehicles SET mileage = %s WHERE id = %s", (mileage, v_id))
                 
                 conn.commit()
-                flash("✅ Fuel & Mileage Logged!")
+                flash("✅ Fuel, Litres & Mileage Logged!")
                 return redirect(url_for('site.site_dashboard'))
             except Exception as e:
                 conn.rollback(); flash(f"Error saving log: {e}")
