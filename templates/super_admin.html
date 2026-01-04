@@ -311,35 +311,84 @@
             </table>
         </div>
     </div>
-
-    <div class="modal fade" id="newCompanyModal" tabindex="-1">
-        <div class="modal-dialog">
+<div class="modal fade" id="newCompanyModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content" style="background: #1f1f1f; border: 1px solid #333;">
                 <div class="modal-header border-secondary">
-                    <h5 class="modal-title">Deploy New Company</h5>
+                    <h5 class="modal-title text-white">🚀 Deploy New Tenant</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
+                
                 <form method="POST">
                     <div class="modal-body">
-                        <div class="mb-3"><label class="form-label">COMPANY NAME</label><input type="text" name="company_name" class="form-control" required></div>
-                        <div class="mb-3"><label class="form-label">OWNER EMAIL</label><input type="email" name="owner_email" class="form-control" required></div>
-                        <div class="mb-3">
-                            <label class="form-label">SUBSCRIPTION PLAN</label>
-                            <select name="plan" class="form-select">
-                                <option value="Starter">Starter</option>
-                                <option value="Professional">Professional</option>
-                                <option value="Enterprise">Enterprise</option>
-                            </select>
+                        
+                        <h6 class="text-muted small fw-bold mb-3 border-bottom border-secondary pb-2">ACCOUNT OWNER</h6>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">FULL NAME</label>
+                                <input type="text" name="owner_name" class="form-control" placeholder="e.g. John Smith" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">LOGIN EMAIL</label>
+                                <input type="email" name="owner_email" class="form-control" placeholder="john@company.com" required>
+                            </div>
                         </div>
+
+                        <h6 class="text-muted small fw-bold mb-3 border-bottom border-secondary pb-2">BUSINESS DETAILS</h6>
+                        <div class="row g-3 mb-3">
+                            <div class="col-12">
+                                <label class="form-label small text-muted">TRADING NAME</label>
+                                <input type="text" name="company_name" class="form-control" placeholder="e.g. Smith & Sons Heating" required>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label small text-muted">OFFICE ADDRESS (Line 1)</label>
+                                <input type="text" name="address_line1" class="form-control" placeholder="e.g. Unit 4, Industrial Park" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small text-muted">POSTCODE / ZIP</label>
+                                <input type="text" name="postcode" class="form-control" placeholder="e.g. PL26 8NU" required>
+                            </div>
+                        </div>
+
+                        <h6 class="text-muted small fw-bold mb-3 mt-4 border-bottom border-secondary pb-2">REGION & SETTINGS</h6>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-5">
+                                <label class="form-label small text-muted">COUNTRY</label>
+                                <select name="country_code" class="form-select text-white bg-dark border-secondary">
+                                    <option value="UK" selected>🇬🇧 United Kingdom (UK)</option>
+                                    <option value="US">🇺🇸 United States (US)</option>
+                                    <option value="IE">🇮🇪 Ireland (IE)</option>
+                                    <option value="CAN">🇨🇦 Canada (CAN)</option>
+                                    <option value="AUS">🇦🇺 Australia (AUS)</option>
+                                    <option value="NZ">🇳🇿 New Zealand (NZ)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">CURRENCY</label>
+                                <select name="currency_symbol" class="form-select text-white bg-dark border-secondary">
+                                    <option value="£" selected>£ (GBP)</option>
+                                    <option value="$">$ (USD)</option>
+                                    <option value="€">€ (EUR)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small text-muted">SUBSCRIPTION</label>
+                                <select name="plan" class="form-select text-white bg-dark border-secondary">
+                                    <option value="Starter">Starter</option>
+                                    <option value="Professional" selected>Professional</option>
+                                    <option value="Enterprise">Enterprise</option>
+                                </select>
+                            </div>
+                        </div>
+
                     </div>
                     <div class="modal-footer border-secondary">
-                        <button type="submit" class="btn-gold">Deploy System</button>
+                        <button type="submit" class="btn-gold w-100 fw-bold">Initialize System</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-
     <div class="modal fade" id="settingsModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content" style="background: #1f1f1f; border: 1px solid #333;">

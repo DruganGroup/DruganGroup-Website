@@ -11,15 +11,15 @@
                 <div class="row g-3">
                     
                     <div class="col-md-6">
-                        <label class="form-label text-muted small fw-bold">Primary Country</label>
-                        <select name="country_code" id="countrySelector" class="form-select" onchange="updateLocalization()">
-                            <option value="UK" {% if settings.get('country_code') == 'UK' %}selected{% endif %}>🇬🇧 United Kingdom</option>
-                            <option value="USA" {% if settings.get('country_code') == 'USA' %}selected{% endif %}>🇺🇸 United States</option>
-                            <option value="CAN" {% if settings.get('country_code') == 'CAN' %}selected{% endif %}>🇨🇦 Canada</option>
-                            <option value="AUS" {% if settings.get('country_code') == 'AUS' %}selected{% endif %}>🇦🇺 Australia</option>
-                            <option value="NZ" {% if settings.get('country_code') == 'NZ' %}selected{% endif %}>🇳🇿 New Zealand</option>
-                            <option value="EU" {% if settings.get('country_code') == 'EU' %}selected{% endif %}>🇪🇺 Europe (Euro)</option>
-                        </select>
+                        <label class="form-label">Primary Country</label>
+                                    <select name="country_code" id="countrySelector" class="form-select bg-light border-secondary" onchange="updateLabels()">
+                                        <option value="UK" {% if settings.get('country_code') == 'UK' %}selected{% endif %}>🇬🇧 United Kingdom</option>
+                                        <option value="US" {% if settings.get('country_code') == 'US' %}selected{% endif %}>🇺🇸 United States</option>
+                                        <option value="IE" {% if settings.get('country_code') == 'IE' %}selected{% endif %}>🇮🇪 Ireland</option>
+                                        <option value="CAN" {% if settings.get('country_code') == 'CAN' %}selected{% endif %}>🇨🇦 Canada</option>
+                                        <option value="AUS" {% if settings.get('country_code') == 'AUS' %}selected{% endif %}>🇦🇺 Australia</option>
+                                        <option value="NZ" {% if settings.get('country_code') == 'NZ' %}selected{% endif %}>🇳🇿 New Zealand</option>
+                                    </select>
                     </div>
 
                     <div class="col-md-3">

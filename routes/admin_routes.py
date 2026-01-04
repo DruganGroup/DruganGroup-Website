@@ -89,16 +89,30 @@ def super_admin_dashboard():
     conn = get_db()
     cur = conn.cursor()
     
-    # --- CREATE NEW COMPANY ---
+    # --- CREATE NEW COMPANY (UPDATED LOGIC) ---
     if request.method == 'POST':
-        comp_name = request.form.get('company_name')
-        owner_email = request.form.get('owner_email')
-        plan = request.form.get('plan')
+        # 1. Capture All Inputs
+        c_name = request.form.get('company_name')
         
+        # Owner Details
+        owner_name = request.form.get('owner_name')
+        owner_email = request.form.get('owner_email')
+        
+        # Address & Config
+        addr1 = request.form.get('address_line1')
+        postcode = request.form.get('postcode')
+        full_address = f"{addr1}, {postcode}"
+        
+        plan = request.form.get('plan')
+        country = request.form.get('country_code') # 'UK', 'US', 'IE', etc.
+        currency = request.form.get('currency_symbol')
+
+        # Generate a random initial password
         chars = string.ascii_letters + string.digits + "!@#$%"
         owner_pass = ''.join(random.choice(chars) for i in range(12))
 
-        base_slug = re.sub(r'[^a-z0-9-]', '', comp_name.lower().replace(' ', '-'))
+        # Generate Subdomain
+        base_slug = re.sub(r'[^a-z0-9-]', '', c_name.lower().replace(' ', '-'))
         final_slug = base_slug; counter = 1
         while True:
             cur.execute("SELECT id FROM companies WHERE subdomain = %s", (final_slug,))
@@ -106,15 +120,40 @@ def super_admin_dashboard():
             final_slug = f"{base_slug}-{counter}"; counter += 1
 
         try:
-            cur.execute("INSERT INTO companies (name, contact_email, subdomain) VALUES (%s, %s, %s) RETURNING id", (comp_name, owner_email, final_slug))
+            # 2. Create Tenant
+            cur.execute("INSERT INTO companies (name, contact_email, subdomain) VALUES (%s, %s, %s) RETURNING id", (c_name, owner_email, final_slug))
             new_id = cur.fetchone()[0]
             
+            # 3. Create Subscription
             cur.execute("INSERT INTO subscriptions (company_id, plan_tier, status, start_date) VALUES (%s, %s, 'Active', CURRENT_DATE)", (new_id, plan))
             
+            # 4. Create Admin User (With Real Name)
             secure_pass = generate_password_hash(owner_pass)
-            cur.execute("INSERT INTO users (username, password_hash, email, role, company_id) VALUES (%s, %s, %s, 'Admin', %s)", (owner_email, secure_pass, owner_email, new_id))
-            cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'brand_color', '#2c3e50')", (new_id,))
+            cur.execute("INSERT INTO users (username, password_hash, email, role, company_id, name) VALUES (%s, %s, %s, 'Admin', %s, %s)", (owner_email, secure_pass, owner_email, new_id, owner_name))
             
+            # 5. INITIALIZE SETTINGS (Day 1 Config)
+            # Smart Default for VAT: Yes for UK/IE, No for US/CAN/AUS/NZ initially
+            is_vat = 'yes' if country in ['UK', 'IE', 'EU'] else 'no'
+            
+            # Smart Default for Tax Rate
+            tax_map = {'UK': '0.20', 'IE': '0.23', 'US': '0.08', 'CAN': '0.05', 'AUS': '0.10', 'NZ': '0.15'}
+            tax_rate = tax_map.get(country, '0.0')
+
+            default_settings = [
+                ('country_code', country),
+                ('currency_symbol', currency),
+                ('vat_registered', is_vat),
+                ('tax_rate', tax_rate),
+                ('company_address', full_address),
+                ('brand_color', '#2c3e50'),
+                ('smtp_host', ''), 
+                ('smtp_port', '587')
+            ]
+            
+            for key, val in default_settings:
+                cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s)", (new_id, key, val))
+            
+            # 6. Send Welcome Email
             cur.execute("SELECT key, value FROM system_settings")
             sys_conf = {row[0]: row[1] for row in cur.fetchall()}
             
@@ -123,7 +162,7 @@ def super_admin_dashboard():
                     msg = MIMEMultipart()
                     msg['From'] = sys_conf['smtp_email']
                     msg['To'] = owner_email
-                    msg['Subject'] = f"Welcome to Business Better - {comp_name} Setup Complete"
+                    msg['Subject'] = f"Welcome to Business Better - {c_name} Setup Complete"
                     
                     body = f"""
                     Welcome to Business Better by Drugan Group!
@@ -132,8 +171,9 @@ def super_admin_dashboard():
                     
                     DETAILS:
                     --------------------------------------------------
-                    Company:   {comp_name}
+                    Company:   {c_name}
                     Plan:      {plan}
+                    Region:    {country} ({currency})
                     Login URL: https://www.drugangroup.co.uk/login
                     --------------------------------------------------
                     
@@ -152,8 +192,8 @@ def super_admin_dashboard():
                     server.quit()
                     
                     conn.commit()
-                    log_audit("CREATE COMPANY", comp_name, f"Plan: {plan}, Admin: {owner_email}")
-                    flash(f"✅ Success! {comp_name} created. Credentials emailed to {owner_email}.")
+                    log_audit("CREATE COMPANY", c_name, f"Plan: {plan}, Admin: {owner_email}")
+                    flash(f"✅ Success! {c_name} created. Credentials emailed to {owner_email}.")
                 except Exception as e:
                     conn.commit()
                     flash(f"⚠️ Account created, but Email Failed: {e}. Password is: {owner_pass}")
