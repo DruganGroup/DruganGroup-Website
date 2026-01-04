@@ -41,28 +41,25 @@ def get_staff_identity(user_id, cur):
     if user: return None, (user[1] or user[2]), user[0]
     return None, "Unknown", None
 
-# --- 1. SITE HUB DASHBOARD (7-Day Calendar & Clock Fix) ---
 @site_bp.route('/site-hub')
-@site_bp.route('/site-companion')
+@site_bp.route('/site-companion') 
 def site_dashboard():
     if not check_site_access(): return redirect(url_for('auth.login'))
     
     conn = get_db(); cur = conn.cursor()
     
-    # Use the helper to guarantee we find the same ID as the clock-in route
+    # FIX: Use the helper so we match the Clock-In logic exactly
     staff_id, _, _ = get_staff_identity(session['user_id'], cur)
     
-    # A. CLOCK STATUS CHECK
+    # A. CLOCK STATUS
     is_clocked_in = False
     if staff_id:
-        # Check for any open shift for this staff member
         cur.execute("SELECT id FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
         is_clocked_in = cur.fetchone() is not None
     
     # B. 7-DAY CALENDAR SCHEDULE
     jobs = []
     if staff_id:
-        # Note the ::DATE cast to fix the previous "text >= date" crash
         cur.execute("""
             SELECT j.id, j.ref, j.site_address, c.name, j.description, j.start_date, j.status 
             FROM jobs j 
@@ -77,65 +74,55 @@ def site_dashboard():
     
     conn.close()
     return render_template('site/site_dashboard.html', jobs=jobs, is_clocked_in=is_clocked_in)
-
-# --- 2. CLOCK IN ---
 @site_bp.route('/site/clock-in', methods=['POST'])
 def clock_in():
     if 'user_id' not in session: return redirect('/login')
+    
     conn = get_db(); cur = conn.cursor()
     
+    # FIX: Force lookup of Staff ID using the helper
     staff_id, _, comp_id = get_staff_identity(session['user_id'], cur)
     
     if not staff_id:
-        flash("❌ Error: Your user is not linked to a Staff Profile. Please contact Office.", "error")
+        flash("❌ Error: You are not linked to a Staff Profile.", "error")
         return redirect('/site-hub')
 
     try:
-        cur.execute("SELECT id FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
+        cur.execute("SELECT id FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL AND date = CURRENT_DATE", (staff_id,))
         if cur.fetchone():
-            flash("⚠️ You are already clocked in.", "warning")
+            flash("⚠️ You are already clocked in!", "warning")
         else:
             cur.execute("INSERT INTO staff_timesheets (staff_id, company_id, clock_in, date) VALUES (%s, %s, CURRENT_TIMESTAMP, CURRENT_DATE)", (staff_id, comp_id))
-            conn.commit()
-            flash("🕒 Clocked In Successfully!")
-    except Exception as e: 
-        conn.rollback()
-        flash(f"Error: {e}")
-    finally: 
-        conn.close()
+            conn.commit(); flash("🕒 Clocked In Successfully!")
+    except Exception as e: conn.rollback(); flash(f"Error: {e}")
+    finally: conn.close()
     return redirect('/site-hub')
 
-# --- 3. CLOCK OUT ---
 @site_bp.route('/site/clock-out', methods=['POST'])
 def clock_out():
     if 'user_id' not in session: return redirect('/login')
+    
     conn = get_db(); cur = conn.cursor()
     
+    # FIX: Force lookup
     staff_id, _, _ = get_staff_identity(session['user_id'], cur)
-
+    
     try:
         cur.execute("SELECT id, clock_in FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL ORDER BY id DESC LIMIT 1", (staff_id,))
         row = cur.fetchone()
         if row:
             sheet_id = row[0]; start_time = row[1]
-            
-            # Calc hours
             diff = datetime.now() - start_time
             hours = diff.total_seconds() / 3600
             
             cur.execute("UPDATE staff_timesheets SET clock_out = CURRENT_TIMESTAMP, total_hours = %s WHERE id = %s", (round(hours, 2), sheet_id))
-            conn.commit()
-            flash(f"🕒 Clocked Out. Shift: {round(hours, 2)} hrs.")
+            conn.commit(); flash(f"🕒 Clocked Out. Shift: {round(hours, 2)} hrs.")
         else:
-            flash("⚠️ No active shift found to stop.", "warning")
-    except Exception as e: 
-        conn.rollback()
-        flash(f"Error: {e}")
-    finally: 
-        conn.close()
+            flash("⚠️ Error: No active shift found.", "warning")
+    except Exception as e: conn.rollback(); flash(f"Error: {e}")
+    finally: conn.close()
     return redirect('/site-hub')
 
-# --- 4. FUEL LOG (Protected against AI Import Errors) ---
 @site_bp.route('/site/log-fuel', methods=['GET', 'POST'])
 def log_fuel():
     if not check_site_access(): return redirect(url_for('auth.login'))
@@ -143,6 +130,7 @@ def log_fuel():
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
 
+    # FIX: Use Helper
     staff_id, _, _ = get_staff_identity(session['user_id'], cur)
     search_id = staff_id if staff_id else session['user_id']
 
