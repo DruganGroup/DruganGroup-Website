@@ -276,64 +276,104 @@ def update_job(job_id):
             else:
                 flash("✅ Job Started.")
 
-       # B. COMPLETE JOB
+# --- B. COMPLETE JOB (With Auto-Material Billing) ---
         elif action == 'complete':
             signature = request.form.get('signature')
             work_summary = request.form.get('work_summary')
             private_notes = request.form.get('private_notes')
             
+            # 1. Fetch Job Data
             cur.execute("SELECT client_id, ref, description, start_date, property_id FROM jobs WHERE id = %s", (job_id,))
-            client_id, job_ref, job_desc, job_date, prop_id = cur.fetchone()
+            job_data = cur.fetchone()
+            client_id, job_ref, job_desc, job_date, prop_id = job_data
             clean_ref = job_ref.replace("Ref: ", "").replace("Quote Work: ", "").strip()
 
-            cur.execute("UPDATE jobs SET status = 'Completed', end_date = CURRENT_TIMESTAMP, work_summary = %s, private_notes = %s WHERE id = %s", (work_summary, private_notes, job_id))
+            # 2. Update Job Record
+            cur.execute("""
+                UPDATE jobs 
+                SET status = 'Completed', end_date = CURRENT_TIMESTAMP, 
+                    work_summary = %s, private_notes = %s 
+                WHERE id = %s
+            """, (work_summary, private_notes, job_id))
 
-            # Invoice Logic (Quote vs Draft)
+            # 3. Check for Linked Quote
             cur.execute("SELECT id FROM quotes WHERE reference = %s AND company_id = %s", (clean_ref, comp_id))
             quote_row = cur.fetchone()
+
+            # Generate Invoice Reference
             cur.execute("SELECT COUNT(*) FROM invoices WHERE company_id = %s", (comp_id,))
             inv_ref = f"INV-{1000 + cur.fetchone()[0] + 1}"
+            
+            # Initialize Invoice ID
+            inv_id = None
 
+            # --- PATH A: QUOTED JOB ---
             if quote_row:
-                cur.execute("INSERT INTO invoices (company_id, client_id, quote_ref, reference, date, due_date, status, subtotal, tax, total, notes) VALUES (%s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE+14, 'Unpaid', 0, 0, 0, %s) RETURNING id", (comp_id, client_id, clean_ref, inv_ref, f"Signed: {signature}"))
+                quote_id = quote_row[0]
+                # Create Invoice from Quote
+                cur.execute("""
+                    INSERT INTO invoices (company_id, client_id, quote_ref, reference, date, due_date, status, subtotal, tax, total, notes) 
+                    VALUES (%s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE + 14, 'Unpaid', 0, 0, 0, %s) 
+                    RETURNING id
+                """, (comp_id, client_id, clean_ref, inv_ref, f"Signed by: {signature}"))
                 inv_id = cur.fetchone()[0]
                 
-                cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_row[0],))
-                items = cur.fetchall()
-                subtotal = 0.0
-                for item in items:
-                    cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, %s, %s, %s)", (inv_id, item[0], item[1], item[2], item[3]))
-                    subtotal += float(item[3])
+                # Copy Quote Items
+                cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
+                for item in cur.fetchall():
+                    cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, %s, %s, %s)",
+                               (inv_id, item[0], item[1], item[2], item[3]))
                 
-                tax = subtotal * 0.20 
-                total = subtotal + tax
-                cur.execute("UPDATE invoices SET subtotal=%s, tax=%s, total=%s WHERE id=%s", (subtotal, tax, total, inv_id)) 
                 flash(f"🎉 Quoted Invoice {inv_ref} Generated.")
+
+            # --- PATH B: DO & CHARGE (DRAFT) ---
             else:
-                cur.execute("INSERT INTO invoices (company_id, client_id, reference, date, due_date, status, subtotal, tax, total, notes) VALUES (%s, %s, %s, CURRENT_DATE, CURRENT_DATE+14, 'Draft', 0, 0, 0, %s) RETURNING id", (comp_id, client_id, inv_ref, "Pending Pricing"))
+                # Create Invoice Shell
+                cur.execute("""
+                    INSERT INTO invoices (company_id, client_id, reference, date, due_date, status, subtotal, tax, total, notes) 
+                    VALUES (%s, %s, %s, CURRENT_DATE, CURRENT_DATE + 14, 'Draft', 0, 0, 0, %s) 
+                    RETURNING id
+                """, (comp_id, client_id, inv_ref, f"Pending Pricing. Work: {work_summary}"))
                 inv_id = cur.fetchone()[0]
-                cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, 'Details to Follow', 1, 0, 0)", (inv_id,))
-                flash(f"✅ Draft Invoice {inv_ref} sent to Office.")
+                
+                # Add Labour Line (Placeholder)
+                cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, 1, 0, 0)", 
+                           (inv_id, f"Labour: {work_summary}"))
+                
+                flash(f"✅ Draft Invoice {inv_ref} Created.")
 
+            # --- 4. THE MAGIC: ADD TRACKED MATERIALS (Common to BOTH Paths) ---
+            # This looks up the materials your driver added and puts them on the invoice automatically
+            cur.execute("SELECT description, quantity, unit_price FROM job_materials WHERE job_id = %s", (job_id,))
+            materials = cur.fetchall()
+            
+            if materials:
+                for mat in materials:
+                    desc = mat[0]
+                    qty = mat[1]
+                    price = float(mat[2])
+                    total = price * qty
+                    
+                    # Insert as Invoice Item (Marked as Material)
+                    cur.execute("""
+                        INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) 
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (inv_id, f"Material: {desc}", qty, price, total))
+            
+            # --- 5. RE-CALCULATE TOTALS ---
+            # We must re-sum the total because we just added extra lines (Materials)
+            cur.execute("SELECT SUM(total) FROM invoice_items WHERE invoice_id = %s", (inv_id,))
+            new_subtotal = cur.fetchone()[0] or 0.0
+            
+            # Simple VAT Logic (20%) - Adjust if needed
+            new_tax = float(new_subtotal) * 0.20
+            new_total = float(new_subtotal) + new_tax
+            
+            cur.execute("UPDATE invoices SET subtotal = %s, tax = %s, total = %s WHERE id = %s", 
+                       (new_subtotal, new_tax, new_total, inv_id))
+
+            # Close Service Ticket
             cur.execute("UPDATE service_requests SET status = 'Completed' WHERE property_id = %s AND status = 'In Progress'", (prop_id,))
-
-        # C. UPLOAD PHOTO
-        elif action == 'upload_photo':
-            if 'photo' in request.files:
-                file = request.files['photo']
-                if file.filename != '':
-                    os.makedirs(JOB_EVIDENCE_FOLDER, exist_ok=True)
-                    filename = secure_filename(f"JOB_{job_id}_{int(datetime.now().timestamp())}_{file.filename}")
-                    db_path = f"uploads/job_evidence/{filename}"
-                    file.save(os.path.join(JOB_EVIDENCE_FOLDER, filename))
-                    cur.execute("INSERT INTO job_evidence (job_id, filepath, uploaded_by) VALUES (%s, %s, %s)", (job_id, db_path, session['user_id']))
-                    flash("📷 Photo Uploaded")
-
-        conn.commit()
-    except Exception as e: conn.rollback(); flash(f"Error: {e}")
-    finally: conn.close()
-    if action == 'complete': return redirect(url_for('site.site_dashboard'))
-    return redirect(url_for('site.view_job', job_id=job_id))
 
 # --- PUBLIC PAGES ---
 @site_bp.route('/advertise')
