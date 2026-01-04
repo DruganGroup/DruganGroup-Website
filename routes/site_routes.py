@@ -306,7 +306,35 @@ def update_job(job_id):
 @site_bp.route('/business-better')
 def advertise_page(): return render_template('public/advert-bb.html')
 
-# --- 7. LOG FUEL (With Manual Cost for Accuracy) ---
+# --- NEW: API FOR JS AUTO-FILL ---
+@site_bp.route('/site/api/scan-receipt', methods=['POST'])
+def api_scan_receipt():
+    # 1. Check Login & AI Access
+    if 'user_id' not in session: return {"success": False, "error": "Login required"}, 401
+    if not scan_receipt: return {"success": False, "error": "AI Service not available"}, 503
+
+    # 2. Get File
+    file = request.files.get('receipt')
+    if not file: return {"success": False, "error": "No file uploaded"}, 400
+
+    try:
+        # 3. Save Temp File
+        filename = secure_filename(f"TEMP_SCAN_{int(datetime.now().timestamp())}_{file.filename}")
+        full_path = os.path.join(UPLOAD_FOLDER, filename)
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        file.save(full_path)
+
+        # 4. Run AI
+        scan_result = scan_receipt(full_path)
+        
+        # 5. Clean up (Delete temp file to save space, or keep it if you prefer)
+        # os.remove(full_path) 
+
+        return scan_result # Returns {success: true, data: {total_cost: 50.00, ...}}
+    except Exception as e:
+        return {"success": False, "error": str(e)}, 500
+
+# --- 7. LOG FUEL (Final Logic) ---
 @site_bp.route('/site/log-fuel', methods=['GET', 'POST'])
 def log_fuel():
     if not check_site_access(): return redirect(url_for('auth.login'))
@@ -314,7 +342,7 @@ def log_fuel():
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
 
-    # 1. Identify Driver & Van
+    # Identity Check
     staff_id, _, _ = get_staff_identity(session['user_id'], cur)
     search_id = staff_id if staff_id else session['user_id']
 
@@ -322,56 +350,44 @@ def log_fuel():
     vehicle = cur.fetchone()
 
     if not vehicle:
-        flash("❌ No vehicle assigned to your profile. Contact Office.")
+        flash("❌ No vehicle assigned. Contact Office.")
         return redirect(url_for('site.site_dashboard'))
     
     v_id, v_reg = vehicle
 
     if request.method == 'POST':
-        # Get Inputs
         mileage = request.form.get('mileage')
         litres = request.form.get('litres')
-        total_cost = request.form.get('total_cost') # Driver Entered
+        total_cost = request.form.get('total_cost')
         fuel_type = request.form.get('fuel_type')
-        file = request.files.get('receipt')
+        file = request.files.get('receipt') # Re-upload not needed if JS handled it, but Flask needs it for the final save path
         
         if file and file.filename != '':
             try:
-                # Save Receipt
                 filename = secure_filename(f"FUEL_{v_reg}_{int(datetime.now().timestamp())}_{file.filename}")
                 full_path = os.path.join(UPLOAD_FOLDER, filename)
                 os.makedirs(UPLOAD_FOLDER, exist_ok=True) 
+                # Save the file permanently now (The JS scan was just temporary/preview)
                 file.save(full_path)
                 db_path = f"uploads/van_checks/{filename}"
 
-                # Use Driver's Cost
+                # Data Formatting
                 final_cost = float(total_cost) if total_cost else 0.0
-                desc = f"{fuel_type} ({litres}L) for {v_reg}. Mileage: {mileage}"
+                final_litres = float(litres) if litres else 0.0
+                desc = f"{fuel_type} ({final_litres}L) for {v_reg}. Mileage: {mileage}"
                 
-                # AI Scan (Optional - Just for Vendor Name now)
-                if scan_receipt:
-                    try:
-                        scan = scan_receipt(full_path)
-                        if scan['success']:
-                            data = scan['data']
-                            if data.get('vendor'): desc += f" @ {data.get('vendor')}"
-                    except Exception as ai_error:
-                        print(f"AI Error: {ai_error}") 
-
-                # A. Log Event
                 cur.execute("""
                     INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost, receipt_path, litres, fuel_type) 
                     VALUES (%s, %s, CURRENT_DATE, 'Fuel', %s, %s, %s, %s, %s)
-                """, (comp_id, v_id, desc, final_cost, db_path, litres, fuel_type))
+                """, (comp_id, v_id, desc, final_cost, db_path, final_litres, fuel_type))
 
-                # B. Update Mileage
                 if mileage:
                     cur.execute("UPDATE vehicles SET mileage = %s WHERE id = %s", (mileage, v_id))
                 
                 conn.commit()
-                flash("✅ Fuel Logged Successfully!")
+                flash("✅ Fuel Logged!")
                 return redirect(url_for('site.site_dashboard'))
             except Exception as e:
-                conn.rollback(); flash(f"Error saving log: {e}")
+                conn.rollback(); flash(f"Error: {e}")
 
     return render_template('site/fuel_form.html', reg=v_reg)
