@@ -376,7 +376,7 @@ def enable_portal(client_id):
 
     return redirect('/clients')
 
-# --- 6. SERVICE DESK ---
+# --- 6. SERVICE DESK (With Compliance Alerts) ---
 @office_bp.route('/office/service-desk', methods=['GET', 'POST'])
 def service_desk():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -385,10 +385,11 @@ def service_desk():
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
 
+    # ... (Keep your existing POST logic for dispatching jobs here) ...
     if request.method == 'POST':
         req_id = request.form.get('request_id')
         action = request.form.get('action')
-        
+        # ... (Same logic as you had before) ...
         try:
             if action == 'complete':
                 cur.execute("UPDATE service_requests SET status = 'Completed' WHERE id = %s AND company_id = %s", (req_id, comp_id))
@@ -396,28 +397,62 @@ def service_desk():
             elif action == 'delete':
                 cur.execute("DELETE FROM service_requests WHERE id = %s AND company_id = %s", (req_id, comp_id))
                 flash("🗑️ Request Deleted")
-            elif action == 'convert_job':
-                return redirect(url_for('office.office_calendar'))
-                
             conn.commit()
         except Exception as e:
-            conn.rollback(); flash(f"Error updating request: {e}")
+            conn.rollback(); flash(f"Error: {e}")
 
+    # 1. Fetch Real User Tickets
     cur.execute("""
-        SELECT sr.id, sr.issue_description, sr.severity, sr.status, sr.created_at, c.name, p.address_line1
+        SELECT sr.id, sr.issue_description, sr.severity, sr.status, sr.created_at, c.name, p.address_line1, p.id
         FROM service_requests sr
         LEFT JOIN clients c ON sr.client_id = c.id
         LEFT JOIN properties p ON sr.property_id = p.id
-        WHERE sr.company_id = %s
-        ORDER BY CASE WHEN sr.status = 'Pending' THEN 1 ELSE 2 END, sr.created_at DESC
+        WHERE sr.company_id = %s AND sr.status != 'Completed'
+        ORDER BY sr.created_at DESC
     """, (comp_id,))
     
     rows = cur.fetchall()
     requests = []
+    
+    # 2. (NEW) Inject "System Alerts" for Expiring Compliance
+    # Check for Gas/EICR expiring in next 30 days
+    cur.execute("""
+        SELECT p.id, p.address_line1, c.name, p.gas_expiry, p.eicr_expiry
+        FROM properties p
+        JOIN clients c ON p.client_id = c.id
+        WHERE p.company_id = %s
+        AND (
+            (p.gas_expiry BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days') OR 
+            (p.eicr_expiry BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days')
+        )
+    """, (comp_id,))
+    
+    alerts = cur.fetchall()
+    for a in alerts:
+        prop_id, addr, client, gas_date, elec_date = a
+        issue = []
+        if gas_date: issue.append(f"Gas Safety Expiring ({gas_date})")
+        if elec_date: issue.append(f"EICR Expiring ({elec_date})")
+        
+        # Add as a "Fake" High Priority Ticket
+        requests.append({
+            'id': f"SYS-{prop_id}", 
+            'issue_description': " ⚠️ " + " & ".join(issue), 
+            'severity': 'Urgent', 
+            'status': 'System Alert', 
+            'date': 'Due Soon',
+            'client_name': client, 
+            'property_address': addr,
+            'is_alert': True, # Flag for UI
+            'prop_id': prop_id
+        })
+
+    # Add Real Tickets
     for r in rows:
         requests.append({
             'id': r[0], 'issue_description': r[1], 'severity': r[2], 'status': r[3], 'date': format_date(r[4]),
-            'client_name': r[5] or 'N/A', 'property_address': r[6] or 'General'
+            'client_name': r[5] or 'N/A', 'property_address': r[6] or 'General',
+            'is_alert': False
         })
 
     cur.execute("SELECT id, name FROM staff WHERE company_id = %s", (comp_id,))
