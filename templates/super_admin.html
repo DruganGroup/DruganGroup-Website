@@ -311,11 +311,12 @@
             </table>
         </div>
     </div>
-<div class="modal fade" id="newCompanyModal" tabindex="-1">
+
+    <div class="modal fade" id="newCompanyModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content" style="background: #1f1f1f; border: 1px solid #333;">
                 <div class="modal-header border-secondary">
-                    <h5 class="modal-title text-white">🚀 Deploy New Company</h5>
+                    <h5 class="modal-title text-white">🚀 Deploy New Tenant</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 
@@ -353,7 +354,7 @@
                         <h6 class="text-muted small fw-bold mb-3 mt-4 border-bottom border-secondary pb-2">REGION & SETTINGS</h6>
                         <div class="row g-3 mb-3">
                             <div class="col-md-5">
-                                <label class="form-label small text-muted">COUNTRY</label>
+                                <label class="form-label small text-muted">COUNTRY (Tax Rules)</label>
                                 <select name="country_code" class="form-select text-white bg-dark border-secondary">
                                     <option value="UK" selected>🇬🇧 United Kingdom (UK)</option>
                                     <option value="US">🇺🇸 United States (US)</option>
@@ -389,6 +390,7 @@
             </div>
         </div>
     </div>
+
     <div class="modal fade" id="settingsModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content" style="background: #1f1f1f; border: 1px solid #333;">
@@ -414,5 +416,38 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const countrySelect = document.querySelector('select[name="country_code"]');
+            const currencySelect = document.querySelector('select[name="currency_symbol"]');
+
+            const countryToCurrency = {
+                'UK': '£',
+                'US': '$',
+                'IE': '€',
+                'CAN': '$',
+                'AUS': '$',
+                'NZ': '$'
+            };
+
+            if(countrySelect && currencySelect) {
+                countrySelect.addEventListener('change', function() {
+                    const selectedCountry = this.value;
+                    const currency = countryToCurrency[selectedCountry];
+                    
+                    if(currency) {
+                        // Loop through currency options to find and select the correct one
+                        for(let i=0; i < currencySelect.options.length; i++) {
+                            if(currencySelect.options[i].value === currency) {
+                                currencySelect.selectedIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>
