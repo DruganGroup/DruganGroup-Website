@@ -111,15 +111,32 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
+                    <h6 class="fw-bold text-muted small mb-3 text-uppercase">Property Location</h6>
+                    
+                    <div class="mb-2">
                         <label class="small fw-bold">Address Line 1</label>
-                        <input type="text" name="address" class="form-control" required>
+                        <input type="text" name="address_line1" class="form-control" placeholder="e.g. 12 High Street" required>
                     </div>
-                    <div class="mb-3">
-                        <label class="small fw-bold">Postcode</label>
-                        <input type="text" name="postcode" class="form-control" required>
+                    
+                    <div class="mb-2">
+                        <label class="small fw-bold">Address Line 2 (Optional)</label>
+                        <input type="text" name="address_line2" class="form-control" placeholder="e.g. Flat 4 or Industrial Estate">
                     </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="small fw-bold">City / Town</label>
+                            <input type="text" name="city" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="small fw-bold">Postcode</label>
+                            <input type="text" name="postcode" class="form-control" required>
+                        </div>
+                    </div>
+
                     <hr>
+                    <h6 class="fw-bold text-muted small mb-3 text-uppercase">Occupant Details</h6>
+                    
                     <div class="row g-2">
                         <div class="col-6">
                             <label class="small fw-bold">Tenant Name</label>

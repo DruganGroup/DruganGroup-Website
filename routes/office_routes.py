@@ -277,8 +277,6 @@ def service_desk():
     requests = []
     
     # 2. Inject "System Alerts" for Expiring Compliance
-    # NOTE: This block was failing because columns didn't exist. 
-    # The new route '/office/fix-compliance-db' below will fix that.
     try:
         cur.execute("""
             SELECT p.id, p.address_line1, c.name, p.gas_expiry, p.eicr_expiry
@@ -384,14 +382,14 @@ def create_gas_cert():
     
     conn = get_db(); cur = conn.cursor()
     
-    # 1. Get Country Setting
+    # Get Country
     cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'country_code'", (comp_id,))
     row = cur.fetchone()
     country = row[0] if row else 'UK'
     
-    # 2. Get Property & Client Data (Auto-fill)
+    # Get Property Data (Including new columns)
     cur.execute("""
-        SELECT p.address_line1, p.postcode, c.name, p.address_line2, p.city, c.email
+        SELECT p.address_line1, p.address_line2, p.city, p.postcode, c.name, c.email
         FROM properties p 
         JOIN clients c ON p.client_id = c.id 
         WHERE p.id = %s AND p.company_id = %s
@@ -399,23 +397,25 @@ def create_gas_cert():
     data = cur.fetchone()
     conn.close()
     
-    prop_data = {
-        'id': prop_id,
-        'address': f"{data[0]}, {data[3] or ''}, {data[4] or ''}, {data[1]}".replace(" ,", ""),
-        'client': data[2],
-        'client_email': data[5]
-    } if data else {}
+    prop_data = {}
+    if data:
+        # Smart Address Joiner: Joins parts with commas, ignores empty ones
+        addr_parts = [data[0], data[1], data[2], data[3]] 
+        full_addr = ", ".join([part for part in addr_parts if part and part.strip() != ""])
+        
+        prop_data = {
+            'id': prop_id,
+            'address': full_addr,
+            'client': data[4],
+            'client_email': data[5]
+        }
     
-    # Next year expiry calculation
     next_year = date.today() + timedelta(days=365)
     
-    # 3. Load the Correct Template
     if country == 'UK':
         return render_template('office/certs/uk/cp12.html', prop=prop_data, today=date.today(), next_year_date=next_year)
     elif country == 'US':
         return render_template('office/certs/us/gas_inspection.html', prop=prop_data, today=date.today(), next_year_date=next_year)
-    elif country == 'IE':
-        return render_template('office/certs/ie/rgi_cert.html', prop=prop_data, today=date.today(), next_year_date=next_year)
     else:
         return render_template('office/certs/generic/safety_check.html', prop=prop_data, today=date.today(), next_year_date=next_year)
 
@@ -639,6 +639,23 @@ def upgrade_materials_db():
     except Exception as e: conn.rollback(); return f"Error: {e}"
     finally: conn.close()
 
+@office_bp.route('/office/upgrade-address-db')
+def upgrade_address_db():
+    if 'user_id' not in session: return "Not logged in"
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Add proper address columns
+        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS address_line2 VARCHAR(255);")
+        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS city VARCHAR(100);")
+        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS county VARCHAR(100);")
+        conn.commit()
+        return "✅ SUCCESS: Address columns (Line 2, City, County) added."
+    except Exception as e:
+        conn.rollback()
+        return f"Database Error: {e}"
+    finally:
+        conn.close()
+
 # --- ROUTES FOR QUOTES & PDF PREVIEWS ---
 @office_bp.route('/office/quote/<int:quote_id>/pdf')
 def download_quote_pdf(quote_id):
@@ -681,25 +698,35 @@ def view_quote(quote_id):
     if not quote: return "Quote not found", 404
     return render_template('office/view_quote_dashboard.html', quote=quote)
 
-# Placeholder routes
 @office_bp.route('/client/<int:client_id>/add_property', methods=['POST'])
-def add_property(client_id): return redirect(url_for('office.view_client', client_id=client_id))
-@office_bp.route('/office/quote/<int:quote_id>/convert')
-def convert_to_invoice(quote_id): return redirect(url_for('office.office_dashboard'))
+def add_property(client_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    # Get form data
+    addr1 = request.form.get('address_line1')
+    addr2 = request.form.get('address_line2')
+    city = request.form.get('city')
+    postcode = request.form.get('postcode')
+    
+    tenant = request.form.get('tenant_name')
+    t_phone = request.form.get('tenant_phone')
+    comp_id = session.get('company_id')
 
-@office_bp.route('/office/upgrade-address-db')
-def upgrade_address_db():
-    if 'user_id' not in session: return "Not logged in"
     conn = get_db(); cur = conn.cursor()
     try:
-        # Add proper address columns
-        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS address_line2 VARCHAR(255);")
-        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS city VARCHAR(100);")
-        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS county VARCHAR(100);")
+        cur.execute("""
+            INSERT INTO properties (company_id, client_id, address_line1, address_line2, city, postcode, tenant, tenant_phone)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (comp_id, client_id, addr1, addr2, city, postcode, tenant, t_phone))
         conn.commit()
-        return "✅ SUCCESS: Address columns (Line 2, City, County) added."
+        flash("✅ Property Added Successfully")
     except Exception as e:
-        conn.rollback()
-        return f"Database Error: {e}"
+        conn.rollback(); flash(f"Error: {e}")
     finally:
         conn.close()
+
+    return redirect(url_for('office.view_client', client_id=client_id))
+
+# Placeholder routes
+@office_bp.route('/office/quote/<int:quote_id>/convert')
+def convert_to_invoice(quote_id): return redirect(url_for('office.office_dashboard'))
