@@ -686,3 +686,20 @@ def view_quote(quote_id):
 def add_property(client_id): return redirect(url_for('office.view_client', client_id=client_id))
 @office_bp.route('/office/quote/<int:quote_id>/convert')
 def convert_to_invoice(quote_id): return redirect(url_for('office.office_dashboard'))
+
+@office_bp.route('/office/upgrade-address-db')
+def upgrade_address_db():
+    if 'user_id' not in session: return "Not logged in"
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Add proper address columns
+        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS address_line2 VARCHAR(255);")
+        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS city VARCHAR(100);")
+        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS county VARCHAR(100);")
+        conn.commit()
+        return "✅ SUCCESS: Address columns (Line 2, City, County) added."
+    except Exception as e:
+        conn.rollback()
+        return f"Database Error: {e}"
+    finally:
+        conn.close()
