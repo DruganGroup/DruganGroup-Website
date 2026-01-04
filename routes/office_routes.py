@@ -659,18 +659,24 @@ def view_quote(quote_id):
     
     return send_file(pdf_path, as_attachment=True, download_name=filename)
 
-@office_bp.route('/office/upgrade-fuel-db')
-def upgrade_fuel_db():
+@office_bp.route('/office/upgrade-materials-db')
+def upgrade_materials_db():
     if 'user_id' not in session: return "Not logged in"
     conn = get_db(); cur = conn.cursor()
     try:
-        # Add Litres (Decimal for accuracy)
-        cur.execute("ALTER TABLE maintenance_logs ADD COLUMN IF NOT EXISTS litres NUMERIC(10,2);")
-        # Add Fuel Type (Text)
-        cur.execute("ALTER TABLE maintenance_logs ADD COLUMN IF NOT EXISTS fuel_type VARCHAR(50);")
-        
+        # Create table for Materials linked to Jobs
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS job_materials (
+                id SERIAL PRIMARY KEY,
+                job_id INTEGER REFERENCES jobs(id),
+                description VARCHAR(255) NOT NULL,
+                quantity INTEGER DEFAULT 1,
+                unit_price NUMERIC(10, 2) DEFAULT 0.00,
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
         conn.commit()
-        return "✅ SUCCESS: Database upgraded. Ready for Analytics."
+        return "✅ SUCCESS: Materials table created."
     except Exception as e:
         conn.rollback(); return f"Error: {e}"
     finally: conn.close()
