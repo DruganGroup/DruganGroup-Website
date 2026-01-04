@@ -767,7 +767,7 @@ def create_eicr_cert():
     prop_id = request.args.get('prop_id')
     comp_id = session.get('company_id')
     
-    conn = get_db(); cur = conn.cursor()
+        conn = get_db(); cur = conn.cursor()
     
     # Get Property Data
     cur.execute("""
@@ -777,7 +777,7 @@ def create_eicr_cert():
         WHERE p.id = %s AND p.company_id = %s
     """, (prop_id, comp_id))
     data = cur.fetchone()
-    conn.close()
+        conn.close()
     
     prop_data = {}
     if data:
