@@ -588,74 +588,34 @@ def enable_portal(client_id):
 # =========================================================
 # 6. SYSTEM UTILITIES (ONE-TIME FIXES)
 # =========================================================
-
-# --- THIS IS THE ROUTE YOU WERE MISSING ---
-@office_bp.route('/office/fix-compliance-db')
-def fix_compliance_db():
+@office_bp.route('/office/fix-invoice-db')
+def fix_invoice_db():
     if 'user_id' not in session: return "Not logged in"
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     try:
-        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS gas_expiry DATE;")
-        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS eicr_expiry DATE;")
-        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS pat_expiry DATE;")
-        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS fire_expiry DATE;")
-        conn.commit()
-        return "✅ SUCCESS: Compliance columns added."
-    except Exception as e:
-        conn.rollback()
-        return f"Database Error: {e}"
-    finally:
-        conn.close()
-
-@office_bp.route('/office/upgrade-fuel-db')
-def upgrade_fuel_db():
-    if 'user_id' not in session: return "Not logged in"
-    conn = get_db(); cur = conn.cursor()
-    try:
-        cur.execute("ALTER TABLE maintenance_logs ADD COLUMN IF NOT EXISTS litres NUMERIC(10,2);")
-        cur.execute("ALTER TABLE maintenance_logs ADD COLUMN IF NOT EXISTS fuel_type VARCHAR(50);")
-        conn.commit()
-        return "✅ SUCCESS: Database upgraded. Ready for Analytics."
-    except Exception as e: conn.rollback(); return f"Error: {e}"
-    finally: conn.close()
-
-@office_bp.route('/office/upgrade-materials-db')
-def upgrade_materials_db():
-    if 'user_id' not in session: return "Not logged in"
-    conn = get_db(); cur = conn.cursor()
-    try:
+        # 1. Add the missing job_id column
+        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS job_id INTEGER;")
+        
+        # 2. Ensure the invoice_items table exists (just to be safe)
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS job_materials (
+            CREATE TABLE IF NOT EXISTS invoice_items (
                 id SERIAL PRIMARY KEY,
-                job_id INTEGER REFERENCES jobs(id),
-                description VARCHAR(255) NOT NULL,
-                quantity INTEGER DEFAULT 1,
-                unit_price NUMERIC(10, 2) DEFAULT 0.00,
-                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                invoice_id INTEGER REFERENCES invoices(id),
+                description TEXT,
+                quantity INTEGER,
+                unit_price NUMERIC(10, 2),
+                total NUMERIC(10, 2)
             );
         """)
+        
         conn.commit()
-        return "✅ SUCCESS: Materials table created."
-    except Exception as e: conn.rollback(); return f"Error: {e}"
-    finally: conn.close()
-
-@office_bp.route('/office/upgrade-address-db')
-def upgrade_address_db():
-    if 'user_id' not in session: return "Not logged in"
-    conn = get_db(); cur = conn.cursor()
-    try:
-        # Add proper address columns
-        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS address_line2 VARCHAR(255);")
-        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS city VARCHAR(100);")
-        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS county VARCHAR(100);")
-        conn.commit()
-        return "✅ SUCCESS: Address columns (Line 2, City, County) added."
+        return "✅ SUCCESS: Database patched! 'job_id' column added."
     except Exception as e:
         conn.rollback()
         return f"Database Error: {e}"
     finally:
         conn.close()
-
 # --- ROUTES FOR QUOTES & PDF PREVIEWS ---
 @office_bp.route('/office/quote/<int:quote_id>/pdf')
 def download_quote_pdf(quote_id):
