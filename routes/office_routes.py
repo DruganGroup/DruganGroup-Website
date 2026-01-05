@@ -788,3 +788,76 @@ def create_eicr_cert():
         prop_data = {'id': prop_id, 'address': full_addr, 'client': data[3]}
         
     return render_template('office/certs/uk/eicr.html', prop=prop_data, next_five_years=(date.today() + timedelta(days=365*5)))
+    
+    # --- GENERATE INVOICE FROM JOB ---
+@office_bp.route('/office/job/<int:job_id>/invoice')
+def job_to_invoice(job_id):
+    # 1. Security Check
+    if not session.get('user_id'): return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    comp_id = session.get('company_id')
+
+    # 2. Check if Invoice Already Exists (Prevent Duplicates)
+    cur.execute("SELECT id FROM invoices WHERE job_id = %s", (job_id,))
+    existing = cur.fetchone()
+    if existing:
+        flash("ℹ️ Invoice already exists for this job.", "info")
+        # Redirect to the invoice view (Finance Module)
+        return redirect(url_for('finance.download_invoice_pdf', invoice_id=existing[0]))
+
+    # 3. Fetch Job Data
+    cur.execute("""
+        SELECT j.client_id, j.description, j.status 
+        FROM jobs j WHERE j.id = %s AND j.company_id = %s
+    """, (job_id, comp_id))
+    job = cur.fetchone()
+    
+    if not job:
+        return "Job not found", 404
+
+    client_id = job[0]
+    job_desc = job[1]
+
+    # 4. Create The Invoice Record (Draft Status)
+    # We generate a Reference Number like "INV-JOB-5"
+    ref_number = f"INV-JOB-{job_id}"
+    
+    cur.execute("""
+        INSERT INTO invoices (company_id, client_id, job_id, ref, date_created, due_date, status, total_amount)
+        VALUES (%s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE + INTERVAL '14 days', 'Unpaid', 0.00)
+        RETURNING id
+    """, (comp_id, client_id, job_id, ref_number))
+    
+    new_invoice_id = cur.fetchone()[0]
+
+    # 5. FETCH & TRANSFER MATERIALS (The Magic Part)
+    # We grab materials from the job, add 20% Markup, and insert into invoice_items
+    cur.execute("""
+        INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
+        SELECT %s, description, quantity, (unit_price * 1.20), (quantity * unit_price * 1.20)
+        FROM job_materials 
+        WHERE job_id = %s
+    """, (new_invoice_id, job_id))
+
+    # 6. Add a Line Item for "Labor / Job Works"
+    # (You can make this smarter later, for now we add a placeholder line)
+    cur.execute("""
+        INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
+        VALUES (%s, %s, 1, 0.00, 0.00)
+    """, (new_invoice_id, f"Labor / Works for Job #{job_id}: {job_desc}"))
+
+    # 7. Update Invoice Total
+    cur.execute("""
+        UPDATE invoices 
+        SET total_amount = (SELECT COALESCE(SUM(total), 0) FROM invoice_items WHERE invoice_id = %s)
+        WHERE id = %s
+    """, (new_invoice_id, new_invoice_id))
+
+    conn.commit()
+    conn.close()
+
+    flash(f"✅ Invoice {ref_number} Generated Successfully!", "success")
+    # Send them to the Finance Invoice list to see it
+    return redirect(url_for('finance.finance_invoices'))
