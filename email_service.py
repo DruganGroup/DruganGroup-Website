@@ -63,6 +63,6 @@ def send_company_email(company_id, to_email, subject, body, pdf_path=None):
         print("✅ Email sent successfully!")
         return True, "Email sent successfully!"
     except Exception as e:
-        print(f"❌ SMTP Error: {e}")
-        # Your fix for the empty curly braces error:
-        return False, f"Email Failed: {str(e)}"
+        # repr(e) forces the technical error details to show, preventing empty {}
+        print(f"❌ SMTP Error Raw: {repr(e)}") 
+        return False, f"Email Failed: {repr(e)}"
