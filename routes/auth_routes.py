@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash
 from db import get_db
 from werkzeug.security import check_password_hash
+from email_service import send_company_email
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -71,3 +72,37 @@ def logout():
     session.clear()
     flash("🔒 You have been logged out securely.")
     return redirect(url_for('auth.login'))
+    
+    # --- 4. SYSTEM: TEST EMAIL CONNECTION ---
+@auth_bp.route('/auth/email/test')
+def test_email_connection():
+    # 1. Security Check (Only Admin/Finance can test this)
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']:
+        flash("❌ Access Denied", "error")
+        return redirect(url_for('finance.settings_general'))
+    
+    comp_id = session.get('company_id')
+    user_email = session.get('user_email') # Send the test to the logged-in user
+    
+    # 2. Trigger the Email Service
+    # We pass the company_id so the service looks up the SMTP details from the DB
+    success, msg = send_company_email(
+        comp_id,
+        user_email,
+        "Test Email: Connection Successful",
+        f"""
+        <h1>It Works! 🚀</h1>
+        <p>Your SMTP email settings are configured correctly.</p>
+        <p><strong>Company:</strong> {session.get('company_name')}</p>
+        <p>This email was sent directly from your own server to {user_email}.</p>
+        """
+    )
+    
+    # 3. Handle Result
+    if success:
+        flash(f"✅ Success! Test email sent to {user_email}", "success")
+    else:
+        flash(f"❌ Connection Failed: {msg}", "error")
+        
+    # Redirect back to the Settings Page
+    return redirect(url_for('finance.settings_general'))
