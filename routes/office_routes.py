@@ -668,7 +668,7 @@ def system_repair():
     log = []
     
     try:
-        # 1. UPGRADE INVOICES TABLE (Add every single missing column)
+        # 1. UPGRADE INVOICES TABLE
         columns_to_add = [
             ("job_id", "INTEGER"),
             ("ref", "VARCHAR(50)"),
@@ -685,9 +685,9 @@ def system_repair():
                 log.append(f"✅ Checked/Added column: invoices.{col}")
             except Exception as e:
                 log.append(f"⚠️ Note on {col}: {e}")
-                conn.rollback() # Rollback the tiny error so we can keep going
+                conn.rollback()
 
-        # 2. CREATE INVOICE ITEMS TABLE (If it doesn't exist)
+        # 2. CREATE INVOICE ITEMS TABLE
         cur.execute("""
             CREATE TABLE IF NOT EXISTS invoice_items (
                 id SERIAL PRIMARY KEY,
@@ -700,9 +700,24 @@ def system_repair():
         """)
         log.append("✅ Checked/Created table: invoice_items")
 
-        # 3. UPGRADE JOBS TABLE (Just in case)
+        # 3. UPGRADE JOBS TABLE
         cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS company_id INTEGER;")
         log.append("✅ Checked jobs.company_id")
+
+        # 4. UPGRADE CLIENTS TABLE (THE FIX FOR YOUR ERROR)
+        client_cols = [
+            ("status", "VARCHAR(20) DEFAULT 'Active'"),
+            ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+            ("internal_notes", "TEXT"),
+            ("company_id", "INTEGER")
+        ]
+        for col, dtype in client_cols:
+            try:
+                cur.execute(f"ALTER TABLE clients ADD COLUMN IF NOT EXISTS {col} {dtype};")
+                log.append(f"✅ Checked/Added column: clients.{col}")
+            except Exception as e:
+                conn.rollback()
+                log.append(f"⚠️ Note on clients.{col}: {e}")
 
         conn.commit()
         return f"<h1>System Repair Report</h1><pre>{'<br>'.join(log)}</pre><br><a href='/office-hub'>Return to Dashboard</a>"
@@ -712,6 +727,7 @@ def system_repair():
         return f"<h1>❌ Critical Error</h1><p>{str(e)}</p>"
     finally:
         conn.close()
+        
 # --- EMAIL QUOTE TO CLIENT ---
 @office_bp.route('/office/quote/<int:quote_id>/email')
 def email_quote(quote_id):
