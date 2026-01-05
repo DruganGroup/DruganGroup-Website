@@ -1073,83 +1073,79 @@ def job_to_invoice(job_id):
 
     flash(f"✅ Invoice {ref_number} Generated (Markup: {markup_percent}%)", "success")
     return redirect(url_for('finance.finance_invoices'))
-    # =========================================================
-# CLIENT MANAGEMENT (Fixed Paths & Routes)
-# =========================================================
 
-@office_bp.route('/clients')
-def clients_list():
-    if not check_office_access(): return redirect(url_for('auth.login'))
+# --- SYSTEM UTILITY: MASS FIX DATABASE ---
+@office_bp.route('/office/system-repair')
+def system_repair():
+    if 'user_id' not in session: return "Not logged in"
     
-    comp_id = session.get('company_id')
-    config = get_site_config(comp_id)
     conn = get_db()
     cur = conn.cursor()
+    log = []
     
-    # 1. Select columns matching your dashboard template (c[0]..c[8])
-    # Indices: 0:id, 1:name, 2:email, 3:phone, 4:address, 5:status, 6:created, 7:comp_id, 8:notes
-    cur.execute("""
-        SELECT id, name, email, phone, billing_address, status, created_at, company_id, internal_notes
-        FROM clients
-        WHERE company_id = %s
-        ORDER BY name ASC
-    """, (comp_id,))
-    
-    clients = cur.fetchall()
-    conn.close()
-    
-    # FIX: Correct Path -> 'clients/client_dashboard.html'
-    return render_template('clients/client_dashboard.html', clients=clients, brand_color=config['color'], logo_url=config['logo'])
+    try:
+        # 1. UPGRADE INVOICES TABLE
+        invoice_cols = [
+            ("job_id", "INTEGER"), ("ref", "VARCHAR(50)"),
+            ("date_created", "DATE DEFAULT CURRENT_DATE"), ("due_date", "DATE"),
+            ("status", "VARCHAR(20) DEFAULT 'Unpaid'"),
+            ("total_amount", "NUMERIC(10, 2) DEFAULT 0.00"), ("client_id", "INTEGER")
+        ]
+        for col, dtype in invoice_cols:
+            try:
+                cur.execute(f"ALTER TABLE invoices ADD COLUMN IF NOT EXISTS {col} {dtype};")
+                log.append(f"✅ Checked invoices.{col}")
+            except Exception: conn.rollback()
 
-# FIX: Route changed to '/client/<id>' to match the links in your dashboard
-@office_bp.route('/client/<int:client_id>')
-def view_client(client_id):
-    if not check_office_access(): return redirect(url_for('auth.login'))
-    
-    comp_id = session.get('company_id')
-    config = get_site_config(comp_id)
-    conn = get_db()
-    cur = conn.cursor()
-    
-    # 1. Fetch Client
-    cur.execute("SELECT id, name, email, phone, billing_address FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
-    c = cur.fetchone()
-    
-    if not c:
+        # 2. CREATE INVOICE ITEMS TABLE
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS invoice_items (
+                id SERIAL PRIMARY KEY, invoice_id INTEGER REFERENCES invoices(id) ON DELETE CASCADE,
+                description TEXT, quantity INTEGER DEFAULT 1,
+                unit_price NUMERIC(10, 2) DEFAULT 0.00, total NUMERIC(10, 2) DEFAULT 0.00
+            );
+        """)
+        log.append("✅ Checked table: invoice_items")
+
+        # 3. UPGRADE JOBS TABLE
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS company_id INTEGER;")
+        log.append("✅ Checked jobs.company_id")
+
+        # 4. UPGRADE CLIENTS TABLE
+        client_cols = [
+            ("status", "VARCHAR(20) DEFAULT 'Active'"),
+            ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+            ("internal_notes", "TEXT"), ("company_id", "INTEGER")
+        ]
+        for col, dtype in client_cols:
+            try:
+                cur.execute(f"ALTER TABLE clients ADD COLUMN IF NOT EXISTS {col} {dtype};")
+                log.append(f"✅ Checked clients.{col}")
+            except Exception: conn.rollback()
+
+        # 5. UPGRADE PROPERTIES TABLE (THE FIX FOR YOUR NEW ERROR)
+        prop_cols = [
+            ("tenant", "VARCHAR(100)"),
+            ("tenant_phone", "VARCHAR(50)"),
+            ("gas_expiry", "DATE"),
+            ("eicr_expiry", "DATE"),
+            ("pat_expiry", "DATE"),
+            ("fire_alarm_expiry", "DATE"),
+            ("company_id", "INTEGER")
+        ]
+        for col, dtype in prop_cols:
+            try:
+                cur.execute(f"ALTER TABLE properties ADD COLUMN IF NOT EXISTS {col} {dtype};")
+                log.append(f"✅ Checked/Added column: properties.{col}")
+            except Exception as e:
+                conn.rollback()
+                log.append(f"⚠️ Note on properties.{col}: {e}")
+
+        conn.commit()
+        return f"<h1>System Repair Report</h1><pre>{'<br>'.join(log)}</pre><br><a href='/office-hub'>Return to Dashboard</a>"
+
+    except Exception as e:
+        conn.rollback()
+        return f"<h1>❌ Critical Error</h1><p>{str(e)}</p>"
+    finally:
         conn.close()
-        return "Client not found", 404
-        
-    client = {'id': c[0], 'name': c[1], 'email': c[2], 'phone': c[3], 'addr': c[4]}
-
-    # 2. Fetch Properties
-    cur.execute("""
-        SELECT id, address_line1, postcode, tenant, 
-               gas_expiry, eicr_expiry, pat_expiry, fire_alarm_expiry, tenant_phone
-        FROM properties 
-        WHERE client_id = %s
-        ORDER BY address_line1
-    """, (client_id,))
-    
-    properties = []
-    for r in cur.fetchall():
-        # Compliance Date Checker
-        def check_comp(d):
-            if not d: return {'status': 'Missing', 'date': None}
-            if d < date.today(): return {'status': 'Expired', 'date': d.strftime('%d/%m/%y')}
-            if d < (date.today() + timedelta(days=30)): return {'status': 'Due', 'date': d.strftime('%d/%m/%y')}
-            return {'status': 'Valid', 'date': d.strftime('%d/%m/%y')}
-
-        properties.append({
-            'id': r[0], 'addr': r[1], 'postcode': r[2], 'tenant': r[3], 'tenant_phone': r[8],
-            'compliance': {
-                'Gas': check_comp(r[4]),
-                'EICR': check_comp(r[5]),
-                'PAT': check_comp(r[6]),
-                'Fire': check_comp(r[7])
-            }
-        })
-    
-    conn.close()
-    
-    # NOTE: If client_details.html is also in the 'clients' folder, change this path to 'clients/client_details.html'
-    return render_template('office/client_details.html', client=client, properties=properties, brand_color=config['color'], logo_url=config['logo'])
