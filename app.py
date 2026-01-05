@@ -13,6 +13,7 @@ from routes.client_routes import client_bp
 from routes.finance_routes import finance_bp
 from routes.admin_routes import admin_bp
 from routes.site_routes import site_bp
+from routes.pdf_routes import pdf_bp
 
 # 2. CREATE THE APP (This must happen before we use 'app')
 app = Flask(__name__)
@@ -31,6 +32,7 @@ app.register_blueprint(client_bp)
 app.register_blueprint(finance_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(site_bp)
+app.register_blueprint(pdf_bp)
 
 # --- NEW: "BLACK BOX" ERROR HANDLER ---
 @app.errorhandler(Exception)
