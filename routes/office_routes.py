@@ -1058,7 +1058,7 @@ def job_to_invoice(job_id):
     flash(f"✅ Invoice {ref_number} Generated (Markup: {markup_percent}%)", "success")
     return redirect(url_for('finance.finance_invoices'))
     # =========================================================
-# CLIENT MANAGEMENT (Add this to office_routes.py)
+# CLIENT MANAGEMENT (Fixed Paths & Routes)
 # =========================================================
 
 @office_bp.route('/clients')
@@ -1070,28 +1070,23 @@ def clients_list():
     conn = get_db()
     cur = conn.cursor()
     
-    # Fetch all clients with a count of their properties
+    # 1. Select columns matching your dashboard template (c[0]..c[8])
+    # Indices: 0:id, 1:name, 2:email, 3:phone, 4:address, 5:status, 6:created, 7:comp_id, 8:notes
     cur.execute("""
-        SELECT c.id, c.name, c.email, c.phone, c.billing_address, COUNT(p.id)
-        FROM clients c
-        LEFT JOIN properties p ON c.id = p.client_id
-        WHERE c.company_id = %s
-        GROUP BY c.id
-        ORDER BY c.name ASC
+        SELECT id, name, email, phone, billing_address, status, created_at, company_id, internal_notes
+        FROM clients
+        WHERE company_id = %s
+        ORDER BY name ASC
     """, (comp_id,))
     
-    # Store as a list of dictionaries for the HTML
-    clients = []
-    for r in cur.fetchall():
-        clients.append({
-            'id': r[0], 'name': r[1], 'email': r[2], 
-            'phone': r[3], 'address': r[4], 'prop_count': r[5]
-        })
-        
+    clients = cur.fetchall()
     conn.close()
-    return render_template('office/clients_list.html', clients=clients, brand_color=config['color'], logo_url=config['logo'])
+    
+    # FIX: Correct Path -> 'clients/client_dashboard.html'
+    return render_template('clients/client_dashboard.html', clients=clients, brand_color=config['color'], logo_url=config['logo'])
 
-@office_bp.route('/office/client/<int:client_id>')
+# FIX: Route changed to '/client/<id>' to match the links in your dashboard
+@office_bp.route('/client/<int:client_id>')
 def view_client(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
     
@@ -1100,7 +1095,7 @@ def view_client(client_id):
     conn = get_db()
     cur = conn.cursor()
     
-    # 1. Fetch Client Details
+    # 1. Fetch Client
     cur.execute("SELECT id, name, email, phone, billing_address FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
     c = cur.fetchone()
     
@@ -1110,8 +1105,7 @@ def view_client(client_id):
         
     client = {'id': c[0], 'name': c[1], 'email': c[2], 'phone': c[3], 'addr': c[4]}
 
-    # 2. Fetch Properties 
-    # (Matches the indices used in your view_client.html: id, addr, postcode, tenant, gas, eicr, pat, fire)
+    # 2. Fetch Properties
     cur.execute("""
         SELECT id, address_line1, postcode, tenant, 
                gas_expiry, eicr_expiry, pat_expiry, fire_alarm_expiry, tenant_phone
@@ -1120,10 +1114,9 @@ def view_client(client_id):
         ORDER BY address_line1
     """, (client_id,))
     
-    # Convert DB rows to objects for the template
     properties = []
     for r in cur.fetchall():
-        # Helper to check compliance dates
+        # Compliance Date Checker
         def check_comp(d):
             if not d: return {'status': 'Missing', 'date': None}
             if d < date.today(): return {'status': 'Expired', 'date': d.strftime('%d/%m/%y')}
@@ -1141,4 +1134,6 @@ def view_client(client_id):
         })
     
     conn.close()
+    
+    # NOTE: If client_details.html is also in the 'clients' folder, change this path to 'clients/client_details.html'
     return render_template('office/client_details.html', client=client, properties=properties, brand_color=config['color'], logo_url=config['logo'])
