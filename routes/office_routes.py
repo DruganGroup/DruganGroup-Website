@@ -588,32 +588,58 @@ def enable_portal(client_id):
 # =========================================================
 # 6. SYSTEM UTILITIES (ONE-TIME FIXES)
 # =========================================================
-@office_bp.route('/office/fix-invoice-db')
-def fix_invoice_db():
+# --- SYSTEM UTILITY: MASS FIX DATABASE ---
+@office_bp.route('/office/system-repair')
+def system_repair():
     if 'user_id' not in session: return "Not logged in"
+    
     conn = get_db()
     cur = conn.cursor()
+    log = []
+    
     try:
-        # 1. Add the missing job_id column
-        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS job_id INTEGER;")
+        # 1. UPGRADE INVOICES TABLE (Add every single missing column)
+        columns_to_add = [
+            ("job_id", "INTEGER"),
+            ("ref", "VARCHAR(50)"),
+            ("date_created", "DATE DEFAULT CURRENT_DATE"),
+            ("due_date", "DATE"),
+            ("status", "VARCHAR(20) DEFAULT 'Unpaid'"),
+            ("total_amount", "NUMERIC(10, 2) DEFAULT 0.00"),
+            ("client_id", "INTEGER")
+        ]
         
-        # 2. Ensure the invoice_items table exists (just to be safe)
+        for col, dtype in columns_to_add:
+            try:
+                cur.execute(f"ALTER TABLE invoices ADD COLUMN IF NOT EXISTS {col} {dtype};")
+                log.append(f"✅ Checked/Added column: invoices.{col}")
+            except Exception as e:
+                log.append(f"⚠️ Note on {col}: {e}")
+                conn.rollback() # Rollback the tiny error so we can keep going
+
+        # 2. CREATE INVOICE ITEMS TABLE (If it doesn't exist)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS invoice_items (
                 id SERIAL PRIMARY KEY,
-                invoice_id INTEGER REFERENCES invoices(id),
+                invoice_id INTEGER REFERENCES invoices(id) ON DELETE CASCADE,
                 description TEXT,
-                quantity INTEGER,
-                unit_price NUMERIC(10, 2),
-                total NUMERIC(10, 2)
+                quantity INTEGER DEFAULT 1,
+                unit_price NUMERIC(10, 2) DEFAULT 0.00,
+                total NUMERIC(10, 2) DEFAULT 0.00
             );
         """)
-        
+        log.append("✅ Checked/Created table: invoice_items")
+
+        # 3. UPGRADE JOBS TABLE (Just in case)
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS company_id INTEGER;")
+        log.append("✅ Checked jobs.company_id")
+
         conn.commit()
-        return "✅ SUCCESS: Database patched! 'job_id' column added."
+        return f"<h1>System Repair Report</h1><pre>{'<br>'.join(log)}</pre><br><a href='/office-hub'>Return to Dashboard</a>"
+
     except Exception as e:
         conn.rollback()
-        return f"Database Error: {e}"
+        return f"<h1>❌ Critical Error</h1><p>{str(e)}</p>"
     finally:
         conn.close()
 # --- ROUTES FOR QUOTES & PDF PREVIEWS ---
