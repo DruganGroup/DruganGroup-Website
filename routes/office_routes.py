@@ -786,9 +786,69 @@ def add_property(client_id):
 
     return redirect(url_for('office.view_client', client_id=client_id))
 
-# Placeholder routes
+# --- CONVERT QUOTE TO INVOICE ---
 @office_bp.route('/office/quote/<int:quote_id>/convert')
-def convert_to_invoice(quote_id): return redirect(url_for('office.office_dashboard'))
+def convert_to_invoice(quote_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    comp_id = session.get('company_id')
+
+    # 1. Fetch Quote Details
+    cur.execute("SELECT client_id, total, status FROM quotes WHERE id = %s AND company_id = %s", (quote_id, comp_id))
+    quote = cur.fetchone()
+    
+    if not quote:
+        conn.close()
+        flash("❌ Quote not found.", "error")
+        return redirect(url_for('office.office_dashboard'))
+
+    # Optional: Prevent double conversion
+    if quote[2] == 'Converted':
+        conn.close()
+        flash("⚠️ This quote has already been converted.", "warning")
+        return redirect(url_for('office.office_dashboard'))
+
+    client_id = quote[0]
+    total_amount = quote[1]
+
+    # 2. Create New Invoice
+    # We use the Quote ID in the reference to link them visually (e.g., INV-Q-1001)
+    new_ref = f"INV-Q-{quote_id}"
+    
+    try:
+        cur.execute("""
+            INSERT INTO invoices (company_id, client_id, ref, date_created, due_date, status, total_amount)
+            VALUES (%s, %s, %s, CURRENT_DATE, CURRENT_DATE + INTERVAL '14 days', 'Unpaid', %s)
+            RETURNING id
+        """, (comp_id, client_id, new_ref, total_amount))
+        
+        new_invoice_id = cur.fetchone()[0]
+
+        # 3. Copy Items from Quote to Invoice
+        cur.execute("""
+            INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
+            SELECT %s, description, quantity, unit_price, total
+            FROM quote_items
+            WHERE quote_id = %s
+        """, (new_invoice_id, quote_id))
+
+        # 4. Update Quote Status
+        cur.execute("UPDATE quotes SET status = 'Converted' WHERE id = %s", (quote_id,))
+        
+        conn.commit()
+        flash(f"✅ Quote Converted! Created Invoice {new_ref}", "success")
+        
+        # Redirect to the Finance list so you can see the new invoice
+        return redirect(url_for('finance.finance_invoices'))
+
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error converting quote: {e}", "error")
+        return redirect(url_for('office.office_dashboard'))
+    finally:
+        conn.close()
 
 @office_bp.route('/office/upgrade-certs-db')
 def upgrade_certs_db():
