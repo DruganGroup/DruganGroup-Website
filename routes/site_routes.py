@@ -218,7 +218,10 @@ def van_check_page():
 @site_bp.route('/site/job/<int:job_id>')
 def view_job(job_id):
     if not check_site_access(): return redirect(url_for('auth.login'))
-    comp_id = session.get('company_id'); conn = get_db(); cur = conn.cursor()
+    
+    comp_id = session.get('company_id')
+    conn = get_db()
+    cur = conn.cursor()
     
     # 1. Get Job Details
     cur.execute("""
@@ -234,12 +237,15 @@ def view_job(job_id):
     cur.execute("SELECT filepath FROM job_evidence WHERE job_id = %s ORDER BY uploaded_at DESC", (job_id,))
     photos = [r[0] for r in cur.fetchall()]
 
-    # 3. Get Materials (NEW)
+    # 3. Get Materials (THIS IS THE NEW PART YOU NEED)
     cur.execute("SELECT description, quantity, unit_price FROM job_materials WHERE job_id = %s ORDER BY added_at ASC", (job_id,))
     materials = cur.fetchall()
 
     conn.close()
+    
     if not job: return "Job not found", 404
+    
+    # Pass 'materials' to the template so the list isn't empty
     return render_template('site/job_details.html', job=job, photos=photos, materials=materials)
     
 # --- NEW: ADD MATERIAL TO JOB ---

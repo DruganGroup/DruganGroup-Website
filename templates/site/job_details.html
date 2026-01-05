@@ -189,6 +189,17 @@
                             <div class="form-text small text-primary"><i class="fas fa-magic me-1"></i> Materials listed above will be auto-added to the invoice.</div>
                         </div>
 
+                        {% if session.get('employment_type') == 'Sub-Contractor' %}
+                        <div class="alert alert-warning border-warning shadow-sm mb-3">
+                            <h6 class="fw-bold text-dark"><i class="fas fa-file-invoice-dollar me-2"></i>Submit Invoice</h6>
+                            <p class="small mb-2 text-muted">Enter your total labor & materials charge for this job.</p>
+                            
+                            <div class="input-group">
+                                <span class="input-group-text fw-bold">£</span>
+                                <input type="number" step="0.01" name="sub_contractor_cost" class="form-control fw-bold fs-5" placeholder="0.00">
+                            </div>
+                        </div>
+                        {% endif %}
                         <div class="mb-3">
                             <label class="fw-bold small text-danger">Private Office Notes</label>
                             <textarea name="private_notes" class="form-control bg-light" rows="2" placeholder="Internal notes..."></textarea>
