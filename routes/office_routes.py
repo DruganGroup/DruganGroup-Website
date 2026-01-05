@@ -836,6 +836,8 @@ def job_to_invoice(job_id):
         SET total_amount = (SELECT COALESCE(SUM(total), 0) FROM invoice_items WHERE invoice_id = %s)
         WHERE id = %s
     """, (new_invoice_id, new_invoice_id))
+    
+    cur.execute("UPDATE jobs SET status = 'Invoiced' WHERE id = %s", (job_id,))
 
     conn.commit()
     conn.close()
