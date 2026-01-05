@@ -842,4 +842,4 @@ def job_to_invoice(job_id):
 
     flash(f"✅ Invoice {ref_number} Generated Successfully!", "success")
     # Redirect to the Finance Invoices list
-    return redirect(url_for('finance.invoices'))
+    return redirect(url_for('finance.finance_invoices'))
