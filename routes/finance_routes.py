@@ -94,25 +94,52 @@ def finance_dashboard():
 # --- 1.5 SALES LEDGER ---
 @finance_bp.route('/finance/invoices')
 def finance_invoices():
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    company_id = session.get('company_id'); config = get_site_config(company_id)
-    conn = get_db(); cur = conn.cursor()
+    # 1. Security Check
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']: 
+        return redirect(url_for('auth.login'))
+    
+    company_id = session.get('company_id')
+    config = get_site_config(company_id)
+    conn = get_db()
+    cur = conn.cursor()
     
     date_fmt = get_date_fmt_str(company_id)
     
-    cur.execute("SELECT i.id, i.reference, c.name, i.date, i.due_date, i.total, i.status FROM invoices i JOIN clients c ON i.client_id = c.id WHERE i.company_id = %s ORDER BY i.date DESC", (company_id,))
+    # 2. Get Currency from Settings (The New Part)
+    cur.execute("SELECT value FROM settings WHERE key = 'currency_symbol' AND company_id = %s", (company_id,))
+    res = cur.fetchone()
+    currency_symbol = res[0] if res else '£' # Default to £ if missing
+
+    # 3. Fetch Invoices (Note: I changed i.reference to i.ref to match your DB)
+    cur.execute("""
+        SELECT i.id, i.ref, c.name, i.date_created, i.due_date, i.total_amount, i.status 
+        FROM invoices i 
+        JOIN clients c ON i.client_id = c.id 
+        WHERE i.company_id = %s 
+        ORDER BY i.date_created DESC
+    """, (company_id,))
+    
     invoices = []
     for r in cur.fetchall():
         invoices.append({
-            'id': r[0], 'ref': r[1], 'client': r[2], 
+            'id': r[0], 
+            'ref': r[1], 
+            'client': r[2], 
             'date': format_date(r[3], date_fmt), 
             'due': format_date(r[4], date_fmt), 
-            'total': r[5], 'status': r[6]
+            'total': r[5], 
+            'status': r[6]
         })
         
     conn.close()
-    return render_template('finance/finance_invoices.html', invoices=invoices, brand_color=config['color'], logo_url=config['logo'])
     
+    # 4. Pass 'currency' to the template
+    return render_template('finance/finance_invoices.html', 
+                           invoices=invoices, 
+                           brand_color=config['color'], 
+                           logo_url=config['logo'],
+                           currency=currency_symbol) # <--- Sending it to the HTML
+                           
 # --- 2. HR & STAFF ---
 @finance_bp.route('/finance/hr')
 def finance_hr():
