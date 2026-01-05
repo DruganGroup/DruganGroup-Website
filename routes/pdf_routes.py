@@ -5,7 +5,7 @@ from services.pdf_generator import generate_pdf
 # Define the new Blueprint
 pdf_bp = Blueprint('pdf', __name__)
 
-# --- DOWNLOAD INVOICE PDF (Strict Professional Mode) ---
+# --- DOWNLOAD INVOICE PDF (Strict Logic) ---
 @pdf_bp.route('/finance/invoice/<int:invoice_id>/download')
 def download_invoice_pdf(invoice_id):
     # 1. Security Check
@@ -29,7 +29,7 @@ def download_invoice_pdf(invoice_id):
     if not inv:
         conn.close()
         flash("❌ Invoice not found.", "error")
-        # Note: We redirect back to finance.finance_invoices
+        # Redirects to the finance list
         return redirect(url_for('finance.finance_invoices'))
 
     # 3. Fetch Line Items
@@ -47,6 +47,8 @@ def download_invoice_pdf(invoice_id):
         return redirect(url_for('finance.finance_invoices'))
     
     total_val = float(inv[7])
+    
+    # We look for your specific keys: 'tax_rate' or 'vat_rate'
     raw_rate = settings.get('tax_rate', settings.get('vat_rate'))
     
     if raw_rate is None:
@@ -59,7 +61,7 @@ def download_invoice_pdf(invoice_id):
         flash(f"⚠️ Configuration Error: Tax Rate '{raw_rate}' is not a valid number.", "error")
         return redirect(url_for('finance.settings_general'))
 
-    # 6. Calculate Net/Tax Backwards
+    # 6. Calculate Net/Tax Backwards from Total
     divisor = 1 + (user_rate / 100)
     if divisor == 1:
         subtotal_val = total_val
