@@ -7,6 +7,7 @@ import os
 import secrets
 import string
 import smtplib
+import json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -480,6 +481,65 @@ def save_gas_cert():
         
     except Exception as e:
         conn.rollback(); return jsonify({'success': False, 'error': str(e)})
+    finally:
+        conn.close()
+# --- SAVE EICR CERTIFICATE ---
+@office_bp.route('/office/cert/eicr/save', methods=['POST'])
+def save_eicr_cert():
+    if not check_office_access(): return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.json
+    prop_id = data.get('prop_id')
+    comp_id = session.get('company_id')
+    
+    # Validation
+    if not prop_id:
+        return jsonify({'success': False, 'error': 'Property ID missing'})
+
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Determine Status
+        # If the user clicked "Save as Draft", status is Draft. Otherwise Issued.
+        status = data.get('status', 'Issued') 
+        
+        # 2. Insert into Certificates Table (JSON Storage)
+        # We store the ENTIRE form data in the 'data' column so we can reload it later.
+        cur.execute("""
+            INSERT INTO certificates (company_id, property_id, type, status, data, engineer_name, date_issued, expiry_date)
+            VALUES (%s, %s, 'EICR', %s, %s, %s, CURRENT_DATE, %s)
+            RETURNING id
+        """, (
+            comp_id, 
+            prop_id, 
+            status, 
+            json.dumps(data),  # Requires: import json at top of file
+            session.get('user_name', 'Engineer'),
+            data.get('next_inspection_date')
+        ))
+        
+        cert_id = cur.fetchone()[0]
+
+        # 3. Update Property Expiry Date (Only if Issued)
+        if status == 'Issued':
+            next_date = data.get('next_inspection_date')
+            if next_date:
+                cur.execute("UPDATE properties SET eicr_expiry = %s WHERE id = %s", (next_date, prop_id))
+
+        conn.commit()
+        
+        # 4. Success Response
+        return jsonify({
+            'success': True, 
+            'message': 'EICR Saved Successfully',
+            'redirect_url': url_for('office.office_dashboard')
+        })
+
+    except Exception as e:
+        conn.rollback()
+        print(f"EICR Save Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         conn.close()
 
