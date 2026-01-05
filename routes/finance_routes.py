@@ -9,6 +9,10 @@ from io import TextIOWrapper
 from datetime import datetime, date 
 from db import get_db, get_site_config, allowed_file, UPLOAD_FOLDER
 from email_service import send_company_email
+from email.mime.application import MIMEApplication
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from services.pdf_generator import generate_pdf
 from flask import send_file
 
@@ -471,3 +475,127 @@ def setup_invoice_templates():
         return f"❌ Migration Error: {e}"
     finally:
         conn.close()
+        # --- EMAIL INVOICE TO CLIENT ---
+@finance_bp.route('/finance/invoice/<int:invoice_id>/email')
+def email_invoice(invoice_id):
+    # 1. Security Check
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']:
+        return redirect(url_for('auth.login'))
+        
+    conn = get_db()
+    cur = conn.cursor()
+    company_id = session.get('company_id')
+
+    # 2. Fetch Invoice & Client Data
+    cur.execute("""
+        SELECT i.id, i.ref, i.date_created, i.total_amount, i.status, 
+               c.name, c.email, c.address
+        FROM invoices i
+        JOIN clients c ON i.client_id = c.id
+        WHERE i.id = %s AND i.company_id = %s
+    """, (invoice_id, company_id))
+    inv = cur.fetchone()
+    
+    if not inv:
+        conn.close()
+        flash("❌ Invoice not found.", "error")
+        return redirect(url_for('finance.finance_invoices'))
+
+    client_email = inv[6]
+    invoice_ref = inv[1]
+
+    # 3. Check SMTP Settings
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    
+    if 'smtp_host' not in settings or 'smtp_email' not in settings:
+        conn.close()
+        flash("⚠️ Cannot Email: SMTP settings missing. Go to Settings > General.", "warning")
+        return redirect(url_for('finance.finance_invoices'))
+
+    # 4. Generate the PDF (Server-side)
+    # Fetch Items
+    cur.execute("SELECT description, quantity, unit_price, total FROM invoice_items WHERE invoice_id = %s", (invoice_id,))
+    items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
+    
+    # Calculate Tax/Net Logic (Reusing your PDF logic)
+    total_val = float(inv[3]) if inv[3] else 0.0
+    
+    # Check VAT Status
+    is_vat_registered = settings.get('vat_registered', settings.get('tax_enabled', '0'))
+    country_code = settings.get('country', 'GB').upper()
+    
+    # Simple lookup for tax rate (matches pdf_routes)
+    TAX_RATES = {'GB': 20.0, 'ES': 21.0, 'FR': 20.0, 'DE': 19.0, 'IE': 23.0, 'US': 0.0}
+    
+    if str(is_vat_registered).lower() in ['1', 'true', 'yes', 'on']:
+        tax_rate = TAX_RATES.get(country_code, 20.0)
+    else:
+        tax_rate = 0.0
+
+    divisor = 1 + (tax_rate / 100)
+    subtotal = total_val / divisor if divisor > 1 else total_val
+    tax = total_val - subtotal
+
+    context = {
+        'invoice': {
+            'ref': inv[1], 'date': inv[2], 'due': inv[2],
+            'client_name': inv[5], 'client_address': inv[7], 'client_email': inv[6],
+            'subtotal': subtotal, 'tax': tax, 'total': total_val,
+            'tax_rate_display': tax_rate, 'currency_symbol': settings.get('currency_symbol', '£')
+        },
+        'company': {'name': session.get('company_name')},
+        'items': items, 'settings': settings, 'config': get_site_config(company_id)
+    }
+
+    filename = f"Invoice_{invoice_ref}.pdf"
+    
+    try:
+        # Generate file path
+        pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
+        
+        # 5. Send Email
+        msg = MIMEMultipart()
+        msg['From'] = settings.get('smtp_email')
+        msg['To'] = client_email
+        msg['Subject'] = f"Invoice {invoice_ref} from {session.get('company_name')}"
+        
+        body = f"Dear {inv[5]},\n\nPlease find attached invoice {invoice_ref}.\n\nTotal Due: {settings.get('currency_symbol','£')}{total_val:.2f}\n\nKind regards,\n{session.get('company_name')}"
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Attach PDF
+        with open(pdf_path, "rb") as f:
+            part = MIMEApplication(f.read(), Name=filename)
+            part['Content-Disposition'] = f'attachment; filename="{filename}"'
+            msg.attach(part)
+
+        # Connect to SMTP Server
+        server = smtplib.SMTP(settings['smtp_host'], int(settings.get('smtp_port', 587)))
+        server.starttls()
+        server.login(settings['smtp_email'], settings['smtp_password'])
+        server.send_message(msg)
+        server.quit()
+        
+        # 6. Update Status to 'Sent'
+        cur.execute("UPDATE invoices SET status = 'Sent' WHERE id = %s", (invoice_id,))
+        conn.commit()
+        
+        flash(f"✅ Invoice emailed to {client_email}!", "success")
+
+    except Exception as e:
+        flash(f"❌ Email Error: {e}", "error")
+    
+    conn.close()
+    return redirect(url_for('finance.finance_invoices'))
+
+# --- MANUAL MARK AS SENT ---
+@finance_bp.route('/finance/invoice/<int:invoice_id>/mark-sent')
+def mark_invoice_sent(invoice_id):
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']: return redirect(url_for('auth.login'))
+    
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("UPDATE invoices SET status = 'Sent' WHERE id = %s", (invoice_id,))
+    conn.commit(); conn.close()
+    
+    flash("✅ Invoice manually marked as Sent.", "success")
+    return redirect(url_for('finance.finance_invoices'))
