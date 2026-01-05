@@ -330,16 +330,56 @@ def import_materials():
 @finance_bp.route('/finance/analysis')
 def finance_analysis():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    comp_id = session.get('company_id'); config = get_site_config(comp_id); conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT reference, description, amount FROM transactions WHERE company_id = %s AND type = 'Income' ORDER BY date DESC LIMIT 50", (comp_id,))
-    analyzed_jobs = []; total_rev = 0; total_cost = 0
-    for j in cur.fetchall():
-        rev = float(j[2]); est_cost = rev / 1.2; profit = rev - est_cost
-        total_rev += rev; total_cost += est_cost
-        analyzed_jobs.append({"ref": j[0], "client": j[1], "status": "Completed", "rev": rev, "cost": est_cost, "profit": profit, "margin": (profit/rev*100) if rev>0 else 0})
-    conn.close()
-    return render_template('finance/finance_analysis.html', jobs=analyzed_jobs, total_rev=total_rev, total_cost=total_cost, total_profit=total_rev-total_cost, avg_margin=((total_rev-total_cost)/total_rev*100) if total_rev>0 else 0, brand_color=config['color'], logo_url=config['logo'])
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db()
+    cur = conn.cursor()
 
+    # 1. GET YOUR MARGIN TARGET (The Fix)
+    cur.execute("SELECT value FROM settings WHERE key = 'default_profit_margin' AND company_id = %s", (comp_id,))
+    res = cur.fetchone()
+    # If you typed "15" in settings, this becomes 15.0. Default to 20.0 if empty.
+    margin_target = float(res[0]) if res and res[0] else 20.0
+    
+    # Calculate the cost factor. (e.g., 20% margin means Costs are 80% of revenue)
+    cost_factor = (100 - margin_target) / 100
+
+    # 2. FETCH TRANSACTIONS
+    cur.execute("SELECT reference, description, amount FROM transactions WHERE company_id = %s AND type = 'Income' ORDER BY date DESC LIMIT 50", (comp_id,))
+    
+    analyzed_jobs = []
+    total_rev = 0
+    total_cost = 0
+    
+    for j in cur.fetchall():
+        rev = float(j[2])
+        
+        # USE DYNAMIC FACTOR (Not / 1.2)
+        est_cost = rev * cost_factor
+        
+        profit = rev - est_cost
+        total_rev += rev
+        total_cost += est_cost
+        
+        # Calculate individual margin safely
+        margin = (profit / rev * 100) if rev > 0 else 0
+        
+        analyzed_jobs.append({
+            "ref": j[0], "client": j[1], "status": "Completed", 
+            "rev": rev, "cost": est_cost, "profit": profit, "margin": margin
+        })
+    
+    conn.close()
+    
+    # Calculate total average margin
+    avg_margin = ((total_rev - total_cost) / total_rev * 100) if total_rev > 0 else 0
+    
+    return render_template('finance/finance_analysis.html', 
+                           jobs=analyzed_jobs, total_rev=total_rev, 
+                           total_cost=total_cost, total_profit=total_rev - total_cost, 
+                           avg_margin=avg_margin, brand_color=config['color'], logo_url=config['logo'])
+                           
 @finance_bp.route('/finance/settings')
 def settings_redirect(): return redirect(url_for('finance.settings_general'))
 
@@ -552,7 +592,7 @@ def email_invoice(invoice_id):
     
     try:
         # Generate file path
-        pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
+        pdf_path = generate_pdf('office/pdf_quote.html', context, filename)
         
         # 5. Send Email
         msg = MIMEMultipart()

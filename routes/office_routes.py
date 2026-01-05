@@ -1011,11 +1011,11 @@ def job_to_invoice(job_id):
     client_id = job[0]
     job_desc = job[1]
 
-    # 4. Fetch Markup Setting (The Fix)
-    cur.execute("SELECT value FROM settings WHERE key = 'material_markup' AND company_id = %s", (comp_id,))
+    # 4. Fetch Markup Setting (Updated to match your HTML)
+    cur.execute("SELECT value FROM settings WHERE key = 'default_markup' AND company_id = %s", (comp_id,))
     res = cur.fetchone()
-    # Default to 20% if setting is missing. Logic: 20 becomes 1.20 multiplier.
-    markup_percent = float(res[0]) if res else 20.0
+    # Default to 20% if not set
+    markup_percent = float(res[0]) if res and res[0] else 20.0
     markup_multiplier = 1 + (markup_percent / 100)
 
     # 5. Create The Invoice Record

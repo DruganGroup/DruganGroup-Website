@@ -178,10 +178,17 @@
         </div>
 
         <div class="terms">
-            <strong>Terms & Conditions</strong><br>
-            {{ settings.get('invoice_footer', 'Payment is due within 14 days. Thank you for your business.') }}
-            <br><br>
-            {% if is_quote %}
+    <strong>Terms & Conditions</strong><br>
+    {{ settings.get('payment_terms', 'Payment is due within 14 days.') }}
+    
+    <br><br>
+    
+    <span style="font-style: italic;">
+        {{ settings.get('invoice_footer', 'Thank you for your business.') }}
+    </span>
+
+    <br><br>
+    {% if is_quote %}
                 <div style="border-top:1px dashed #ccc; padding-top:10px; margin-top:10px;">
                     <strong>Client Signature:</strong><br><br><br>
                     __________________________<br>
