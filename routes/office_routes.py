@@ -652,34 +652,97 @@ def system_repair():
         return f"<h1>❌ Critical Error</h1><p>{str(e)}</p>"
     finally:
         conn.close()
-# --- ROUTES FOR QUOTES & PDF PREVIEWS ---
-@office_bp.route('/office/quote/<int:quote_id>/pdf')
-def download_quote_pdf(quote_id):
-    if 'user_id' not in session: return redirect(url_for('auth.login'))
-    company_id = session.get('company_id'); conn = get_db(); cur = conn.cursor()
+# --- EMAIL QUOTE TO CLIENT ---
+@office_bp.route('/office/quote/<int:quote_id>/email')
+def email_quote(quote_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
     
+    company_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. Fetch Quote & Client Data
     cur.execute("""
         SELECT q.id, q.reference, q.date, q.total, q.status, c.name, c.email, c.billing_address
         FROM quotes q JOIN clients c ON q.client_id = c.id
         WHERE q.id = %s AND q.company_id = %s
     """, (quote_id, company_id))
     q = cur.fetchone()
-    if not q: conn.close(); return "Quote not found", 404
-        
-    quote_data = {'id': q[0], 'ref': q[1], 'date': q[2], 'total': q[3], 'status': q[4], 'client_name': q[5], 'client_email': q[6], 'client_address': q[7]}
-
-    cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
-    items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
     
-    config = get_site_config(company_id)
+    if not q:
+        conn.close()
+        flash("❌ Quote not found.", "error")
+        return redirect(url_for('office.office_dashboard'))
+
+    quote_data = {'id': q[0], 'ref': q[1], 'date': q[2], 'total': q[3], 'status': q[4], 'client_name': q[5], 'client_email': q[6], 'client_address': q[7]}
+    client_email = q[6]
+
+    # 2. Check SMTP Settings
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
-    conn.close()
+    
+    if 'smtp_host' not in settings or 'smtp_email' not in settings:
+        conn.close()
+        flash("⚠️ Email Failed: SMTP settings are missing. Please configure them in Settings.", "warning")
+        return redirect(url_for('office.office_dashboard'))
+
+    # 3. Generate the PDF (Same logic as download)
+    cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
+    items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
+    config = get_site_config(company_id)
     
     context = {'invoice': quote_data, 'items': items, 'settings': settings, 'config': config, 'is_quote': True, 'company': {'name': session.get('company_name')}}
     filename = f"Quote_{quote_data['ref']}.pdf"
-    pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
-    return send_file(pdf_path, mimetype='application/pdf')
+    
+    try:
+        pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
+        
+        # 4. Send Email
+        msg = MIMEMultipart()
+        msg['From'] = settings.get('smtp_email')
+        msg['To'] = client_email
+        msg['Subject'] = f"Quote {quote_data['ref']} from {session.get('company_name')}"
+        
+        body = f"Dear {quote_data['client_name']},\n\nPlease find attached the quote {quote_data['ref']} as requested.\n\nKind regards,\n{session.get('company_name')}"
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Attach PDF
+        with open(pdf_path, "rb") as f:
+            from email.mime.application import MIMEApplication
+            part = MIMEApplication(f.read(), Name=filename)
+            part['Content-Disposition'] = f'attachment; filename="{filename}"'
+            msg.attach(part)
+
+        server = smtplib.SMTP(settings['smtp_host'], int(settings.get('smtp_port', 587)))
+        server.starttls()
+        server.login(settings['smtp_email'], settings['smtp_password'])
+        server.send_message(msg)
+        server.quit()
+        
+        # 5. Update Status to 'Sent'
+        cur.execute("UPDATE quotes SET status = 'Sent' WHERE id = %s", (quote_id,))
+        conn.commit()
+        flash(f"✅ Quote emailed to {client_email} and marked as Sent!", "success")
+
+    except Exception as e:
+        flash(f"❌ Error sending email: {e}", "error")
+    
+    conn.close()
+    return redirect(url_for('office.office_dashboard'))
+
+# --- MANUAL STATUS UPDATE (For Manual/Offline Sending) ---
+@office_bp.route('/office/quote/<int:quote_id>/mark-sent')
+def mark_quote_sent(quote_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    conn = get_db(); cur = conn.cursor()
+    company_id = session.get('company_id')
+    
+    cur.execute("UPDATE quotes SET status = 'Sent' WHERE id = %s AND company_id = %s", (quote_id, company_id))
+    conn.commit()
+    conn.close()
+    
+    flash("✅ Quote manually marked as Sent.", "success")
+    return redirect(url_for('office.office_dashboard'))
 
 @office_bp.route('/office/quote/<int:quote_id>')
 def view_quote(quote_id):
