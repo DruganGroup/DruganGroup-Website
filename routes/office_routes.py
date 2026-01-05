@@ -749,13 +749,29 @@ def view_quote(quote_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
     if request.args.get('mode') == 'pdf': return download_quote_pdf(quote_id)
 
-    company_id = session.get('company_id'); conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT q.id, c.name, q.reference, q.date, q.total, q.status, q.expiry_date FROM quotes q LEFT JOIN clients c ON q.client_id = c.id WHERE q.id = %s AND q.company_id = %s", (quote_id, company_id))
+    company_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. Fetch Quote
+    cur.execute("""
+        SELECT q.id, c.name, q.reference, q.date, q.total, q.status, q.expiry_date 
+        FROM quotes q 
+        LEFT JOIN clients c ON q.client_id = c.id 
+        WHERE q.id = %s AND q.company_id = %s
+    """, (quote_id, company_id))
     quote = cur.fetchone()
+
+    # 2. Fetch Currency (The Missing Part)
+    cur.execute("SELECT value FROM settings WHERE key = 'currency_symbol' AND company_id = %s", (company_id,))
+    res = cur.fetchone()
+    currency = res[0] if res else '£'
+
     conn.close()
     
     if not quote: return "Quote not found", 404
-    return render_template('office/view_quote_dashboard.html', quote=quote)
+    
+    # 3. Pass currency_symbol to the template
+    return render_template('office/view_quote_dashboard.html', quote=quote, currency_symbol=currency)
 
 @office_bp.route('/client/<int:client_id>/add_property', methods=['POST'])
 def add_property(client_id):
@@ -908,8 +924,7 @@ def create_eicr_cert():
         
     return render_template('office/certs/uk/eicr.html', prop=prop_data, next_five_years=(date.today() + timedelta(days=365*5)))
     
-# --- GENERATE INVOICE FROM JOB (Updated to fix 405 Error) ---
-@office_bp.route('/office/job/<int:job_id>/invoice', methods=['GET', 'POST'])  # <--- FIXED HERE
+@office_bp.route('/office/job/<int:job_id>/invoice', methods=['GET', 'POST'])
 def job_to_invoice(job_id):
     # 1. Security Check
     if not session.get('user_id'): return redirect(url_for('auth.login'))
@@ -926,21 +941,25 @@ def job_to_invoice(job_id):
         return redirect(url_for('finance.download_invoice_pdf', invoice_id=existing[0]))
 
     # 3. Fetch Job Data
-    cur.execute("""
-        SELECT j.client_id, j.description, j.status 
-        FROM jobs j WHERE j.id = %s AND j.company_id = %s
-    """, (job_id, comp_id))
+    cur.execute("SELECT client_id, description, status FROM jobs WHERE id = %s AND company_id = %s", (job_id, comp_id))
     job = cur.fetchone()
     
     if not job:
+        conn.close()
         return "Job not found", 404
 
     client_id = job[0]
     job_desc = job[1]
 
-    # 4. Create The Invoice Record
+    # 4. Fetch Markup Setting (The Fix)
+    cur.execute("SELECT value FROM settings WHERE key = 'material_markup' AND company_id = %s", (comp_id,))
+    res = cur.fetchone()
+    # Default to 20% if setting is missing. Logic: 20 becomes 1.20 multiplier.
+    markup_percent = float(res[0]) if res else 20.0
+    markup_multiplier = 1 + (markup_percent / 100)
+
+    # 5. Create The Invoice Record
     ref_number = f"INV-JOB-{job_id}"
-    
     cur.execute("""
         INSERT INTO invoices (company_id, client_id, job_id, ref, date_created, due_date, status, total_amount)
         VALUES (%s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE + INTERVAL '14 days', 'Unpaid', 0.00)
@@ -949,32 +968,32 @@ def job_to_invoice(job_id):
     
     new_invoice_id = cur.fetchone()[0]
 
-    # 5. Transfer Materials (+20% Markup)
+    # 6. Transfer Materials (Using Dynamic Markup)
     cur.execute("""
         INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
-        SELECT %s, description, quantity, (unit_price * 1.20), (quantity * unit_price * 1.20)
+        SELECT %s, description, quantity, (unit_price * %s), (quantity * unit_price * %s)
         FROM job_materials 
         WHERE job_id = %s
-    """, (new_invoice_id, job_id))
+    """, (new_invoice_id, markup_multiplier, markup_multiplier, job_id))
 
-    # 6. Add Labor Line
+    # 7. Add Labor Line
     cur.execute("""
         INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
         VALUES (%s, %s, 1, 0.00, 0.00)
     """, (new_invoice_id, f"Labor / Works for Job #{job_id}: {job_desc}"))
 
-    # 7. Update Total
+    # 8. Update Total
     cur.execute("""
         UPDATE invoices 
         SET total_amount = (SELECT COALESCE(SUM(total), 0) FROM invoice_items WHERE invoice_id = %s)
         WHERE id = %s
     """, (new_invoice_id, new_invoice_id))
     
+    # 9. Mark Job as Invoiced
     cur.execute("UPDATE jobs SET status = 'Invoiced' WHERE id = %s", (job_id,))
 
     conn.commit()
     conn.close()
 
-    flash(f"✅ Invoice {ref_number} Generated Successfully!", "success")
-    # Redirect to the Finance Invoices list
+    flash(f"✅ Invoice {ref_number} Generated (Markup: {markup_percent}%)", "success")
     return redirect(url_for('finance.finance_invoices'))
