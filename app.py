@@ -34,42 +34,6 @@ app.register_blueprint(admin_bp)
 app.register_blueprint(site_bp)
 app.register_blueprint(pdf_bp)
 
-# --- NEW: "BLACK BOX" ERROR HANDLER ---
-@app.errorhandler(Exception)
-def handle_exception(e):
-    # 1. If it's just a 404 (Page Not Found), handle it gently
-    if hasattr(e, 'code') and e.code == 404:
-        return "<h1>404 Error</h1><p>Page not found. Please check your URL.</p>", 404
-
-    # 2. If it's a real CRASH (500), capture the details
-    tb_str = traceback.format_exc()
-    route = request.path
-    method = request.method
-    
-    # 3. Save the Crash Report to your new 'system_logs' database table
-    try:
-        conn = get_db()
-        if conn:
-            cur = conn.cursor()
-            cur.execute("""
-                INSERT INTO system_logs (level, message, traceback, route)
-                VALUES ('CRITICAL', %s, %s, %s)
-            """, (str(e), tb_str, f"{method} {route}"))
-            conn.commit()
-            conn.close()
-    except Exception as db_err:
-        print(f"❌ CRITICAL: Failed to log error to DB: {db_err}")
-
-    # 4. Show a professional error page to the user
-    return f"""
-        <div style="font-family: sans-serif; text-align: center; padding: 50px;">
-            <h1>⚠️ System Error</h1>
-            <p>Something went wrong. The administrators at <b>Business Better</b> have been notified.</p>
-            <p>Error details have been recorded in the System Logs.</p>
-            <a href="/" style="color: blue; text-decoration: underline;">Return Home</a>
-        </div>
-    """, 500
-
 # --- DEBUG ROUTE ---
 @app.route('/debug-files')
 def debug_files():
@@ -170,5 +134,6 @@ def inject_branding():
     return dict(brand_color=color or default_color, logo=logo)
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    port = int(os.environ.get('PORT', 5000))
+    # Turn DEBUG ON so we can see the error
+    app.run(host='0.0.0.0', port=port, debug=True)

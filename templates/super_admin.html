@@ -1,321 +1,150 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Super Admin | Business Better</title>
+{% extends "admin/base.html" %}
+
+{% block title %}Super Admin | Business Better{% endblock %}
+
+{% block styles %}
+<style>
+    /* --- Layout & Spacing --- */
+    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    /* --- Search Bar Styling --- */
+    .search-container { position: relative; width: 400px; }
+    .search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #aaa; }
+    .search-input::placeholder { color: #888; }
     
-    <style>
-        :root {
-            --primary-gold: #c5a059;
-            --bg-dark: #121212;
-            --bg-panel: #1f1f1f;
-            --text-main: #e0e0e0;
-            --border-light: #333;
-        }
+    /* --- Buttons & Interactives --- */
+    .btn-outline-gold { border: 1px solid var(--primary-gold); color: var(--primary-gold); font-weight: 600; padding: 10px 25px; border-radius: 5px; background: transparent; transition: 0.3s; }
+    .btn-outline-gold:hover { background: rgba(197, 160, 89, 0.1); color: #fff; }
+    
+    .btn-icon { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; background: #333; color: #aaa; margin-left: 5px; transition: 0.2s; text-decoration: none; }
+    .btn-icon:hover { color: #fff; background: #555; }
+    .btn-icon.danger:hover { background: #e74c3c; color: white; }
+    .btn-icon.warning:hover { background: #f39c12; color: black; }
 
-        body { 
-            background-color: var(--bg-dark); 
-            color: var(--text-main); 
-            font-family: 'Inter', sans-serif; 
-        }
+    /* --- Badges --- */
+    .badge-plan { background-color: var(--primary-gold); color: #000; font-weight: 800; padding: 5px 10px; border-radius: 4px; }
+    .badge-status { padding: 4px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+    .status-active { background: rgba(46, 204, 113, 0.1); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3); }
+    .status-suspended { background: rgba(231, 76, 60, 0.1); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3); }
+    
+    /* --- Typography Links --- */
+    .comp-link { color: #fff; font-weight: 700; font-family: 'Montserrat', sans-serif; text-decoration: none; }
+    .comp-link:hover { color: var(--primary-gold); }
+    
+    /* --- HIGH CONTRAST DARK MODE FIXES --- */
+    
+    /* 1. Modal Backgrounds */
+    .modal-content { background: #1f1f1f; border: 1px solid #333; color: #e0e0e0; }
+    .modal-header, .modal-footer { border-color: #333; }
+    .btn-close-white { filter: invert(1) grayscale(100%) brightness(200%); }
 
-        h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
-            color: #ffffff !important;
-            font-family: 'Montserrat', sans-serif;
-        }
-        
-        .text-muted { color: #a0a0a0 !important; }
-        
-        /* --- SIDEBAR --- */
-        .sidebar { 
-            width: 280px; 
-            height: 100vh; 
-            position: fixed; 
-            background: var(--bg-panel); 
-            padding: 30px; 
-            border-right: 1px solid var(--border-light); 
-            z-index: 1000;
-        }
+    /* 2. Form Inputs (Critical for visibility) */
+    .form-control, .form-select { 
+        background-color: #2a2a2a !important; 
+        border: 1px solid #444 !important; 
+        color: #ffffff !important; 
+    }
+    .form-control:focus, .form-select:focus { 
+        background-color: #333 !important; 
+        border-color: var(--primary-gold) !important; 
+        color: #ffffff !important; 
+        box-shadow: none !important; 
+    }
+    .form-control::placeholder { color: #888 !important; }
 
-        .brand {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: #fff;
-            letter-spacing: 1px;
-            margin-bottom: 40px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .brand img { height: 35px; width: auto; }
-        .tagline { color: var(--primary-gold); font-weight: 400; }
+    /* 3. Labels & Headers */
+    .form-label { color: #b0b0b0 !important; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; }
+    .text-muted { color: #a0a0a0 !important; }
+    
+    /* 4. Table Text */
+    .table { color: #e0e0e0; }
+</style>
+{% endblock %}
 
-        .sidebar-btn {
-            display: flex;
-            align-items: center;
-            padding: 12px 15px;
-            color: #aaa; 
-            text-decoration: none;
-            border-radius: 8px;
-            margin-bottom: 5px;
-            transition: 0.3s;
-            font-weight: 600;
-            border: 1px solid transparent;
-        }
-
-        .sidebar-btn:hover, .sidebar-btn.active {
-            background: rgba(197, 160, 89, 0.1);
-            color: var(--primary-gold);
-            border-color: rgba(197, 160, 89, 0.2);
-        }
-
-        .sidebar-btn i { width: 25px; }
-
-        .content { margin-left: 280px; padding: 40px 50px; }
-
-        /* --- HEADER & SEARCH --- */
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 40px;
-        }
-
-        .search-container {
-            position: relative;
-            width: 400px;
-        }
-        .search-input {
-            background: var(--bg-panel);
-            border: 1px solid var(--border-light);
-            color: white;
-            padding: 10px 15px 10px 40px;
-            border-radius: 8px;
-            width: 100%;
-            transition: 0.3s;
-        }
-        .search-input:focus {
-            border-color: var(--primary-gold);
-            outline: none;
-            box-shadow: 0 0 10px rgba(197, 160, 89, 0.2);
-        }
-        .search-icon {
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #666;
-        }
-
-        /* --- BUTTONS --- */
-        .btn-gold {
-            background: var(--primary-gold);
-            color: #000 !important;
-            font-weight: 700;
-            border: none;
-            padding: 10px 25px;
-            border-radius: 5px;
-            transition: 0.3s;
-        }
-        .btn-gold:hover { background: #fff; color: #000 !important; transform: translateY(-2px); }
-
-        .btn-outline-gold {
-            border: 1px solid var(--primary-gold);
-            color: var(--primary-gold);
-            font-weight: 600;
-            padding: 10px 25px;
-            border-radius: 5px;
-            background: transparent;
-            transition: 0.3s;
-        }
-        .btn-outline-gold:hover { background: rgba(197, 160, 89, 0.1); color: #fff; }
-
-        /* --- CARDS & TABLES --- */
-        .card { 
-            background: var(--bg-panel); 
-            border: 1px solid var(--border-light); 
-            border-radius: 12px; 
-            color: #e0e0e0;
-        }
-        
-        .table-dark { --bs-table-bg: transparent; --bs-table-border-color: var(--border-light); }
-        .table-dark th { 
-            text-transform: uppercase; font-size: 0.75rem; 
-            color: var(--primary-gold); letter-spacing: 1px; 
-            padding-bottom: 15px; font-family: 'Montserrat', sans-serif;
-        }
-        .table-dark td { 
-            vertical-align: middle; color: #ffffff !important; 
-            font-size: 0.95rem; padding: 15px 10px; 
-        }
-        
-        .comp-link { color: #fff; font-weight: 700; font-family: 'Montserrat', sans-serif; text-decoration: none; }
-        .comp-link:hover { color: var(--primary-gold); }
-
-        .badge-plan { 
-            background-color: var(--primary-gold); color: #000; 
-            font-weight: 800; padding: 5px 10px; border-radius: 4px;
-        }
-
-        .badge-status { padding: 4px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
-        .status-active { background: rgba(46, 204, 113, 0.1); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3); }
-        .status-suspended { background: rgba(231, 76, 60, 0.1); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3); }
-
-        .btn-icon { 
-            width: 32px; height: 32px; 
-            display: inline-flex; align-items: center; justify-content: center; 
-            border-radius: 6px; background: #333; color: #aaa; 
-            margin-left: 5px; transition: 0.2s; text-decoration: none;
-        }
-        .btn-icon:hover { color: #fff; background: #555; }
-        .btn-icon.danger:hover { background: #e74c3c; color: white; }
-        .btn-icon.warning:hover { background: #f39c12; color: black; }
-    </style>
-</head>
-<body>
-
-    <div class="sidebar">
-        <div class="brand">
-            <img src="/static/images/logo.png" alt="DG">
-            <div>DRUGAN <span class="tagline">GROUP</span></div>
+{% block content %}
+    <div class="top-bar">
+        <div>
+            <h6 class="text-muted text-uppercase mb-1">Super Admin</h6>
+            <h2 class="fw-bold mb-0 text-white">Company <span style="color: var(--primary-gold);">Management</span></h2>
         </div>
         
-        <div class="d-flex flex-column gap-2">
-            <small class="text-muted text-uppercase mb-2" style="font-size: 0.7rem; letter-spacing: 1px;">Admin Console</small>
-            
-            <a href="/super-admin" class="sidebar-btn active">
-                <i class="fas fa-tachometer-alt"></i> Dashboard
-            </a>
-            <a href="/super-admin/analytics" class="sidebar-btn">
-                <i class="fas fa-chart-pie"></i> Intelligence
-            </a>
-            
-            <small class="text-muted text-uppercase mb-2 mt-4" style="font-size: 0.7rem; letter-spacing: 1px;">Security & Logs</small>
-            
-            <a href="{{ url_for('admin.view_audit_logs') }}" class="sidebar-btn">
-                <i class="fas fa-shield-alt"></i> Audit Trail
-            </a>
-            <a href="{{ url_for('admin.view_system_logs') }}" class="sidebar-btn">
-                <i class="fas fa-exclamation-triangle"></i> Error Logs
-            </a>
-
-            <small class="text-muted text-uppercase mb-2 mt-4" style="font-size: 0.7rem; letter-spacing: 1px;">Navigation</small>
-            
-            <a href="/launcher" class="sidebar-btn">
-                <i class="fas fa-arrow-left"></i> Main Launcher
-            </a>
-            
-            <div class="mt-5 pt-4 border-top border-secondary">
-                <a href="/admin/cleanup-my-data" class="sidebar-btn text-danger" onclick="return confirm('⚠️ WARNING: This will delete ALL Jobs, Staff, and Clients from YOUR account (ID 1). Continue?');">
-                    <i class="fas fa-trash-alt"></i> Wipe Test Data
-                </a>
-                <a href="/admin/backup/all" class="sidebar-btn text-success">
-                    <i class="fas fa-download"></i> Backup DB
-                </a>
-            </div>
-        </div>
+        <form action="{{ url_for('admin.global_search') }}" method="GET" class="search-container">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" name="q" class="search-input" placeholder="Search companies, emails, reg plates..." required>
+        </form>
     </div>
 
-    <div class="content">
-        
-        <div class="top-bar">
-            <div>
-                <h6 class="text-muted text-uppercase mb-1">Super Admin</h6>
-                <h2 class="fw-bold mb-0 text-white">Company <span style="color: var(--primary-gold);">Management</span></h2>
+    <div class="card-dark p-4 mb-4" style="border-color: #f39c12;">
+        <h5 class="mb-3 text-warning"><i class="fas fa-broadcast-tower me-2"></i> System Broadcast Center</h5>
+        <form action="/admin/broadcast" method="POST">
+            <div class="input-group">
+                <input type="text" name="global_alert" class="form-control" placeholder="Maintenance alert, updates, or news..." value="{{ global_alert }}">
+                <button type="submit" class="btn-gold">Update Message</button>
             </div>
-            
-            <form action="{{ url_for('admin.global_search') }}" method="GET" class="search-container">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" name="q" class="search-input" placeholder="Search companies, emails, reg plates..." required>
-            </form>
-        </div>
+            <small class="text-muted mt-2 d-block">This message appears at the top of every user's dashboard.</small>
+        </form>
+    </div>
 
-        <div class="card p-4 mb-4 border-warning">
-            <h5 class="mb-3 text-warning"><i class="fas fa-broadcast-tower me-2"></i> System Broadcast Center</h5>
-            <form action="/admin/broadcast" method="POST">
-                <div class="input-group">
-                    <input type="text" name="global_alert" class="form-control" placeholder="Maintenance alert, updates, or news..." value="{{ global_alert }}">
-                    <button type="submit" class="btn-gold">Update Message</button>
-                </div>
-                <small class="text-muted mt-2 d-block">This message appears at the top of every user's dashboard.</small>
-            </form>
-        </div>
+    <div class="d-flex justify-content-end mb-4 gap-2">
+        <button class="btn-outline-gold" data-bs-toggle="modal" data-bs-target="#settingsModal">
+            <i class="fas fa-cogs me-2"></i> SMTP Settings
+        </button>
+        <button class="btn-gold" data-bs-toggle="modal" data-bs-target="#newCompanyModal">
+            <i class="fas fa-plus me-2"></i> New Company
+        </button>
+    </div>
 
-        <div class="d-flex justify-content-end mb-4 gap-2">
-            <button class="btn-outline-gold" data-bs-toggle="modal" data-bs-target="#settingsModal">
-                <i class="fas fa-cogs me-2"></i> SMTP Settings
-            </button>
-            <button class="btn-gold" data-bs-toggle="modal" data-bs-target="#newCompanyModal">
-                <i class="fas fa-plus me-2"></i> New Company
-            </button>
-        </div>
-
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                <div class="alert alert-dark border-secondary shadow-lg mb-4 d-flex align-items-center">
-                    <i class="fas fa-info-circle me-3" style="color: var(--primary-gold);"></i> 
-                    <div style="color: white;">{{ messages[0] }}</div>
-                </div>
-            {% endif %}
-        {% endwith %}
-
-        <div class="card p-3">
-            <table class="table table-dark table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Company</th>
-                        <th>Joined</th>
-                        <th>Plan</th>
-                        <th>Status</th>
-                        <th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for c in companies %}
-                    <tr>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
-                                     style="width: 40px; height: 40px; background: rgba(255,255,255,0.1); color: var(--primary-gold); font-weight: 800; font-family: 'Montserrat';">
-                                    {{ c['name'][:1] }}
-                                </div>
-                                <div>
-                                    <a href="/super-admin/company/{{ c['id'] }}" class="comp-link">{{ c['name'] }}</a>
-                                    <div style="font-size: 0.75rem; color: #aaa; font-family: 'Inter';">{{ c['subdomain'] }}.businessbetter.co.uk</div>
-                                </div>
+    <div class="card-dark p-3">
+        <table class="table table-dark-custom table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Company</th>
+                    <th>Joined</th>
+                    <th>Plan</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in companies %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                 style="width: 40px; height: 40px; background: rgba(255,255,255,0.1); color: var(--primary-gold); font-weight: 800; font-family: 'Montserrat';">
+                                {{ c['name'][:1] }}
                             </div>
-                        </td>
-                        <td class="text-white">{{ c['created'] }}</td> 
-                        <td><span class="badge-plan">{{ c['plan'] }}</span></td>
-                        <td>
-                            <span class="badge-status {{ 'status-active' if c['status'] == 'Active' else 'status-suspended' }}">
-                                {{ c['status'] }}
-                            </span>
-                        </td>
-                        <td class="text-end">
-                            <a href="/admin/suspend/{{ c['id'] }}" class="btn-icon warning" title="Suspend">
-                                <i class="fas fa-pause"></i>
-                            </a>
-                            <a href="/admin/delete-tenant/{{ c['id'] }}" class="btn-icon danger" title="Delete Company" onclick="return confirm('⚠️ DANGER: Permanently delete?');">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                            <div>
+                                <a href="/super-admin/company/{{ c['id'] }}" class="comp-link">{{ c['name'] }}</a>
+                                <div style="font-size: 0.75rem; color: #aaa; font-family: 'Inter';">{{ c['subdomain'] }}.businessbetter.co.uk</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="text-white">{{ c['created'] }}</td> 
+                    <td><span class="badge-plan">{{ c['plan'] }}</span></td>
+                    <td>
+                        <span class="badge-status {{ 'status-active' if c['status'] == 'Active' else 'status-suspended' }}">
+                            {{ c['status'] }}
+                        </span>
+                    </td>
+                    <td class="text-end">
+                        <a href="/admin/suspend/{{ c['id'] }}" class="btn-icon warning" title="Suspend">
+                            <i class="fas fa-pause"></i>
+                        </a>
+                        <a href="/admin/delete-tenant/{{ c['id'] }}" class="btn-icon danger" title="Delete Company" onclick="return confirm('⚠️ DANGER: Permanently delete?');">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 
     <div class="modal fade" id="newCompanyModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
-            <div class="modal-content" style="background: #1f1f1f; border: 1px solid #333;">
-                <div class="modal-header border-secondary">
+            <div class="modal-content">
+                <div class="modal-header">
                     <h5 class="modal-title text-white">🚀 Deploy New Tenant</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -326,11 +155,11 @@
                         <h6 class="text-muted small fw-bold mb-3 border-bottom border-secondary pb-2">ACCOUNT OWNER</h6>
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
-                                <label class="form-label small text-muted">FULL NAME</label>
+                                <label class="form-label">FULL NAME</label>
                                 <input type="text" name="owner_name" class="form-control" placeholder="e.g. John Smith" required>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label small text-muted">LOGIN EMAIL</label>
+                                <label class="form-label">LOGIN EMAIL</label>
                                 <input type="email" name="owner_email" class="form-control" placeholder="john@company.com" required>
                             </div>
                         </div>
@@ -338,15 +167,15 @@
                         <h6 class="text-muted small fw-bold mb-3 border-bottom border-secondary pb-2">BUSINESS DETAILS</h6>
                         <div class="row g-3 mb-3">
                             <div class="col-12">
-                                <label class="form-label small text-muted">TRADING NAME</label>
+                                <label class="form-label">TRADING NAME</label>
                                 <input type="text" name="company_name" class="form-control" placeholder="e.g. Smith & Sons Heating" required>
                             </div>
                             <div class="col-md-8">
-                                <label class="form-label small text-muted">OFFICE ADDRESS (Line 1)</label>
+                                <label class="form-label">OFFICE ADDRESS (Line 1)</label>
                                 <input type="text" name="address_line1" class="form-control" placeholder="e.g. Unit 4, Industrial Park" required>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label small text-muted">POSTCODE / ZIP</label>
+                                <label class="form-label">POSTCODE / ZIP</label>
                                 <input type="text" name="postcode" class="form-control" placeholder="e.g. PL26 8NU" required>
                             </div>
                         </div>
@@ -354,8 +183,8 @@
                         <h6 class="text-muted small fw-bold mb-3 mt-4 border-bottom border-secondary pb-2">REGION & SETTINGS</h6>
                         <div class="row g-3 mb-3">
                             <div class="col-md-5">
-                                <label class="form-label small text-muted">COUNTRY (Tax Rules)</label>
-                                <select name="country_code" class="form-select text-white bg-dark border-secondary">
+                                <label class="form-label">COUNTRY (Tax Rules)</label>
+                                <select name="country_code" class="form-select">
                                     <option value="UK" selected>🇬🇧 United Kingdom (UK)</option>
                                     <option value="US">🇺🇸 United States (US)</option>
                                     <option value="IE">🇮🇪 Ireland (IE)</option>
@@ -365,16 +194,16 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label small text-muted">CURRENCY</label>
-                                <select name="currency_symbol" class="form-select text-white bg-dark border-secondary">
+                                <label class="form-label">CURRENCY</label>
+                                <select name="currency_symbol" class="form-select">
                                     <option value="£" selected>£ (GBP)</option>
                                     <option value="$">$ (USD)</option>
                                     <option value="€">€ (EUR)</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label small text-muted">SUBSCRIPTION</label>
-                                <select name="plan" class="form-select text-white bg-dark border-secondary">
+                                <label class="form-label">SUBSCRIPTION</label>
+                                <select name="plan" class="form-select">
                                     <option value="Starter">Starter</option>
                                     <option value="Professional" selected>Professional</option>
                                     <option value="Enterprise">Enterprise</option>
@@ -383,7 +212,7 @@
                         </div>
 
                     </div>
-                    <div class="modal-footer border-secondary">
+                    <div class="modal-footer">
                         <button type="submit" class="btn-gold w-100 fw-bold">Initialize System</button>
                     </div>
                 </form>
@@ -393,8 +222,8 @@
 
     <div class="modal fade" id="settingsModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
-            <div class="modal-content" style="background: #1f1f1f; border: 1px solid #333;">
-                <div class="modal-header border-secondary">
+            <div class="modal-content">
+                <div class="modal-header">
                     <h5 class="modal-title">SMTP Email Settings</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -407,7 +236,7 @@
                             <div class="col-md-6"><label class="form-label">PASSWORD</label><input type="password" name="smtp_password" class="form-control" value="{{ config.get('smtp_password', '') }}"></div>
                         </div>
                     </div>
-                    <div class="modal-footer border-secondary">
+                    <div class="modal-footer">
                         <button type="submit" class="btn-gold">Save Configuration</button>
                     </div>
                 </form>
@@ -415,39 +244,28 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const countrySelect = document.querySelector('select[name="country_code"]');
-            const currencySelect = document.querySelector('select[name="currency_symbol"]');
+{% endblock %}
 
-            const countryToCurrency = {
-                'UK': '£',
-                'US': '$',
-                'IE': '€',
-                'CAN': '$',
-                'AUS': '$',
-                'NZ': '$'
-            };
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Currency/Country Auto-select logic
+        const countrySelect = document.querySelector('select[name="country_code"]');
+        const currencySelect = document.querySelector('select[name="currency_symbol"]');
+        const countryToCurrency = { 'UK': '£', 'US': '$', 'IE': '€', 'CAN': '$', 'AUS': '$', 'NZ': '$' };
 
-            if(countrySelect && currencySelect) {
-                countrySelect.addEventListener('change', function() {
-                    const selectedCountry = this.value;
-                    const currency = countryToCurrency[selectedCountry];
-                    
-                    if(currency) {
-                        // Loop through currency options to find and select the correct one
-                        for(let i=0; i < currencySelect.options.length; i++) {
-                            if(currencySelect.options[i].value === currency) {
-                                currencySelect.selectedIndex = i;
-                                break;
-                            }
+        if(countrySelect && currencySelect) {
+            countrySelect.addEventListener('change', function() {
+                const currency = countryToCurrency[this.value];
+                if(currency) {
+                    for(let i=0; i < currencySelect.options.length; i++) {
+                        if(currencySelect.options[i].value === currency) {
+                            currencySelect.selectedIndex = i; break;
                         }
                     }
-                });
-            }
-        });
-    </script>
-</body>
-</html>
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

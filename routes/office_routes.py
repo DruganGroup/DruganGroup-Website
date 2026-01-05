@@ -1074,6 +1074,7 @@ def system_repair():
         for col, dtype in invoice_cols:
             try:
                 cur.execute(f"ALTER TABLE invoices ADD COLUMN IF NOT EXISTS {col} {dtype};")
+                cur.execute("ALTER TABLE settings ADD CONSTRAINT unique_company_key UNIQUE (company_id, key);")
                 log.append(f"✅ Checked invoices.{col}")
             except Exception: conn.rollback()
 

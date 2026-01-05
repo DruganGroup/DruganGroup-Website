@@ -1,270 +1,122 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Audit Trail | Business Better</title>
+{% extends "admin/base.html" %}
+
+{% block title %}Audit Trail | Business Better{% endblock %}
+
+{% block styles %}
+<style>
+    /* Badge Styles specific to logs */
+    .badge-action {
+        display: inline-block; 
+        padding: 3px 10px; 
+        font-size: 0.7rem;
+        font-weight: 700; 
+        text-transform: uppercase; 
+        letter-spacing: 0.5px;
+        color: var(--primary-gold); 
+        border: 1px solid rgba(197, 160, 89, 0.4);
+        border-radius: 4px; 
+        white-space: nowrap;
+    }
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    .details-text { 
+        color: #b0b0b0; 
+        font-size: 0.85rem; 
+        max-width: 400px; 
+        display: block; 
+        overflow: hidden; 
+        text-overflow: ellipsis; 
+    }
     
-    <style>
-        :root {
-            --primary-gold: #c5a059;
-            --bg-dark: #121212;
-            --bg-panel: #1f1f1f;
-            --text-main: #e0e0e0;
-            --border-light: #333;
-        }
+    .ip-text { 
+        color: #666; 
+        font-family: monospace; 
+        font-size: 0.75rem; 
+    }
+    
+    /* Pagination Buttons */
+    .btn-page { 
+        background: transparent; 
+        border: 1px solid var(--primary-gold); 
+        color: var(--primary-gold); 
+        padding: 6px 15px; 
+        border-radius: 5px; 
+        text-decoration: none; 
+        font-size: 0.85rem; 
+        font-weight: 600; 
+        transition: 0.2s; 
+    }
+    .btn-page:hover { 
+        background: var(--primary-gold); 
+        color: #000; 
+    }
+    .btn-page.disabled { 
+        opacity: 0.3; 
+        pointer-events: none; 
+        border-color: #444; 
+        color: #444; 
+    }
+</style>
+{% endblock %}
 
-        body { 
-            background-color: var(--bg-dark); 
-            color: var(--text-main); 
-            font-family: 'Inter', sans-serif; 
-        }
+{% block content %}
+<div class="d-flex justify-content-between align-items-end mb-5">
+    <div>
+        <h6 class="text-muted text-uppercase mb-1">Security Centre</h6>
+        <h2 class="fw-bold mb-0 text-white">Audit <span class="text-gold">Trail</span></h2>
+    </div>
+    <div><span class="text-muted small">Tracking all administrative actions</span></div>
+</div>
 
-        h1, h2, h3, h4, h5, h6 {
-            color: #ffffff !important;
-            font-family: 'Montserrat', sans-serif;
-        }
+<div class="card-dark">
+    <table class="table table-dark-custom table-hover mb-0">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Admin</th>
+                <th>Action</th>
+                <th>Target</th>
+                <th>Details</th>
+                <th>IP Address</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td style="color: #888; font-family: monospace;">{{ log[6].strftime('%d-%b %H:%M') }}</td> 
+                
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-user-circle text-secondary"></i>
+                        <span class="fw-semibold text-white">{{ log[1] }}</span>
+                    </div>
+                </td> 
+                
+                <td><span class="badge-action">{{ log[2] }}</span></td> 
+                
+                <td style="color: #ccc;">{{ log[3] }}</td> 
+                
+                <td class="details-text">{{ log[4] }}</td>
+                
+                <td class="ip-text">{{ log[5] }}</td> 
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center p-5 text-muted">No audit records found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
 
-        /* SIDEBAR */
-        .sidebar { 
-            width: 280px; 
-            height: 100vh; 
-            position: fixed; 
-            background: var(--bg-panel); 
-            padding: 30px; 
-            border-right: 1px solid var(--border-light); 
-        }
-
-        .brand {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: #fff;
-            letter-spacing: 1px;
-            margin-bottom: 40px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .brand img { height: 35px; width: auto; }
-        .tagline { color: var(--primary-gold); font-weight: 400; }
-
-        .sidebar-btn {
-            display: flex;
-            align-items: center;
-            padding: 12px 15px;
-            color: #aaa; 
-            text-decoration: none;
-            border-radius: 8px;
-            margin-bottom: 5px;
-            transition: 0.3s;
-            font-weight: 600;
-            border: 1px solid transparent;
-        }
-
-        .sidebar-btn:hover, .sidebar-btn.active {
-            background: rgba(197, 160, 89, 0.1);
-            color: var(--primary-gold);
-            border-color: rgba(197, 160, 89, 0.2);
-        }
-
-        .sidebar-btn i { width: 25px; }
-
-        .content { margin-left: 280px; padding: 50px; }
-
-        /* TABLE STYLES */
-        .card { 
-            background: var(--bg-panel); 
-            border: 1px solid var(--border-light); 
-            border-radius: 12px; 
-            overflow: hidden;
-        }
-        
-        .table-dark { --bs-table-bg: transparent; --bs-table-border-color: var(--border-light); }
-        
-        .table-dark th { 
-            text-transform: uppercase; 
-            font-size: 0.75rem; 
-            color: var(--primary-gold); 
-            letter-spacing: 1px; 
-            padding: 18px 15px; 
-            font-family: 'Montserrat', sans-serif;
-            border-bottom: 2px solid var(--border-light);
-        }
-
-        .table-dark td { 
-            vertical-align: middle; 
-            color: #ffffff !important; 
-            font-size: 0.85rem; 
-            padding: 15px; 
-            border-bottom: 1px solid #252525;
-        }
-
-        /* ACTION BADGE - NO OVERLAP */
-        .badge-action {
-            display: inline-block;
-            padding: 3px 10px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--primary-gold);
-            border: 1px solid rgba(197, 160, 89, 0.4);
-            background: transparent;
-            border-radius: 4px;
-            white-space: nowrap;
-        }
-
-        .details-text {
-            color: #b0b0b0;
-            font-size: 0.85rem;
-            max-width: 400px;
-            display: block;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .ip-text {
-            color: #666;
-            font-family: monospace;
-            font-size: 0.75rem;
-        }
-
-        /* PAGINATION */
-        .pagination-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px;
-            background: rgba(0,0,0,0.1);
-        }
-
-        .btn-page {
-            background: transparent;
-            border: 1px solid var(--primary-gold);
-            color: var(--primary-gold);
-            padding: 6px 15px;
-            border-radius: 5px;
-            text-decoration: none;
-            font-size: 0.85rem;
-            font-weight: 600;
-            transition: 0.2s;
-        }
-
-        .btn-page:hover {
-            background: var(--primary-gold);
-            color: #000;
-        }
-
-        .btn-page.disabled {
-            opacity: 0.3;
-            pointer-events: none;
-            border-color: #444;
-            color: #444;
-        }
-    </style>
-</head>
-<body>
-
-    <div class="sidebar">
-        <div class="brand">
-            <img src="/static/images/logo.png" alt="DG">
-            <div>DRUGAN <span class="tagline">GROUP</span></div>
-        </div>
-        
-        <div class="d-flex flex-column gap-2">
-            <small class="text-muted text-uppercase mb-2" style="font-size: 0.7rem; letter-spacing: 1px;">Admin Console</small>
-            
-            <a href="/super-admin" class="sidebar-btn">
-                <i class="fas fa-tachometer-alt"></i> Dashboard
+    {% if total_pages is defined and total_pages > 1 %}
+    <div class="d-flex justify-content-between align-items-center p-3" style="border-top: 1px solid #333;">
+        <div class="text-muted small">Page <strong>{{ page }}</strong> of {{ total_pages }}</div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin.view_audit_logs', page=page-1) }}" class="btn-page {{ 'disabled' if page <= 1 }}">
+                <i class="fas fa-chevron-left me-1"></i> Prev
             </a>
-            <a href="/super-admin/analytics" class="sidebar-btn">
-                <i class="fas fa-chart-pie"></i> Intelligence
+            <a href="{{ url_for('admin.view_audit_logs', page=page+1) }}" class="btn-page {{ 'disabled' if page >= total_pages }}">
+                Next <i class="fas fa-chevron-right ms-1"></i>
             </a>
-            
-            <small class="text-muted text-uppercase mb-2 mt-4" style="font-size: 0.7rem; letter-spacing: 1px;">Security & Logs</small>
-
-            <a href="{{ url_for('admin.view_audit_logs') }}" class="sidebar-btn active">
-                <i class="fas fa-shield-alt"></i> Audit Trail
-            </a>
-            <a href="{{ url_for('admin.view_system_logs') }}" class="sidebar-btn">
-                <i class="fas fa-exclamation-triangle"></i> Error Logs
-            </a>
-            
-            <div class="mt-5 pt-4 border-top border-secondary">
-                <a href="/launcher" class="sidebar-btn">
-                    <i class="fas fa-arrow-left"></i> Back to Main
-                </a>
-            </div>
         </div>
     </div>
-
-    <div class="content">
-        <div class="d-flex justify-content-between align-items-end mb-5">
-            <div>
-                <h6 class="text-muted text-uppercase mb-1">Security Centre</h6>
-                <h2 class="fw-bold mb-0 text-white">Audit <span style="color: var(--primary-gold);">Trail</span></h2>
-            </div>
-            <div>
-                <span class="text-muted" style="font-size: 0.85rem;">Tracking all administrative actions</span>
-            </div>
-        </div>
-
-        <div class="card">
-            <table class="table table-dark table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Time</th>
-                        <th>Admin</th>
-                        <th>Action</th>
-                        <th>Target</th>
-                        <th>Details</th>
-                        <th>IP Address</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for log in logs %}
-                    <tr>
-                        <td style="color: #888; font-family: monospace;">{{ log[6].strftime('%d-%b %H:%M') }}</td> 
-                        <td>
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="fas fa-user-circle text-secondary"></i>
-                                <span style="font-weight: 600;">{{ log[1] }}</span>
-                            </div>
-                        </td> 
-                        <td><span class="badge-action">{{ log[2] }}</span></td> 
-                        <td style="color: #ccc;">{{ log[3] }}</td> 
-                        <td class="details-text">{{ log[4] }}</td>
-                        <td class="ip-text">{{ log[5] }}</td> 
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="6" class="text-center p-5 text-muted">No audit records found.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-            <div class="pagination-container">
-                <div class="text-muted small">
-                    Page <strong>{{ page }}</strong> of {{ total_pages }}
-                </div>
-                <div class="d-flex gap-2">
-                    <a href="{{ url_for('admin.view_audit_logs', page=page-1) }}" 
-                       class="btn-page {{ 'disabled' if page <= 1 }}">
-                        <i class="fas fa-chevron-left me-1"></i> Prev
-                    </a>
-                    
-                    <a href="{{ url_for('admin.view_audit_logs', page=page+1) }}" 
-                       class="btn-page {{ 'disabled' if page >= total_pages }}">
-                        Next <i class="fas fa-chevron-right ms-1"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+    {% endif %}
+</div>
+{% endblock %}

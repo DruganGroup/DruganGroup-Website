@@ -43,7 +43,10 @@ def get_real_company_usage(company_id, cur):
         try:
             cur.execute(f"SELECT COUNT(*) FROM {t} WHERE company_id = %s", (company_id,))
             row_count += cur.fetchone()[0]
-        except: pass
+        except:
+            # FIX: If a table is missing, rollback so the DB connection stays alive
+            cur.connection.rollback()
+            
     total_bytes += (row_count * 2048)
 
     # Check Physical Files
@@ -53,7 +56,8 @@ def get_real_company_usage(company_id, cur):
         if row and row[0]:
             file_path = row[0].replace('/static/', 'static/')
             if os.path.exists(file_path): total_bytes += os.path.getsize(file_path)
-    except: pass
+    except:
+        cur.connection.rollback()
 
     try:
         cur.execute("SELECT defect_image_url FROM vehicles WHERE company_id = %s", (company_id,))
@@ -61,10 +65,11 @@ def get_real_company_usage(company_id, cur):
             if row[0]:
                 file_path = row[0].replace('/static/', 'static/')
                 if os.path.exists(file_path): total_bytes += os.path.getsize(file_path)
-    except: pass
+    except:
+        cur.connection.rollback()
 
     return round(total_bytes / (1024 * 1024), 2)
-
+    
 # --- HELPER: BACKUP LOGIC ---
 def perform_company_backup(company_id, cur):
     backup_data = {}
@@ -237,7 +242,8 @@ def super_admin_dashboard():
         est_bandwidth = round(real_size_mb * 5, 2)
         
         companies.append({
-            'id': c[0], 'name': c[1], 'subdomain': c[2],
+            'id': c[0], 'name': c[1] or 'Unknown',
+            'subdomain': c[2],
             'plan': c[3] if c[3] else 'Basic', 
             'status': c[4] if c[4] else 'Active', 
             'email': c[6] if c[6] else 'No Admin',
@@ -258,29 +264,54 @@ def super_admin_dashboard():
     conn.close()
     return render_template('super_admin.html', companies=companies, users=users, config=system_config)
 
-# --- 2. ANALYTICS ---
 @admin_bp.route('/super-admin/analytics')
 def super_admin_analytics():
-    if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
-    conn = get_db(); cur = conn.cursor()
+    if session.get('role') != 'SuperAdmin': 
+        return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # FETCH TABLE INVENTORY & ROW COUNTS
+    db_inventory = []
+    try:
+        cur.execute("""
+            SELECT table_name FROM information_schema.tables 
+            WHERE table_schema = 'public' ORDER BY table_name;
+        """)
+        tables = [row[0] for row in cur.fetchall()]
+        for t in tables:
+            try:
+                cur.execute(f"SELECT COUNT(*) FROM {t}")
+                db_inventory.append({'name': t, 'rows': cur.fetchone()[0]})
+            except:
+                cur.connection.rollback()
+                db_inventory.append({'name': t, 'rows': 'Error'})
+    except: pass
+
+    # FETCH COMPANY STATS
     cur.execute("SELECT id, name FROM companies")
     raw_comps = cur.fetchall()
     analytics_data = []
+    existing_table_names = [item['name'] for item in db_inventory]
     
     for comp in raw_comps:
         stat = {'name': comp[1], 'id': comp[0], 'total_rows': 0, 'breakdown': {}}
         for t in ['users', 'staff', 'vehicles', 'clients', 'jobs', 'transactions', 'maintenance_logs']:
-            try:
-                cur.execute(f"SELECT COUNT(*) FROM {t} WHERE company_id = %s", (comp[0],))
-                c = cur.fetchone()[0]
-                stat['breakdown'][t] = c; stat['total_rows'] += c
-            except: pass
+            if t in existing_table_names:
+                try:
+                    cur.execute(f"SELECT COUNT(*) FROM {t} WHERE company_id = %s", (comp[0],))
+                    c = cur.fetchone()[0]
+                    stat['breakdown'][t] = c
+                    stat['total_rows'] += c
+                except: cur.connection.rollback()
+        
         stat['est_size_mb'] = round((stat['total_rows'] * 0.5) / 1024, 2)
         stat['bandwidth_usage'] = round(stat['total_rows'] * 0.05, 2)
         analytics_data.append(stat)
     
     conn.close()
-    return render_template('admin/super_admin_analytics.html', data=analytics_data)
+    return render_template('admin/super_admin_analytics.html', data=analytics_data, db_inventory=db_inventory)
 
 # --- 3. UTILITIES ---
 @admin_bp.route('/admin/reset-password', methods=['POST'])
@@ -593,18 +624,24 @@ def setup_logs_db():
 def view_audit_logs():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
     
-    # 1. Get the current page number (default to 1 if missing)
     page = request.args.get('page', 1, type=int)
+    per_page = 20
     
     conn = get_db(); cur = conn.cursor()
     
-    # (Optional: You can add real pagination logic here later)
-    cur.execute("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 100")
+    # Get total count for pagination
+    cur.execute("SELECT COUNT(*) FROM audit_logs")
+    total_logs = cur.fetchone()[0]
+    total_pages = (total_logs + per_page - 1) // per_page
+    
+    # Get logs for current page
+    offset = (page - 1) * per_page
+    cur.execute("SELECT * FROM audit_logs ORDER BY id DESC LIMIT %s OFFSET %s", (per_page, offset))
     logs = cur.fetchall()
+    
     conn.close()
     
-    # 2. Pass 'page' to the template to stop the error
-    return render_template('admin/audit_logs.html', logs=logs, page=page)
+    return render_template('admin/audit_logs.html', logs=logs, page=page, total_pages=total_pages)
 
 # --- VIEW: SYSTEM ERROR LOGS ---
 @admin_bp.route('/admin/logs/system')
@@ -615,3 +652,47 @@ def view_system_logs():
     logs = cur.fetchall()
     conn.close()
     return render_template('admin/system_logs.html', logs=logs)
+    
+@admin_bp.route('/admin/database-repair')
+def database_repair():
+    if session.get('role') != 'SuperAdmin': 
+        return "Access Denied", 403
+    
+    conn = get_db()
+    cur = conn.cursor()
+    log = []
+    
+    try:
+        # 1. Fix the "ON CONFLICT" error for Settings
+        # This allows laptop logo/color updates to work correctly
+        try:
+            cur.execute("ALTER TABLE settings ADD CONSTRAINT unique_company_key UNIQUE (company_id, key);")
+            log.append("✅ Unique constraint added to settings.")
+        except Exception:
+            conn.rollback()
+            log.append("ℹ️ Unique constraint already exists.")
+
+        # 2. Cleanup ghost data
+        cur.execute("UPDATE companies SET name = 'Unknown' WHERE name IS NULL;")
+        log.append("✅ Cleaned NULL company names.")
+
+        # 3. Ensure critical logging tables exist
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS system_logs (
+                id SERIAL PRIMARY KEY, level VARCHAR(20), message TEXT, 
+                traceback TEXT, route VARCHAR(100), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        log.append("✅ System logs table verified.")
+
+        conn.commit()
+        log_audit("DATABASE REPAIR", "System", " | ".join(log))
+        flash("System Maintenance Complete: " + " | ".join(log))
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Repair failed: {e}")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('admin.super_admin_dashboard'))
