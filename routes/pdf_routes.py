@@ -2,10 +2,19 @@ from flask import Blueprint, session, redirect, url_for, flash, send_file
 from db import get_db, get_site_config
 from services.pdf_generator import generate_pdf
 
-# Define the new Blueprint
 pdf_bp = Blueprint('pdf', __name__)
 
-# --- DOWNLOAD INVOICE PDF (Strict Logic) ---
+# --- TAX RATE LOOKUP TABLE ---
+# This ties the rate to the country code automatically.
+COUNTRY_TAX_RATES = {
+    'GB': 20.0, # United Kingdom
+    'ES': 21.0, # Spain
+    'FR': 20.0, # France
+    'DE': 19.0, # Germany
+    'IE': 23.0, # Ireland
+    'US': 0.0,  # USA (Sales tax varies by state, usually added differently, defaulting to 0 for now)
+}
+
 @pdf_bp.route('/finance/invoice/<int:invoice_id>/download')
 def download_invoice_pdf(invoice_id):
     # 1. Security Check
@@ -29,7 +38,6 @@ def download_invoice_pdf(invoice_id):
     if not inv:
         conn.close()
         flash("❌ Invoice not found.", "error")
-        # Redirects to the finance list
         return redirect(url_for('finance.finance_invoices'))
 
     # 3. Fetch Line Items
@@ -41,27 +49,29 @@ def download_invoice_pdf(invoice_id):
     settings = {row[0]: row[1] for row in cur.fetchall()}
     conn.close()
 
-    # 5. STRICT TAX LOGIC
+    # 5. AUTOMATED TAX LOGIC (The Fix)
     if inv[7] is None:
-        flash("❌ Error: Invoice has no total amount. Please recalculate.", "error")
+        flash("❌ Error: Invoice has no total amount.", "error")
         return redirect(url_for('finance.finance_invoices'))
     
     total_val = float(inv[7])
     
-    # We look for your specific keys: 'tax_rate' or 'vat_rate'
-    raw_rate = settings.get('tax_rate', settings.get('vat_rate'))
+    # A. Check if Company is VAT Registered
+    # It checks for 'vat_registered' (new key) or 'tax_enabled' (old key)
+    is_vat_registered = settings.get('vat_registered', settings.get('tax_enabled', '0'))
     
-    if raw_rate is None:
-        flash("⚠️ Cannot Generate PDF: Tax Rate is missing in Settings. Go to Finance > Settings.", "error")
-        return redirect(url_for('finance.settings_general'))
+    # B. Get Country Code (Default to UK 'GB' if missing)
+    country_code = settings.get('country', 'GB').upper()
 
-    try:
-        user_rate = float(raw_rate)
-    except ValueError:
-        flash(f"⚠️ Configuration Error: Tax Rate '{raw_rate}' is not a valid number.", "error")
-        return redirect(url_for('finance.settings_general'))
+    # C. Determine the Rate
+    if str(is_vat_registered).lower() in ['1', 'true', 'yes', 'on']:
+        # Look up the rate based on the country
+        user_rate = COUNTRY_TAX_RATES.get(country_code, 20.0) # Default to 20% if country unknown
+    else:
+        # Not VAT registered = 0% tax
+        user_rate = 0.0
 
-    # 6. Calculate Net/Tax Backwards from Total
+    # 6. Calculate Net/Tax Backwards
     divisor = 1 + (user_rate / 100)
     if divisor == 1:
         subtotal_val = total_val
