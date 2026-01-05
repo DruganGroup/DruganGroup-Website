@@ -14,17 +14,22 @@ def send_company_email(company_id, to_email, subject, body, pdf_path=None):
     # 1. Fetch Company Settings from DB
     conn = get_db()
     cur = conn.cursor()
+    # We fetch ALL settings for this company to be safe
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
     rows = cur.fetchall()
     conn.close()
     
     settings = {row[0]: row[1] for row in rows}
     
-    # 2. Extract SMTP Details
-    smtp_server = settings.get('smtp_server')
+    # 2. Extract SMTP Details (THE FIX IS HERE)
+    # Your DB saves it as 'smtp_host', so we must ask for 'smtp_host'
+    smtp_server = settings.get('smtp_host')  # <--- CHANGED FROM 'smtp_server'
     smtp_port = settings.get('smtp_port')
     smtp_user = settings.get('smtp_email')
     smtp_pass = settings.get('smtp_password')
+
+    # Debug print to prove what we found
+    print(f"DEBUG FETCH: Host={smtp_server}, User={smtp_user}, Port={smtp_port}")
 
     if not all([smtp_server, smtp_port, smtp_user, smtp_pass]):
         print("❌ Error: Missing SMTP settings for this company.")
@@ -37,7 +42,7 @@ def send_company_email(company_id, to_email, subject, body, pdf_path=None):
     msg['Subject'] = subject
     msg.attach(MIMEText(body, 'html'))
 
-    # 4. Attach PDF (If provided)
+    # 4. Attach PDF (Keep your logic!)
     if pdf_path and os.path.exists(pdf_path):
         try:
             with open(pdf_path, "rb") as f:
@@ -49,6 +54,7 @@ def send_company_email(company_id, to_email, subject, body, pdf_path=None):
 
     # 5. Connect and Send
     try:
+        print(f"DEBUG: Connecting to {smtp_server}:{smtp_port}...")
         server = smtplib.SMTP(smtp_server, int(smtp_port))
         server.starttls()  # Secure the connection
         server.login(smtp_user, smtp_pass)
@@ -58,4 +64,5 @@ def send_company_email(company_id, to_email, subject, body, pdf_path=None):
         return True, "Email sent successfully!"
     except Exception as e:
         print(f"❌ SMTP Error: {e}")
+        # Your fix for the empty curly braces error:
         return False, f"Email Failed: {str(e)}"
