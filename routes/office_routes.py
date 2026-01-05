@@ -68,8 +68,18 @@ def office_dashboard():
     cur.execute("SELECT q.id, c.name, q.reference, q.date, q.total, q.status FROM quotes q LEFT JOIN clients c ON q.client_id = c.id WHERE q.company_id = %s AND q.status = 'Draft' ORDER BY q.id DESC LIMIT 5", (company_id,))
     quotes = [(r[0], r[1], r[2], format_date(r[3]), r[4], r[5]) for r in cur.fetchall()]
 
-    # Completed Jobs
-    cur.execute("SELECT j.id, j.ref, j.site_address, c.name, j.description, j.start_date FROM jobs j LEFT JOIN clients c ON j.client_id = c.id WHERE j.company_id = %s AND j.status = 'Completed' ORDER BY j.start_date DESC", (company_id,))
+    # --- THE FIX IS HERE ---
+    # We added: AND NOT EXISTS (SELECT 1 FROM invoices i WHERE i.job_id = j.id)
+    cur.execute("""
+        SELECT j.id, j.ref, j.site_address, c.name, j.description, j.start_date 
+        FROM jobs j 
+        LEFT JOIN clients c ON j.client_id = c.id 
+        WHERE j.company_id = %s 
+        AND j.status = 'Completed' 
+        AND NOT EXISTS (SELECT 1 FROM invoices i WHERE i.job_id = j.id)
+        ORDER BY j.start_date DESC
+    """, (company_id,))
+    
     completed = [{'id': r[0], 'ref': r[1], 'address': r[2], 'client': r[3], 'desc': r[4], 'date': format_date(r[5])} for r in cur.fetchall()]
 
     # Live Ops
