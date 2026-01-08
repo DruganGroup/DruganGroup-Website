@@ -149,20 +149,30 @@ if __name__ == '__main__':
     # Turn DEBUG ON so we can see the error
     app.run(host='0.0.0.0', port=port, debug=True)
     
-    # --- FIX AUDIT LOGS ---
-@app.route('/fix-audit-logs')
-def fix_audit_logs():
+    # --- DASHBOARD & AUDIT FIXER (ALL IN ONE) ---
+@app.route('/fix-dashboard-complete')
+def fix_dashboard_complete():
     try:
         conn = get_db()
         cur = conn.cursor()
         
-        # Add the columns missing from Render's Audit Logs
+        # 1. FIX AUDIT LOGS (Your current error)
+        # The dashboard needs these to show "Recent Activity"
         cur.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS company_id INTEGER;")
         cur.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS admin_email TEXT;")
         cur.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS target TEXT;")
-        
+
+        # 2. FIX VEHICLES (For the "Break-Even" Calculator)
+        # Line 56 of your code tries to sum 'daily_cost'. If missing, it will crash next.
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS daily_cost NUMERIC DEFAULT 0.00;")
+
+        # 3. FIX STAFF (For the "Break-Even" Calculator)
+        # Line 59 tries to read pay rates. 
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS pay_rate NUMERIC DEFAULT 15.00;")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS pay_model VARCHAR(50) DEFAULT 'Hour';")
+
         conn.commit()
         conn.close()
-        return "✅ Success! Audit Logs table updated."
+        return "✅ Success! Audit Logs, Vehicles, and Staff tables updated. Dashboard is clear."
     except Exception as e:
         return f"❌ Error: {e}"
