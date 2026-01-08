@@ -68,32 +68,40 @@
     </div>
 
     <div class="content">
-        <div class="toolbar">
-        <div>
-            <span class="badge bg-warning text-dark me-2">{{ quote[5] }}</span>
-            <span class="small text-white-50">Created: {{ quote[3] }}</span>
-        </div>
-        <div>
-            <a href="{{ url_for('office.email_quote', quote_id=quote[0]) }}" 
-               class="btn btn-info btn-sm fw-bold me-2 text-white"
-               onclick="return confirm('Send this quote to the client via email?');">
-               <i class="fas fa-envelope me-2"></i> Email
-            </a>
-
-            {% if quote[5] != 'Converted' %}
-            <a href="{{ url_for('office.convert_to_invoice', quote_id=quote[0]) }}" 
-               class="btn btn-success btn-sm fw-bold me-2"
-               onclick="return confirm('Convert this Quote to an Invoice?');">
-               <i class="fas fa-file-invoice-dollar me-2"></i> Convert to Invoice
-            </a>
-            {% endif %}
-
-            <a href="/office/quote/{{ quote[0] }}/pdf" class="btn btn-primary btn-sm fw-bold">
-                <i class="fas fa-print me-2"></i> Print PDF
-            </a>
-        </div>
+<div class="toolbar">
+    <div>
+        <span class="badge bg-warning text-dark me-2">{{ quote[5] }}</span>
+        <span class="small text-white-50">Created: {{ quote[3] }}</span>
     </div>
+    <div>
+        <a href="{{ url_for('quote.email_quote', quote_id=quote[0]) }}" 
+           class="btn btn-info btn-sm fw-bold me-2 text-white"
+           onclick="return confirm('Send this quote to the client via email?');">
+           <i class="fas fa-envelope me-2"></i> Email
+        </a>
 
+        {% if quote[5] != 'Converted' and quote[5] != 'Accepted' %}
+        <a href="{{ url_for('quote.convert_to_job', quote_id=quote[0]) }}" 
+           class="btn btn-success btn-sm fw-bold me-2"
+           onclick="return confirm('Accept Quote and Create a Job on the Calendar?');">
+           <i class="fas fa-calendar-check me-2"></i> Accept & Book Job
+        </a>
+        {% endif %}
+
+        {% if quote[5] != 'Converted' %}
+        <a href="{{ url_for('quote.convert_to_invoice', quote_id=quote[0]) }}" 
+           class="btn btn-warning btn-sm fw-bold me-2 text-dark"
+           onclick="return confirm('Convert this Quote to an Invoice?');">
+           <i class="fas fa-file-invoice-dollar me-2"></i> Convert to Invoice
+        </a>
+        {% endif %}
+
+        <a href="{{ url_for('quote.view_quote', quote_id=quote[0], mode='pdf') }}" 
+   class="btn btn-primary btn-sm fw-bold" 
+   target="_blank"> <i class="fas fa-file-pdf me-2"></i> View PDF
+</a>
+    </div>
+</div>
         <iframe src="/office/quote/{{ quote[0] }}/pdf" id="pdfFrame"></iframe>
     </div>
 

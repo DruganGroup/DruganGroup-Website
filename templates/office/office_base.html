@@ -50,9 +50,18 @@
         
         .content { margin-left: 260px; padding: 40px; }
         .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        
+        /* Card Hover Effects */
+        .card-hover { transition: transform 0.2s; }
+        .card-hover:hover { transform: translateY(-5px); }
+        
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; height: auto; position: relative; }
+            .content { margin-left: 0; }
+        }
     </style>
     {% block head %}{% endblock %}
-	<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
 </head>
 <body>
 
@@ -69,11 +78,19 @@
         </div>
 
         <a href="/office-hub" class="{% if request.path == '/office-hub' %}active{% endif %}">
-            <i class="fas fa-desktop me-3"></i> Dashboard
+            <i class="fas fa-home me-3"></i> Dashboard
         </a>
-        <a href="/office/service-desk" class="{% if 'service-desk' in request.path %}active{% endif %}">
-            <i class="fas fa-headset me-3"></i> Service Desk
-        </a>
+
+        {% if 'ServiceDesk' in session.get('modules', []) %}
+            <a href="/office/service-desk" class="{% if 'service-desk' in request.path %}active{% endif %}">
+                <i class="fas fa-headset me-3"></i> Service Desk
+            </a>
+        {% else %}
+            <a href="#" class="text-white-50" style="cursor: not-allowed;" onclick="alert('🔒 Premium Feature\n\nThe Service Desk module is not included in your current plan.\n\nPlease contact support to upgrade.'); return false;">
+                <i class="fas fa-headset me-3"></i> Service Desk <i class="fas fa-lock ms-2 small"></i>
+            </a>
+        {% endif %}     
+           
         <a href="/office/calendar" class="{% if 'calendar' in request.path %}active{% endif %}">
             <i class="fas fa-calendar-alt me-3"></i> Master Calendar
         </a>

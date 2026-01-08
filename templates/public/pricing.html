@@ -3,14 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pricing | TradeCore Enterprise</title>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+    <title>Pricing | BusinessBetter</title> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="/static/style.css">
 
     <style>
-        /* Pricing Specific Styles */
         .pricing-header { text-align: center; padding: 120px 0 60px 0; }
         .pricing-header h1 { font-size: 3rem; margin-bottom: 15px; }
         
@@ -25,116 +22,94 @@
             border: 1px solid rgba(255,255,255,0.05);
             border-radius: 20px;
             padding: 40px;
-            width: 350px;
+            width: 320px;
             text-align: center;
-            position: relative;
             transition: 0.3s;
+            position: relative;
         }
+        .price-card:hover { transform: translateY(-10px); border-color: var(--primary-gold); }
         
-        .price-card:hover { transform: translateY(-10px); }
-
-        .price-card.popular {
-            border: 2px solid var(--primary-gold);
-            background: linear-gradient(160deg, #1a1a1a 0%, #252525 100%);
-            transform: scale(1.05);
-            z-index: 2;
-        }
-        .price-card.popular:hover { transform: scale(1.05) translateY(-10px); }
-
-        .price-tag { font-size: 3rem; font-weight: 800; margin: 20px 0; color: #fff; }
-        .price-tag span { font-size: 1rem; color: var(--text-muted); font-weight: 400; }
+        .tier-name { font-size: 1.2rem; color: #888; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px; }
+        .price-tag { font-size: 3.5rem; font-weight: 800; color: #111; margin-bottom: 10px; }
+        .price-tag span { font-size: 1rem; color: #666; font-weight: 400; }
         
-        .tier-name { font-size: 1.2rem; color: var(--primary-gold); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
-        
-        .features-ul { text-align: left; margin: 30px 0; padding-left: 20px; }
-        .features-ul li { list-style: none; margin-bottom: 12px; color: #ccc; font-size: 0.95rem; }
-        .features-ul li i { color: var(--primary-gold); margin-right: 10px; width: 20px; }
-        .features-ul li.locked { color: #555; text-decoration: line-through; }
-        .features-ul li.locked i { color: #444; }
+        .features-ul { list-style: none; padding: 0; margin: 30px 0; text-align: left; }
+        .features-ul li { margin-bottom: 15px; color: #555; display: flex; align-items: center; }
+        .features-ul i { color: var(--primary-gold); margin-right: 10px; width: 20px; }
+        .features-ul li.locked { color: #ccc; text-decoration: line-through; }
+        .features-ul li.locked i { color: #ccc; }
 
-        .badge-popular {
-            position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
-            background: var(--gradient-gold); color: #000;
-            padding: 5px 20px; border-radius: 20px; font-weight: 700; font-size: 0.8rem;
-        }
+        .btn-primary { background: var(--primary-gold); color: #000; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold; }
+        .btn-secondary { background: transparent; border: 1px solid #333; color: #333; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
-                <div class="brand">
-    <a href="index.html"><img src="/static/images/logo.png" alt="Drugan Group" class="main-logo-img"></a> DRUGAN <span class="tagline">GROUP</span><span class="tagline">TC Pricing</span></div>
-            <ul class="nav-links">
-                <li><a href="index.html">Home</a></li>
-                <li><a href="about.html">About</a></li>
-                <li><a href="tradecore.html">Software</a></li>
-                <li><a href="forensics.html">Disputes</a></li>
-                <li><a href="#contact">Contact</a></li>
-                <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Client Portal</a></li>
-            </ul>
-			<div class="nav-actions">
-                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i> Portal Login</a>
+            <div class="brand">
+                <a href="index"><img src="/static/images/logo.png" alt="Drugan Group" class="main-logo-img"></a> BUSINESS <span class="tagline">BETTER</span>
             </div>
+            <ul class="nav-links">
+                <li><a href="index">Home</a></li>
+                <li><a href="businessbetter">Software</a></li>
+                <li><a href="contact">Contact</a></li>
+                <li><a href="login" class="btn-login">Login</a></li>
+            </ul>
         </div>
     </nav>
 
-    <header class="pricing-header">
-        <div class="container">
-            <h1>Transparent Pricing.<br><span class="gold-text">Powerful ROI.</span></h1>
-            <p style="color: var(--text-muted);">Choose the tier that fits your fleet size.</p>
-        </div>
-    </header>
+    <div class="pricing-header">
+        <h1>Simple, Transparent <span style="color: var(--primary-gold);">Pricing</span></h1>
+        <p>Choose the plan that fits your business size.</p>
+    </div>
 
-    <section class="container pricing-grid">
+    <section class="pricing-grid">
+        
         <div class="price-card">
-            <div class="tier-name">Basic</div>
-            <div class="price-tag">£49<span>/mo</span></div>
-            <p style="color: #888; font-size: 0.9rem;">For sole traders starting out.</p>
+            <div class="tier-name">Sole Trader</div>
+            <div class="price-tag">£25<span>/mo</span></div> <p style="color: #888; font-size: 0.9rem;">For individuals getting started.</p>
             <ul class="features-ul">
-                <li><i class="fas fa-check"></i> Job Management</li>
-                <li><i class="fas fa-check"></i> Client Directory</li>
-                <li><i class="fas fa-check"></i> Basic Quotes</li>
-                <li class="locked"><i class="fas fa-times"></i> Finance Hub</li>
-                <li class="locked"><i class="fas fa-times"></i> Site Companion App</li>
+                <li><i class="fas fa-check"></i> Unlimited Quotes</li>
+                <li><i class="fas fa-check"></i> Unlimited Invoices</li>
+                <li><i class="fas fa-check"></i> Basic CRM</li>
+                <li class="locked"><i class="fas fa-times"></i> Finance Dashboard</li>
+                <li class="locked"><i class="fas fa-times"></i> Fleet Management</li>
             </ul>
-            <a href="#" class="btn-secondary" style="display:block;">Start Basic</a>
+            <a href="register" class="btn-secondary" style="display:block;">Get Started</a>
         </div>
 
-        <div class="price-card popular">
-            <div class="badge-popular">MOST POPULAR</div>
-            <div class="tier-name">Pro Edition</div>
-            <div class="price-tag">£99<span>/mo</span></div>
-            <p style="color: #888; font-size: 0.9rem;">For growing trade businesses.</p>
+        <div class="price-card" style="border-color: var(--primary-gold); box-shadow: 0 0 30px rgba(197, 160, 89, 0.1);">
+            <div style="position:absolute; top:-15px; left:50%; transform:translateX(-50%); background:var(--primary-gold); color:black; padding:5px 15px; border-radius:20px; font-weight:bold; font-size:0.8rem;">MOST POPULAR</div>
+            <div class="tier-name" style="color:var(--primary-gold);">Growing Team</div>
+            <div class="price-tag">£75<span>/mo</span></div> <p style="color: #888; font-size: 0.9rem;">For teams up to 5 staff.</p>
             <ul class="features-ul">
-                <li><i class="fas fa-check"></i> <strong>Everything in Basic</strong></li>
+                <li><i class="fas fa-check"></i> <strong>Everything in Sole Trader</strong></li>
                 <li><i class="fas fa-check"></i> Finance & Invoicing</li>
-                <li><i class="fas fa-check"></i> SMTP Email Automation</li>
-                <li><i class="fas fa-check"></i> Advanced Reports</li>
-                <li class="locked"><i class="fas fa-times"></i> GPS Tracking</li>
+                <li><i class="fas fa-check"></i> Site Companion App</li>
+                <li><i class="fas fa-check"></i> Fleet Tracking</li>
+                <li><i class="fas fa-check"></i> Profit Analysis</li>
             </ul>
-            <a href="#" class="btn-primary" style="display:block;">Upgrade to Pro</a>
+            <a href="register" class="btn-primary" style="display:block;">Start Free Trial</a>
         </div>
 
         <div class="price-card">
             <div class="tier-name">Enterprise</div>
-            <div class="price-tag">£199<span>/mo</span></div>
-            <p style="color: #888; font-size: 0.9rem;">For fleet management & control.</p>
+            <div class="price-tag">£150<span>/mo</span></div> <p style="color: #888; font-size: 0.9rem;">Unlimited power & support.</p>
             <ul class="features-ul">
-                <li><i class="fas fa-check"></i> <strong>Everything in Pro</strong></li>
-                <li><i class="fas fa-check"></i> Site Companion App</li>
-                <li><i class="fas fa-check"></i> GPS Staff Tracking</li>
-                <li><i class="fas fa-check"></i> Unlimited Trade Plugins</li>
-                <li><i class="fas fa-check"></i> Priority Support</li>
+                <li><i class="fas fa-check"></i> <strong>Everything in Growing</strong></li>
+                <li><i class="fas fa-check"></i> Unlimited Users</li>
+                <li><i class="fas fa-check"></i> Service Desk Module</li>
+                <li><i class="fas fa-check"></i> Dedicated Support</li>
+                <li><i class="fas fa-check"></i> API Access</li>
             </ul>
-            <a href="#" class="btn-secondary" style="display:block;">Contact Sales</a>
+            <a href="contact" class="btn-secondary" style="display:block;">Contact Sales</a>
         </div>
     </section>
 
     <footer>
         <div class="container bottom-bar">
-            <p>&copy; 2025 TradeCore | Created by Drugan Group</p>
-        </div>
+            <p>&copy; 2025 BusinessBetter | Created by Drugan Group</p> </div>
     </footer>
 
 </body>

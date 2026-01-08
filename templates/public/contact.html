@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -7,7 +8,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css">
+    
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="style.css">
 
     <style>
         /* Form Specific Styles */
@@ -71,26 +74,29 @@
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-    <a href="index"><img src="/static/images/logo.png" alt="Drugan Group" class="main-logo-img"></a> DRUGAN <span class="tagline">GROUP</span><span class="tagline">Contact Us</span></div>
+                <a href="index.html">
+                    <img src="static/images/logo.png" alt="Drugan Group" class="main-logo-img">
+                </a> 
+                DRUGAN <span class="tagline">GROUP</span>
+            </div>
             
             <div class="menu-toggle" id="mobile-menu">
                 <span class="bar"></span>
                 <span class="bar"></span>
                 <span class="bar"></span>
             </div>
-			
+            
             <ul class="nav-links">
-                <li></li><li><a href="index">Home</a></li>
-                <li><a href="about">About</a></li>
-				<li><a href="services">Services</a></li>
-                <li><a href="businessbetter">Software</a></li>
-                <li><a href="forensics">Disputes</a></li>
-                <li><a href="contact" style="color: var(--primary-gold);">Contact</a></li>
-                <li><a href="login" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
+                <li><a href="about.html">About</a></li>
+                <li><a href="services.html">Services</a></li>
+                <li><a href="businessbetter.html">Software</a></li>
+                <li><a href="forensics.html">Disputes</a></li>
+                <li><a href="contact.html" style="color: var(--primary-gold);">Contact</a></li>
+                <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
             
             <div class="nav-actions">
-                <a href="login" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i>Portal Login</a>
+                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i>Portal Login</a>
             </div>
         </div>
     </nav>
@@ -151,48 +157,48 @@
             <div class="contact-form" data-aos="fade-left">
                 <form action="https://formsubmit.co/info@drugangroup.co.uk" method="POST">
     
-    <input type="hidden" name="_next" value="https://drugangroup.com/index">
-    <input type="hidden" name="_subject" value="New Lead: Drugan Group Website">
-    <input type="hidden" name="_captcha" value="false">
-    <input type="text" name="_honey" style="display:none">
+                    <input type="hidden" name="_next" value="https://drugangroup.com/index.html">
+                    <input type="hidden" name="_subject" value="New Lead: Drugan Group Website">
+                    <input type="hidden" name="_captcha" value="false">
+                    <input type="text" name="_honey" style="display:none">
 
-    <div class="input-group">
-        <label>Department</label>
-        <select name="department">
-            <option value="Construction">Construction & Maintenance</option>
-            <option value="Forensics">Drugan Forensics (Disputes)</option>
-            <option value="Software">TradeCore Software Demo</option>
-            <option value="Other">Other Enquiry</option>
-        </select>
-    </div>
+                    <div class="input-group">
+                        <label>Department</label>
+                        <select name="department">
+                            <option value="Construction">Construction & Maintenance</option>
+                            <option value="Forensics">Forensics (Disputes)</option>
+                            <option value="Software">Business Better Software</option>
+                            <option value="Other">Other Enquiry</option>
+                        </select>
+                    </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <div class="input-group">
-            <label>Full Name</label>
-            <input type="text" name="name" placeholder="John Smith" required>
-        </div>
-        <div class="input-group">
-            <label>Email Address</label>
-            <input type="email" name="email" placeholder="john@example.com" required>
-        </div>
-    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="input-group">
+                            <label>Full Name</label>
+                            <input type="text" name="name" placeholder="John Smith" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Email Address</label>
+                            <input type="email" name="email" placeholder="john@example.com" required>
+                        </div>
+                    </div>
 
-    <div class="input-group">
-        <label>Phone Number</label>
-        <input type="tel" name="phone" placeholder="07700 900000">
-    </div>
+                    <div class="input-group">
+                        <label>Phone Number</label>
+                        <input type="tel" name="phone" placeholder="07700 900000">
+                    </div>
 
-    <div class="input-group">
-        <label>Project Details / Message</label>
-        <textarea name="message" rows="5" placeholder="Tell us about your project or dispute..." required></textarea>
-    </div>
+                    <div class="input-group">
+                        <label>Project Details / Message</label>
+                        <textarea name="message" rows="5" placeholder="Tell us about your project or dispute..." required></textarea>
+                    </div>
 
-    <button type="submit" class="btn-primary" style="width: 100%; border: none; font-size: 1.1rem; padding: 15px; cursor: pointer;">Send Message</button>
-    
-    <p style="text-align: center; margin-top: 15px; font-size: 0.8rem; color: #666;">
-        Your data is processed in accordance with our Privacy Policy.
-    </p>
-</form>
+                    <button type="submit" class="btn-primary" style="width: 100%; border: none; font-size: 1.1rem; padding: 15px; cursor: pointer;">Send Message</button>
+                    
+                    <p style="text-align: center; margin-top: 15px; font-size: 0.8rem; color: #666;">
+                        Your data is processed in accordance with our Privacy Policy.
+                    </p>
+                </form>
             </div>
 
         </div>
@@ -207,13 +213,13 @@
             </div>
             <div class="footer-col">
                 <h5>Group Companies</h5>
-                <a href="index">Construction</a>
-                <a href="businessbetter">Business Better SaaS</a>
-                <a href="forensics">Consultant Unit</a>
+                <a href="index.html">Construction</a>
+                <a href="businessbetter.html">Business Better SaaS</a>
+                <a href="forensics.html">Consultant Unit</a>
             </div>
             <div class="footer-col">
                 <h5>Contact</h5>
-                <a href="login">Client Portal</a>
+                <a href="login.html">Client Portal</a>
                 <a href="mailto:info@drugangroup.com">info@drugangroup.com</a>
             </div>
         </div>

@@ -3,6 +3,7 @@ from flask import Blueprint, render_template
 # Create the Blueprint (this is like a mini-app)
 public_bp = Blueprint('public', __name__)
 
+# --- MAIN PAGES ---
 @public_bp.route('/')
 @public_bp.route('/index.html')
 def home():
@@ -23,6 +24,11 @@ def services():
 def business_better():
     return render_template('public/businessbetter.html')
 
+@public_bp.route('/features')
+@public_bp.route('/features.html')
+def features():
+    return render_template('public/features.html')  # <--- NEW ROUTE ADDED
+
 @public_bp.route('/forensics')
 @public_bp.route('/forensics.html')
 def forensics():
@@ -33,6 +39,7 @@ def forensics():
 def contact():
     return render_template('public/contact.html')
 
+# --- SUB PAGES ---
 @public_bp.route('/pricing')
 @public_bp.route('/pricing.html')
 def pricing():
@@ -48,23 +55,33 @@ def legal():
 def process():
     return render_template('public/process.html')
 
-# Service Sub-pages
+# --- SERVICE SPECIFIC PAGES ---
+@public_bp.route('/construction')
+@public_bp.route('/construction.html')
+def construction():
+    return render_template('public/construction.html')
+
 @public_bp.route('/roofing')
 @public_bp.route('/roofing.html')
-def roofing(): return render_template('public/roofing.html')
+def roofing():
+    return render_template('public/roofing.html')
 
 @public_bp.route('/groundworks')
 @public_bp.route('/groundworks.html')
-def groundworks(): return render_template('public/groundworks.html')
+def groundworks():
+    return render_template('public/groundworks.html')
 
 @public_bp.route('/landscaping')
 @public_bp.route('/landscaping.html')
-def landscaping(): return render_template('public/landscaping.html')
+def landscaping():
+    return render_template('public/landscaping.html')
 
 @public_bp.route('/maintenance')
 @public_bp.route('/maintenance.html')
-def maintenance(): return render_template('public/maintenance.html')
+def maintenance():
+    return render_template('public/maintenance.html')
 
 @public_bp.route('/management')
 @public_bp.route('/management.html')
-def management(): return render_template('public/management.html')
+def management():
+    return render_template('public/management.html')

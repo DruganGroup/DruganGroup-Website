@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forensics | AI Analysis</title>
+    <title>Forensics | Construction Dispute Resolution</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css">
+    
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="style.css">
 
     <style>
         /* Styles for the Case Study Examples */
@@ -82,19 +84,28 @@
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-    <a href="index"><img src="/static/images/logo.png" alt="Drugan Group" class="main-logo-img"></a> DRUGAN <span class="tagline">GROUP</span><span class="tagline">Forensic</span></div>
-            <div class="menu-toggle" id="mobile-menu"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
+                <a href="index.html">
+                    <img src="static/images/logo.png" alt="Drugan Group" class="main-logo-img">
+                </a> 
+                DRUGAN <span class="tagline">GROUP</span>
+            </div>
+            <div class="menu-toggle" id="mobile-menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+            
             <ul class="nav-links">
-                <li><a href="index">Home</a></li>
-                <li><a href="about">About</a></li>
-                <li><a href="services">Services</a></li>
-                <li><a href="tradecore">Software</a></li>
-                <li><a href="forensics" style="color: var(--primary-gold);">Disputes</a></li>
-                <li><a href="contact">Contact</a></li>
-                <li><a href="login" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
+                <li><a href="about.html">About</a></li>
+                <li><a href="services.html">Services</a></li>
+                <li><a href="businessbetter.html">Software</a></li>
+                <li><a href="forensics.html" style="color: var(--primary-gold);">Disputes</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
+            
             <div class="nav-actions">
-                <a href="login" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i> Portal Login</a>
+                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i>Portal Login</a>
             </div>
         </div>
     </nav>
@@ -106,14 +117,14 @@
         <div class="container hero-grid">
             <div class="hero-text" data-aos="fade-up">
                 <div class="badge" style="background: rgba(255, 50, 50, 0.2); border: 1px solid rgba(255, 50, 50, 0.4); color: #ff5555;">
-                    <i class="fas fa-search"></i> UNIVERSAL LEGAL ANALYTICS
+                    <i class="fas fa-search"></i> CONSTRUCTION DISPUTE RESOLUTION
                 </div>
-                <h1>Any Contract.<br><span class="gold-gradient">Full Cross-Examination.</span></h1>
-                <p class="hero-sub">Our AI Engine doesn't just check one rule; it audits your case against our entire library of UK Statutes simultaneously. From Employment Rights to Commercial Liability, we find the breach others miss.</p>
+                <h1>Facts. Evidence.<br><span class="gold-gradient">Full Audit.</span></h1>
+                <p class="hero-sub">Construction disputes are won on technicalities. Our AI Engine audits your contracts against UK Building Regulations, JCT Clauses, and The Construction Act 1996 to find the breach.</p>
                 
                 <div class="cta-group">
                     <a href="#examples" class="btn-primary btn-large">View Analysis</a>
-                    <a href="process" class="btn-secondary btn-large">Our Technology</a>
+                    <a href="contact.html" class="btn-secondary btn-large">Get Help</a>
                 </div>
             </div>
             
@@ -121,17 +132,17 @@
                 <div class="glass-card main-ui" style="border-color: rgba(255, 100, 100, 0.2);">
                     <div class="ui-header">
                         <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
-                        <span class="ui-title">Deep Dive: Supply Contract Analysis</span>
+                        <span class="ui-title">Deep Dive: Payment Notice Audit</span>
                     </div>
                     <div class="ui-content-placeholder" style="color: #ccc; font-family: 'Courier New', monospace; font-size: 0.9rem; text-align: left; padding: 20px; line-height: 1.5;">
-                        <p>> INPUT: Master_Service_Agreement.pdf</p>
-                        <p>> CROSS-REF: <span style="color: var(--primary-gold);">[Checking 12 Applicable Statutes...]</span></p>
+                        <p>> INPUT: JCT_Design_Build_2016.pdf</p>
+                        <p>> CROSS-REF: <span style="color: var(--primary-gold);">[Checking Payment Notices...]</span></p>
                         <br>
-                        <p>> CHECK 1: Unfair Contract Terms Act 1977 ... <span style="color: #ff5555;">FAIL (Clause 9.1)</span></p>
-                        <p>> CHECK 2: Supply of Goods & Services Act 1982 ... <span style="color: #ff5555;">FAIL (Sec 13)</span></p>
-                        <p>> CHECK 3: Late Payment of Commercial Debts Act ... <span style="color: #4cd137;">PASS</span></p>
+                        <p>> CHECK 1: Application Date (12th Oct) ... <span style="color: #4cd137;">VALID</span></p>
+                        <p>> CHECK 2: Payment Notice Served? ... <span style="color: #ff5555;">NONE FOUND</span></p>
+                        <p>> CHECK 3: Pay Less Notice (s.111 HGCRA) ... <span style="color: #ff5555;">LATE (Served Day 6, Req Day 7)</span></p>
                         <br>
-                        <p style="color: #fff;">[CONCLUSION: Contract is voidable on 2 counts.]</p>
+                        <p style="color: #fff;">[CONCLUSION: "Smash & Grab" Adjudication Valid. Full Payment Due.]</p>
                     </div>
                 </div>
             </div>
@@ -140,55 +151,55 @@
 
     <section class="container" id="examples" style="padding: 100px 0;">
         <div class="section-header">
-            <h2>Multi-Layer <span class="gold-text">Cross-Examination.</span></h2>
-            <p>See how our Forensic Engine deep-dives into complex legal scenarios.</p>
+            <h2>Construction <span class="gold-text">Scenarios.</span></h2>
+            <p>See how our Forensic Engine handles real-world site disputes.</p>
         </div>
 
         <div class="case-row" data-aos="fade-up">
             <div class="case-text">
-                <div class="case-tag" style="background: #3498db; color: #fff;">EMPLOYMENT LAW</div>
-                <h3>The "Constructive Dismissal" Deep Dive</h3>
-                <p><strong>The Scenario:</strong> An employee resigns after their role is fundamentally changed without consent.</p>
-                <p><strong>The Deep Dive:</strong> We don't just read the resignation letter. We trace the history of contract variations and management emails. We cross-reference this timeline specifically against <strong>Section 95(1)(c) of the Employment Rights Act 1996</strong> to prove the employer's conduct breached the "trust and confidence" term.</p>
+                <div class="case-tag" style="background: #3498db; color: #fff;">COMMERCIAL PAYMENT</div>
+                <h3>The "Pay Less Notice" Ambush</h3>
+                <p><strong>The Scenario:</strong> A Main Contractor refuses to pay your invoice, claiming defects 2 days before the payment deadline.</p>
+                <p><strong>The Deep Dive:</strong> We audit the email timestamps against the contract "Final Date for Payment". Under <strong>Section 111 of the Construction Act (HGCRA 1996)</strong>, if their Pay Less Notice was late—even by an hour—they <strong>must</strong> pay the full amount immediately, regardless of defects.</p>
             </div>
             <div class="case-visual">
-                <p style="color: #3498db;">> REF: Employment Rights Act 1996 (s.95)</p>
-                <p>> EVIDENCE: Email_Archive_May24.zip</p>
-                <p>> FINDING: Unilateral change to hours (Date: 12/05)</p>
-                <p>> LEGAL TEST: "Fundamental Breach" threshold met.</p>
-                <p style="color: #fff;">> CONCLUSION: Valid claim for Constructive Dismissal.</p>
-            </div>
-        </div>
-
-        <div class="case-row" data-aos="fade-up">
-            <div class="case-text">
-                <div class="case-tag" style="background: #e67e22; color: #fff;">HOUSING COMPLIANCE</div>
-                <h3>The "Section 21" Invalidity Check</h3>
-                <p><strong>The Scenario:</strong> A landlord attempts a "no-fault" eviction.</p>
-                <p><strong>The Deep Dive:</strong> We audit the entire tenancy lifecycle. We check the deposit protection dates, the EPC rating history, and the Gas Safety Record timestamps. By applying <strong>Section 33 of the Deregulation Act 2015</strong>, we can prove the eviction notice is legally void if a single document was served late.</p>
-            </div>
-            <div class="case-visual">
-                <p style="color: #e67e22;">> REF: Deregulation Act 2015 (s.33)</p>
-                <p>> EVIDENCE: Tenancy_Pack_Signed.pdf</p>
-                <p>> AUDIT: Gas Cert dated 4 days post-occupation.</p>
-                <p>> LEGAL TEST: Prescribed Requirements NOT met.</p>
-                <p style="color: #fff;">> CONCLUSION: Section 21 Notice is VOID.</p>
+                <p style="color: #3498db;">> REF: HGCRA 1996 (Section 111)</p>
+                <p>> EVIDENCE: Email_Headers_Nov24.txt</p>
+                <p>> FINDING: Pay Less Notice received @ 17:05</p>
+                <p>> CONTRACT RULE: Deadline was 16:00 (Clause 4.12)</p>
+                <p style="color: #fff;">> CONCLUSION: Notice Invalid. Full Debt Enforceable.</p>
             </div>
         </div>
 
         <div class="case-row" data-aos="fade-up">
             <div class="case-text">
-                <div class="case-tag" style="background: #27ae60; color: #fff;">COMMERCIAL / CONSUMER</div>
-                <h3>The "Reject Goods" Timeline</h3>
-                <p><strong>The Scenario:</strong> A high-value asset (e.g., Vehicle) fails after 5 months.</p>
-                <p><strong>The Deep Dive:</strong> We analyze the diagnostic logs and repair history. We apply the "Reverse Burden of Proof" found in <strong>Section 19(14) of the Consumer Rights Act 2015</strong>. Our report mathematically proves the fault was inherent at the point of sale, shifting the legal liability back to the dealer.</p>
+                <div class="case-tag" style="background: #e67e22; color: #fff;">CONTRACT DELAYS</div>
+                <h3>The "Liquidated Damages" Defense</h3>
+                <p><strong>The Scenario:</strong> A Developer charges you £50,000 in damages because the project finished 4 weeks late.</p>
+                <p><strong>The Deep Dive:</strong> We ingest the Site Diaries and Weather Reports. We cross-reference delays against <strong>JCT Clause 2.29 (Relevant Events)</strong>. We prove that 3 weeks were due to "Exceptionally Adverse Weather" and 1 week was a "Variation Instruction", reducing your liability to zero.</p>
             </div>
             <div class="case-visual">
-                <p style="color: #27ae60;">> REF: Consumer Rights Act 2015 (s.19-14)</p>
-                <p>> EVIDENCE: Diagnostic_Log_v2.csv</p>
-                <p>> TIMELINE: Fault occurred at Month 5 (Under 6mo).</p>
-                <p>> LEGAL TEST: Burden of proof lies with Seller.</p>
-                <p style="color: #fff;">> CONCLUSION: Full Right to Reject applies.</p>
+                <p style="color: #e67e22;">> REF: JCT D&B 2016 (Clause 2.26)</p>
+                <p>> EVIDENCE: MetOffice_Data_Feb24.csv</p>
+                <p>> AUDIT: 14 Days rainfall > 40mm (Site closure)</p>
+                <p>> LEGAL TEST: "Exceptionally Adverse Weather" PROVEN.</p>
+                <p style="color: #fff;">> CONCLUSION: Extension of Time (EOT) Granted.</p>
+            </div>
+        </div>
+
+        <div class="case-row" data-aos="fade-up">
+            <div class="case-text">
+                <div class="case-tag" style="background: #27ae60; color: #fff;">STRUCTURAL DEFECTS</div>
+                <h3>The "Foundation Failure"</h3>
+                <p><strong>The Scenario:</strong> A client refuses to pay the final retention, blaming you for cracks in the foundation.</p>
+                <p><strong>The Deep Dive:</strong> We compare your "As-Built" drawings against the Geotechnical Report and <strong>Building Regulations Part A</strong>. We demonstrate that the Engineer's design failed, not your workmanship. Liability shifts from the Contractor to the Design Team.</p>
+            </div>
+            <div class="case-visual">
+                <p style="color: #27ae60;">> REF: Building Regulations 2010 (Part A)</p>
+                <p>> EVIDENCE: Geotech_Report_v3.pdf</p>
+                <p>> ANALYSIS: Ground Heave Potential: HIGH</p>
+                <p>> DESIGN CHECK: Foundation depth insufficient in design.</p>
+                <p style="color: #fff;">> CONCLUSION: Designer Liability (Not Workmanship).</p>
             </div>
         </div>
     </section>
@@ -202,23 +213,23 @@
         <div class="sector-grid">
             <div class="sector-card">
                 <i class="fas fa-file-invoice-dollar sector-icon"></i>
-                <h4>Finance & Banking</h4>
-                <p>PCP/HP Agreements, Hidden Commissions (CCA 1974 s.140A), and Unfair Terms.</p>
+                <h4>Payment Disputes</h4>
+                <p>Smash & Grab Adjudications, Final Account settlements, and Retention recovery.</p>
             </div>
             <div class="sector-card">
                 <i class="fas fa-building sector-icon"></i>
-                <h4>Commercial Property</h4>
-                <p>Lease dilapidation claims, Service Charge disputes, and Landlord & Tenant Act 1954.</p>
+                <h4>Commercial Build</h4>
+                <p>JCT & NEC3/4 Contract analysis, Extension of Time (EOT) claims, and Loss & Expense.</p>
             </div>
             <div class="sector-card">
                 <i class="fas fa-hard-hat sector-icon"></i>
-                <h4>Construction</h4>
-                <p>JCT Contract analysis, HGCRA 1996 (Construction Act), and CDM Regulations.</p>
+                <h4>Health & Safety</h4>
+                <p>CDM Regulations 2015 breaches, Site Accident liability, and HSE intervention support.</p>
             </div>
             <div class="sector-card">
-                <i class="fas fa-users sector-icon"></i>
-                <h4>Family Law (Assets)</h4>
-                <p>Forensic asset tracing and financial separation audits (Form E verification).</p>
+                <i class="fas fa-home sector-icon"></i>
+                <h4>Residential</h4>
+                <p>Consumer Rights Act 2015 (Workmanship), Snagging disputes, and "Cowboy Builder" defense.</p>
             </div>
         </div>
     </section>
@@ -239,7 +250,7 @@
                     <li><i class="fas fa-check"></i> <strong>Primary Statute Check</strong><br>Cross-referenced against 1 main Act.</li>
                     <li><i class="fas fa-check"></i> <strong>"Viability" Report</strong><br>A clear Yes/No on whether you have a case.</li>
                 </ul>
-                <a href="login" class="btn-secondary" style="display:block; margin-top: auto;">Book Check</a>
+                <a href="login.html" class="btn-secondary" style="display:block; margin-top: auto;">Book Check</a>
             </div>
 
             <div class="price-card popular">
@@ -253,7 +264,7 @@
                     <li><i class="fas fa-check"></i> <strong>Formal Dossier (PDF)</strong><br>Itemized list of every breach found.</li>
                     <li><i class="fas fa-check"></i> <strong>Strategy Drafts</strong><br>Legal replies written for you.</li>
                 </ul>
-                <a href="login" class="btn-primary" style="display:block; margin-top: auto;">Start Analysis</a>
+                <a href="login.html" class="btn-primary" style="display:block; margin-top: auto;">Start Analysis</a>
             </div>
 
             <div class="price-card">
@@ -265,7 +276,7 @@
                     <li><i class="fas fa-check"></i> <strong>Timeline Reconstruction</strong><br>Forensic chronological mapping.</li>
                     <li><i class="fas fa-check"></i> <strong>Court-Compliant Format</strong><br>Structured for formal submission.</li>
                 </ul>
-                <a href="contact" class="btn-secondary" style="display:block; margin-top: auto;">Contact Team</a>
+                <a href="contact.html" class="btn-secondary" style="display:block; margin-top: auto;">Contact Team</a>
             </div>
         </div>
     </section>
@@ -278,16 +289,15 @@
                 <p>Universal Legal Auditing & Analysis.</p>
             </div>
             <div class="footer-col">
-                <h5>Sectors</h5>
-                <a href="#">Automotive</a>
-                <a href="#">Building</a>
-                <a href="#">Courts</a>
+                <h5>Group Companies</h5>
+                <a href="index.html">Construction</a>
+                <a href="businessbetter.html">Business Better Software</a> 
+                <a href="forensics.html">Forensics Unit</a>
             </div>
             <div class="footer-col">
                 <h5>Support</h5>
-                <a href="legal">Terms & Disclaimer</a>
-                <a href="contact">Contact Us</a>
-                <a href="login">Portal Login</a>
+                <a href="contact.html">Contact Us</a>
+                <a href="login.html">Portal Login</a>
             </div>
         </div>
         <div class="bottom-bar">
@@ -298,6 +308,13 @@
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
         AOS.init({ duration: 800, once: true, offset: 100 });
+        
+        window.addEventListener('scroll', function() {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) nav.classList.add('scrolled');
+            else nav.classList.remove('scrolled');
+        });
+
         const menuToggle = document.querySelector('#mobile-menu');
         const navLinks = document.querySelector('.nav-links');
         if (menuToggle) {

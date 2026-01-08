@@ -1,4 +1,5 @@
-from flask import Blueprint, render_template, request, session, redirect, url_for, flash, get_flashed_messages, send_file, Response, make_response, current_app
+from flask import Blueprint, render_template, request, session, redirect, url_for, flash, get_flashed_messages, send_file, Response, make_response, current_app, jsonify
+from services.enforcement import check_limit
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash
 import secrets
@@ -6,7 +7,7 @@ import string
 import os
 import csv
 from io import TextIOWrapper
-from datetime import datetime, date 
+from datetime import datetime, date
 from db import get_db, get_site_config, allowed_file, UPLOAD_FOLDER
 from email_service import send_company_email
 from email.mime.application import MIMEApplication
@@ -15,6 +16,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from services.pdf_generator import generate_pdf
 from flask import send_file
+from telematics_engine import get_tracker_data
 
 finance_bp = Blueprint('finance', __name__)
 
@@ -66,34 +68,6 @@ def parse_date(d):
         try: return datetime.strptime(d, '%Y-%m-%d').date()
         except: return None
     return d
-
-# --- 1. OVERVIEW ---
-@finance_bp.route('/finance-dashboard')
-def finance_dashboard():
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    company_id = session.get('company_id'); config = get_site_config(company_id)
-    conn = get_db(); cur = conn.cursor()
-
-    # Get User's Date Format
-    date_fmt = get_date_fmt_str(company_id)
-
-    cur.execute("CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, company_id INTEGER, date DATE, type TEXT, category TEXT, description TEXT, amount DECIMAL(10,2), reference TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    conn.commit()
-
-    cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Income'", (company_id,))
-    income = cur.fetchone()[0] or 0.0
-    cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Expense'", (company_id,))
-    expense = cur.fetchone()[0] or 0.0
-    balance = income - expense
-
-    cur.execute("SELECT date, type, category, description, amount, reference FROM transactions WHERE company_id = %s ORDER BY date DESC LIMIT 20", (company_id,))
-    raw_transactions = cur.fetchall()
-    
-    # Format transactions dynamically
-    transactions = [(format_date(t[0], date_fmt), t[1], t[2], t[3], t[4], t[5]) for t in raw_transactions]
-    
-    conn.close()
-    return render_template('finance/finance_dashboard.html', total_income=income, total_expense=expense, total_balance=balance, transactions=transactions, brand_color=config['color'], logo_url=config['logo'])
 
 # --- 1.5 SALES LEDGER ---
 @finance_bp.route('/finance/invoices')
@@ -158,39 +132,114 @@ def finance_hr():
 @finance_bp.route('/finance/hr/add', methods=['POST'])
 def add_staff():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    form = request.form
-    comp_id = session.get('company_id'); conn = get_db(); cur = conn.cursor()
-    try:
-        cur.execute("INSERT INTO staff (company_id, name, position, dept, pay_rate, pay_model, access_level, email, phone, address, employment_type, tax_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", 
-                   (comp_id, form.get('name'), form.get('position'), form.get('dept'), form.get('rate') or 0, form.get('model'), form.get('access_level'), form.get('email'), form.get('phone'), form.get('address'), form.get('employment_type'), form.get('tax_id')))
+    
+    allowed, msg = check_limit(session['company_id'], 'max_users')
+    if not allowed:
+        flash(msg, "error")
+        return redirect(url_for('finance.finance_hr'))
         
+    form = request.form
+    comp_id = session.get('company_id')
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Insert Staff Member
+        cur.execute("""
+            INSERT INTO staff (company_id, name, position, dept, pay_rate, pay_model, access_level, email, phone, address, employment_type, tax_id) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (comp_id, form.get('name'), form.get('position'), form.get('dept'), form.get('rate') or 0, form.get('model'), form.get('access_level'), form.get('email'), form.get('phone'), form.get('address'), form.get('employment_type'), form.get('tax_id')))
+        
+        # 2. Create User Login (If Access Level is set)
         email = form.get('email')
         if form.get('access_level') != "None" and email:
             cur.execute("SELECT id FROM users WHERE email=%s", (email,))
             if not cur.fetchone():
                 pw = ''.join(secrets.choice(string.ascii_letters + string.digits) for i in range(12))
                 cur.execute("INSERT INTO users (username, email, password_hash, role, company_id) VALUES (%s, %s, %s, %s, %s)", (email, email, generate_password_hash(pw), form.get('access_level'), comp_id))
+                
+                # Send Welcome Email
                 success, msg = send_company_email(comp_id, email, "Your Login Details", f"<p>Username: {email}</p><p>Password: {pw}</p>")
                 flash("✅ Staff Added & Email Sent" if success else f"⚠️ Staff Added. Email failed: {msg}")
-            else: flash("⚠️ Staff added (User exists)")
-        else: flash("✅ Staff Added")
+            else: 
+                flash("⚠️ Staff added (User login already exists)")
+        else: 
+            flash("✅ Staff Added")
+
+        # 3. AUDIT LOG (The Missing Piece)
+        try:
+            admin_name = session.get('user_name', 'Admin')
+            cur.execute("""
+                INSERT INTO audit_logs (company_id, action, target, details, admin_email, created_at)
+                VALUES (%s, 'STAFF_ADDED', %s, %s, %s, CURRENT_TIMESTAMP)
+            """, (comp_id, form.get('name'), f"New Staff: {form.get('position')} ({form.get('dept')})", admin_name))
+        except Exception as e:
+            print(f"Audit Log Error: {e}")
+
+        # 4. SAVE EVERYTHING
         conn.commit()
-    except Exception as e: conn.rollback(); flash(f"Error: {e}")
-    finally: conn.close()
+
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}")
+    finally:
+        conn.close()
+        
     return redirect(url_for('finance.finance_hr'))
 
 @finance_bp.route('/finance/hr/update', methods=['POST'])
 def update_staff():
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    conn = get_db(); cur = conn.cursor(); form = request.form
+    if session.get('role') not in ['Admin', 'SuperAdmin']: 
+        return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    form = request.form
+    
     try:
-        cur.execute("UPDATE staff SET name=%s, position=%s, email=%s, phone=%s, address=%s, employment_type=%s, dept=%s, pay_rate=%s, pay_model=%s, tax_id=%s, access_level=%s WHERE id=%s AND company_id=%s", 
-                   (form.get('name'), form.get('position'), form.get('email'), form.get('phone'), form.get('address'), form.get('employment_type'), form.get('dept'), form.get('rate') or 0, form.get('model'), form.get('tax_id'), form.get('access_level'), form.get('staff_id'), session.get('company_id')))
-        conn.commit(); flash("✅ Staff Updated")
-    except Exception as e: conn.rollback(); flash(f"Error: {e}")
-    finally: conn.close()
+        cur.execute("""
+            UPDATE staff 
+            SET name=%s, position=%s, email=%s, phone=%s, address=%s, 
+                employment_type=%s, dept=%s, 
+                pay_rate=%s, pay_model=%s, 
+                tax_id=%s, access_level=%s 
+            WHERE id=%s AND company_id=%s
+        """, (
+            form.get('name'), 
+            form.get('position'), 
+            form.get('email'), 
+            form.get('phone'), 
+            form.get('address'), 
+            form.get('employment_type'), 
+            form.get('dept'), 
+            form.get('pay_rate') or 0,
+            form.get('pay_model'),
+            form.get('tax_id'), 
+            form.get('access_level'), 
+            form.get('staff_id'), 
+            session.get('company_id')
+        ))
+        # --- AUDIT LOG (UPDATE) ---
+        try:
+            admin_name = session.get('user_name', 'Admin')
+            cur.execute("""
+                INSERT INTO audit_logs (company_id, action, target, details, admin_email, created_at)
+                VALUES (%s, 'STAFF_UPDATE', %s, 'HR Profile Updated', %s, CURRENT_TIMESTAMP)
+            """, (session.get('company_id'), form.get('name'), admin_name))
+        except Exception as e:
+            print(f"Audit Log Error: {e}")
+        # --------------------------        
+        conn.commit()
+        flash("✅ Staff Details & Wages Updated")
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}")
+    finally:
+        conn.close()
+        
     return redirect(url_for('finance.finance_hr'))
-
+    
 @finance_bp.route('/finance/hr/delete/<int:id>')
 def delete_staff(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -199,89 +248,175 @@ def delete_staff(id):
     conn.commit(); conn.close()
     return redirect(url_for('finance.finance_hr'))
 
-# --- 3. FINANCE FLEET (THE FULL VERSION) ---
 @finance_bp.route('/finance/fleet', methods=['GET', 'POST'])
 def finance_fleet():
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    comp_id = session.get('company_id'); config = get_site_config(comp_id); conn = get_db(); cur = conn.cursor()
+    if session.get('role') not in ['Admin', 'SuperAdmin']: 
+        return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db()
+    cur = conn.cursor()
     
     # 1. Get Dynamic Format
     date_fmt_str = get_date_fmt_str(comp_id)
 
-    cur.execute("CREATE TABLE IF NOT EXISTS vehicle_crew (vehicle_id INTEGER, staff_id INTEGER, PRIMARY KEY(vehicle_id, staff_id))"); conn.commit()
-    
     if request.method == 'POST':
         action = request.form.get('action')
         try:
             if action == 'assign_crew':
-                v_id = request.form.get('vehicle_id'); crew_ids = request.form.getlist('crew_ids')
+                v_id = request.form.get('vehicle_id')
+                crew_ids = request.form.getlist('crew_ids')
+                
+                # 1. Update Crew
                 cur.execute("DELETE FROM vehicle_crew WHERE vehicle_id = %s", (v_id,))
-                for staff_id in crew_ids: cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (v_id, staff_id))
-                flash("✅ Crew Updated")
+                for staff_id in crew_ids:
+                    cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (v_id, staff_id))
+                
+                # 2. Update Settings & Cost (The "Super Save")
+                daily = request.form.get('daily_cost')
+                tracker = request.form.get('tracker_url')
+                provider = request.form.get('telematics_provider')
+                dev_id = request.form.get('tracking_device_id')
+                
+                if daily is not None:
+                     cur.execute("""
+                        UPDATE vehicles 
+                        SET daily_cost=%s, tracker_url=%s, telematics_provider=%s, tracking_device_id=%s 
+                        WHERE id=%s AND company_id=%s
+                    """, (daily, tracker, provider, dev_id, v_id, comp_id))
+
+                flash("✅ Crew, Cost & Tracker Updated")
+
             elif action == 'add_log':
                 cur.execute("INSERT INTO maintenance_logs (company_id, vehicle_id, type, description, date, cost) VALUES (%s, %s, %s, %s, %s, %s)", 
                            (comp_id, request.form.get('vehicle_id'), request.form.get('log_type'), request.form.get('description'), request.form.get('date'), request.form.get('cost') or 0))
                 flash("✅ Log Added")
+
+            elif action == 'update_settings':
+                v_id = request.form.get('vehicle_id')
+                cur.execute("""
+                    UPDATE vehicles 
+                    SET daily_cost=%s, tracker_url=%s, telematics_provider=%s, tracking_device_id=%s 
+                    WHERE id=%s AND company_id=%s
+                """, (
+                    request.form.get('daily_cost'), 
+                    request.form.get('tracker_url'),
+                    request.form.get('telematics_provider'),
+                    request.form.get('tracking_device_id'),
+                    v_id, 
+                    comp_id
+                ))
+                flash("✅ Vehicle Cost & Tracker Settings Updated")
+
             elif action == 'add_vehicle' or action == 'update_vehicle':
                 reg = request.form.get('reg_number') or request.form.get('reg_plate')
-                driver = request.form.get('driver_id'); driver = None if driver in ['None', ''] else driver
-                mot = request.form.get('mot_expiry') or None; tax = request.form.get('tax_due') or None
-                ins = request.form.get('insurance_due') or None; serv = request.form.get('service_due') or None
+                driver = request.form.get('driver_id')
+                driver = None if driver in ['None', ''] else driver
+                
+                mot = request.form.get('mot_expiry') or None
+                tax = request.form.get('tax_due') or None
+                ins = request.form.get('insurance_due') or None
+                serv = request.form.get('service_due') or None
+                
+                tracker = request.form.get('tracker_url')
+                provider = request.form.get('telematics_provider')
+                dev_id = request.form.get('tracking_device_id')
+                daily = request.form.get('daily_cost') or 0
+                model = request.form.get('make_model')
+                status = request.form.get('status') or 'Active'
                 
                 if action == 'add_vehicle':
-                    cur.execute("INSERT INTO vehicles (company_id, reg_plate, make_model, assigned_driver_id, daily_cost, mot_due, tax_due, insurance_due, service_due, tracker_url, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')", 
-                               (comp_id, reg, request.form.get('make_model'), driver, request.form.get('daily_cost') or 0, mot, tax, ins, serv, request.form.get('tracker_url')))
+                    allowed, msg = check_limit(comp_id, 'max_vehicles')
+                    if not allowed:
+                        flash(msg, "error")
+                        return redirect(url_for('finance.finance_fleet'))
+
+                    cur.execute("""
+                        INSERT INTO vehicles (company_id, reg_plate, make_model, assigned_driver_id, daily_cost, mot_due, tax_due, insurance_due, service_due, tracker_url, status, telematics_provider, tracking_device_id) 
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active', %s, %s)
+                    """, (comp_id, reg, model, driver, daily, mot, tax, ins, serv, tracker, provider, dev_id))
                     flash("✅ Vehicle Added")
                 else:
-                    cur.execute("UPDATE vehicles SET reg_plate=%s, make_model=%s, assigned_driver_id=%s, status=%s, mot_due=%s, tax_due=%s, insurance_due=%s, service_due=%s, tracker_url=%s, daily_cost=%s WHERE id=%s", 
-                               (reg, request.form.get('make_model'), driver, request.form.get('status'), mot, tax, ins, serv, request.form.get('tracker_url'), request.form.get('daily_cost') or 0, request.form.get('vehicle_id')))
+                    v_id = request.form.get('vehicle_id')
+                    cur.execute("""
+                        UPDATE vehicles SET reg_plate=%s, make_model=%s, assigned_driver_id=%s, status=%s, mot_due=%s, tax_due=%s, insurance_due=%s, service_due=%s, tracker_url=%s, daily_cost=%s 
+                        WHERE id=%s AND company_id=%s
+                    """, (reg, model, driver, status, mot, tax, ins, serv, tracker, daily, v_id, comp_id))
                     flash("✅ Vehicle Updated")
-            conn.commit()
-        except Exception as e: conn.rollback(); flash(f"Error: {e}")
 
-    # FETCH VEHICLES - KEEP DATES AS OBJECTS for math
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error: {e}")
+
+    # FETCH VEHICLES
     cur.execute("""
         SELECT v.id, v.reg_plate, v.make_model, v.status, v.mot_due, v.tax_due, v.insurance_due,
             s.name, v.assigned_driver_id, v.tracker_url, v.service_due, COALESCE(v.daily_cost, 0),
-            s.pay_rate, s.pay_model
+            s.pay_rate, s.pay_model,
+            v.telematics_provider, v.tracking_device_id
         FROM vehicles v LEFT JOIN staff s ON v.assigned_driver_id = s.id 
         WHERE v.company_id = %s ORDER BY v.reg_plate
     """, (comp_id,))
     
-    raw_vehicles = cur.fetchall(); vehicles = []; cur2 = conn.cursor()
+    raw_vehicles = cur.fetchall()
+    vehicles = []
+    cur2 = conn.cursor()
 
     for row in raw_vehicles:
-        v_id = row[0]; daily_van = float(row[11]); driver_rate = float(row[12] or 0)
+        v_id = row[0]
+        daily_van = float(row[11])
+        driver_rate = float(row[12] or 0)
         driver_cost = driver_rate * 8 if row[13] == 'Hour' else driver_rate
         
+        provider = row[14]
+        device_id = row[15]
+        
+        # Telematics Fetch
+        telematics_data = None
+        if provider and device_id:
+            try:
+                # Placeholder for your real tracking call
+                telematics_data = get_tracker_data(provider, "KEY", device_id)
+                if telematics_data:
+                    telematics_data['last_updated'] = datetime.now().strftime("%H:%M")
+            except: pass
+
         cur2.execute("SELECT s.id, s.name, s.position, s.pay_rate, s.pay_model FROM vehicle_crew vc JOIN staff s ON vc.staff_id = s.id WHERE vc.vehicle_id = %s", (v_id,))
-        crew = []; crew_cost = 0
+        crew = []
+        crew_cost = 0
         for c in cur2.fetchall():
             c_cost = (float(c[3] or 0) * 8) if c[4] == 'Hour' else float(c[3] or 0)
-            crew_cost += c_cost; crew.append({'id': c[0], 'name': c[1], 'role': c[2]})
+            crew_cost += c_cost
+            crew.append({'id': c[0], 'name': c[1], 'role': c[2]})
         
         cur2.execute("SELECT COALESCE(SUM(cost), 0) FROM maintenance_logs WHERE vehicle_id = %s", (v_id,))
         spend = cur2.fetchone()[0]
         
-        # History Logs (Format string for display)
         cur2.execute("SELECT date, type, description, cost FROM maintenance_logs WHERE vehicle_id = %s ORDER BY date DESC", (v_id,))
         history = [{'date': format_date(r[0], date_fmt_str), 'type': r[1], 'desc': r[2], 'cost': r[3]} for r in cur2.fetchall()]
 
         vehicles.append({
             'id': row[0], 'reg_number': row[1], 'make_model': row[2], 'status': row[3],
-            'mot_expiry': parse_date(row[4]),  # KEEP OBJECT for calculation
-            'tax_expiry': parse_date(row[5]),  # KEEP OBJECT
-            'ins_expiry': parse_date(row[6]),  # KEEP OBJECT
-            'service_due': parse_date(row[10]),# KEEP OBJECT
+            'mot_expiry': parse_date(row[4]),  
+            'tax_expiry': parse_date(row[5]),  
+            'ins_expiry': parse_date(row[6]),  
+            'service_due': parse_date(row[10]),
             'driver_name': row[7], 'total_spend': spend, 'assigned_driver_id': row[8],
             'tracker_url': row[9], 'daily_cost': daily_van, 'total_gang_cost': daily_van + driver_cost + crew_cost,
-            'crew': crew, 'history': history
+            'crew': crew, 'history': history,
+            'telematics_provider': provider,
+            'tracking_device_id': device_id,
+            'telematics_data': telematics_data
         })
         
-    cur.execute("SELECT id, name FROM staff WHERE company_id = %s ORDER BY name", (comp_id,)); staff = [dict(zip(['id', 'name'], r)) for r in cur.fetchall()]
-    cur2.close(); conn.close()
+    cur.execute("SELECT id, name FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
+    staff = [dict(zip(['id', 'name'], r)) for r in cur.fetchall()]
     
-    # PASS 'date_fmt' to template so it can format the Date Objects
+    cur2.close()
+    conn.close()
+    
     return render_template('finance/finance_fleet.html', vehicles=vehicles, staff=staff, today=date.today(), date_fmt=date_fmt_str, brand_color=config['color'], logo_url=config['logo'])
 
 @finance_bp.route('/finance/fleet/delete/<int:id>')
@@ -292,23 +427,159 @@ def delete_vehicle(id):
     conn.commit(); conn.close()
     return redirect(url_for('finance.finance_fleet'))
 
-# --- 4. MATERIALS & 5. ANALYSIS & 6. SETTINGS ---
+# =========================================================
+# 4. MATERIALS & SUPPLIERS (UPGRADED)
+# =========================================================
+
 @finance_bp.route('/finance/materials')
 def finance_materials():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    comp_id = session.get('company_id'); config = get_site_config(comp_id); conn = get_db(); cur = conn.cursor()
-    cur.execute("CREATE TABLE IF NOT EXISTS materials (id SERIAL PRIMARY KEY, company_id INTEGER, sku TEXT, name TEXT, category TEXT, unit TEXT, cost_price DECIMAL(10,2), supplier TEXT);"); conn.commit()
-    cur.execute("SELECT id, sku, name, category, unit, cost_price, supplier FROM materials WHERE company_id = %s ORDER BY name", (comp_id,))
-    materials = [{'id': m[0], 'sku': m[1], 'name': m[2], 'category': m[3], 'unit': m[4], 'price': m[5], 'supplier': m[6]} for m in cur.fetchall()]
-    conn.close()
-    return render_template('finance/finance_materials.html', materials=materials, brand_color=config['color'], logo_url=config['logo'])
-
-@finance_bp.route('/finance/materials/add', methods=['POST'])
-def add_material():
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
-    try: cur.execute("INSERT INTO materials (company_id, sku, name, category, unit, cost_price, supplier) VALUES (%s, %s, %s, %s, %s, %s, %s)", (session.get('company_id'), request.form.get('sku'), request.form.get('name'), request.form.get('category'), request.form.get('unit'), request.form.get('price'), request.form.get('supplier'))); conn.commit(); flash("Item Added")
-    except: conn.rollback()
+
+    # --- 1. DATABASE AUTO-FIX (The Magic Fix) ---
+    try:
+        # Create Suppliers Table
+        cur.execute("CREATE TABLE IF NOT EXISTS suppliers (id SERIAL PRIMARY KEY, company_id INTEGER, name VARCHAR(100));")
+        
+        # Add 'supplier_id' column if it's missing
+        cur.execute("ALTER TABLE materials ADD COLUMN IF NOT EXISTS supplier_id INTEGER;")
+        conn.commit()
+
+        # OPTIONAL: Convert old text 'supplier' to new 'supplier_id'
+        # This checks if you have a 'supplier' text column and migrates data
+        try:
+            cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name='materials' AND column_name='supplier'")
+            if cur.fetchone():
+                cur.execute("SELECT id, supplier FROM materials WHERE supplier_id IS NULL AND supplier IS NOT NULL AND supplier != ''")
+                old_items = cur.fetchall()
+                
+                for item in old_items:
+                    m_id, s_name = item
+                    # Find or Create Supplier
+                    cur.execute("SELECT id FROM suppliers WHERE name = %s AND company_id = %s", (s_name, comp_id))
+                    row = cur.fetchone()
+                    if row:
+                        s_id = row[0]
+                    else:
+                        cur.execute("INSERT INTO suppliers (company_id, name) VALUES (%s, %s) RETURNING id", (comp_id, s_name))
+                        s_id = cur.fetchone()[0]
+                    
+                    # Update the material link
+                    cur.execute("UPDATE materials SET supplier_id = %s WHERE id = %s", (s_id, m_id))
+                conn.commit()
+        except Exception as e:
+            print(f"Migration warning (can ignore): {e}")
+            conn.rollback()
+
+    except Exception as e:
+        conn.rollback()
+        print(f"DB Setup Error: {e}")
+
+    # --- 2. FETCH DATA (Now safe to run) ---
+    cur.execute("SELECT id, name FROM suppliers WHERE company_id = %s ORDER BY name", (comp_id,))
+    suppliers = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
+
+    # We select Supplier Name via JOIN now
+    cur.execute("""
+        SELECT m.id, m.sku, m.name, m.category, m.unit, m.cost_price, s.name 
+        FROM materials m 
+        LEFT JOIN suppliers s ON m.supplier_id = s.id 
+        WHERE m.company_id = %s 
+        ORDER BY m.name ASC
+    """, (comp_id,))
+    
+    materials = [{
+        'id': m[0], 'sku': m[1], 'name': m[2], 'category': m[3], 
+        'unit': m[4], 'price': m[5], 'supplier': m[6] or 'General'
+    } for m in cur.fetchall()]
+
+    conn.close()
+    return render_template('finance/finance_materials.html', 
+                           materials=materials, 
+                           suppliers=suppliers, 
+                           brand_color=config['color'], 
+                           logo_url=config['logo'])
+
+@finance_bp.route('/finance/suppliers/add', methods=['POST'])
+def add_supplier():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("INSERT INTO suppliers (company_id, name) VALUES (%s, %s)", (session.get('company_id'), request.form.get('name')))
+        conn.commit(); flash("✅ Supplier Added")
+    except Exception as e: conn.rollback(); flash(f"Error: {e}")
     finally: conn.close()
+    return redirect(url_for('finance.finance_materials'))
+    
+@finance_bp.route('/finance/suppliers/delete/<int:id>')
+def delete_supplier(id):
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # Option A: Delete the supplier AND all their materials
+        # cur.execute("DELETE FROM materials WHERE supplier_id = %s", (id,))
+        
+        # Option B: Delete supplier, but keep materials (they become 'General')
+        cur.execute("UPDATE materials SET supplier_id = NULL WHERE supplier_id = %s", (id,))
+        
+        # Finally, delete the supplier
+        cur.execute("DELETE FROM suppliers WHERE id = %s", (id,))
+        conn.commit()
+        flash("✅ Supplier deleted.")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}")
+    finally:
+        conn.close()
+
+    return redirect(url_for('finance.finance_materials'))
+
+@finance_bp.route('/finance/materials/import', methods=['POST'])
+def import_materials():
+    if 'file' in request.files:
+        file = request.files['file']
+        supplier_id = request.form.get('supplier_id') # The ID of the supplier selected in the dropdown
+        
+        if file and file.filename.endswith('.csv'):
+            conn = get_db(); cur = conn.cursor()
+            try:
+                # Optional: Clear old items from this supplier first? 
+                # cur.execute("DELETE FROM materials WHERE supplier_id = %s", (supplier_id,))
+                
+                csv_file = TextIOWrapper(file, encoding='utf-8')
+                csv_reader = csv.reader(csv_file)
+                next(csv_reader, None) # Skip Header
+                
+                count = 0
+                for row in csv_reader:
+                    # Expecting CSV: SKU, Name, Category, Unit, Cost
+                    if len(row) >= 2: 
+                        sku = row[0]
+                        name = row[1]
+                        cat = row[2] if len(row) > 2 else 'General'
+                        unit = row[3] if len(row) > 3 else 'Each'
+                        cost = row[4] if len(row) > 4 else 0.00
+                        
+                        cur.execute("""
+                            INSERT INTO materials (company_id, sku, name, category, unit, cost_price, supplier_id) 
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """, (session.get('company_id'), sku, name, cat, unit, cost, supplier_id))
+                        count += 1
+                
+                conn.commit()
+                flash(f"✅ Imported {count} items successfully.")
+            except Exception as e:
+                conn.rollback()
+                flash(f"❌ Import Error: {e}")
+            finally:
+                conn.close()
+                
     return redirect(url_for('finance.finance_materials'))
 
 @finance_bp.route('/finance/materials/delete/<int:id>')
@@ -316,16 +587,69 @@ def delete_material(id):
     conn = get_db(); cur = conn.cursor(); cur.execute("DELETE FROM materials WHERE id=%s", (id,)); conn.commit(); conn.close()
     return redirect(url_for('finance.finance_materials'))
 
-@finance_bp.route('/finance/materials/import', methods=['POST'])
-def import_materials():
-    if 'file' in request.files:
-        file = request.files['file']
-        if file and file.filename.endswith('.csv'):
-            conn = get_db(); cur = conn.cursor(); csv_file = TextIOWrapper(file, encoding='utf-8'); csv_reader = csv.reader(csv_file); next(csv_reader, None)
-            for row in csv_reader:
-                if len(row) >= 3: cur.execute("INSERT INTO materials (company_id, sku, name, category, unit, cost_price, supplier) VALUES (%s, %s, %s, %s, %s, %s, %s)", (session.get('company_id'), row[0], row[1], row[2], row[3] if len(row)>3 else '', row[4] if len(row)>4 else 0, row[5] if len(row)>5 else ''))
-            conn.commit(); conn.close(); flash("Imported")
-    return redirect(url_for('finance.finance_materials'))
+# --- API: LIVE MATERIAL SEARCH (Robust Version) ---
+@finance_bp.route('/api/materials/search')
+def search_materials_api():
+    # 1. Safety Checks
+    if 'user_id' not in session: 
+        return jsonify([])
+    
+    query = request.args.get('q', '').lower()
+    if not query: 
+        return jsonify([])
+
+    comp_id = session.get('company_id')
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 2. Determine if we should use 'cost_price' or 'price'
+        # We try to select 'cost_price'. If it fails, we rollback and try 'price'.
+        try:
+            cur.execute("SELECT 1 FROM materials WHERE company_id=%s LIMIT 1", (comp_id,))
+            # Check column names
+            cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name='materials'")
+            columns = [row[0] for row in cur.fetchall()]
+            
+            price_col = 'cost_price' if 'cost_price' in columns else 'price'
+            
+        except:
+            price_col = 'cost_price' # Default fallback
+            conn.rollback()
+
+        # 3. Run the Search Query (Safe Mode)
+        # We use COALESCE to handle NULL prices (converts to 0)
+        # We use LEFT JOIN so it works even if Supplier is missing
+        sql = f"""
+            SELECT m.name, s.name, COALESCE(m.{price_col}, 0), m.sku 
+            FROM materials m 
+            LEFT JOIN suppliers s ON m.supplier_id = s.id 
+            WHERE m.company_id = %s AND LOWER(m.name) LIKE %s 
+            ORDER BY m.name ASC 
+            LIMIT 10
+        """
+        
+        cur.execute(sql, (comp_id, f"%{query}%"))
+        
+        # 4. Format Results
+        results = []
+        for r in cur.fetchall():
+            results.append({
+                'name': r[0], 
+                'supplier': r[1] or 'Generic', 
+                'cost': float(r[2]), 
+                'sku': r[3]
+            })
+            
+        return jsonify(results)
+
+    except Exception as e:
+        # 5. Catch & Print Errors (Look at your console if this happens!)
+        print(f"SEARCH API ERROR: {e}")
+        conn.rollback()
+        return jsonify([]) # Return empty list so page doesn't break
+    finally:
+        conn.close()
 
 @finance_bp.route('/finance/analysis')
 def finance_analysis():
@@ -383,7 +707,7 @@ def finance_analysis():
 @finance_bp.route('/finance/settings')
 def settings_redirect(): return redirect(url_for('finance.settings_general'))
 
-# --- SETTINGS: GENERAL TAB (Session Sync Fix) ---
+# --- SETTINGS: GENERAL TAB ---
 @finance_bp.route('/finance/settings/general', methods=['GET', 'POST'])
 def settings_general():
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']: 
@@ -395,12 +719,13 @@ def settings_general():
     if request.method == 'POST':
         try:
             # 1. Update Text Settings
+            # ADD 'default_tax_rate' to this list so it saves!
             fields = [
                 'company_name', 'company_website', 'company_email', 'company_phone', 
                 'company_address', 'brand_color', 'smtp_host', 'smtp_port', 
                 'smtp_email', 'smtp_password', 'pdf_theme',
                 'country_code', 'currency_symbol', 'date_format',
-                'company_reg_number', 'tax_id', 'vat_registered'
+                'company_reg_number', 'tax_id', 'default_tax_rate' 
             ]
             
             for field in fields:
@@ -412,29 +737,34 @@ def settings_general():
                         ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
                     """, (comp_id, field, val))
 
+            # 2. HANDLE CHECKBOXES / TOGGLES (The Fix)
+            # If unchecked, browsers send NOTHING. We must manually force it to 'no'.
+            vat_val = 'yes' if request.form.get('vat_registered') else 'no'
+            cur.execute("""
+                INSERT INTO settings (company_id, key, value) 
+                VALUES (%s, 'vat_registered', %s) 
+                ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+            """, (comp_id, vat_val))
+
             # [FIX] Update Session immediately so Sidebar doesn't stay blue
             new_color = request.form.get('brand_color')
             if new_color:
                 session['brand_color'] = new_color
 
-            # 2. Handle Logo Upload
+            # 3. Handle Logo Upload
             if 'logo' in request.files:
                 f = request.files['logo']
                 if f and f.filename != '':
-                    # Ensure directory exists
                     save_dir = os.path.join(current_app.static_folder, 'uploads', str(comp_id))
                     os.makedirs(save_dir, exist_ok=True)
                     
-                    # Save File
                     filename = secure_filename(f"logo_{int(datetime.now().timestamp())}.png")
                     full_path = os.path.join(save_dir, filename)
                     f.save(full_path)
                     
-                    # Save to DB
                     web_path = f"/static/uploads/{comp_id}/{filename}"
                     cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo', %s) ON CONFLICT (company_id, key) DO UPDATE SET value=EXCLUDED.value", (comp_id, web_path))
                     
-                    # [FIX] Update Session immediately
                     session['logo'] = web_path
 
             conn.commit()
@@ -456,17 +786,50 @@ def settings_general():
 @finance_bp.route('/finance/settings/banking', methods=['GET', 'POST'])
 def settings_banking():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    comp_id = session.get('company_id'); config = get_site_config(comp_id); conn = get_db(); cur = conn.cursor()
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db()
+    cur = conn.cursor()
+    
     if request.method == 'POST':
-        for k in ['bank_name', 'account_number', 'sort_code', 'payment_terms', 'invoice_footer', 'quote_footer', 'default_markup', 'default_profit_margin']:
-             cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, k, request.form.get(k)))
+        # 1. Save Text Fields
+        # We added 'payment_days' and 'quote_footer' to this list so they get saved.
+        keys_to_save = [
+            'bank_name', 'account_number', 'sort_code', 
+            'payment_terms', 'payment_days', 'invoice_footer', 'quote_footer',
+            'default_markup', 'default_profit_margin'
+        ]
+        
+        for k in keys_to_save:
+             cur.execute("""
+                INSERT INTO settings (company_id, key, value) 
+                VALUES (%s, %s, %s) 
+                ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+             """, (comp_id, k, request.form.get(k)))
+             
+        # 2. Save QR Code
         if 'payment_qr' in request.files:
              f = request.files['payment_qr']
              if f and allowed_file(f.filename):
-                 fn = secure_filename(f"qr_{comp_id}_{f.filename}"); f.save(os.path.join(UPLOAD_FOLDER, fn))
-                 cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'payment_qr_url', %s) ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value", (comp_id, f"/static/uploads/logos/{fn}"))
-        conn.commit(); flash("Saved")
-    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,)); settings = {row[0]: row[1] for row in cur.fetchall()}; conn.close()
+                 fn = secure_filename(f"qr_{comp_id}_{f.filename}")
+                 # Ensure upload folder exists
+                 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                 f.save(os.path.join(UPLOAD_FOLDER, fn))
+                 
+                 cur.execute("""
+                    INSERT INTO settings (company_id, key, value) 
+                    VALUES (%s, 'payment_qr_url', %s) 
+                    ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+                 """, (comp_id, f"/static/uploads/logos/{fn}"))
+        
+        conn.commit()
+        flash("Saved")
+        
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    conn.close()
+    
     return render_template('finance/settings_banking.html', settings=settings, active_tab='banking', brand_color=config['color'], logo_url=config['logo'])
 
 @finance_bp.route('/finance/settings/overheads', methods=['GET', 'POST'])

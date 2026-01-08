@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request
 from db import get_db, get_site_config
 from werkzeug.security import check_password_hash, generate_password_hash
+from services.enforcement import check_limit
 from werkzeug.utils import secure_filename
 
 portal_bp = Blueprint('portal', __name__)
@@ -151,6 +152,10 @@ def add_property():
     
     client_id = session['portal_client_id']
     comp_id = session['portal_company_id']
+    allowed, msg = check_limit(comp_id, 'max_properties')
+    if not allowed:
+        flash("❌ Error: The management company has reached their property limit.", "error")
+        return redirect('/portal/home')
     
     address = request.form.get('address')
     postcode = request.form.get('postcode')

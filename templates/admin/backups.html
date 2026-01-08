@@ -4,12 +4,7 @@
 
 {% block styles %}
 <style>
-    /* Status Indicators */
-    .status-dot { height: 10px; width: 10px; background-color: #333; border-radius: 50%; display: inline-block; margin-right: 8px; }
-    .dot-success { background-color: #2ecc71; box-shadow: 0 0 10px rgba(46, 204, 113, 0.4); }
-    .dot-warning { background-color: #f39c12; }
-
-    /* File Type Icons */
+    /* --- Page Specific Styles --- */
     .file-icon { 
         width: 40px; height: 40px; 
         background: #2a2a2a; 
@@ -19,19 +14,13 @@
         border: 1px solid #444;
     }
 
-    /* Action Buttons */
     .btn-action { 
         padding: 6px 15px; border-radius: 5px; font-size: 0.8rem; font-weight: 600; 
         text-decoration: none; border: 1px solid #444; color: #ccc; transition: 0.3s; 
+        background: transparent;
     }
     .btn-action:hover { border-color: var(--primary-gold); color: var(--primary-gold); background: rgba(197, 160, 89, 0.05); }
     .btn-action.delete:hover { border-color: #e74c3c; color: #e74c3c; background: rgba(231, 76, 60, 0.05); }
-    
-    /* Restore Modal Warning */
-    .restore-warning {
-        background: rgba(231, 76, 60, 0.1); border-left: 4px solid #e74c3c; 
-        padding: 15px; color: #e74c3c; font-size: 0.9rem; margin-bottom: 20px;
-    }
 </style>
 {% endblock %}
 
@@ -42,12 +31,10 @@
             <h6 class="text-muted text-uppercase mb-1">Disaster Recovery</h6>
             <h2 class="fw-bold mb-0 text-white">Backup <span style="color: var(--primary-gold);">Archives</span></h2>
         </div>
-        <div class="text-end">
-            <form action="/admin/backup/create" method="POST">
-                <button type="submit" class="btn-gold shadow-lg">
-                    <i class="fas fa-save me-2"></i> Create New Snapshot
-                </button>
-            </form>
+        <div>
+            <a href="{{ url_for('admin.create_backup') }}" class="btn-gold shadow-lg">
+                <i class="fas fa-save me-2"></i> Create New Snapshot
+            </a>
         </div>
     </div>
 
@@ -63,7 +50,6 @@
                     <th>Snapshot Name</th>
                     <th>Date Created</th>
                     <th>Size</th>
-                    <th>Type</th>
                     <th class="text-end">Actions</th>
                 </tr>
             </thead>
@@ -73,11 +59,11 @@
                     <td>
                         <div class="d-flex align-items-center">
                             <div class="file-icon me-3">
-                                <i class="fas fa-database"></i>
+                                <i class="fas fa-file-archive"></i>
                             </div>
                             <div>
                                 <div class="fw-bold text-white">{{ backup.filename }}</div>
-                                <small class="text-muted" style="font-family: monospace;">ID: {{ backup.id }}</small>
+                                <small class="text-muted" style="font-family: monospace;">ZIP Archive</small>
                             </div>
                         </div>
                     </td>
@@ -87,54 +73,19 @@
                             {{ backup.size }}
                         </span>
                     </td>
-                    <td>
-                        {% if 'auto' in backup.filename %}
-                            <span class="text-muted"><span class="status-dot dot-success"></span>Automated</span>
-                        {% else %}
-                            <span class="text-white"><span class="status-dot dot-warning"></span>Manual</span>
-                        {% endif %}
-                    </td>
                     <td class="text-end">
-                        <a href="/admin/backup/download/{{ backup.filename }}" class="btn-action me-2" title="Download SQL">
+                        <a href="{{ url_for('admin.download_backup', filename=backup.filename) }}" class="btn-action me-2" title="Download">
                             <i class="fas fa-download"></i>
                         </a>
-                        
-                        <button class="btn-action me-2" data-bs-toggle="modal" data-bs-target="#restoreModal{{ loop.index }}" title="Restore Database">
-                            <i class="fas fa-upload"></i>
-                        </button>
 
-                        <a href="/admin/backup/delete/{{ backup.filename }}" class="btn-action delete" title="Delete Archive" onclick="return confirm('Permanently delete this snapshot?');">
+                        <a href="{{ url_for('admin.delete_backup', filename=backup.filename) }}" class="btn-action delete" title="Delete Archive" onclick="return confirm('Permanently delete this snapshot?');">
                             <i class="fas fa-trash"></i>
                         </a>
                     </td>
                 </tr>
-
-                <div class="modal fade" id="restoreModal{{ loop.index }}" tabindex="-1">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header" style="border-bottom: 1px solid #333;">
-                                <h5 class="modal-title text-white">⚠️ Confirm Restore</h5>
-                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="restore-warning">
-                                    <i class="fas fa-exclamation-triangle me-2"></i> <strong>WARNING: DESTRUCTIVE ACTION</strong><br>
-                                    Restoring <strong>{{ backup.filename }}</strong> will overwrite the current database. Any data created after this date will be lost forever.
-                                </div>
-                                <p class="text-muted small">To proceed, please type <strong>CONFIRM</strong> in the box below.</p>
-                                <form action="/admin/backup/restore" method="POST">
-                                    <input type="hidden" name="filename" value="{{ backup.filename }}">
-                                    <input type="text" name="confirmation" class="form-control mb-3" placeholder="Type CONFIRM" required>
-                                    <button type="submit" class="btn btn-danger w-100 fw-bold">Execute Restore</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 {% else %}
                 <tr>
-                    <td colspan="5" class="text-center p-5">
+                    <td colspan="4" class="text-center p-5">
                         <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
                         <h4 class="text-muted">No Backups Found</h4>
                         <p class="text-secondary">Click "Create New Snapshot" to generate your first backup.</p>

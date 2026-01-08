@@ -1,5 +1,7 @@
 {% extends "finance/finance_base.html" %}
 
+{% from "components/_macros.html" import status_badge %}
+
 {% block title %}Sales Ledger | Business Better{% endblock %}
 
 {% block content %}
@@ -39,36 +41,36 @@
                         <td>{{ inv.client }}</td>
                         <td class="small">{{ inv.date }}</td>
                         <td class="small {{ 'text-danger fw-bold' if inv.status == 'Unpaid' else 'text-muted' }}">{{ inv.due }}</td>
-                        <td>
-                            {% if inv.status == 'Paid' %}
-                                <span class="badge bg-success">Paid</span>
-                            {% elif inv.status == 'Unpaid' %}
-                                <span class="badge bg-danger">Unpaid</span>
-                            {% else %}
-                                <span class="badge bg-secondary">{{ inv.status }}</span>
-                            {% endif %}
-                        </td>
+                        
+                        <td>{{ status_badge(inv.status) }}</td>
+
                         <td class="text-end pe-4 fw-bold">{{ currency }}{{ "%.2f"|format(inv.total or 0) }}</td>
                         <td class="text-center">
                             <div class="btn-group">
-    <a href="{{ url_for('pdf.download_invoice_pdf', invoice_id=inv.id) }}" target="_blank" class="btn btn-sm btn-outline-dark" title="Download PDF">
-        <i class="fas fa-file-pdf"></i>
-    </a>
+                                <button class="btn btn-sm btn-outline-dark" 
+                                        title="Quick View"
+                                        onclick="openInvoiceDrawer('{{ inv.ref }}', '{{ inv.client }}', '{{ '%.2f'|format(inv.total or 0) }}', '{{ inv.status }}')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
 
-    <a href="{{ url_for('finance.email_invoice', invoice_id=inv.id) }}" 
-       class="btn btn-sm btn-outline-primary" 
-       title="Email to Client"
-       onclick="return confirm('Email this invoice to the client?');">
-        <i class="fas fa-envelope"></i>
-    </a>
-    
-    <a href="{{ url_for('finance.mark_invoice_sent', invoice_id=inv.id) }}" 
-       class="btn btn-sm btn-outline-secondary" 
-       title="Mark as Sent (No Email)"
-       onclick="return confirm('Mark as Sent manually?');">
-        <i class="fas fa-check"></i>
-    </a>
-</div>
+                                <a href="{{ url_for('pdf.download_invoice_pdf', invoice_id=inv.id) }}" target="_blank" class="btn btn-sm btn-outline-dark" title="Download PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+
+                                <a href="{{ url_for('finance.email_invoice', invoice_id=inv.id) }}" 
+                                   class="btn btn-sm btn-outline-primary" 
+                                   title="Email to Client"
+                                   onclick="return confirm('Email this invoice to the client?');">
+                                    <i class="fas fa-envelope"></i>
+                                </a>
+                                
+                                <a href="{{ url_for('finance.mark_invoice_sent', invoice_id=inv.id) }}" 
+                                   class="btn btn-sm btn-outline-secondary" 
+                                   title="Mark as Sent (No Email)"
+                                   onclick="return confirm('Mark as Sent manually?');">
+                                    <i class="fas fa-check"></i>
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     {% else %}
@@ -78,4 +80,68 @@
             </table>
         </div>
     </div>
+
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="invoiceDrawer" style="width: 500px;">
+        <div class="offcanvas-header bg-light border-bottom">
+            <h5 class="offcanvas-title fw-bold" id="drawerTitle">Invoice Details</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        
+        <div class="offcanvas-body" id="drawerContent">
+            <div class="text-center mt-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2 text-muted">Loading...</p>
+            </div>
+        </div>
+
+        <div class="offcanvas-footer p-3 border-top bg-light">
+            <button class="btn btn-primary w-100 fw-bold">
+                <i class="fas fa-download me-2"></i> Download PDF
+            </button>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function openInvoiceDrawer(ref, client, total, status) {
+        // Find the drawer element
+        var myDrawer = new bootstrap.Offcanvas(document.getElementById('invoiceDrawer'));
+        
+        // Update the Title
+        document.getElementById('drawerTitle').innerText = "Invoice #" + ref;
+        
+        // Fill the content box with data
+        var content = `
+            <div class="p-3 bg-light rounded border mb-3">
+                <div class="small text-muted text-uppercase fw-bold">Client</div>
+                <div class="fs-5 fw-bold">${client}</div>
+            </div>
+            
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <div class="p-3 border rounded text-center">
+                        <div class="small text-muted">Total</div>
+                        <div class="fw-bold text-success fs-5">£${total}</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-3 border rounded text-center">
+                        <div class="small text-muted">Status</div>
+                        <div class="fw-bold">${status}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-info small">
+                <i class="fas fa-info-circle me-2"></i> 
+                This is a quick preview. Download the PDF for the full legal document.
+            </div>
+        `;
+        
+        // Inject and Show
+        document.getElementById('drawerContent').innerHTML = content;
+        myDrawer.show();
+    }
+</script>
 {% endblock %}

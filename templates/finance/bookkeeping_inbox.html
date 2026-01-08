@@ -1,0 +1,128 @@
+{% extends "finance/finance_base.html" %}
+
+{% block title %}Sorting Office | Business Better{% endblock %}
+
+{% block content %}
+<div class="row h-100">
+    <div class="col-md-4 border-end bg-white" style="height: 85vh; overflow-y: auto;">
+        <div class="p-3 border-bottom bg-light sticky-top">
+            <h5 class="fw-bold m-0"><i class="fas fa-inbox me-2"></i>Sorting Office</h5>
+            <small class="text-muted">{{ unsorted|length }} documents require attention</small>
+        </div>
+
+        {% for item in unsorted %}
+        <div class="p-3 border-bottom list-item" onclick="loadItem('{{ item[0] }}', '{{ item[4] }}', '{{ item[1] }}', '{{ item[2] }}')">
+            <div class="d-flex justify-content-between">
+                <span class="fw-bold text-dark">{{ item[3] }}</span>
+                <span class="badge bg-warning text-dark">£{{ "%.2f"|format(item[2]) }}</span>
+            </div>
+            <div class="small text-muted text-truncate mt-1">
+                {{ item[1] or 'Unread Receipt' }}
+            </div>
+            <div class="small text-primary mt-1"><i class="fas fa-eye me-1"></i> Review</div>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-check-circle fa-3x mb-3 text-success"></i>
+            <p class="fw-bold">All caught up!</p>
+            <p class="small">No unsorted documents found.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="col-md-8 bg-light p-0 d-flex flex-column" style="height: 85vh;">
+        
+        <div class="flex-grow-1 bg-dark d-flex align-items-center justify-content-center overflow-hidden" style="position: relative;">
+            <p class="text-white-50" id="placeholder-text">Select an item from the list to review.</p>
+            
+            <iframe id="doc-viewer" src="" style="width:100%; height:100%; border:none; display:none;"></iframe>
+            <img id="img-viewer" src="" style="max-width:100%; max-height:100%; object-fit:contain; display:none;">
+        </div>
+
+        <div class="bg-white p-4 border-top shadow-sm" id="action-panel" style="display:none;">
+            <form method="POST">
+                <input type="hidden" name="file_id" id="selected-id">
+                
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="small fw-bold text-muted">Cost (£)</label>
+                        <input type="number" step="0.01" name="cost" id="selected-cost" class="form-control fw-bold">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="small fw-bold text-muted">Description</label>
+                        <input type="text" name="description" id="selected-desc" class="form-control">
+                    </div>
+                </div>
+
+                <div class="row mt-3 align-items-end">
+                    <div class="col-md-5">
+                        <label class="small fw-bold text-success mb-1">Project Expense</label>
+                        <div class="input-group">
+                            <select name="job_id" class="form-select">
+                                <option value="" selected disabled>Select Job...</option>
+                                {% for j in jobs %}
+                                <option value="{{ j[0] }}">{{ j[1] }} - {{ j[2][:15] }}...</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" name="action" value="assign_job" class="btn btn-success"><i class="fas fa-link"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="col-md-1 text-center fw-bold text-muted">OR</div>
+
+                    <div class="col-md-5">
+                        <label class="small fw-bold text-primary mb-1">Business Overhead</label>
+                        <div class="input-group">
+                            <select name="category_id" class="form-select">
+                                <option value="" selected disabled>Select Category...</option>
+                                {% for c in categories %}
+                                <option value="{{ c[0] }}">{{ c[1] }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" name="action" value="assign_overhead" class="btn btn-primary"><i class="fas fa-file-invoice"></i></button>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-1 text-end">
+                        <button type="submit" name="action" value="delete" class="btn btn-outline-danger" title="Delete Permanent"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadItem(id, path, desc, cost) {
+    // 1. Hide Placeholder, Show Form
+    document.getElementById('placeholder-text').style.display = 'none';
+    document.getElementById('action-panel').style.display = 'block';
+    
+    // 2. Fill Form Data
+    document.getElementById('selected-id').value = id;
+    document.getElementById('selected-desc').value = desc == 'None' ? '' : desc;
+    document.getElementById('selected-cost').value = cost == 'None' ? '0.00' : cost;
+
+    // 3. Detect File Type and Show Image or PDF
+    const ext = path.split('.').pop().toLowerCase();
+    const isPdf = (ext === 'pdf');
+    
+    const docViewer = document.getElementById('doc-viewer');
+    const imgViewer = document.getElementById('img-viewer');
+    
+    if (isPdf) {
+        docViewer.src = "/" + path;
+        docViewer.style.display = 'block';
+        imgViewer.style.display = 'none';
+    } else {
+        imgViewer.src = "/" + path;
+        imgViewer.style.display = 'block';
+        docViewer.style.display = 'none';
+    }
+}
+</script>
+
+<style>
+    .list-item:hover { background-color: #f0f2f5; cursor: pointer; border-left: 5px solid #0d6efd; transition: 0.2s; }
+</style>
+{% endblock %}

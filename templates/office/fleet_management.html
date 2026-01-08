@@ -1,4 +1,5 @@
 {% extends "office/office_base.html" %}
+{% from "components/_macros.html" import status_badge, date_check %}
 
 {% block title %}Fleet Manager | Business Better{% endblock %}
 
@@ -9,9 +10,6 @@
         transition: transform 0.2s; cursor: pointer; 
     }
     .vehicle-card:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
-    .date-danger { color: #dc3545; font-weight: bold; }
-    .date-warn { color: #ffc107; font-weight: bold; }
-    .date-ok { color: #198754; }
     .crew-checkbox { transform: scale(1.2); cursor: pointer; }
     .crew-box { position: relative; } 
 </style>
@@ -27,15 +25,6 @@
 
     <div class="row g-4">
         {% for v in vehicles %}
-        
-        {# --- Date Logic Macro --- #}
-        {% macro check_date(d) %}
-            {% if d %}
-                {% set days = (d - today).days %}
-                {% if days <= 14 %}date-danger{% elif days <= 30 %}date-warn{% else %}date-ok{% endif %}
-            {% else %}text-muted{% endif %}
-        {% endmacro %}
-
         <div class="col-xl-6">
             <div class="card p-3 shadow-sm vehicle-card border-0 h-100" data-bs-toggle="modal" data-bs-target="#detailModal{{ v.id }}">
                 <div class="d-flex justify-content-between align-items-start">
@@ -43,12 +32,12 @@
                         <h4 class="fw-bold mb-0">{{ v.reg_number }}</h4>
                         <span class="text-muted small">{{ v.make_model }}</span>
                     </div>
-                    <span class="badge {{ 'bg-success' if v.status == 'Active' else 'bg-danger' }}">{{ v.status }}</span>
+                    {{ status_badge(v.status) }}
                 </div>
                 
-                <div class="d-flex gap-3 mt-3 mb-3 small fw-bold">
-                    <span class="{{ check_date(v.mot_expiry) }}">MOT: {{ v.mot_expiry.strftime(date_fmt) if v.mot_expiry else 'N/A' }}</span>
-                    <span class="{{ check_date(v.tax_expiry) }}">TAX: {{ v.tax_expiry.strftime(date_fmt) if v.tax_expiry else 'N/A' }}</span>
+                <div class="d-flex gap-3 mt-3 mb-3 small">
+                    <div><strong>MOT:</strong> {{ date_check(v.mot_expiry, today) }}</div>
+                    <div><strong>TAX:</strong> {{ date_check(v.tax_expiry, today) }}</div>
                 </div>
 
                 <div class="bg-light p-2 rounded d-flex align-items-center justify-content-between mt-auto">
@@ -92,7 +81,6 @@
                                                 </option>
                                             {% endfor %}
                                         </select>
-                                        <div class="form-text small">Changing the driver here updates the vehicle record immediately.</div>
                                     </div>
 
                                     <div class="alert alert-info py-2 small border-0 bg-light text-dark">
@@ -134,12 +122,9 @@
                                         <div class="col-12">
                                             <input type="text" name="description" class="form-control form-control-sm" placeholder="Description of receipt..." required>
                                         </div>
-                                        
                                         <div class="col-12">
-                                            <label class="small fw-bold text-muted">Upload Receipt (Image/PDF)</label>
                                             <input type="file" name="receipt_file" class="form-control form-control-sm">
                                         </div>
-
                                         <div class="col-12 mt-2">
                                             <button class="btn btn-sm text-white w-100 fw-bold" style="background-color: var(--brand-color);">Add Receipt</button>
                                         </div>
@@ -148,15 +133,8 @@
                                 <div class="list-group list-group-flush">
                                     {% for log in v.history %}
                                         <div class="list-group-item d-flex justify-content-between align-items-center small">
-                                            <div>
-                                                <strong>{{ log.date }}</strong>: {{ log.desc }}
-                                                {% if log.receipt %}
-                                                    <a href="/static/{{ log.receipt }}" target="_blank" class="ms-2 badge bg-secondary text-decoration-none">
-                                                        <i class="fas fa-paperclip"></i> View
-                                                    </a>
-                                                {% endif %}
-                                            </div>
-                                            <span class="text-muted fw-bold">Logged</span>
+                                            <div><strong>{{ log.date }}</strong>: {{ log.desc }}</div>
+                                            {% if log.receipt %}<a href="/static/{{ log.receipt }}" target="_blank" class="badge bg-secondary text-decoration-none">View</a>{% endif %}
                                         </div>
                                     {% else %}
                                         <div class="text-center text-muted small">No receipts logged.</div>

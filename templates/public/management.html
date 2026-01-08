@@ -4,29 +4,101 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Property Management | Drugan Group</title>
+    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css">
+    
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        .bento-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 40px;
+            border-radius: 20px;
+            transition: 0.3s;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .bento-card:hover {
+            border-color: var(--primary-gold);
+            transform: translateY(-5px);
+            background: rgba(255,255,255,0.03);
+        }
+        .card-icon {
+            font-size: 2.5rem;
+            color: var(--primary-gold);
+            margin-bottom: 25px;
+        }
+        .bento-card h3 { color: #fff; margin-bottom: 15px; font-family: 'Montserrat', sans-serif; }
+        .bento-card p { color: #ccc; line-height: 1.6; }
+        
+        .software-highlight {
+            display: flex;
+            align-items: center;
+            background: #111;
+            border-radius: 20px;
+            overflow: hidden;
+            margin-top: 80px;
+            border: 1px solid #333;
+        }
+        .sw-text { flex: 1; padding: 60px; }
+        .sw-visual { 
+            flex: 1; 
+            background: #000; 
+            height: 100%; 
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 40px;
+            font-family: 'Courier New', monospace;
+            border-left: 1px solid #333;
+        }
+
+        /* Mobile Fix */
+        @media(max-width: 900px) {
+            .software-highlight { flex-direction: column; }
+            .sw-visual { width: 100%; border-left: none; border-top: 1px solid #333; }
+            .sw-text { padding: 40px; }
+        }
+    </style>
 </head>
 <body>
 
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-    <a href="index.html"><img src="/static/images/logo.png" alt="Drugan Group" class="main-logo-img"></a> DRUGAN <span class="tagline">GROUP</span><span class="tagline">Management</span></div>
-            <div class="menu-toggle" id="mobile-menu"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
+                <a href="index.html">
+                    <img src="static/images/logo.png" alt="Drugan Group" class="main-logo-img">
+                </a> 
+                DRUGAN <span class="tagline">GROUP</span>
+            </div>
+            <div class="menu-toggle" id="mobile-menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+            
             <ul class="nav-links">
-                <li><a href="index.html">Home</a></li>
                 <li><a href="about.html">About</a></li>
                 <li><a href="services.html" style="color: var(--primary-gold);">Services</a></li>
-                <li><a href="tradecore.html">Software</a></li>
+                <li><a href="businessbetter.html">Software</a></li>
                 <li><a href="forensics.html">Disputes</a></li>
                 <li><a href="contact.html">Contact</a></li>
                 <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
+            
             <div class="nav-actions">
-                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i> Portal Login</a>
+                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i>Portal Login</a>
             </div>
         </div>
     </nav>
@@ -35,55 +107,105 @@
         <div class="container hero-grid single-col">
             <div class="hero-text center-text" data-aos="fade-up">
                 <div class="badge">ASSET MANAGEMENT</div>
-                <h1>Total <span class="gold-gradient">Control.</span></h1>
-                <p class="hero-sub">We manage your portfolio so you don't have to. Full tenant management, compliance checks, and maintenance integration.</p>
-                <a href="#contact" class="btn-primary btn-large">Discuss Your Portfolio</a>
+                <h1>Smart Management. <br><span class="gold-gradient">Powered by Data.</span></h1>
+                <p class="hero-sub">We don't just manage keys. We use our proprietary software to automate compliance, track maintenance in real-time, and give tenants 24/7 support.</p>
+                <div class="cta-group center-group">
+                    <a href="contact.html" class="btn-primary btn-large">Discuss Your Portfolio</a>
+                </div>
             </div>
         </div>
     </header>
 
     <section class="container" style="padding: 100px 0;">
+        <div class="section-header">
+            <h2>The <span class="gold-text">Digital</span> Difference.</h2>
+            <p>Traditional agents rely on phone calls and spreadsheets. We use an integrated operating system.</p>
+        </div>
+
         <div class="bento-grid">
             <div class="bento-card" data-aos="fade-up">
-                <div class="card-icon"><i class="fas fa-users"></i></div>
-                <h3>Tenant Relations</h3>
-                <p>We handle viewings, vetting, and contracts. Keeping your property occupied with reliable tenants.</p>
+                <div class="card-icon"><i class="fas fa-mobile-alt"></i></div>
+                <h3>The Tenant App</h3>
+                <p>No more angry late-night voicemails. Tenants report faults instantly via our dedicated app. They can upload photos of the issue, which goes straight to our maintenance team.</p>
             </div>
+            
             <div class="bento-card" data-aos="fade-up" data-aos-delay="100">
-                <div class="card-icon"><i class="fas fa-file-contract"></i></div>
-                <h3>Compliance</h3>
-                <p>We ensure you never miss a certificate: Gas Safe, EICR, and EPCs are automatically scheduled.</p>
+                <div class="card-icon"><i class="fas fa-sync-alt"></i></div>
+                <h3>Live Progress Tracking</h3>
+                <p>When a repair is needed, you see what we see. Track the engineer's arrival via GPS, view the "Before & After" photos, and sign off the job—all from your dashboard.</p>
             </div>
+            
             <div class="bento-card" data-aos="fade-up" data-aos-delay="200">
-                <div class="card-icon"><i class="fas fa-tools"></i></div>
-                <h3>Integrated Maintenance</h3>
-                <p>Because we are also a maintenance firm, repairs are done cheaper and faster than standard agents.</p>
+                <div class="card-icon"><i class="fas fa-shield-alt"></i></div>
+                <h3>Automated Compliance</h3>
+                <p>Our software never sleeps. It tracks Gas Safety, EICR, and EPC expiry dates automatically, booking the renewal inspections before they become a legal risk.</p>
+            </div>
+        </div>
+
+        <div class="software-highlight" data-aos="fade-up" data-aos-delay="100">
+            <div class="sw-text">
+                <div class="badge" style="background: #222; border: 1px solid #444; color: #fff; margin-bottom: 20px;">BUILT ON BUSINESS BETTER</div>
+                <h2 style="color: #fff; margin-bottom: 20px;">Total Transparency for Landlords.</h2>
+                <p style="color: #ccc; line-height: 1.8; margin-bottom: 30px;">
+                    Most landlords have no idea if a £200 repair actually cost £200. With Drugan Group, <strong>you (the property owner)</strong> get the raw data.
+                    <br><br>
+                    Our system links the property management directly to the maintenance van. <strong>You see the material costs</strong>, the labor hours logged, and the GPS timestamp. Tenants simply see that the job is done.
+                </p>
+                <a href="businessbetter.html" class="btn-outline">See The Software</a>
+            </div>
+            <div class="sw-visual">
+                <div style="color: var(--primary-gold); margin-bottom: 15px; font-weight: bold;">// LANDLORD DASHBOARD VIEW</div>
+                <div style="color: #ccc; font-size: 0.9rem; line-height: 1.6;">
+                    > 09:15: Tenant reports "Boiler Error F1"<br>
+                    > 09:16: System auto-assigns Engineer Dave<br>
+                    > 09:45: Engineer on site (GPS Verified)<br>
+                    > 10:30: Fault Fixed. <span style="color: #4cd137;">[VISIBLE TO LANDLORD: Part Cost £22]</span><br>
+                    > 10:35: Job Closed. Tenant Notified.<br>
+                    <br>
+                    <span style="color: #fff; background: rgba(255,255,255,0.1); padding: 5px;">[ STATUS: RESOLVED ]</span>
+                </div>
             </div>
         </div>
     </section>
 
-    <footer id="contact">
+    <footer>
         <div class="container footer-content">
             <div class="footer-col">
                 <h4>Drugan Group</h4>
-                <a href="mailto:info@drugangroup.com" class="btn-primary">Contact Us</a>
+                <p class="creator">Building & Maintenance</p>
+                <p>Quality workmanship backed by cutting-edge technology.</p>
             </div>
             <div class="footer-col">
-                <h5>Services</h5>
-                <a href="management.html">Management</a>
-                <a href="maintenance.html">Maintenance</a>
+                <h5>Group Companies</h5>
+                <a href="index.html">Construction</a>
+                <a href="businessbetter.html">Business Better Software</a> 
+                <a href="forensics.html">Forensics Unit</a>
+            </div>
+            <div class="footer-col">
+                <h5>Contact</h5>
+                <a href="login.html">Client Portal</a>
+                <a href="mailto:info@drugangroup.com">info@drugangroup.com</a>
             </div>
         </div>
-        <div class="bottom-bar"><p>&copy; 2025 Drugan Group.</p></div>
+        <div class="bottom-bar">
+            <p>&copy; 2025 Drugan Group. All rights reserved.</p>
+        </div>
     </footer>
 
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
         AOS.init({ duration: 800, once: true });
+        
+        window.addEventListener('scroll', function() {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) nav.classList.add('scrolled');
+            else nav.classList.remove('scrolled');
+        });
+
         const menuToggle = document.querySelector('#mobile-menu');
         const navLinks = document.querySelector('.nav-links');
         if (menuToggle) {
-            menuToggle.addEventListener('click', () => {
+            menuToggle.addEventListener('click', function() {
                 navLinks.classList.toggle('active');
                 menuToggle.classList.toggle('is-active');
             });

@@ -8,7 +8,7 @@ import smtplib
 from datetime import datetime, date, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, send_from_directory
 from db import get_db
 from werkzeug.security import generate_password_hash
 
@@ -434,25 +434,103 @@ def delete_tenant(company_id):
         conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
 
+# --- BACKUP SYSTEM: VIEW LIST ---
 @admin_bp.route('/admin/backup/all')
-def backup_all_companies():
+def view_backups():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
+    
+    # Define folder path (matches your existing setup)
+    backup_folder = os.path.join(os.getcwd(), 'static', 'backups')
+    
+    # Ensure folder exists
+    if not os.path.exists(backup_folder):
+        os.makedirs(backup_folder)
+
+    # Get list of files
+    backup_files = []
+    try:
+        files = os.listdir(backup_folder)
+        # Sort by date (newest first)
+        files.sort(key=lambda x: os.path.getmtime(os.path.join(backup_folder, x)), reverse=True)
+        
+        for index, filename in enumerate(files):
+            if filename.endswith('.zip'):
+                filepath = os.path.join(backup_folder, filename)
+                size_mb = os.path.getsize(filepath) / (1024 * 1024)
+                created_at = datetime.fromtimestamp(os.path.getmtime(filepath)).strftime('%d-%b-%Y %H:%M')
+                
+                backup_files.append({
+                    'id': index + 1,
+                    'filename': filename,
+                    'size': f"{size_mb:.2f} MB",
+                    'created_at': created_at
+                })
+    except Exception as e:
+        flash(f"Error reading backups: {e}")
+
+    return render_template('admin/backups.html', backups=backup_files)
+
+# --- BACKUP SYSTEM: CREATE NEW ---
+@admin_bp.route('/admin/backup/create')
+def create_backup():
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    
     conn = get_db(); cur = conn.cursor()
     try:
+        # Get all company IDs
         cur.execute("SELECT id FROM companies")
         ids = [row[0] for row in cur.fetchall()]
+        
+        # Create Zip File
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
-        zip_path = os.path.join(os.getcwd(), 'static', 'backups', f"MASS_BACKUP_{timestamp}.zip")
-        os.makedirs(os.path.dirname(zip_path), exist_ok=True)
+        backup_folder = os.path.join(os.getcwd(), 'static', 'backups')
+        os.makedirs(backup_folder, exist_ok=True)
+        
+        filename = f"MASS_BACKUP_{timestamp}.zip"
+        zip_path = os.path.join(backup_folder, filename)
+        
         with zipfile.ZipFile(zip_path, 'w') as zipf:
             for c_id in ids:
+                # Uses your existing helper function 'perform_company_backup'
                 data = perform_company_backup(c_id, cur)
                 zipf.writestr(f"Company_{c_id}.json", json.dumps(data, indent=4, default=str))
-        flash(f"✅ Backup Complete")
-        log_audit("MASS BACKUP", "All Data", f"Created {zip_path}")
-    except Exception as e: flash(f"Error: {e}")
-    finally: conn.close()
-    return redirect(url_for('admin.super_admin_dashboard'))
+                
+        log_audit("CREATE BACKUP", "All Companies", f"Created {filename}")
+        flash(f"✅ Success! Snapshot created: {filename}")
+        
+    except Exception as e:
+        flash(f"❌ Backup Failed: {e}")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('admin.view_backups'))
+
+# --- BACKUP SYSTEM: DOWNLOAD ---
+@admin_bp.route('/admin/backup/download/<filename>')
+def download_backup(filename):
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    backup_folder = os.path.join(os.getcwd(), 'static', 'backups')
+    return send_from_directory(backup_folder, filename, as_attachment=True)
+
+# --- BACKUP SYSTEM: DELETE ---
+@admin_bp.route('/admin/backup/delete/<filename>')
+def delete_backup(filename):
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    
+    backup_folder = os.path.join(os.getcwd(), 'static', 'backups')
+    filepath = os.path.join(backup_folder, filename)
+    
+    try:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+            flash(f"🗑️ Deleted archive: {filename}")
+            log_audit("DELETE BACKUP", filename, "Deleted manually")
+        else:
+            flash("❌ File not found.")
+    except Exception as e:
+        flash(f"Error deleting file: {e}")
+        
+    return redirect(url_for('admin.view_backups'))
 
 @admin_bp.route('/admin/setup-fleet-db')
 def setup_fleet_db():
@@ -696,3 +774,34 @@ def database_repair():
         conn.close()
         
     return redirect(url_for('admin.super_admin_dashboard'))
+    
+    # --- DATABASE REPAIR TOOL (Run once to fix Overheads) ---
+@admin_bp.route('/admin/fix-db-schema')
+def fix_db_schema():
+    if session.get('role') not in ['SuperAdmin', 'Admin']: return "Access Denied"
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Add 'date_incurred' to overhead_items if missing
+        cur.execute("ALTER TABLE overhead_items ADD COLUMN IF NOT EXISTS date_incurred DATE DEFAULT CURRENT_DATE;")
+        
+        # 2. Add 'receipt_path' just in case
+        cur.execute("ALTER TABLE overhead_items ADD COLUMN IF NOT EXISTS receipt_path TEXT;")
+
+        conn.commit()
+        return """
+            <div style='font-family: sans-serif; padding: 50px; text-align: center;'>
+                <h1 style='color: green;'>✅ Database Repaired</h1>
+                <p>Added 'date_incurred' column to overheads.</p>
+                <a href='/finance-dashboard' style='padding: 10px 20px; background: #333; color: white; text-decoration: none; border-radius: 5px;'>
+                    Go to Finance Dashboard
+                </a>
+            </div>
+        """
+    except Exception as e:
+        conn.rollback()
+        return f"Error: {e}"
+    finally:
+        conn.close()

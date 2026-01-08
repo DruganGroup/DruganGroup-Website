@@ -126,6 +126,19 @@ def clock_in():
             flash("⚠️ Already clocked in!", "warning")
         else:
             cur.execute("INSERT INTO staff_timesheets (staff_id, company_id, clock_in, date) VALUES (%s, %s, CURRENT_TIMESTAMP, CURRENT_DATE)", (staff_id, comp_id))
+            # --- AUDIT LOG (CLOCK IN) ---
+            try:
+                # We need to fetch the staff name for the log
+                cur.execute("SELECT name FROM staff WHERE id = %s", (staff_id,))
+                s_name = cur.fetchone()[0]
+                
+                cur.execute("""
+                    INSERT INTO audit_logs (company_id, action, target, details, admin_email, created_at)
+                    VALUES (%s, 'CLOCK_IN', %s, 'Started Shift', %s, CURRENT_TIMESTAMP)
+                """, (comp_id, s_name, s_name))
+            except Exception as e:
+                print(f"Audit Log Error: {e}")
+            # ----------------------------
             conn.commit(); flash("🕒 Clocked In Successfully!")
     except Exception as e: conn.rollback(); flash(f"Error: {e}")
     finally: conn.close()
@@ -138,7 +151,7 @@ def clock_out():
     
     conn = get_db(); cur = conn.cursor()
     # USE HELPER
-    staff_id, _, _ = get_staff_identity(session['user_id'], cur)
+    staff_id, _, comp_id = get_staff_identity(session['user_id'], cur)
     
     try:
         cur.execute("SELECT id, clock_in FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL ORDER BY id DESC LIMIT 1", (staff_id,))
@@ -149,6 +162,19 @@ def clock_out():
             hours = diff.total_seconds() / 3600
             
             cur.execute("UPDATE staff_timesheets SET clock_out = CURRENT_TIMESTAMP, total_hours = %s WHERE id = %s", (round(hours, 2), sheet_id))
+        # --- AUDIT LOG (CLOCK OUT) ---
+            try:
+                # Get Staff Name
+                cur.execute("SELECT name FROM staff WHERE id = %s", (staff_id,))
+                s_name = cur.fetchone()[0]
+
+                cur.execute("""
+                    INSERT INTO audit_logs (company_id, action, target, details, admin_email, created_at)
+                    VALUES (%s, 'CLOCK_OUT', %s, %s, %s, CURRENT_TIMESTAMP)
+                """, (comp_id, s_name, f"Shift Finished ({round(hours, 2)} hrs)", s_name))
+            except Exception as e:
+                print(f"Audit Log Error: {e}")
+            # -----------------------------
             conn.commit(); flash(f"🕒 Clocked Out. Shift: {round(hours, 2)} hrs.")
         else:
             flash("⚠️ No active shift found.", "warning")
@@ -282,12 +308,20 @@ def update_job(job_id):
     action = request.form.get('action')
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
+    user_name = session.get('user_name', 'Engineer') # Get name for the log
     
     try:
         # A. START JOB
         if action == 'start':
             cur.execute("UPDATE jobs SET status = 'In Progress', start_date = CURRENT_TIMESTAMP WHERE id = %s", (job_id,))
-            
+            # --- AUDIT LOG ---
+            try:
+                cur.execute("""
+                    INSERT INTO audit_logs (company_id, action, target, details, admin_email, created_at)
+                    VALUES (%s, 'JOB_COMPLETED', %s, %s, %s, CURRENT_TIMESTAMP)
+                """, (comp_id, f"Job #{job_id}", f"Completed by {user_name}", user_name))
+            except Exception as e:
+                print(f"Audit Log Error: {e}")
             # Send Notification
             cur.execute("SELECT c.id, c.name, c.email, j.ref, j.site_address FROM jobs j LEFT JOIN clients c ON j.client_id = c.id WHERE j.id = %s", (job_id,))
             job_data = cur.fetchone()
@@ -428,7 +462,11 @@ def update_job(job_id):
                     file.save(os.path.join(JOB_EVIDENCE_FOLDER, filename))
                     cur.execute("INSERT INTO job_evidence (job_id, filepath, uploaded_by) VALUES (%s, %s, %s)", (job_id, db_path, session['user_id']))
                     flash("📷 Photo Uploaded")
-
+                    # --- AUDIT LOG ---
+            cur.execute("""
+                INSERT INTO audit_logs (company_id, action, target, details, admin_email)
+                VALUES (%s, 'JOB_COMPLETED', %s, %s, %s)
+            """, (comp_id, f"Job #{job_id}", f"Job completed by {user_name}. Invoice generated.", user_name))
         conn.commit()
     except Exception as e: conn.rollback(); flash(f"Error: {e}")
     finally: conn.close()
@@ -525,3 +563,101 @@ def log_fuel():
                 conn.rollback(); flash(f"Error: {e}")
 
     return render_template('site/fuel_form.html', reg=v_reg)
+    
+@site_bp.route('/site/fix-audit-table')
+def fix_audit_table():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Unauthorized"
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # 1. Ensure Table Exists
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER,
+                action TEXT,
+                target TEXT,
+                details TEXT,
+                admin_email TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        
+        # 2. Add columns if they are missing (Safe Patch)
+        cur.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS admin_email TEXT;")
+        cur.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS target TEXT;")
+        cur.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;")
+        
+        # 3. Create a Test Entry
+        cur.execute("""
+            INSERT INTO audit_logs (company_id, action, target, details, admin_email, created_at)
+            VALUES (%s, 'TEST_ENTRY', 'System', 'Verifying Audit Log works', 'System', CURRENT_TIMESTAMP)
+        """, (session.get('company_id'),))
+        
+        conn.commit()
+        return "<h1>✅ Audit Table Repaired & Test Entry Added</h1><p>Go check the Finance Dashboard now.</p>"
+    except Exception as e:
+        conn.rollback()
+        return f"<h1>Error</h1><p>{e}</p>"
+    finally:
+        conn.close()
+        # =========================================================
+# 8. SITE SYSTEM INSTALLER (Run this once)
+# =========================================================
+@site_bp.route('/site/setup-db')
+def setup_site_db():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Unauthorized"
+    
+    conn = get_db()
+    cur = conn.cursor()
+    log = []
+    
+    try:
+        # 1. Staff Timesheets (Clock In/Out)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS staff_timesheets (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER,
+                staff_id INTEGER,
+                date DATE DEFAULT CURRENT_DATE,
+                clock_in TIMESTAMP,
+                clock_out TIMESTAMP,
+                total_hours NUMERIC(5,2),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        log.append("✅ Timesheets Table Created")
+
+        # 2. Job Materials (Used on Site)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS job_materials (
+                id SERIAL PRIMARY KEY,
+                job_id INTEGER,
+                description TEXT,
+                quantity INTEGER,
+                unit_price NUMERIC(10,2),
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        log.append("✅ Job Materials Table Created")
+
+        # 3. Job Evidence (Photos)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS job_evidence (
+                id SERIAL PRIMARY KEY,
+                job_id INTEGER,
+                filepath TEXT,
+                uploaded_by INTEGER,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        log.append("✅ Job Evidence Table Created")
+
+        conn.commit()
+        return f"<h1>Site System Ready</h1><br>{'<br>'.join(log)}<br><br><a href='/site-hub'>Go to Site Hub</a>"
+        
+    except Exception as e:
+        conn.rollback()
+        return f"<h1>Error</h1><p>{e}</p>"
+    finally:
+        conn.close()

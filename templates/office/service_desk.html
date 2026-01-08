@@ -1,18 +1,7 @@
 {% extends "office/office_base.html" %}
+{% from "components/_macros.html" import status_badge %}
 
 {% block title %}Service Desk | Business Better{% endblock %}
-
-{% block head %}
-<style>
-    /* Service Desk Specific Styles */
-    .dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
-    .bg-Emergency { background-color: #dc3545; box-shadow: 0 0 5px #dc3545; } 
-    .bg-Urgent { background-color: #fd7e14; }
-    .bg-Priority { background-color: #ffc107; }
-    .bg-Scheduled { background-color: #0dcaf0; }
-    .bg-Resolved { background-color: #198754; }
-</style>
-{% endblock %}
 
 {% block content %}
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -40,14 +29,15 @@
                 {% for r in requests %}
                 <tr>
                     <td class="ps-4 text-muted">#{{ r.id }}</td>
-                    <td>
-                        <span class="dot bg-{{ r.severity }}"></span>
-                        <strong class="text-dark" style="font-size: 0.9rem;">{{ r.severity }}</strong>
-                    </td>
+                    
+                    <td>{{ status_badge(r.severity) }}</td>
+
                     <td class="fw-bold">{{ r.property_address }}</td>
                     <td class="small text-muted text-truncate" style="max-width: 200px;">{{ r.issue_description }}</td>
                     <td>{{ r.client_name }}</td>
-                    <td><span class="badge bg-light text-dark border">{{ r.status }}</span></td>
+                    
+                    <td>{{ status_badge(r.status) }}</td>
+                    
                     <td class="text-end pe-4">
                         <button class="btn btn-sm btn-primary fw-bold" 
                             onclick="openDispatchModal('{{ r.id }}', '{{ r.property_address }}', '{{ r.issue_description }}')">

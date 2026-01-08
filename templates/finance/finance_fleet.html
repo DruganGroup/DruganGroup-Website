@@ -15,6 +15,8 @@
     .crew-box { position: relative; }
     .crew-checkbox { transform: scale(1.2); cursor: pointer; }
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -31,7 +33,7 @@
     <div class="row g-4">
         {% for v in vehicles %}
         
-        {# --- Date Logic Macro (Uses Object for Math) --- #}
+        {# --- Date Logic Macro --- #}
         {% macro check_date(d) %}
             {% if d %}
                 {% set days = (d - today).days %}
@@ -46,10 +48,22 @@
                         <h4 class="fw-bold mb-0">{{ v.reg_number }}</h4>
                         <span class="text-muted small">{{ v.make_model }}</span>
                     </div>
-                    <span class="badge {{ 'bg-success' if v.status == 'Active' else 'bg-danger' }}">{{ v.status }}</span>
+                    <div class="d-flex flex-column align-items-end gap-1">
+                        <span class="badge {{ 'bg-success' if v.status == 'Active' else 'bg-danger' }}">{{ v.status }}</span>
+                        
+                        {# --- Live Telematics Badge --- #}
+                        {% if v.telematics_data %}
+                            <span class="badge bg-info text-dark border d-flex align-items-center gap-1">
+                                <i class="fas fa-satellite-dish"></i> 
+                                {{ v.telematics_data.speed }} mph
+                                {% if v.telematics_data.fuel_level < 20 %}
+                                    <i class="fas fa-gas-pump text-danger blink"></i>
+                                {% endif %}
+                            </span>
+                        {% endif %}
+                    </div>
                 </div>
                 
-                {# --- Display Dates using Dynamic Format (date_fmt) --- #}
                 <div class="d-flex gap-3 mt-3 mb-3 small fw-bold">
                     <span class="{{ check_date(v.mot_expiry) }}">
                         MOT: {{ v.mot_expiry.strftime(date_fmt) if v.mot_expiry else 'N/A' }}
@@ -75,8 +89,7 @@
                 <div class="mt-2 text-end text-success fw-bold small">
                     Daily Run: £{{ "%.2f"|format(v.total_gang_cost) }}
                 </div>
-            </div>
-        </div>
+            </div> </div>
 
         <div class="modal fade" id="detailModal{{ v.id }}" tabindex="-1">
             <div class="modal-dialog modal-lg">
@@ -90,16 +103,81 @@
                     </div>
                     
                     <form method="POST">
-                        <input type="hidden" name="action" value="assign_crew">
                         <input type="hidden" name="vehicle_id" value="{{ v.id }}">
+						<input type="hidden" name="company_id" value="{{ session.get('company_id') }}">
                         
                         <div class="modal-body p-0">
                             <div class="bg-light p-3 border-bottom d-flex justify-content-between align-items-center">
                                 <div class="small fw-bold text-uppercase text-muted">Total Daily Run Cost</div>
                                 <div class="fs-4 fw-bold text-success">£{{ "%.2f"|format(v.total_gang_cost) }}</div>
                             </div>
-                            <div class="px-3 pb-2 pt-1 small text-end text-muted fst-italic">
-                                Breakdown: Van (£{{ v.daily_cost }}) + Driver + Crew Wages (8hrs)
+                            <div class="p-3 border-bottom bg-white">
+    <div class="row align-items-center">
+        <div class="col-7">
+            <label class="small fw-bold text-muted">Van Daily Cost (£)</label>
+            <div class="small text-muted fst-italic" style="font-size: 0.75rem;">Lease/Fuel/Ins (Excl. Wages)</div>
+        </div>
+        <div class="col-5">
+            <input type="number" step="0.01" name="daily_cost" class="form-control fw-bold text-end" value="{{ v.daily_cost }}">
+        </div>
+    </div>
+</div>
+							{# --- START: Edit Tracker Settings --- #}
+<div class="px-3 pb-3">
+    <details class="border rounded p-2 bg-white">
+        <summary class="small fw-bold text-primary cursor-pointer">
+            <i class="fas fa-cog me-1"></i> Edit Vehicle & Tracker Settings
+        </summary>
+        <div class="mt-3">
+            <div class="mb-2">
+                <label class="small fw-bold">Tracker URL (Link)</label>
+                <input type="text" name="tracker_url" class="form-control form-control-sm" value="{{ v.tracker_url or '' }}">
+            </div>
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <label class="small fw-bold">API Provider</label>
+                    <select name="telematics_provider" class="form-select form-select-sm">
+                        <option value="" {% if not v.telematics_provider %}selected{% endif %}>None</option>
+                        <option value="samsara" {% if v.telematics_provider == 'samsara' %}selected{% endif %}>Samsara</option>
+                        <option value="geotab" {% if v.telematics_provider == 'geotab' %}selected{% endif %}>Geotab</option>
+                        <option value="verizon" {% if v.telematics_provider == 'verizon' %}selected{% endif %}>Verizon</option>
+                        <option value="traccar" {% if v.telematics_provider == 'traccar' %}selected{% endif %}>Traccar</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="small fw-bold">Device ID</label>
+                    <input type="text" name="tracking_device_id" class="form-control form-control-sm" value="{{ v.tracking_device_id or '' }}">
+                </div>
+            </div>
+            <button type="submit" name="action" value="update_settings" class="btn btn-warning btn-sm w-100 fw-bold mt-3">
+                <i class="fas fa-save me-1"></i> Save Changes
+            </button>
+        </div>
+    </details>
+</div>
+{# --- END: Edit Tracker Settings --- #}
+
+                            {# --- Live Location Map Section --- #}
+                            <div class="p-3 border-bottom">
+                                <label class="small fw-bold text-muted mb-2">Live Location</label>
+                                {% if v.telematics_data and v.telematics_data.lat %}
+                                    <div style="height: 200px; width: 100%; background: #eee; border-radius: 8px;" id="map-{{ v.id }}">
+                                        </div>
+                                    <div class="small text-muted mt-1">
+                                        <i class="fas fa-map-marker-alt text-danger"></i> 
+                                        Last seen: {{ v.last_updated_time }}
+                                    </div>
+                                {% else %}
+                                    {% if v.tracker_url %}
+                                        <a href="{{ v.tracker_url }}" target="_blank" class="btn btn-outline-primary btn-sm w-100">
+                                            <i class="fas fa-external-link-alt me-2"></i> Open External Tracker
+                                        </a>
+                                    {% else %}
+                                        <div class="alert alert-secondary small mb-0">
+                                            <i class="fas fa-wifi-slash"></i> No signal or tracker connected.
+                                        </div>
+                                    {% endif %}
+                                {% endif %}
                             </div>
 
                             <div class="p-3 border-bottom">
@@ -143,13 +221,12 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-primary fw-bold">Update Crew & Recalculate</button>
+                            <button type="submit" name="action" value="assign_crew" class="btn btn-primary fw-bold">Update Crew & Recalculate</button>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
-
         {% endfor %}
     </div>
 
@@ -157,15 +234,52 @@
         <div class="modal-dialog modal-lg">
             <form method="POST" class="modal-content">
                 <input type="hidden" name="action" value="add_vehicle">
+				<input type="hidden" name="company_id" value="{{ session.get('company_id') }}">
                 <div class="modal-header">
                     <h5 class="modal-title fw-bold">Register New Vehicle</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row g-3">
-                        <div class="col-md-6"><label class="small fw-bold">Reg Plate</label><input type="text" name="reg_number" class="form-control" required></div>
-                        <div class="col-md-6"><label class="small fw-bold">Model</label><input type="text" name="make_model" class="form-control"></div>
-                        <div class="col-md-12"><label class="small fw-bold">Tracker URL</label><input type="text" name="tracker_url" class="form-control"></div>
+                        <div class="col-md-6">
+                            <label class="small fw-bold">Reg Plate</label>
+                            <input type="text" name="reg_number" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small fw-bold">Model</label>
+                            <input type="text" name="make_model" class="form-control">
+                        </div>
+						<div class="col-md-6">
+    <label class="small fw-bold">Daily Cost (£)</label>
+    <input type="number" step="0.01" name="daily_cost" class="form-control" placeholder="25.00" required>
+</div>
+
+                        <div class="col-12">
+                            <hr class="my-2">
+                            <label class="small fw-bold text-muted">Option A: Standard Tracker Link</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-link"></i></span>
+                                <input type="text" name="tracker_url" class="form-control" placeholder="https://tracker-portal.com/vehicle/123">
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="small fw-bold text-muted mt-2">Option B: API Integration (Advanced)</label>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <select name="telematics_provider" class="form-select text-dark">
+                                        <option value="">-- Provider --</option>
+                                        <option value="samsara">Samsara</option>
+                                        <option value="geotab">Geotab</option>
+                                        <option value="verizon">Verizon Connect</option>
+                                        <option value="traccar">Traccar</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="text" name="tracking_device_id" class="form-control" placeholder="Device Serial / ID">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -174,4 +288,46 @@
             </form>
         </div>
     </div>
+	<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        {% for v in vehicles %}
+            {% if v.telematics_data and v.telematics_data.lat %}
+                // Only run this for vehicles that have GPS data
+                var modalId = 'detailModal{{ v.id }}';
+                var mapId = 'map-{{ v.id }}';
+                var lat = {{ v.telematics_data.lat }};
+                var lon = {{ v.telematics_data.lon }};
+                var reg = "{{ v.reg_number }}";
+                var speed = "{{ v.telematics_data.speed }}";
+
+                var modalElement = document.getElementById(modalId);
+                
+                // When the modal opens, initialize the map
+                modalElement.addEventListener('shown.bs.modal', function () {
+                    // Check if map is already initialized to prevent errors
+                    if (!this.mapInstance) {
+                        var map = L.map(mapId).setView([lat, lon], 14);
+                        
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '&copy; OpenStreetMap contributors'
+                        }).addTo(map);
+
+                        L.marker([lat, lon]).addTo(map)
+                            .bindPopup('<b>' + reg + '</b><br>Speed: ' + speed + ' mph')
+                            .openPopup();
+                        
+                        this.mapInstance = map; // Save to element so we don't recreate it
+                    }
+                    
+                    // CRITICAL: This fixes the "Gray Box" bug in modals
+                    setTimeout(function() {
+                        if(modalElement.mapInstance) {
+                            modalElement.mapInstance.invalidateSize();
+                        }
+                    }, 100);
+                });
+            {% endif %}
+        {% endfor %}
+    });
+</script>
 {% endblock %}

@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash
 from db import get_db, get_site_config
+from services.enforcement import check_limit
 from email_service import send_company_email
 import random
 import string
@@ -31,13 +32,21 @@ def client_dashboard():
                            brand_color=config['color'], 
                            logo_url=config['logo'])
 
-# --- 2. OFFICE VIEW: ADD NEW CLIENT & SEND WELCOME EMAIL ---
+# --- 2. OFFICE VIEW: ADD NEW CLIENT ---
 @client_bp.route('/clients/add', methods=['POST'])
 def add_client():
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Office']: 
         return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
+
+    # --- CHECK LIMIT (INDENTED CORRECTLY) ---
+    allowed, msg = check_limit(comp_id, 'max_clients')
+    if not allowed:
+        flash(msg, "error")
+        return redirect(url_for('client.client_dashboard'))
+    # ----------------------------------------
+    
     name = request.form.get('name')
     email = request.form.get('email')
     phone = request.form.get('phone')
@@ -46,7 +55,6 @@ def add_client():
     code = request.form.get('gate_code')
     notes = request.form.get('notes')
     
-    # Generate Portal Password
     raw_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
     hashed_password = generate_password_hash(raw_password)
     
@@ -121,7 +129,7 @@ def delete_client(id):
     conn.commit(); conn.close()
     return redirect(url_for('client.client_dashboard'))
 
-# --- 5. OFFICE VIEW: INDIVIDUAL CLIENT PROFILE (MISSING IN YOUR CODE) ---
+# --- 5. OFFICE VIEW: INDIVIDUAL CLIENT PROFILE ---
 @client_bp.route('/client/<int:client_id>')
 def view_client(client_id):
     if session.get('role') not in ['Admin', 'Office', 'Manager', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -129,7 +137,6 @@ def view_client(client_id):
     conn = get_db()
     cur = conn.cursor()
     
-    # Get Client Details
     cur.execute("SELECT * FROM clients WHERE id = %s AND company_id = %s", (client_id, session['company_id']))
     client = cur.fetchone()
     
@@ -137,7 +144,6 @@ def view_client(client_id):
         conn.close()
         return "Client not found", 404
         
-    # Get Client Properties (With Logic)
     cur.execute("""
         SELECT id, address_line1, postcode, tenant_name, 
                gas_safety_due, eicr_due, pat_test_due, fire_risk_due, epc_expiry, tenant_phone
@@ -180,21 +186,24 @@ def view_client(client_id):
 def add_property(client_id):
     if session.get('role') not in ['Admin', 'Office', 'Manager', 'SuperAdmin']: return "Access Denied"
     
+    # --- CHECK LIMIT (INDENTED CORRECTLY) ---
+    allowed, msg = check_limit(session['company_id'], 'max_properties')
+    if not allowed:
+        flash(msg, "error")
+        return redirect(url_for('client.view_client', client_id=client_id))
+    # ----------------------------------------
+    
     conn = get_db()
     cur = conn.cursor()
     try:
-        # 1. Capture Basic Info
         address1 = request.form.get('address_line1')
         postcode = request.form.get('postcode')
-        
-        # 2. Capture Compliance Dates (Empty string becomes None)
         gas_due = request.form.get('gas_safety_due') or None
         eicr_due = request.form.get('eicr_due') or None
         pat_due = request.form.get('pat_test_due') or None
         fire_due = request.form.get('fire_risk_due') or None
         epc_due = request.form.get('epc_expiry') or None
 
-        # 3. Insert into Database
         cur.execute("""
             INSERT INTO properties 
             (company_id, client_id, address_line1, postcode, 
@@ -204,7 +213,6 @@ def add_property(client_id):
             session['company_id'], client_id, address1, postcode,
             gas_due, eicr_due, pat_due, fire_due, epc_due
         ))
-        
         conn.commit()
         flash("✅ Property & Compliance Dates Saved")
     except Exception as e:
@@ -221,6 +229,15 @@ def portal_add_property():
     if 'client_id' not in session: return redirect(url_for('auth.client_portal_login'))
     
     client_id, comp_id = session.get('client_id'), session.get('company_id')
+    
+    # --- CHECK LIMIT (SECURITY FIX) ---
+    # Even though it's the client adding it, it belongs to the company's quota.
+    allowed, msg = check_limit(comp_id, 'max_properties')
+    if not allowed:
+        flash("❌ Cannot add property: The management company has reached their property limit.", "error")
+        return redirect(url_for('client.client_portal_home'))
+    # ----------------------------------
+
     address = request.form.get('address')
     tenant = request.form.get('tenant_name')
     phone = request.form.get('tenant_phone')
@@ -288,18 +305,13 @@ def fix_client_schema():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
     conn = get_db(); cur = conn.cursor()
     try:
-        # 1. Handle the Client Password Migration
         cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT;")
-        
-        # 2. Ensure Properties Table Exists
         cur.execute("""CREATE TABLE IF NOT EXISTS properties (
             id SERIAL PRIMARY KEY, 
             client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
             company_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);""")
 
-        # 3. RENAME 'address' TO 'address_line1' IF IT EXISTS
-        # This prevents the "column does not exist" error while saving your data
         cur.execute("""
             DO $$ 
             BEGIN 
@@ -310,10 +322,8 @@ def fix_client_schema():
             END $$;
         """)
 
-        # 4. ADD NEW COLUMNS (If they don't exist)
-        # We use TEXT for info and DATE for compliance so the "Due Soon" logic works
         columns_to_add = [
-            ("address_line1", "TEXT"), # Just in case it's a fresh table
+            ("address_line1", "TEXT"),
             ("postcode", "TEXT"),
             ("tenant_name", "TEXT"),
             ("tenant_phone", "TEXT"),
@@ -331,7 +341,6 @@ def fix_client_schema():
             except Exception as e:
                 print(f"Skipping {col_name}: {e}")
 
-        # 5. Ensure Service Requests Table Exists
         cur.execute("""CREATE TABLE IF NOT EXISTS service_requests (
             id SERIAL PRIMARY KEY, 
             property_id INTEGER REFERENCES properties(id) ON DELETE CASCADE,

@@ -14,8 +14,21 @@
         </div>
     </div>
     
-    <div class="row mb-4">
-        <div class="col-md-4">
+    <div class="row mb-4 g-3">
+        <div class="col-md-3">
+            <div class="card p-4 border-0 shadow-sm text-white" style="background: #2c3e50;"> 
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="opacity-75 text-uppercase fw-bold" style="font-size: 0.75rem;">Daily Break-Even</h6>
+                        <h2 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(break_even) }}</h2>
+                        <div class="small opacity-50 mt-1">Target to cover costs</div>
+                    </div>
+                    <i class="fas fa-crosshairs fa-2x opacity-25"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
             <div class="card p-4 border-0 shadow-sm text-white bg-success bg-gradient">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
@@ -26,7 +39,8 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+
+        <div class="col-md-3">
             <div class="card p-4 border-0 shadow-sm text-white bg-danger bg-gradient">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
@@ -37,7 +51,8 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+
+        <div class="col-md-3">
             <div class="card p-4 border-0 shadow-sm text-dark bg-warning bg-gradient">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
@@ -50,7 +65,20 @@
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+        <div class="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold m-0 text-secondary">Cash Flow Trends</h5>
+            <select class="form-select form-select-sm w-auto border-0 bg-light fw-bold">
+                <option>Last 6 Months</option>
+                <option>This Year</option>
+            </select>
+        </div>
+        <div class="card-body">
+            <canvas id="cashFlowChart" style="max-height: 300px; width: 100%;"></canvas>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
         <div class="card-header bg-white p-3 border-bottom">
             <h5 class="fw-bold m-0 text-secondary">Recent Transactions</h5>
         </div>
@@ -65,20 +93,124 @@
                         <th class="text-end">Amount</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {% for t in transactions %}
+<tbody>
+    {% for t in transactions %}
+    <tr class="transaction-row" 
+        {% if t[5] %} onclick="window.location.href='{{ url_for('jobs.job_files', job_id=t[5]) }}'" style="cursor: pointer;" title="View Job Details"{% endif %}>
+        
+        <td class="ps-3">{{ t[0] }}</td>
+        
+        <td>
+            <span class="badge rounded-pill {{ 'bg-success-subtle text-success' if t[1] == 'Income' else 'bg-danger-subtle text-danger' }}">
+                {{ t[1] }}
+            </span>
+        </td>
+        
+        <td>{{ t[2] }}</td> <td class="text-muted">
+            {{ t[3] }} 
+            {% if t[5] %} <i class="fas fa-external-link-alt small ms-1 text-primary opacity-50"></i>{% endif %}
+        </td>
+        
+        <td class="text-end fw-bold pe-3 currency-text">
+            {{ currency_symbol }}{{ "%.2f"|format(t[4]) }}
+        </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="text-center text-muted py-5">No settled transactions found.</td></tr>
+    {% endfor %}
+</tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold m-0 text-secondary">System Audit Log</h5>
+            <span class="badge bg-light text-muted border">Recent Activity</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0 small">
+                <thead class="table-light text-uppercase">
                     <tr>
-                        <td class="ps-3">{{ t[0] }}</td>
-                        <td><span class="badge rounded-pill {{ 'bg-success-subtle text-success' if t[1] == 'Income' else 'bg-danger-subtle text-danger' }}">{{ t[1] }}</span></td>
-                        <td>{{ t[2] }}</td>
-                        <td class="text-muted">{{ t[3] }}</td>
-                        <td class="text-end fw-bold pe-3 currency-text">{{ currency_symbol }}{{ "%.2f"|format(t[4]) }}</td>
+                        <th class="ps-3" style="width: 15%;">Time</th>
+                        <th style="width: 20%;">User</th>
+                        <th style="width: 15%;">Action</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td class="ps-3 text-muted">{{ log.time }}</td>
+                        <td class="fw-bold text-primary">{{ log.user }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ log.action }}</span></td>
+                        <td class="text-muted">{{ log.details }}</td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="5" class="text-center text-muted py-5">No recent activity found.</td></tr>
+                    <tr><td colspan="4" class="text-center text-muted py-3">No recent activity recorded.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const ctx = document.getElementById('cashFlowChart').getContext('2d');
+        
+        // --- REAL DATA FROM PYTHON ---
+        const labels = {{ chart_labels | safe }};
+        const incomeData = {{ chart_income | safe }};
+        const expenseData = {{ chart_expense | safe }};
+        const currency = "{{ currency_symbol }}";
+
+        const myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Income',
+                    data: incomeData, 
+                    borderColor: '#198754', 
+                    backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }, {
+                    label: 'Expenses',
+                    data: expenseData,
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + currency + context.parsed.y.toFixed(2);
+                            }
+                        }
+                    }
+                },
+                scales: { 
+                    y: { 
+                        beginAtZero: true, 
+                        grid: { borderDash: [5, 5] },
+                        ticks: { callback: function(value) { return currency + value; } }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}

@@ -1,86 +1,81 @@
 from flask import Blueprint, session, redirect, url_for, flash, send_file
 from db import get_db, get_site_config
 from services.pdf_generator import generate_pdf
+import os
+from datetime import timedelta
 
 pdf_bp = Blueprint('pdf', __name__)
 
-# --- TAX RATE LOOKUP TABLE ---
-# This ties the rate to the country code automatically.
-COUNTRY_TAX_RATES = {
-    'GB': 20.0, # United Kingdom
-    'ES': 21.0, # Spain
-    'FR': 20.0, # France
-    'DE': 19.0, # Germany
-    'IE': 23.0, # Ireland
-    'US': 0.0,  # USA (Sales tax varies by state, usually added differently, defaulting to 0 for now)
-}
+# --- HELPER: CALCULATE TAX ---
+def get_tax_rate(settings):
+    if settings.get('vat_registered') not in ['yes', 'on', 'true', '1']: return 0.0
+    manual_rate = settings.get('default_tax_rate')
+    if manual_rate and float(manual_rate) > 0: return float(manual_rate)
+    return 20.0 # Default fallback
 
+# --- HELPER: GET COMPANY NAME SAFELY ---
+def get_company_name(cursor, company_id):
+    try:
+        cursor.execute("SELECT name FROM companies WHERE id = %s", (company_id,))
+        res = cursor.fetchone()
+        return res[0] if res else "My Company"
+    except:
+        return "My Company"
+
+# --- HELPER: SMART TERMS GENERATOR ---
+def get_smart_terms(settings):
+    # If the user wrote custom terms, use them.
+    custom = settings.get('payment_terms')
+    if custom and len(custom) > 5:
+        return custom
+    
+    # Otherwise, build a sentence using the "Days to Pay" setting
+    days = settings.get('payment_days', '14')
+    return f"Payment is due within {days} days of the invoice date."
+
+# =========================================================
+# 1. DOWNLOAD INVOICE PDF
+# =========================================================
 @pdf_bp.route('/finance/invoice/<int:invoice_id>/download')
 def download_invoice_pdf(invoice_id):
-    # 1. Security Check
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']:
         return redirect(url_for('auth.login'))
         
-    conn = get_db()
-    cur = conn.cursor()
+    conn = get_db(); cur = conn.cursor()
     comp_id = session.get('company_id')
 
-    # 2. Fetch Invoice Details
+    # 1. Fetch Invoice
     cur.execute("""
         SELECT i.id, i.ref, i.date_created, i.due_date, 
-               c.name, c.address, c.email, i.total_amount, i.status
-        FROM invoices i
-        JOIN clients c ON i.client_id = c.id
+               c.name, c.billing_address, c.email, i.total_amount, i.status
+        FROM invoices i 
+        JOIN clients c ON i.client_id = c.id 
         WHERE i.id = %s AND i.company_id = %s
     """, (invoice_id, comp_id))
     inv = cur.fetchone()
     
-    if not inv:
-        conn.close()
-        flash("❌ Invoice not found.", "error")
-        return redirect(url_for('finance.finance_invoices'))
+    if not inv: conn.close(); return "Invoice not found", 404
 
-    # 3. Fetch Line Items
+    # 2. Fetch Items
     cur.execute("SELECT description, quantity, unit_price, total FROM invoice_items WHERE invoice_id = %s", (invoice_id,))
     items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
-    
-    # 4. Fetch Company Settings
+
+    # 3. Fetch Settings & Company Name
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
+    
+    # FIX 1: Force fetch name
+    comp_name = get_company_name(cur, comp_id)
     conn.close()
 
-    # 5. AUTOMATED TAX LOGIC (The Fix)
-    if inv[7] is None:
-        flash("❌ Error: Invoice has no total amount.", "error")
-        return redirect(url_for('finance.finance_invoices'))
-    
+    # 4. Calculate Tax
     total_val = float(inv[7])
-    
-    # A. Check if Company is VAT Registered
-    # It checks for 'vat_registered' (new key) or 'tax_enabled' (old key)
-    is_vat_registered = settings.get('vat_registered', settings.get('tax_enabled', '0'))
-    
-    # B. Get Country Code (Default to UK 'GB' if missing)
-    country_code = settings.get('country', 'GB').upper()
-
-    # C. Determine the Rate
-    if str(is_vat_registered).lower() in ['1', 'true', 'yes', 'on']:
-        # Look up the rate based on the country
-        user_rate = COUNTRY_TAX_RATES.get(country_code, 20.0) # Default to 20% if country unknown
-    else:
-        # Not VAT registered = 0% tax
-        user_rate = 0.0
-
-    # 6. Calculate Net/Tax Backwards
+    user_rate = get_tax_rate(settings)
     divisor = 1 + (user_rate / 100)
-    if divisor == 1:
-        subtotal_val = total_val
-        tax_val = 0.0
-    else:
-        subtotal_val = total_val / divisor
-        tax_val = total_val - subtotal_val
+    subtotal_val = total_val / divisor
+    tax_val = total_val - subtotal_val
 
-    # 7. Prepare Context
+    # 5. Prepare Context
     context = {
         'invoice': {
             'ref': inv[1], 
@@ -93,19 +88,103 @@ def download_invoice_pdf(invoice_id):
             'tax': tax_val,
             'total': total_val,
             'tax_rate_display': user_rate,
+            'status': inv[8],
             'currency_symbol': settings.get('currency_symbol', '£')
         },
-        'company': {'name': session.get('company_name')},
+        'company': {
+            'name': comp_name, # <--- FIXED
+            'address': settings.get('company_address', ''),
+            'email': settings.get('company_email', ''),
+            'phone': settings.get('company_phone', ''),
+            'reg': settings.get('company_reg_number', '')
+        },
         'items': items,
         'settings': settings,
-        'config': get_site_config(comp_id)
+        'smart_terms': get_smart_terms(settings), # <--- FIXED
+        'config': get_site_config(comp_id) 
     }
-
-    # 8. Generate
+    
     filename = f"Invoice_{inv[1]}.pdf"
     try:
         pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
-        return send_file(pdf_path, as_attachment=True, download_name=filename)
+        return send_file(pdf_path, as_attachment=False, download_name=filename)
     except Exception as e:
-        print(f"PDF Error: {e}")
-        return f"PDF Generation Error: {e}"
+        return f"PDF Error: {e}", 500
+
+# =========================================================
+# 2. DOWNLOAD QUOTE PDF
+# =========================================================
+@pdf_bp.route('/office/quote/<int:quote_id>/download')
+def download_quote_pdf(quote_id):
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']:
+        return redirect(url_for('auth.login'))
+        
+    conn = get_db(); cur = conn.cursor()
+    comp_id = session.get('company_id')
+
+    # 1. Fetch Quote
+    cur.execute("""
+        SELECT q.id, q.reference, q.date, q.expiry_date, 
+               c.name, c.billing_address, c.email, q.total, q.status
+        FROM quotes q 
+        JOIN clients c ON q.client_id = c.id 
+        WHERE q.id = %s AND q.company_id = %s
+    """, (quote_id, comp_id))
+    quote = cur.fetchone()
+    
+    if not quote: conn.close(); return "Quote not found", 404
+
+    # 2. Fetch Items
+    cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
+    items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
+
+    # 3. Fetch Settings & Name
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    comp_name = get_company_name(cur, comp_id)
+    conn.close()
+
+    # 4. Tax Logic
+    total_val = float(quote[7])
+    user_rate = get_tax_rate(settings)
+    divisor = 1 + (user_rate / 100)
+    subtotal_val = total_val / divisor
+    tax_val = total_val - subtotal_val
+
+    # 5. Context
+    context = {
+        'invoice': {
+            'ref': quote[1], 
+            'date': quote[2], 
+            'due': quote[3], 
+            'client_name': quote[4], 
+            'client_address': quote[5], 
+            'client_email': quote[6],
+            'subtotal': subtotal_val,
+            'tax': tax_val,
+            'total': total_val,
+            'tax_rate_display': user_rate,
+            'status': quote[8],
+            'currency_symbol': settings.get('currency_symbol', '£')
+        },
+        'company': {
+            'name': comp_name, # <--- FIXED
+            'address': settings.get('company_address', ''),
+            'email': settings.get('company_email', ''),
+            'phone': settings.get('company_phone', ''),
+            'reg': settings.get('company_reg_number', '')
+        },
+        'items': items,
+        'settings': settings,
+        'smart_terms': get_smart_terms(settings), # <--- FIXED
+        'config': get_site_config(comp_id),
+        'is_quote': True 
+    }
+    
+    filename = f"Quote_{quote[1]}.pdf"
+    
+    try:
+        pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
+        return send_file(pdf_path, as_attachment=False, download_name=filename)
+    except Exception as e:
+        return f"PDF Error: {e}", 500

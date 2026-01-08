@@ -1,0 +1,50 @@
+{# --- 1. STATUS BADGE SHORTCUT --- #}
+{% macro status_badge(text) %}
+    {% if text in ['Paid', 'Active', 'Resolved', 'Completed', 'Valid'] %}
+        <span class="badge bg-success-subtle text-success border border-success px-2">
+            <i class="fas fa-check-circle me-1"></i> {{ text }}
+        </span>
+    {% elif text in ['Unpaid', 'Emergency', 'Overdue', 'Expired', 'Inactive', 'No Access'] %}
+        <span class="badge bg-danger-subtle text-danger border border-danger px-2">
+            <i class="fas fa-exclamation-circle me-1"></i> {{ text }}
+        </span>
+    {% elif text in ['Pending', 'Urgent', 'Due', 'Scheduled'] %}
+        <span class="badge bg-warning-subtle text-warning border border-warning px-2">
+            <i class="fas fa-clock me-1"></i> {{ text }}
+        </span>
+    {% else %}
+        <span class="badge bg-light text-secondary border px-2">{{ text }}</span>
+    {% endif %}
+{% endmacro %}
+
+{# --- 2. DATE TRAFFIC LIGHT SHORTCUT --- #}
+{# Usage: {{ date_check(vehicle.mot_expiry, today) }} #}
+{% macro date_check(target_date, today_date) %}
+    {% if target_date %}
+        {% set days = (target_date - today_date).days %}
+        
+        {% if days < 0 %}
+            {# ALREADY EXPIRED #}
+            <span class="badge bg-danger text-white fw-bold">
+                EXPIRED: {{ target_date.strftime('%d/%m/%Y') }}
+            </span>
+        {% elif days <= 14 %}
+            {# EXPIRING SOON (RED TEXT) #}
+            <span class="text-danger fw-bold" title="Expires in {{ days }} days">
+                <i class="fas fa-exclamation-triangle me-1"></i> {{ target_date.strftime('%d/%m/%Y') }}
+            </span>
+        {% elif days <= 30 %}
+            {# WARNING (ORANGE TEXT) #}
+            <span class="text-warning fw-bold" title="Expires in {{ days }} days">
+                {{ target_date.strftime('%d/%m/%Y') }}
+            </span>
+        {% else %}
+            {# SAFE (GREEN TEXT) #}
+            <span class="text-success" style="font-weight: 500;">
+                <i class="fas fa-check me-1"></i> {{ target_date.strftime('%d/%m/%Y') }}
+            </span>
+        {% endif %}
+    {% else %}
+        <span class="text-muted small">N/A</span>
+    {% endif %}
+{% endmacro %}

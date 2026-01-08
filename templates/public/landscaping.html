@@ -4,86 +4,132 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Landscaping | Drugan Group</title>
+    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css">
+    
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        .service-detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+            margin-bottom: 80px;
+        }
+        .text-col h2 { color: #fff; font-family: 'Montserrat', sans-serif; margin-bottom: 20px; }
+        .text-col p { color: #ccc; line-height: 1.8; margin-bottom: 20px; }
+        .img-col img { width: 100%; border-radius: 12px; border: 1px solid #333; height: 350px; object-fit: cover; }
+        
+        @media(max-width: 900px) {
+            .service-detail-grid { grid-template-columns: 1fr; }
+            .order-swap { order: 2; }
+        }
+    </style>
 </head>
 <body>
 
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-    <a href="index.html"><img src="/static/images/logo.png" alt="Drugan Group" class="main-logo-img"></a> DRUGAN <span class="tagline">GROUP</span><span class="tagline">Landscaping</span></div>
+                <a href="index.html">
+                    <img src="static/images/logo.png" alt="Drugan Group" class="main-logo-img">
+                </a> 
+                DRUGAN <span class="tagline">GROUP</span>
+            </div>
             <div class="menu-toggle" id="mobile-menu"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
             <ul class="nav-links">
-                <li><a href="index.html">Home</a></li>
                 <li><a href="about.html">About</a></li>
                 <li><a href="services.html" style="color: var(--primary-gold);">Services</a></li>
-                <li><a href="tradecore.html">Software</a></li>
+                <li><a href="businessbetter.html">Software</a></li>
                 <li><a href="forensics.html">Disputes</a></li>
                 <li><a href="contact.html">Contact</a></li>
                 <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
             <div class="nav-actions">
-                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i> Portal Login</a>
+                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i>Portal Login</a>
             </div>
         </div>
     </nav>
 
-    <header class="hero hero-enhanced" style="background-image: linear-gradient(rgba(10,10,15,0.85), rgba(10,10,15,0.95)), url('https://images.unsplash.com/photo-1621255556209-679905479df3?auto=format&fit=crop&w=1920&q=80');">
+    <header class="hero hero-enhanced">
+        <div class="hero-bg"></div>
+        <div class="hero-overlay"></div>
         <div class="container hero-grid single-col">
             <div class="hero-text center-text" data-aos="fade-up">
-                <div class="badge">EXTERIOR DESIGN</div>
-                <h1>Your Space. <span class="gold-gradient">Transformed.</span></h1>
-                <p class="hero-sub">From luxury porcelain patios to secure perimeter fencing. We create outdoor spaces that last.</p>
-                <a href="#contact" class="btn-primary btn-large">Get Free Quote</a>
+                <div class="badge">EXTERIOR WORKS</div>
+                <h1>Transform Your <span class="gold-gradient">Space.</span></h1>
+                <p class="hero-sub">Precision paving, secure fencing, and durable driveways. We treat the outside of your property with the same care as the inside.</p>
+                <div class="cta-group center-group">
+                    <a href="contact.html" class="btn-primary btn-large">Get Free Quote</a>
+                </div>
             </div>
         </div>
     </header>
 
     <section class="container" style="padding: 100px 0;">
-        <div class="bento-grid">
-            <div class="bento-card" data-aos="fade-up">
-                <div class="card-icon"><i class="fas fa-tree"></i></div>
-                <h3>Paving & Patios</h3>
-                <p>Sandstone, Porcelain, and Block Paving installed on correct sub-bases to prevent sinking.</p>
+        
+        <div class="service-detail-grid" data-aos="fade-up">
+            <div class="text-col">
+                <h2>Patios & Driveways</h2>
+                <p>We install Porcelain, Indian Sandstone, and Block Paving. The secret to a long-lasting driveway is what you don't see—we dig deeper and use higher-grade sub-base than the industry standard to prevent sinking.</p>
             </div>
-            <div class="bento-card" data-aos="fade-up" data-aos-delay="100">
-                <div class="card-icon"><i class="fas fa-bars"></i></div>
-                <h3>Fencing</h3>
-                <p>Featheredge, panel, and security fencing. Installed with concrete posts for maximum durability.</p>
-            </div>
-            <div class="bento-card" data-aos="fade-up" data-aos-delay="200">
-                <div class="card-icon"><i class="fas fa-chair"></i></div>
-                <h3>Decking</h3>
-                <p>Composite and timber decking solutions designed to create the perfect entertainment area.</p>
+            <div class="img-col">
+                <img src="static/images/landscaping.jpg" alt="Paving" onerror="this.src='https://images.unsplash.com/photo-1623625345638-89c836e67618?auto=format&fit=crop&w=800&q=80'">
             </div>
         </div>
+
+        <div class="service-detail-grid" data-aos="fade-up">
+            <div class="img-col order-swap">
+                <img src="static/images/fencing.jpg" alt="Fencing" onerror="this.src='https://images.unsplash.com/photo-1595846519845-68e298c2edd8?auto=format&fit=crop&w=800&q=80'">
+            </div>
+            <div class="text-col">
+                <h2>Fencing & Security</h2>
+                <p>From decorative residential panels to security palisade for commercial yards. We concrete all posts to a minimum depth of 600mm, ensuring they stand firm in high winds.</p>
+            </div>
+        </div>
+
     </section>
 
-    <footer id="contact">
+    <footer>
         <div class="container footer-content">
             <div class="footer-col">
                 <h4>Drugan Group</h4>
-                <a href="mailto:info@drugangroup.com" class="btn-primary">Contact Us</a>
+                <p class="creator">Building & Maintenance</p>
+                <p>Quality workmanship backed by cutting-edge technology.</p>
             </div>
             <div class="footer-col">
-                <h5>Services</h5>
-                <a href="roofing.html">Roofing</a>
-                <a href="landscaping.html">Landscaping</a>
+                <h5>Group Companies</h5>
+                <a href="index.html">Construction</a>
+                <a href="businessbetter.html">Business Better Software</a> 
+                <a href="forensics.html">Forensics Unit</a>
+            </div>
+            <div class="footer-col">
+                <h5>Contact</h5>
+                <a href="login.html">Client Portal</a>
+                <a href="mailto:info@drugangroup.com">info@drugangroup.com</a>
             </div>
         </div>
-        <div class="bottom-bar"><p>&copy; 2025 Drugan Group.</p></div>
+        <div class="bottom-bar">
+            <p>&copy; 2025 Drugan Group. All rights reserved.</p>
+        </div>
     </footer>
 
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
         AOS.init({ duration: 800, once: true });
+        window.addEventListener('scroll', function() {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) nav.classList.add('scrolled');
+            else nav.classList.remove('scrolled');
+        });
         const menuToggle = document.querySelector('#mobile-menu');
         const navLinks = document.querySelector('.nav-links');
         if (menuToggle) {
-            menuToggle.addEventListener('click', () => {
+            menuToggle.addEventListener('click', function() {
                 navLinks.classList.toggle('active');
                 menuToggle.classList.toggle('is-active');
             });

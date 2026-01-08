@@ -152,6 +152,10 @@
                 <i class="fas fa-chart-pie"></i> Intelligence
             </a>
             
+            <a href="{{ url_for('plans.view_plans') }}" class="sidebar-btn {{ 'active' if 'plans' in request.path else '' }}">
+                <i class="fas fa-tags"></i> Plans & Pricing
+            </a>
+            
             <small class="text-muted text-uppercase mb-2 mt-4" style="font-size: 0.7rem; letter-spacing: 1px;">Security & Logs</small>
             
             <a href="{{ url_for('admin.view_audit_logs') }}" class="sidebar-btn {{ 'active' if 'audit' in request.path else '' }}">

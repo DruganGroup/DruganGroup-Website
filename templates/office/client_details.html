@@ -1,19 +1,8 @@
 {% extends "office/office_base.html" %}
 
-{% block title %}{{ client.name }} | Details{% endblock %}
+{% from "components/_macros.html" import status_badge %}
 
-{% block head %}
-<style>
-    .comp-badge { font-size: 0.7rem; padding: 4px 6px; border-radius: 4px; border: 1px solid transparent; font-weight: bold; display: block; margin-bottom: 2px; }
-    .comp-Valid { background-color: #d1e7dd; color: #0f5132; border-color: #badbcc; }
-    .comp-Expired { background-color: #f8d7da; color: #842029; border-color: #f5c2c7; animation: pulse 2s infinite; }
-    .comp-Due { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
-    .comp-Missing { background-color: #e2e3e5; color: #41464b; border-color: #d3d6d8; }
-    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-    
-    .btn-upload { font-size: 0.65rem; padding: 1px 4px; }
-</style>
-{% endblock %}
+{% block title %}{{ client.name }} | Details{% endblock %}
 
 {% block content %}
     <div class="row align-items-center mb-4">
@@ -42,7 +31,7 @@
     <div class="row g-3">
         {% for prop in properties %}
         <div class="col-12">
-            <div class="card p-3 shadow-sm h-100">
+            <div class="card p-3 shadow-sm h-100 border-0">
                 <div class="row align-items-center">
                     <div class="col-md-3">
                         <h6 class="fw-bold mb-1">{{ prop.addr }}</h6>
@@ -59,28 +48,31 @@
 
                     <div class="col-md-4 border-start">
                         <small class="text-muted fw-bold text-uppercase mb-2 d-block">Compliance Status</small>
-                        <div class="d-flex gap-2">
-                            <div class="text-center flex-fill">
-                                <div class="comp-badge comp-{{ prop.compliance.Gas.status }}">Gas</div>
-                                <div class="small text-muted" style="font-size:0.65rem">{{ prop.compliance.Gas.date or 'N/A' }}</div>
+                        <div class="d-flex gap-3">
+                            <div class="text-center">
+                                <div class="small fw-bold mb-1">Gas</div>
+                                {{ status_badge(prop.compliance.Gas.status) }}
+                                <div class="small text-muted mt-1" style="font-size:0.7rem">{{ prop.compliance.Gas.date or '-' }}</div>
                             </div>
-                            <div class="text-center flex-fill">
-                                <div class="comp-badge comp-{{ prop.compliance.EICR.status }}">Elec</div>
-                                <div class="small text-muted" style="font-size:0.65rem">{{ prop.compliance.EICR.date or 'N/A' }}</div>
+                            <div class="text-center">
+                                <div class="small fw-bold mb-1">Elec</div>
+                                {{ status_badge(prop.compliance.EICR.status) }}
+                                <div class="small text-muted mt-1" style="font-size:0.7rem">{{ prop.compliance.EICR.date or '-' }}</div>
                             </div>
-                            <div class="text-center flex-fill">
-                                <div class="comp-badge comp-{{ prop.compliance.PAT.status }}">PAT</div>
-                                <div class="small text-muted" style="font-size:0.65rem">{{ prop.compliance.PAT.date or 'N/A' }}</div>
+                            <div class="text-center">
+                                <div class="small fw-bold mb-1">PAT</div>
+                                {{ status_badge(prop.compliance.PAT.status) }}
+                                <div class="small text-muted mt-1" style="font-size:0.7rem">{{ prop.compliance.PAT.date or '-' }}</div>
                             </div>
                         </div>
                     </div>
 
                     <div class="col-md-2 border-start text-end">
                         <div class="dropdown">
-                            <button class="btn btn-primary btn-sm fw-bold dropdown-toggle w-100" type="button" data-bs-toggle="dropdown">
+                            <button class="btn btn-light border btn-sm fw-bold dropdown-toggle w-100" type="button" data-bs-toggle="dropdown">
                                 Manage
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end shadow">
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
                                 <li><h6 class="dropdown-header">Jobs</h6></li>
                                 <li><a class="dropdown-item" href="/office/create-job?property_id={{ prop.id }}"><i class="fas fa-tools me-2 text-muted"></i>Book Repair</a></li>
                                 <li><hr class="dropdown-divider"></li>

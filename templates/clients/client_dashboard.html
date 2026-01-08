@@ -1,5 +1,7 @@
 {% extends "office/office_base.html" %}
 
+{% from "components/_macros.html" import status_badge %}
+
 {% block title %}Client Database | Business Better{% endblock %}
 
 {% block head %}
@@ -22,7 +24,7 @@
             <h2 class="fw-bold m-0">Client Directory</h2>
             <p class="text-muted mb-0">Manage customer portfolios and properties</p>
         </div>
-        <button class="btn btn-primary fw-bold shadow-sm" style="background-color: var(--brand-color); border:none;" data-bs-toggle="modal" data-bs-target="#addClientModal">
+        <button class="btn btn-primary fw-bold shadow-sm" style="background-color: var(--brand-color); border:none;" onclick="openAddModal()">
             <i class="fas fa-user-plus me-2"></i> Add New Client
         </button>
     </div>
@@ -48,12 +50,12 @@
                         <th class="ps-4">Client Name</th>
                         <th>Contact Info</th>
                         <th>Status</th>
-                        <th class="text-end pe-4">Actions</th>
+                        <th class="text-end pe-4" style="min-width: 150px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for c in clients %}
-                    <tr class="client-row">
+                    <tr class="client-row" style="position: relative;">
                         <td class="ps-4">
                             <div class="d-flex align-items-center">
                                 <div class="client-avatar">{{ c[1][0] | upper }}</div>
@@ -70,19 +72,26 @@
                             {% if c[3] %}<div class="small client-phone"><i class="fas fa-phone text-muted me-2" style="width:15px;"></i>{{ c[3] }}</div>{% endif %}
                         </td>
                         <td>
-                            <span class="badge {{ 'bg-success' if c[5] == 'Active' else 'bg-secondary' }}">{{ c[5] }}</span>
+                            {{ status_badge(c[5]) }}
                         </td>
-                        <<td class="text-end pe-4">
-    <form action="/office/client/{{ c[0] }}/enable-portal" method="POST" class="d-inline" onsubmit="return confirm('Generate password and email to client?');" style="position: relative; z-index: 2;">
-        <button type="submit" class="btn btn-sm btn-outline-warning fw-bold me-1" title="Email Login Details">
-            <i class="fas fa-key"></i> Send Access
-        </button>
-    </form>
-
-    <a href="/client/{{ c[0] }}" class="btn btn-sm btn-outline-dark" style="position: relative; z-index: 2;">
-        <i class="fas fa-folder-open me-1"></i> Properties
-    </a>
-</td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group" style="position: relative; z-index: 2;">
+                                
+                                <button class="btn btn-sm btn-outline-dark" 
+                                        title="Edit Client"
+                                        type="button"
+                                        onclick="openEditModal('{{ c[0] }}', '{{ c[1] }}', '{{ c[2] }}', '{{ c[3] }}', '{{ c[5] }}', '{{ c[8] or '' }}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                
+                                <a href="/client/delete/{{ c[0] }}" 
+                                   class="btn btn-sm btn-outline-danger" 
+                                   title="Delete Client"
+                                   onclick="return confirm('⚠️ Are you sure?\n\nThis will delete the client AND ALL their properties/jobs.\n\nThis cannot be undone.');">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
                     </tr>
                     {% else %}
                     <tr><td colspan="4" class="text-center py-5 text-muted">No clients found. Add one to get started.</td></tr>
@@ -92,40 +101,53 @@
         </div>
     </div>
 
-    <div class="modal fade" id="addClientModal" tabindex="-1">
+    <div class="modal fade" id="clientModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title fw-bold">Add New Client Account</h5>
+                    <h5 class="modal-title fw-bold" id="modalTitle">Add New Client</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form action="/clients/add" method="POST">
+                <form action="/clients/add" method="POST" id="clientForm">
+                    <input type="hidden" name="client_id" id="client_id">
+                    
                     <div class="modal-body p-4">
                         <div class="row g-3">
-                            <div class="col-12">
+                            <div class="col-md-8">
                                 <label class="small fw-bold">Client / Company Name</label>
-                                <input type="text" name="name" class="form-control" required>
+                                <input type="text" name="name" id="c_name" class="form-control fw-bold" required>
                             </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold">Status</label>
+                                <select name="status" id="c_status" class="form-select">
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                    <option value="Lead">Lead / Prospect</option>
+                                </select>
+                            </div>
+
                             <div class="col-md-6">
                                 <label class="small fw-bold">Email Address</label>
-                                <input type="email" name="email" class="form-control">
+                                <input type="email" name="email" id="c_email" class="form-control">
                             </div>
                             <div class="col-md-6">
                                 <label class="small fw-bold">Phone Number</label>
-                                <input type="text" name="phone" class="form-control">
+                                <input type="text" name="phone" id="c_phone" class="form-control">
                             </div>
+                            
                             <div class="col-12">
                                 <label class="small fw-bold">Billing Address</label>
-                                <textarea name="billing_address" class="form-control" rows="2"></textarea>
+                                <textarea name="billing_address" id="c_addr" class="form-control" rows="2"></textarea>
                             </div>
+                            
                             <div class="col-12">
                                 <label class="small fw-bold">Internal Notes</label>
-                                <input type="text" name="notes" class="form-control" placeholder="Key codes, access info, etc.">
+                                <input type="text" name="notes" id="c_notes" class="form-control" placeholder="Key codes, access info, etc.">
                             </div>
                         </div>
                     </div>
                     <div class="modal-footer bg-light">
-                        <button type="submit" class="btn btn-primary fw-bold">Save Client</button>
+                        <button type="submit" class="btn btn-primary fw-bold" id="modalSubmitBtn">Save Client</button>
                     </div>
                 </form>
             </div>
@@ -135,6 +157,46 @@
 
 {% block scripts %}
 <script>
+    // 1. OPEN MODAL FOR NEW CLIENT
+    function openAddModal() {
+        // Reset the form for a fresh entry
+        document.getElementById('clientForm').reset();
+        document.getElementById('clientForm').action = "/clients/add";
+        document.getElementById('client_id').value = "";
+        
+        document.getElementById('modalTitle').innerText = "Add New Client";
+        document.getElementById('modalSubmitBtn').innerText = "Save Client";
+        
+        var myModal = new bootstrap.Modal(document.getElementById('clientModal'));
+        myModal.show();
+    }
+
+    // 2. OPEN MODAL FOR EDITING (Fills the form with data)
+    function openEditModal(id, name, email, phone, status, notes) {
+        // Reset first
+        document.getElementById('clientForm').reset();
+        
+        // Point form to UPDATE route
+        document.getElementById('clientForm').action = "/clients/update";
+        document.getElementById('client_id').value = id;
+        
+        // Update Title
+        document.getElementById('modalTitle').innerText = "Edit Client: " + name;
+        document.getElementById('modalSubmitBtn').innerText = "Update Record";
+
+        // Inject data into inputs
+        document.getElementById('c_name').value = name;
+        document.getElementById('c_email').value = (email == 'None' ? '' : email);
+        document.getElementById('c_phone').value = (phone == 'None' ? '' : phone);
+        document.getElementById('c_status').value = status;
+        document.getElementById('c_notes').value = (notes == 'None' ? '' : notes);
+
+        // Show the shared modal
+        var myModal = new bootstrap.Modal(document.getElementById('clientModal'));
+        myModal.show();
+    }
+
+    // 3. SEARCH FILTER
     function filterClients() {
         var input = document.getElementById("clientSearch");
         var filter = input.value.toUpperCase();
@@ -142,7 +204,6 @@
         var tr = table.getElementsByTagName("tr");
 
         for (var i = 1; i < tr.length; i++) {
-            // Get Name, Email, Phone cells
             var name = tr[i].querySelector(".client-name");
             var email = tr[i].querySelector(".client-email");
             var phone = tr[i].querySelector(".client-phone");

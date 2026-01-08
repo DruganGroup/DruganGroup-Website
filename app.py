@@ -3,6 +3,7 @@ import traceback
 from flask import Flask, render_template, request, session
 from db import get_db
 
+
 # 1. Import all Blueprints (Just importing, not registering yet)
 from routes.portal_routes import portal_bp
 from routes.public_routes import public_bp
@@ -14,6 +15,11 @@ from routes.finance_routes import finance_bp
 from routes.admin_routes import admin_bp
 from routes.site_routes import site_bp
 from routes.pdf_routes import pdf_bp
+from routes.plans import plans_bp
+from routes.hr_routes import hr_bp
+from routes.transactions import transactions_bp
+from routes.job_routes import jobs_bp
+from routes.quote_routes import quote_bp
 
 # 2. CREATE THE APP (This must happen before we use 'app')
 app = Flask(__name__)
@@ -33,6 +39,11 @@ app.register_blueprint(finance_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(site_bp)
 app.register_blueprint(pdf_bp)
+app.register_blueprint(plans_bp)
+app.register_blueprint(hr_bp)
+app.register_blueprint(transactions_bp)
+app.register_blueprint(jobs_bp)
+app.register_blueprint(quote_bp)
 
 # --- DEBUG ROUTE ---
 @app.route('/debug-files')
