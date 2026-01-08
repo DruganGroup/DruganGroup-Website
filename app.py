@@ -149,20 +149,21 @@ if __name__ == '__main__':
     # Turn DEBUG ON so we can see the error
     app.run(host='0.0.0.0', port=port, debug=True)
     
-    # --- FIX FLEET DATABASE ---
-@app.route('/fix-fleet-db')
-def fix_fleet_db():
+# --- FIX DATA QUALITY (Stops 'NoneType' Errors) ---
+@app.route('/fix-broken-data')
+def fix_broken_data():
     try:
         conn = get_db()
         cur = conn.cursor()
         
-        # Add the missing tracking columns to the vehicles table
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS telematics_provider VARCHAR(50);")
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tracking_device_id TEXT;")
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tracker_url TEXT;")
+        # 1. Fix Jobs with missing Site Addresses (Causes the crash)
+        cur.execute("UPDATE jobs SET site_address = 'No Address' WHERE site_address IS NULL;")
+        
+        # 2. Fix Jobs with missing References (Just in case)
+        cur.execute("UPDATE jobs SET ref = 'PENDING' WHERE ref IS NULL;")
         
         conn.commit()
         conn.close()
-        return "✅ Success! Fleet database updated. The Fleet Manager will load now."
+        return "✅ Success! Broken job data repaired. Bookkeeping will load now."
     except Exception as e:
         return f"❌ Error: {e}"
