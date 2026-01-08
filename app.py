@@ -149,44 +149,20 @@ if __name__ == '__main__':
     # Turn DEBUG ON so we can see the error
     app.run(host='0.0.0.0', port=port, debug=True)
     
-    # --- THE ULTIMATE DATABASE FIXER ---
-@app.route('/ultimate-db-sync')
-def ultimate_db_sync():
+    # --- FIX AUDIT LOGS ---
+@app.route('/fix-audit-logs')
+def fix_audit_logs():
     try:
         conn = get_db()
         cur = conn.cursor()
         
-        # 1. JOBS Table: Fixes "Accept Quote" crash
-        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS quote_id INTEGER REFERENCES quotes(id);")
+        # Add the columns missing from Render's Audit Logs
+        cur.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS company_id INTEGER;")
+        cur.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS admin_email TEXT;")
+        cur.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS target TEXT;")
         
-        # 2. TRANSACTIONS Table: Fixes Finance Dashboard crash (Part 1)
-        cur.execute("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS date DATE DEFAULT CURRENT_DATE;")
-        
-        # 3. JOB_EXPENSES Table: Fixes missing dates in Expenses
-        cur.execute("ALTER TABLE job_expenses ADD COLUMN IF NOT EXISTS date DATE DEFAULT CURRENT_DATE;")
-        cur.execute("ALTER TABLE job_expenses ADD COLUMN IF NOT EXISTS receipt_path TEXT;")
-
-        # 4. OVERHEAD_ITEMS Table: Fixes the "date_incurred" crash you just saw
-        cur.execute("ALTER TABLE overhead_items ADD COLUMN IF NOT EXISTS date_incurred DATE DEFAULT CURRENT_DATE;")
-        cur.execute("ALTER TABLE overhead_items ADD COLUMN IF NOT EXISTS receipt_path TEXT;")
-
-        # 5. CLIENTS Table: Ensures invoices generate correctly
-        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS billing_address TEXT;")
-        
-        # 6. QUOTES Table: Ensures status works
-        cur.execute("ALTER TABLE quotes ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Draft';")
-
         conn.commit()
         conn.close()
-        
-        return """
-        <div style="font-family: sans-serif; text-align: center; padding: 50px;">
-            <h1 style="color: green;">✅ Database Fully Synced</h1>
-            <p>I have aligned your Render database with your Local schema.</p>
-            <p><strong>Fixed:</strong> Jobs, Transactions, Expenses, and Overheads.</p>
-            <br>
-            <a href="/finance-dashboard" style="background: #222; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px;">Open Finance Dashboard</a>
-        </div>
-        """
+        return "✅ Success! Audit Logs table updated."
     except Exception as e:
-        return f"❌ Sync Failed: {e}"
+        return f"❌ Error: {e}"
