@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template
 
-# Create the Blueprint (this is like a mini-app)
+# Create the Blueprint
 public_bp = Blueprint('public', __name__)
 
 # --- MAIN PAGES ---
 @public_bp.route('/')
+@public_bp.route('/index')
 @public_bp.route('/index.html')
 def home():
     return render_template('public/index.html')
@@ -24,11 +25,6 @@ def services():
 def business_better():
     return render_template('public/businessbetter.html')
 
-@public_bp.route('/features')
-@public_bp.route('/features.html')
-def features():
-    return render_template('public/features.html')  # <--- NEW ROUTE ADDED
-
 @public_bp.route('/forensics')
 @public_bp.route('/forensics.html')
 def forensics():
@@ -39,23 +35,13 @@ def forensics():
 def contact():
     return render_template('public/contact.html')
 
-# --- SUB PAGES ---
-@public_bp.route('/pricing')
-@public_bp.route('/pricing.html')
-def pricing():
-    return render_template('public/pricing.html')
+@public_bp.route('/login')
+@public_bp.route('/login.html')
+def login_page():
+    # This serves the static login page you created
+    return render_template('public/login.html')
 
-@public_bp.route('/legal')
-@public_bp.route('/legal.html')
-def legal():
-    return render_template('public/legal.html')
-
-@public_bp.route('/process')
-@public_bp.route('/process.html')
-def process():
-    return render_template('public/process.html')
-
-# --- SERVICE SPECIFIC PAGES ---
+# --- SUB PAGES & SERVICES ---
 @public_bp.route('/construction')
 @public_bp.route('/construction.html')
 def construction():
