@@ -149,51 +149,21 @@ if __name__ == '__main__':
     # Turn DEBUG ON so we can see the error
     app.run(host='0.0.0.0', port=port, debug=True)
     
-# --- MASTER DATABASE SYNCHRONIZER ---
-@app.route('/sync-db-schema')
-def sync_db_schema():
+    # --- FINAL DASHBOARD FIXER ---
+@app.route('/fix-job-expenses')
+def fix_job_expenses():
     try:
         conn = get_db()
         cur = conn.cursor()
         
-        # 1. FIX JOBS: Add 'quote_id' (Missing locally AND on Render)
+        # 1. Add 'date' column to job_expenses if missing
         cur.execute("""
-            ALTER TABLE jobs 
-            ADD COLUMN IF NOT EXISTS quote_id INTEGER REFERENCES quotes(id);
-        """)
-        
-        # 2. FIX TRANSACTIONS: Add 'date' (Missing on Render)
-        cur.execute("""
-            ALTER TABLE transactions 
+            ALTER TABLE job_expenses 
             ADD COLUMN IF NOT EXISTS date DATE DEFAULT CURRENT_DATE;
         """)
-
-        # 3. FIX CLIENTS: Add 'billing_address' (Ensuring Render matches Local)
-        cur.execute("""
-            ALTER TABLE clients 
-            ADD COLUMN IF NOT EXISTS billing_address TEXT;
-        """)
         
-        # 4. FIX QUOTES: Add 'status' (Safety check)
-        cur.execute("""
-            ALTER TABLE quotes 
-            ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Draft';
-        """)
-
         conn.commit()
         conn.close()
-        return """
-        <div style="text-align: center; padding: 50px; font-family: sans-serif;">
-            <h1 style="color: green;">✅ Database Synced Successfully</h1>
-            <p>Your Render database is now 100% matched with your code requirements.</p>
-            <ul style="text-align: left; display: inline-block;">
-                <li>Added <strong>jobs.quote_id</strong></li>
-                <li>Added <strong>transactions.date</strong></li>
-                <li>Verified <strong>clients.billing_address</strong></li>
-            </ul>
-            <br><br>
-            <a href="/" style="background: #222; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Return to Dashboard</a>
-        </div>
-        """
+        return "✅ Success! Added 'date' to job_expenses. The Dashboard should now work."
     except Exception as e:
-        return f"❌ Sync Error: {e}"
+        return f"❌ Error: {e}"
