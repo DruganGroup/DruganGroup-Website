@@ -113,3 +113,46 @@ def delete_plan(plan_id):
         conn.close()
         
     return redirect(url_for('plans.view_plans'))
+    
+    # --- MASTER DATABASE FIXER (Safe to run multiple times) ---
+@app.route('/master-db-fix')
+def master_db_fix():
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        
+        # 1. FIX JOBS: Add quote_id if missing
+        cur.execute("""
+            ALTER TABLE jobs 
+            ADD COLUMN IF NOT EXISTS quote_id INTEGER REFERENCES quotes(id);
+        """)
+        
+        # 2. FIX TRANSACTIONS: Add date if missing
+        cur.execute("""
+            ALTER TABLE transactions 
+            ADD COLUMN IF NOT EXISTS date DATE DEFAULT CURRENT_DATE;
+        """)
+
+        # 3. FIX QUOTES: Add status if missing
+        cur.execute("""
+            ALTER TABLE quotes 
+            ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Draft';
+        """)
+        
+        # 4. FIX CLIENTS: Add billing_address if missing
+        cur.execute("""
+            ALTER TABLE clients 
+            ADD COLUMN IF NOT EXISTS billing_address TEXT;
+        """)
+
+        conn.commit()
+        conn.close()
+        return """
+        <div style="text-align: center; padding: 50px; font-family: sans-serif;">
+            <h1 style="color: green;">✅ Database Updated</h1>
+            <p>All missing columns have been created.</p>
+            <a href="/" style="background: #333; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Go Home</a>
+        </div>
+        """
+    except Exception as e:
+        return f"❌ Error: {e}"
