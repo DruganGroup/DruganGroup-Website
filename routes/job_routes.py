@@ -4,12 +4,6 @@ from db import get_db
 # Define the Blueprint
 jobs_bp = Blueprint('jobs', __name__)
 
-from flask import Blueprint, render_template, session, redirect, url_for, flash, request
-from db import get_db
-
-# Define the Blueprint
-jobs_bp = Blueprint('jobs', __name__)
-
 # --- VIEW JOB FILE PACK (The Digital Binder) ---
 @jobs_bp.route('/office/job/<int:job_id>/files')
 def job_files(job_id):
@@ -20,14 +14,20 @@ def job_files(job_id):
     cur = conn.cursor()
     
     # 2. Get Job Details
-    cur.execute("SELECT ref, description, site_address, status, client_id FROM jobs WHERE id = %s", (job_id,))
-    job = cur.fetchone()
+    cur.execute("""
+        SELECT ref, description, site_address, status, client_id, quote_total 
+        FROM jobs 
+        WHERE id = %s
+    """, (job_id,))
+    job_row = cur.fetchone()
     
-    if not job:
+    if not job_row:
         conn.close()
         return "Job not found", 404
     
-    # 3. THE MASTER UNION QUERY (Merges 4 Sources)
+    quote_amount = job_row[5] if job_row[5] else 0.0
+    
+    # 3. THE MASTER UNION QUERY (Merges 5 Sources)
     cur.execute("""
         SELECT 'Client Invoice' as type, ref as name, total_amount as cost, date_created as date, 'Generated' as path, id 
         FROM invoices WHERE job_id = %s
@@ -46,110 +46,137 @@ def job_files(job_id):
         
         SELECT 'Site Material', description || ' (x' || quantity || ')', (unit_price * quantity), added_at::DATE, 'Material', id
         FROM job_materials WHERE job_id = %s
+
+        UNION ALL
+        
+        SELECT 'Timesheet', s.name || ' (' || t.hours || ' hrs)', (t.hours * s.pay_rate), t.date, 'No Link', t.id
+        FROM staff_timesheets t
+        JOIN staff s ON t.staff_id = s.id
+        WHERE t.job_id = %s
         
         ORDER BY date DESC
-    """, (job_id, job_id, job_id, job_id))
+    """, (job_id, job_id, job_id, job_id, job_id))
     
     files = cur.fetchall()
     
     # 4. Calculate Financials
-    total_cost = sum(f[2] for f in files if f[0] in ['Expense / Receipt', 'Site Material'] and f[2])
+    total_cost = sum(f[2] for f in files if f[0] in ['Expense / Receipt', 'Site Material', 'Timesheet'] and f[2])
     total_billed = sum(f[2] for f in files if f[0] == 'Client Invoice' and f[2])
-    profit = total_billed - total_cost
     
+    revenue_baseline = max(quote_amount, total_billed)
+    profit = revenue_baseline - total_cost
+    budget_remaining = quote_amount - total_cost
+    
+    # 5. Get Staff List (MOVED UP before closing connection)
+    cur.execute("SELECT id, name FROM staff WHERE company_id = %s ORDER BY name", (session.get('company_id'),))
+    staff_list = cur.fetchall()
+    
+    # 6. NOW Close the connection
     conn.close()
     
     return render_template('office/job_files.html', 
-                           job=job, 
+                           job=job_row, 
                            files=files, 
                            total_cost=total_cost, 
                            total_billed=total_billed,
-                           profit=profit)
+                           profit=profit,
+                           quote_total=quote_amount,
+                           budget_remaining=budget_remaining,
+                           staff=staff_list)
 
-# --- CONVERT JOB TO INVOICE (New Logic) ---
-@jobs_bp.route('/office/job/<int:job_id>/invoice', methods=['GET', 'POST'])
-def job_to_invoice(job_id):
-    # 1. Security Check
-    if not session.get('user_id'): return redirect(url_for('auth.login'))
+# --- MANUAL COST ENTRY (For Labor/Misc) ---
+@jobs_bp.route('/office/job/<job_ref>/add-manual-cost', methods=['POST'])
+def add_manual_cost(job_ref):
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
     
     conn = get_db()
     cur = conn.cursor()
-    comp_id = session.get('company_id')
-
-    # 2. Check if Invoice Already Exists
-    cur.execute("SELECT id FROM invoices WHERE job_id = %s", (job_id,))
-    existing = cur.fetchone()
-    if existing:
-        flash("ℹ️ Invoice already exists for this job.", "info")
-        # Ensure you have 'pdf.download_invoice_pdf' route available
-        return redirect(url_for('pdf.download_invoice_pdf', invoice_id=existing[0]))
-
-    # 3. Fetch Job Data
-    cur.execute("SELECT client_id, description, status FROM jobs WHERE id = %s AND company_id = %s", (job_id, comp_id))
-    job = cur.fetchone()
-    
-    if not job:
-        conn.close()
-        return "Job not found", 404
-
-    client_id = job[0]
-    job_desc = job[1]
-
-    # 4. Fetch Settings (Markup & Payment Days)
-    cur.execute("SELECT key, value FROM settings WHERE company_id = %s AND key IN ('default_markup', 'payment_days')", (comp_id,))
-    settings = {row[0]: row[1] for row in cur.fetchall()}
-    
-    # Calculate Markup Multiplier (e.g. 20% becomes 1.20)
-    markup_percent = float(settings.get('default_markup', 20))
-    markup_multiplier = 1 + (markup_percent / 100)
-    
-    # Get Payment Days (Default to 14 if missing)
-    payment_days = int(settings.get('payment_days', 14))
-
-    # 5. Create The Invoice Record
-    ref_number = f"INV-JOB-{job_id}"
     
     try:
-        cur.execute(f"""
-            INSERT INTO invoices (company_id, client_id, job_id, ref, date_created, due_date, status, total_amount)
-            VALUES (%s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE + INTERVAL '{payment_days} days', 'Unpaid', 0.00)
-            RETURNING id
-        """, (comp_id, client_id, job_id, ref_number))
+        # Get Job ID from Ref
+        cur.execute("SELECT id FROM jobs WHERE ref = %s", (job_ref,))
+        res = cur.fetchone()
+        if not res: return "Job not found", 404
+        job_id = res[0]
         
-        new_invoice_id = cur.fetchone()[0]
-
-        # 6. Transfer Expenses -> Invoice Items (Applying Markup)
-        # Note: We are using 'job_expenses' here to match your Binder logic
-        cur.execute("""
-            INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
-            SELECT %s, description, 1, (cost * %s), (cost * %s)
-            FROM job_expenses 
-            WHERE job_id = %s
-        """, (new_invoice_id, markup_multiplier, markup_multiplier, job_id))
-
-        # 7. Add Labor Line (Placeholder)
-        cur.execute("""
-            INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
-            VALUES (%s, %s, 1, 0.00, 0.00)
-        """, (new_invoice_id, f"Labor / Works for Job #{job_id}: {job_desc}"))
-
-        # 8. Update Total
-        cur.execute("""
-            UPDATE invoices 
-            SET total_amount = (SELECT COALESCE(SUM(total), 0) FROM invoice_items WHERE invoice_id = %s)
-            WHERE id = %s
-        """, (new_invoice_id, new_invoice_id))
+        desc = request.form.get('description')
+        cost = request.form.get('cost')
         
-        # 9. Mark Job as Invoiced
-        cur.execute("UPDATE jobs SET status = 'Invoiced' WHERE id = %s", (job_id,))
-
+        # Insert as an Expense (with 'Manual Entry' as the receipt path)
+        cur.execute("""
+            INSERT INTO job_expenses (company_id, job_id, description, cost, date, receipt_path)
+            VALUES (%s, %s, %s, %s, CURRENT_DATE, 'Manual Entry')
+        """, (session.get('company_id'), job_id, desc, cost))
+        
         conn.commit()
-        flash(f"✅ Invoice {ref_number} Generated (Markup: {markup_percent}%, Due: {payment_days} days)", "success")
-        return redirect(url_for('finance.finance_invoices'))
-
+        flash(f"✅ Added cost: £{cost}", "success")
+        
     except Exception as e:
         conn.rollback()
-        flash(f"Error creating invoice: {e}", "error")
-        return redirect(url_for('office.office_dashboard'))
+        flash(f"Error: {e}", "error")
     finally:
         conn.close()
+        
+    return redirect(f"/office/job/{job_id}/files")
+
+# --- DELETE ITEM (Updated with Path Fix) ---
+@jobs_bp.route('/office/job/delete-item/<int:item_id>/<path:item_type>')
+def delete_job_item(item_id, item_type):
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # Determine which table to delete from
+        if 'Invoice' in item_type:
+             flash("⚠️ Cannot delete Invoices from here. Go to Finance > Invoices.", "warning")
+        elif 'Expense' in item_type or 'Receipt' in item_type or 'Manual' in item_type:
+            cur.execute("DELETE FROM job_expenses WHERE id = %s", (item_id,))
+            flash("🗑️ Expense/Receipt Deleted", "success")
+        elif 'Photo' in item_type or 'Evidence' in item_type:
+            cur.execute("DELETE FROM job_evidence WHERE id = %s", (item_id,))
+            flash("🗑️ Photo Deleted", "success")
+        elif 'Material' in item_type:
+             cur.execute("DELETE FROM job_materials WHERE id = %s", (item_id,))
+             flash("🗑️ Material Removed", "success")
+             
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(request.referrer)
+    
+    # --- LOG TIMESHEET (Staff Hours) ---
+@jobs_bp.route('/office/job/<int:job_id>/log-hours', methods=['POST'])
+def log_hours(job_id):
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        staff_id = request.form.get('staff_id')
+        hours = request.form.get('hours')
+        date_worked = request.form.get('date')
+        
+        # Insert into staff_timesheets
+        # Note: We rely on the database knowing the pay_rate from the staff table later
+        cur.execute("""
+            INSERT INTO staff_timesheets (company_id, staff_id, job_id, hours, date, status)
+            VALUES (%s, %s, %s, %s, %s, 'Approved')
+        """, (session.get('company_id'), staff_id, job_id, hours, date_worked))
+        
+        conn.commit()
+        flash(f"✅ Logged {hours} hours.", "success")
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(f"/office/job/{job_id}/files")

@@ -149,21 +149,22 @@ if __name__ == '__main__':
     # Turn DEBUG ON so we can see the error
     app.run(host='0.0.0.0', port=port, debug=True)
     
-# --- FIX DATA QUALITY (Stops 'NoneType' Errors) ---
-@app.route('/fix-broken-data')
-def fix_broken_data():
+# --- FIX JOBS TABLE (Enables 'Convert to Job') ---
+@app.route('/fix-jobs-table')
+def fix_jobs_table():
     try:
         conn = get_db()
         cur = conn.cursor()
         
-        # 1. Fix Jobs with missing Site Addresses (Causes the crash)
-        cur.execute("UPDATE jobs SET site_address = 'No Address' WHERE site_address IS NULL;")
+        # Add the missing column that links Jobs to Quotes
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS quote_id INTEGER;")
         
-        # 2. Fix Jobs with missing References (Just in case)
-        cur.execute("UPDATE jobs SET ref = 'PENDING' WHERE ref IS NULL;")
+        # Add these too, as the conversion usually copies the price over
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS quote_total NUMERIC DEFAULT 0;")
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS contractor_cost REAL DEFAULT 0;")
         
         conn.commit()
         conn.close()
-        return "✅ Success! Broken job data repaired. Bookkeeping will load now."
+        return "✅ Success! Jobs table updated. You can now Convert Quotes to Jobs."
     except Exception as e:
         return f"❌ Error: {e}"

@@ -93,14 +93,41 @@
         {% endif %}
 
         <div class="mb-4">
-            {% if job[2] != 'In Progress' and job[2] != 'Completed' %}
-                <form method="POST" action="/site/job/{{ job[0] }}/update">
-                    <input type="hidden" name="action" value="start">
-                    <button type="submit" class="btn btn-success action-btn text-white">
-                        <i class="fas fa-play me-2"></i> Start Job
-                    </button>
-                </form>
+            {% if job[2] == 'Scheduled' or job[2] == 'Accepted' %}
+                <div class="card bg-light border-success mb-3">
+                    <div class="card-body text-center">
+                        <h6 class="fw-bold text-success mb-2">ARRIVED AT SITE?</h6>
+                        <p class="small text-muted mb-3">Tap below to clock the whole van onto this job.</p>
+                        
+                        <form method="POST" action="/site/job/{{ job[0] }}/toggle-site-time">
+                            <input type="hidden" name="action" value="start">
+                            <button type="submit" class="btn btn-success w-100 btn-lg fw-bold shadow">
+                                <i class="fas fa-stopwatch me-2"></i> START SITE CLOCK
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+            {% elif job[2] == 'In Progress' %}
+                <div class="card bg-success text-white mb-3">
+                    <div class="card-body text-center">
+                        <div class="spinner-grow spinner-grow-sm text-white mb-2" role="status"></div>
+                        <h6 class="fw-bold mb-2">WORK IN PROGRESS</h6>
+                        <p class="small text-white-50 mb-3">Time is being logged for the crew.</p>
+                        
+                        <form method="POST" action="/site/job/{{ job[0] }}/toggle-site-time">
+                            <input type="hidden" name="action" value="stop">
+                            <button type="submit" class="btn btn-danger w-100 btn-lg fw-bold shadow border-2 border-white">
+                                <i class="fas fa-sign-out-alt me-2"></i> STOP SITE CLOCK
+                            </button>
+                        </form>
+                    </div>
+                </div>
             {% endif %}
+            
+            {% if job[2] == 'In Progress' %}
+               {% endif %}
+        </div>
 
             {% if job[2] == 'In Progress' %}
                 <button class="btn btn-outline-dark action-btn" onclick="document.getElementById('photoInput').click();">

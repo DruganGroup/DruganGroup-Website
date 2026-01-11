@@ -103,7 +103,7 @@ def generate_pdf(template_name_ignored, context, output_filename):
     
     pdf.ln(20)
 
-    # --- ADDRESS BLOCKS ---
+# --- ADDRESS BLOCKS ---
     y_start = pdf.get_y()
     
     # LEFT: Bill To
@@ -126,14 +126,38 @@ def generate_pdf(template_name_ignored, context, output_filename):
     pdf.set_text_color(50)
     company_address = settings.get('company_address', 'Registered Office')
     
-    # ADDED: Show Tax ID if present
     tax_info = ""
     if settings.get('tax_id'):
         tax_info = f"\nTax ID: {settings.get('tax_id')}"
         
     pdf.multi_cell(90, 5, f"{company.get('name')}\n{company_address}\n{settings.get('company_email', '')}{tax_info}")
     
-    pdf.ln(20)
+    pdf.ln(10)
+
+    # --- NEW: JOB CONTEXT BLOCK ---
+    # Shows Title & Description on BOTH Quotes and Invoices
+    if invoice.get('job_title'):
+        pdf.set_font('Helvetica', 'B', 11)
+        pdf.set_text_color(*pdf.brand_color)
+        pdf.cell(0, 6, f"PROJECT: {invoice.get('job_title')}", ln=True)
+        
+        if invoice.get('job_description'):
+            pdf.set_font('Helvetica', 'I', 9)
+            pdf.set_text_color(80)
+            pdf.multi_cell(0, 5, f"{invoice.get('job_description')}")
+        
+        # ADDED: "Job Completed" line for Invoices
+        if not context.get('is_quote'):
+            pdf.ln(2)
+            pdf.set_font('Helvetica', 'B', 9)
+            pdf.set_text_color(50)
+            # We use the Invoice Date as the completion date
+            pdf.cell(0, 5, f"Job Completed: {invoice.get('date')}", ln=True)
+            
+        pdf.ln(5) 
+    # --- END NEW BLOCK ---
+
+    pdf.ln(5)
 
     # --- ITEMS TABLE ---
     pdf.set_font('Helvetica', 'B', 10)

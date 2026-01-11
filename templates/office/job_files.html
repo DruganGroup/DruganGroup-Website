@@ -1,125 +1,305 @@
-{% extends "finance/finance_base.html" %}
+{% extends "office/office_base.html" %}
 
 {% block title %}Job Files | Business Better{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2 class="fw-bold mb-0">Job File Pack: {{ job[0] }}</h2> 
-        <p class="text-muted">{{ job[1] }} | {{ job[2] }}</p>     
+<div class="container-fluid p-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold m-0 text-dark">Job File Pack: {{ job[0] }}</h2> 
+            <p class="text-muted mb-0">
+                <i class="fas fa-map-marker-alt me-1"></i> {{ job[2] }} 
+                <span class="mx-2">|</span> 
+                {{ job[1] }}
+            </p>      
+        </div>
+        <div class="btn-group shadow-sm">
+            {% if quote_id %}
+                <a href="/office/quote/{{ quote_id }}" class="btn btn-outline-dark fw-bold">
+                    <i class="fas fa-file-contract me-2"></i>View Quote
+                </a>
+                <a href="/office/quote/{{ quote_id }}/convert" class="btn btn-warning fw-bold text-dark" onclick="return confirm('Generate Invoice from Quote?')">
+                    <i class="fas fa-file-invoice-dollar me-2"></i>Invoice Quote
+                </a>
+            {% endif %}
+            
+            <a href="/office-hub" class="btn btn-dark fw-bold">
+                <i class="fas fa-arrow-left me-2"></i>Office
+            </a>
+        </div>
     </div>
-    <div class="btn-group">
-        <a href="/office-hub" class="btn btn-outline-dark fw-bold">
-            <i class="fas fa-arrow-left me-2"></i>Back to Office
-        </a>
-    </div>
-</div>
 
-<div class="row g-4">
-    <div class="col-md-4">
-        <div class="card p-4 border-dashed text-center bg-light h-100 shadow-sm">
-            <div class="card-body d-flex flex-column justify-content-center align-items-center">
-                <i class="fas fa-cloud-upload-alt fa-3x text-secondary mb-3"></i>
-                <h5 class="fw-bold text-secondary">Upload Receipt / Doc</h5>
-                <p class="small text-muted mb-4">
-                    Drag & Drop or Select File.<br>
-                    System will auto-tag it to <strong>{{ job[0] }}</strong>.
-                </p>
+    <div class="row g-4">
+        
+        <div class="col-lg-3">
+            
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white fw-bold py-3 border-bottom">
+                    <i class="fas fa-chart-pie me-2 text-primary"></i>Budget Tracker
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-end mb-2">
+                        <span class="text-muted small text-uppercase fw-bold">Quote Total</span>
+                        <span class="fs-5 fw-bold text-dark">£{{ "%.2f"|format(quote_total) }}</span>
+                    </div>
+
+                    {% set pct = 0 %}
+                    {% if quote_total > 0 %}
+                        {% set pct = (total_cost / quote_total) * 100 %}
+                    {% endif %}
+
+                    <div class="progress mb-2" style="height: 10px; background-color: #e9ecef;">
+                        <div class="progress-bar {% if pct > 100 %}bg-danger{% elif pct > 85 %}bg-warning{% else %}bg-success{% endif %}" 
+                             role="progressbar" style="width: {{ pct }}%"></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between small fw-bold">
+                        <span class="text-muted">Spent: £{{ "%.2f"|format(total_cost) }}</span>
+                        <span class="{% if budget_remaining < 0 %}text-danger{% else %}text-success{% endif %}">
+                            {% if budget_remaining < 0 %}
+                                OVER: £{{ "%.2f"|format(budget_remaining|abs) }}
+                            {% else %}
+                                Left: £{{ "%.2f"|format(budget_remaining) }}
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom-0 pt-3 px-3">
+                    <ul class="nav nav-pills nav-fill small fw-bold" id="actionTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="file-tab" data-bs-toggle="pill" data-bs-target="#tab-file" type="button" title="Upload File">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="cost-tab" data-bs-toggle="pill" data-bs-target="#tab-cost" type="button" title="Add Cash Cost">
+                                <i class="fas fa-coins"></i>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="time-tab" data-bs-toggle="pill" data-bs-target="#tab-time" type="button" title="Log Timesheet">
+                                <i class="fas fa-user-clock"></i>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
                 
-                <form action="/office/upload-center" method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="job_ref" value="{{ job[0] }}">
-                    <input type="file" name="file" class="form-control mb-3" required>
-                    <button type="submit" class="btn btn-dark w-100 fw-bold">Upload Now</button>
-                </form>
+                <div class="card-body p-3 pt-2 tab-content">
+                    
+                    <div class="tab-pane fade show active" id="tab-file">
+                        <div class="text-center py-3 border rounded bg-light mb-3">
+                            <i class="fas fa-cloud-upload-alt fa-2x text-muted mb-2"></i>
+                            <p class="small text-muted mb-0 lh-sm">Receipts, Invoices<br>& Site Photos</p>
+                        </div>
+                        <form action="/office/upload-center" method="POST" enctype="multipart/form-data">
+                            <input type="hidden" name="job_ref" value="{{ job[0] }}">
+                            <input type="file" name="file" class="form-control form-control-sm mb-2" required>
+                            <button type="submit" class="btn btn-primary w-100 btn-sm fw-bold">
+                                Upload File
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="tab-pane fade" id="tab-cost">
+                        <div class="alert alert-warning py-2 small mb-3">
+                            <i class="fas fa-info-circle me-1"></i> Add Misc/Cash costs.
+                        </div>
+                        <form action="/office/job/{{ job[0] }}/add-manual-cost" method="POST">
+                            <input type="hidden" name="action" value="manual_cost">
+                            <div class="mb-2">
+                                <label class="small text-muted fw-bold">Description</label>
+                                <input type="text" name="description" class="form-control form-control-sm" placeholder="e.g. Van Fuel" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="small text-muted fw-bold">Cost (£)</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">£</span>
+                                    <input type="number" step="0.01" name="cost" class="form-control" placeholder="0.00" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-warning w-100 btn-sm fw-bold text-dark">
+                                Add Cost
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="tab-pane fade" id="tab-time">
+                        <div class="alert alert-info py-2 small mb-3">
+                            <i class="fas fa-clock me-1"></i> Log staff hours.
+                        </div>
+                        <form action="log-hours" method="POST"> 
+                            <div class="mb-2">
+                                <label class="small text-muted fw-bold">Staff Member</label>
+                                <select name="staff_id" class="form-select form-select-sm" required>
+                                    <option value="">-- Select --</option>
+                                    {% for s in staff %}
+                                        <option value="{{ s[0] }}">{{ s[1] }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="small text-muted fw-bold">Date</label>
+                                    <input type="date" name="date" class="form-control form-control-sm" value="{{ today }}" required>
+                                </div>
+                                <div class="col-6">
+                                    <label class="small text-muted fw-bold">Hours</label>
+                                    <input type="number" step="0.5" name="hours" class="form-control form-control-sm" placeholder="8" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-info w-100 btn-sm fw-bold text-white">
+                                Log Time
+                            </button>
+                        </form>
+                    </div>
+
+                </div>
             </div>
+
         </div>
-    </div>
 
-    <div class="col-md-8">
-        <div class="row g-3 mb-4">
-            <div class="col-md-4">
-                <div class="card p-3 border-0 bg-success text-white shadow-sm">
-                    <div class="small text-white-50 text-uppercase fw-bold">Total Invoiced</div>
-                    <h3 class="fw-bold mb-0">£{{ "%.2f"|format(total_billed) }}</h3>
+        <div class="col-lg-9">
+            
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="card p-3 border-0 shadow-sm border-start border-4 border-success h-100">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="small text-muted text-uppercase fw-bold">Total Invoiced</div>
+                                <h3 class="fw-bold text-dark mb-0">£{{ "%.2f"|format(total_billed) }}</h3>
+                            </div>
+                            <div class="bg-success-subtle p-3 rounded-circle">
+                                <i class="fas fa-file-invoice-dollar text-success fa-lg"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-3 border-0 shadow-sm border-start border-4 border-danger h-100">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="small text-muted text-uppercase fw-bold">Total Costs</div>
+                                <h3 class="fw-bold text-dark mb-0">£{{ "%.2f"|format(total_cost) }}</h3>
+                            </div>
+                            <div class="bg-danger-subtle p-3 rounded-circle">
+                                <i class="fas fa-shopping-bag text-danger fa-lg"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-3 border-0 shadow-sm border-start border-4 border-dark h-100">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="small text-muted text-uppercase fw-bold">Net Profit</div>
+                                <h3 class="fw-bold mb-0 {{ 'text-success' if profit > 0 else 'text-warning' }}">
+                                    £{{ "%.2f"|format(profit) }}
+                                </h3>
+                            </div>
+                            <div class="bg-dark-subtle p-3 rounded-circle">
+                                <i class="fas fa-piggy-bank text-dark fa-lg"></i>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card p-3 border-0 bg-danger text-white shadow-sm">
-                    <div class="small text-white-50 text-uppercase fw-bold">Total Costs</div>
-                    <h3 class="fw-bold mb-0">£{{ "%.2f"|format(total_cost) }}</h3>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold m-0"><i class="fas fa-folder-open me-2 text-warning"></i>Project Documents</h6>
+                    <span class="badge bg-secondary">{{ files|length }} Files</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-uppercase small text-muted">
+                            <tr>
+                                <th class="ps-4" style="width: 15%;">Type</th>
+                                <th style="width: 40%;">Description / Reference</th>
+                                <th style="width: 15%;">Date</th>
+                                <th class="text-end" style="width: 15%;">Amount</th>
+                                <th class="text-end pe-4" style="width: 15%;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            {% for f in files %}
+                            <tr>
+                                <td class="ps-4">
+                                    {% if 'Invoice' in f[0] %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill">
+                                            <i class="fas fa-file-invoice me-1"></i> Sales Inv
+                                        </span>
+                                    {% elif f[0] == 'Site Photo' %}
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 rounded-pill">
+                                            <i class="fas fa-camera me-1"></i> Photo
+                                        </span>
+                                    {% elif f[0] == 'Site Material' %}
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 rounded-pill">
+                                            <i class="fas fa-box me-1"></i> Material
+                                        </span>
+                                    {% elif f[0] == 'Timesheet' %}
+                                        <span class="badge bg-warning-subtle text-dark border border-warning-subtle px-2 py-1 rounded-pill">
+                                            <i class="fas fa-clock me-1"></i> Labor
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill">
+                                            <i class="fas fa-receipt me-1"></i> Expense
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-dark">{{ f[1] }}</span>
+                                </td>
+                                <td class="text-muted small">
+                                    <i class="far fa-calendar-alt me-1"></i> {{ f[3] }}
+                                </td>
+                                <td class="text-end fw-bold font-monospace">
+                                    {% if f[2] > 0 %}
+                                        £{{ "%.2f"|format(f[2]|float) }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    {% if f[4] and f[4] != 'Generated' and f[4] != 'Material' and f[4] != 'Manual Entry' and f[4] != 'No Link' %}
+                                        <a href="/{{ f[4] }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="View File">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    {% elif f[0] == 'Client Invoice' %}
+                                        <a href="{{ url_for('finance.download_invoice_pdf', invoice_id=f[5]) }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Download PDF">
+                                            <i class="fas fa-download"></i> PDF
+                                        </a>
+                                    {% elif f[4] == 'Manual Entry' %}
+                                        <small class="text-muted fst-italic me-2">Manual Log</small>
+                                    {% elif f[0] == 'Site Material' %}
+                                        <small class="text-muted fst-italic me-2">Stock</small>
+                                    {% endif %}
+
+                                    {% if 'Invoice' not in f[0] %}
+                                        <a href="/office/job/delete-item/{{ f[5] }}/{{ f[0] }}" 
+                                           class="btn btn-sm btn-outline-danger ms-1" 
+                                           onclick="return confirm('Are you sure you want to delete this?');" 
+                                           title="Delete Item">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <div class="mb-2"><i class="far fa-folder-open fa-3x opacity-25"></i></div>
+                                    <p class="mb-0">No documents found for this job yet.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card p-3 border-0 bg-dark text-white shadow-sm">
-                    <div class="small text-white-50 text-uppercase fw-bold">Net Profit</div>
-                    <h3 class="fw-bold mb-0 {{ 'text-success' if profit > 0 else 'text-warning' }}">
-                        £{{ "%.2f"|format(profit) }}
-                    </h3>
-                </div>
-            </div>
-        </div>
 
-        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
-            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center py-3">
-                <span class="text-secondary"><i class="fas fa-paperclip me-2"></i>Attached Documents</span>
-                <span class="badge bg-light text-dark border">{{ files|length }} Items</span>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light small text-uppercase">
-                        <tr>
-                            <th class="ps-4">Type</th>
-                            <th>Description / Ref</th>
-                            <th>Date</th>
-                            <th class="text-end">Value</th>
-                            <th class="text-end pe-4">View</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for f in files %}
-                        <tr>
-                            <td class="ps-4">
-                                {% if 'Invoice' in f[0] %}
-                                    <span class="badge bg-success-subtle text-success border border-success px-2 py-1">Sales Inv</span>
-                                {% elif f[0] == 'Site Photo' %}
-                                    <span class="badge bg-info-subtle text-info border border-info px-2 py-1">Photo</span>
-                                {% elif f[0] == 'Site Material' %}
-                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary px-2 py-1">Material</span>
-                                {% else %}
-                                    <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-1">Expense</span>
-                                {% endif %}
-                            </td>
-                            <td class="fw-bold text-dark">{{ f[1] }}</td>
-                            <td class="small text-muted">{{ f[3] }}</td>
-                            <td class="text-end fw-bold">£{{ "%.2f"|format(f[2]|float) }}</td>
-                            
-                            <td class="text-end pe-4">
-                                {% if f[4] and f[4] != 'Generated' and f[4] != 'Material' %}
-                                    <a href="/{{ f[4] }}" target="_blank" class="btn btn-sm btn-outline-dark" title="View Evidence">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                
-                                {% elif f[0] == 'Client Invoice' %}
-                                    <a href="{{ url_for('finance.download_invoice_pdf', invoice_id=f[5]) }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Download Invoice">
-                                        <i class="fas fa-file-pdf"></i>
-                                    </a>
-
-                                {% elif f[0] == 'Site Material' %}
-                                    <span class="badge bg-light text-dark border">
-                                        <i class="fas fa-cubes me-1"></i> Stock
-                                    </span>
-
-                                {% else %}
-                                    <span class="text-muted small">-</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="5" class="text-center py-5 text-muted">No documents found.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
         </div>
     </div>
 </div>

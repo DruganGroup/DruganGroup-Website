@@ -41,7 +41,37 @@
                 </div>
             </div>
         </div>
-
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-secondary text-white fw-bold">
+        <i class="fas fa-briefcase me-2"></i> Job Details
+    </div>
+    <div class="card-body bg-light">
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label class="form-label fw-bold small text-muted">Job Title</label>
+                <input type="text" name="job_title" class="form-control" placeholder="e.g. Kitchen Extension" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold small text-muted">Est. Duration (Days)</label>
+                <input type="number" step="0.5" name="estimated_days" class="form-control" value="1" required>
+            </div>
+            <div class="col-12">
+                <label class="form-label fw-bold small text-muted">Scope of Works</label>
+                <textarea name="job_description" class="form-control" rows="2" placeholder="Brief description..."></textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label fw-bold small text-muted">Preferred Gang / Van</label>
+                <select name="preferred_vehicle_id" class="form-select">
+                    <option value="">-- No Preference --</option>
+                    {% for v in fleet %}
+                        <option value="{{ v.id }}">{{ v.name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text small">Select the crew typically assigned to this vehicle.</div>
+            </div>
+        </div>
+    </div>
+</div>
         <div class="col-md-8">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">

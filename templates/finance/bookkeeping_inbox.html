@@ -61,7 +61,7 @@
                             <select name="job_id" class="form-select">
                                 <option value="" selected disabled>Select Job...</option>
                                 {% for j in jobs %}
-                                <option value="{{ j[0] }}">{{ j[1] }} - {{ j[2][:15] }}...</option>
+                                <option value="{{ j[0] }}">{{ j[1] }} - {{ (j[2] or '')[:15] }}...</option>
                                 {% endfor %}
                             </select>
                             <button type="submit" name="action" value="assign_job" class="btn btn-success"><i class="fas fa-link"></i></button>

@@ -422,9 +422,40 @@ def finance_fleet():
 @finance_bp.route('/finance/fleet/delete/<int:id>')
 def delete_vehicle(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("DELETE FROM vehicles WHERE id=%s AND company_id=%s", (id, session.get('company_id')))
-    conn.commit(); conn.close()
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Unlink from Active Jobs (Remove from schedule)
+        cur.execute("UPDATE jobs SET vehicle_id = NULL WHERE vehicle_id = %s AND status != 'Completed'", (id,))
+        
+        # 2. Unlink from Quotes (Stop suggesting it for new work)
+        cur.execute("UPDATE quotes SET preferred_vehicle_id = NULL WHERE preferred_vehicle_id = %s", (id,))
+        
+        # 3. Remove Driver & Crew (Free up staff)
+        cur.execute("DELETE FROM vehicle_crew WHERE vehicle_id = %s", (id,))
+        
+        # 4. ARCHIVE (Soft Delete) - This keeps your Finance Logs safe!
+        cur.execute("""
+            UPDATE vehicles 
+            SET status = 'Archived', 
+                assigned_driver_id = NULL, 
+                daily_cost = 0,
+                reg_plate = reg_plate || ' (Archived)'
+            WHERE id=%s AND company_id=%s
+        """, (id, session.get('company_id')))
+        
+        conn.commit()
+        flash("✅ Vehicle archived. Logs kept for finance records.", "success")
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Could not archive vehicle: {e}", "error")
+        
+    finally:
+        conn.close()
+        
     return redirect(url_for('finance.finance_fleet'))
 
 # =========================================================
@@ -660,49 +691,76 @@ def finance_analysis():
     conn = get_db()
     cur = conn.cursor()
 
-    # 1. GET YOUR MARGIN TARGET (The Fix)
-    cur.execute("SELECT value FROM settings WHERE key = 'default_profit_margin' AND company_id = %s", (comp_id,))
-    res = cur.fetchone()
-    # If you typed "15" in settings, this becomes 15.0. Default to 20.0 if empty.
-    margin_target = float(res[0]) if res and res[0] else 20.0
-    
-    # Calculate the cost factor. (e.g., 20% margin means Costs are 80% of revenue)
-    cost_factor = (100 - margin_target) / 100
+    # 1. FETCH JOBS (Completed & In Progress)
+    # We ignore 'Pending' jobs because they have no financial data yet.
+    cur.execute("""
+        SELECT j.id, j.ref, c.name, j.status
+        FROM jobs j
+        JOIN clients c ON j.client_id = c.id
+        WHERE j.company_id = %s AND j.status IN ('Completed', 'In Progress')
+        ORDER BY j.start_date DESC
+    """, (comp_id,))
+    jobs_raw = cur.fetchall()
 
-    # 2. FETCH TRANSACTIONS
-    cur.execute("SELECT reference, description, amount FROM transactions WHERE company_id = %s AND type = 'Income' ORDER BY date DESC LIMIT 50", (comp_id,))
-    
     analyzed_jobs = []
     total_rev = 0
     total_cost = 0
-    
-    for j in cur.fetchall():
-        rev = float(j[2])
+
+    for job in jobs_raw:
+        job_id, ref, client, status = job
+
+        # 2. CALCULATE REAL REVENUE (Invoices)
+        cur.execute("SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE job_id = %s AND status != 'Void'", (job_id,))
+        revenue = float(cur.fetchone()[0])
+
+        # 3. CALCULATE REAL EXPENSES (Materials/Receipts)
+        cur.execute("SELECT COALESCE(SUM(cost), 0) FROM job_expenses WHERE job_id = %s", (job_id,))
+        expenses = float(cur.fetchone()[0])
+
+        # 4. CALCULATE REAL LABOR (Timesheets)
+        cur.execute("""
+            SELECT COALESCE(SUM(t.hours * s.pay_rate), 0)
+            FROM staff_timesheets t
+            JOIN staff s ON t.staff_id = s.id
+            WHERE t.job_id = %s
+        """, (job_id,))
+        labor = float(cur.fetchone()[0])
+
+        # 5. THE REAL MATH
+        actual_cost = expenses + labor
+        profit = revenue - actual_cost
         
-        # USE DYNAMIC FACTOR (Not / 1.2)
-        est_cost = rev * cost_factor
-        
-        profit = rev - est_cost
-        total_rev += rev
-        total_cost += est_cost
-        
-        # Calculate individual margin safely
-        margin = (profit / rev * 100) if rev > 0 else 0
-        
+        # Avoid division by zero if no invoice sent yet
+        margin = (profit / revenue * 100) if revenue > 0 else 0.0
+
+        # Add to totals
+        total_rev += revenue
+        total_cost += actual_cost
+
         analyzed_jobs.append({
-            "ref": j[0], "client": j[1], "status": "Completed", 
-            "rev": rev, "cost": est_cost, "profit": profit, "margin": margin
+            "ref": ref,
+            "client": client,
+            "status": status,
+            "rev": revenue,
+            "cost": actual_cost,
+            "profit": profit,
+            "margin": margin
         })
     
     conn.close()
     
-    # Calculate total average margin
-    avg_margin = ((total_rev - total_cost) / total_rev * 100) if total_rev > 0 else 0
+    # Calculate Total Company Average Margin
+    total_profit = total_rev - total_cost
+    avg_margin = (total_profit / total_rev * 100) if total_rev > 0 else 0
     
     return render_template('finance/finance_analysis.html', 
-                           jobs=analyzed_jobs, total_rev=total_rev, 
-                           total_cost=total_cost, total_profit=total_rev - total_cost, 
-                           avg_margin=avg_margin, brand_color=config['color'], logo_url=config['logo'])
+                           jobs=analyzed_jobs, 
+                           total_rev=total_rev, 
+                           total_cost=total_cost, 
+                           total_profit=total_profit, 
+                           avg_margin=avg_margin, 
+                           brand_color=config['color'], 
+                           logo_url=config['logo'])
                            
 @finance_bp.route('/finance/settings')
 def settings_redirect(): return redirect(url_for('finance.settings_general'))
@@ -1001,4 +1059,29 @@ def mark_invoice_sent(invoice_id):
     conn.commit(); conn.close()
     
     flash("✅ Invoice manually marked as Sent.", "success")
+    return redirect(url_for('finance.finance_invoices'))
+    
+@finance_bp.route('/finance/invoice/<int:invoice_id>/delete')
+def delete_invoice(invoice_id):
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']:
+        return redirect(url_for('auth.login'))
+        
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # 1. Delete Items first (Foreign Key constraint)
+        cur.execute("DELETE FROM invoice_items WHERE invoice_id = %s", (invoice_id,))
+        
+        # 2. Delete the Header
+        cur.execute("DELETE FROM invoices WHERE id = %s", (invoice_id,))
+        
+        conn.commit()
+        flash("✅ Invoice deleted successfully.", "success")
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error deleting invoice: {e}", "error")
+        
+    finally:
+        conn.close()
+        
     return redirect(url_for('finance.finance_invoices'))

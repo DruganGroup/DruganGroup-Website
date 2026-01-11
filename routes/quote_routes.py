@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request
-from db import get_db, get_site_config
+from db import get_db
 from datetime import datetime
 import smtplib
 from email.mime.text import MIMEText
@@ -10,7 +10,6 @@ from services.pdf_generator import generate_pdf
 quote_bp = Blueprint('quote', __name__)
 
 # --- TAX RATES CONFIGURATION ---
-# Matches the values in your Settings > General page
 TAX_RATES = {
     'UK': 0.20,  # United Kingdom (20%)
     'IE': 0.23,  # Ireland (23%)
@@ -27,8 +26,19 @@ def check_access():
     if 'user_id' not in session: return False
     return True
 
+# --- HELPER: GET SITE CONFIG ---
+def get_site_config(comp_id):
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    conn.close()
+    return {
+        'color': settings.get('brand_color', '#333333'),
+        'logo': settings.get('logo_url', '')
+    }
+
 # =========================================================
-# 1. THE SMART QUOTE BUILDER
+# 1. NEW QUOTE (With Auto-Pricing & Database Sum)
 # =========================================================
 @quote_bp.route('/office/quote/new', methods=['GET', 'POST'])
 def new_quote():
@@ -37,89 +47,130 @@ def new_quote():
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
 
-    # --- 1. GET SETTINGS (CRITICAL FIX) ---
+    # --- GET SETTINGS ---
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     
-    # DETERMINE TAX RATE
     country = settings.get('country_code', 'UK')
     vat_reg = settings.get('vat_registered', 'no')
-    
-    # Default to 0.00
     tax_rate = 0.00
     
-    # Only apply tax if they have ticked "VAT Registered" in settings
     if vat_reg in ['yes', 'on', 'true', '1']:
-        # CHECK DATABASE FIRST (Manual Override)
         manual_rate = settings.get('default_tax_rate')
-        
         if manual_rate and float(manual_rate) > 0:
-            tax_rate = float(manual_rate) / 100  # Convert 20 to 0.20
+            tax_rate = float(manual_rate) / 100
         else:
-            # FALLBACK TO AUTO-DETECT (Hardcoded List)
             tax_rate = TAX_RATES.get(country, 0.20)
 
-    # HANDLE POST (Save Quote)
+    # --- HANDLE POST ---
     if request.method == 'POST':
         try:
             client_id = request.form.get('client_id')
             
-            # Handle "Quick Lead" Creation
+            # Quick Lead Logic
             if not client_id and request.form.get('new_client_name'):
                 cur.execute("""
                     INSERT INTO clients (company_id, name, email, phone, status, billing_address)
                     VALUES (%s, %s, %s, %s, 'Lead', %s)
                     RETURNING id
-                """, (
-                    comp_id, 
-                    request.form.get('new_client_name'), 
-                    request.form.get('new_client_email'), 
-                    request.form.get('new_client_phone'),
-                    request.form.get('new_client_address')
-                ))
+                """, (comp_id, request.form.get('new_client_name'), request.form.get('new_client_email'), 
+                      request.form.get('new_client_phone'), request.form.get('new_client_address')))
                 client_id = cur.fetchone()[0]
 
             if not client_id:
-                flash("❌ Error: No Client Selected or Created", "error")
+                flash("❌ Error: No Client Selected", "error")
                 return redirect(request.url)
 
-            # Create Header
+            # Generate Reference
             cur.execute("SELECT COUNT(*) FROM quotes WHERE company_id = %s", (comp_id,))
             count = cur.fetchone()[0]
             ref = f"Q-{1000 + count + 1}"
             
+            # Capture Details
+            job_title = request.form.get('job_title')
+            job_desc = request.form.get('job_description')
+            est_days = request.form.get('estimated_days')
+            pref_van = request.form.get('preferred_vehicle_id') or None
+
+            # Insert Quote Header
             cur.execute("""
-                INSERT INTO quotes (company_id, client_id, reference, date, expiry_date, status, total)
-                VALUES (%s, %s, %s, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'Draft', 0)
+                INSERT INTO quotes (
+                    company_id, client_id, reference, date, expiry_date, status, total,
+                    job_title, job_description, estimated_days, preferred_vehicle_id
+                )
+                VALUES (%s, %s, %s, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'Draft', 0,
+                        %s, %s, %s, %s)
                 RETURNING id
-            """, (comp_id, client_id, ref))
-            quote_id = cur.fetchone()[0]
+            """, (comp_id, client_id, ref, job_title, job_desc, est_days, pref_van))
             
-            # Save Items
+            quote_id = cur.fetchone()[0]
+
+            # --- 1. INSERT AUTO-LABOR LINE ITEM ---
+            if pref_van and est_days:
+                try:
+                    days = float(est_days)
+                    cur.execute("SELECT daily_cost, assigned_driver_id, reg_plate FROM vehicles WHERE id = %s", (pref_van,))
+                    van = cur.fetchone()
+                    
+                    if van:
+                        van_cost = float(van[0]) if van[0] else 0.0
+                        driver_id = van[1]
+                        reg_plate = van[2]
+
+                        driver_cost = 0.0
+                        if driver_id:
+                            cur.execute("SELECT pay_rate FROM staff WHERE id = %s", (driver_id,))
+                            d_res = cur.fetchone()
+                            if d_res and d_res[0]: driver_cost = float(d_res[0]) * 8 
+
+                        cur.execute("""
+                            SELECT SUM(s.pay_rate) FROM vehicle_crew vc
+                            JOIN staff s ON vc.staff_id = s.id
+                            WHERE vc.vehicle_id = %s
+                        """, (pref_van,))
+                        c_res = cur.fetchone()
+                        crew_hourly_total = float(c_res[0]) if c_res and c_res[0] else 0.0
+                        crew_cost = crew_hourly_total * 8
+
+                        daily_rate = van_cost + driver_cost + crew_cost
+                        line_total = daily_rate * days
+
+                        if line_total > 0:
+                            cur.execute("""
+                                INSERT INTO quote_items (quote_id, description, quantity, unit_price, total)
+                                VALUES (%s, %s, %s, %s, %s)
+                            """, (quote_id, f"Labor & Logistics: {reg_plate} (Driver + Crew)", days, daily_rate, line_total))
+                except Exception as e:
+                    print(f"Pricing Engine Error: {e}")
+
+            # --- 2. INSERT MANUAL LINE ITEMS ---
             descriptions = request.form.getlist('desc[]')
             quantities = request.form.getlist('qty[]')
             prices = request.form.getlist('price[]')
-            
-            total_net = 0.0
             
             for d, q, p in zip(descriptions, quantities, prices):
                 if d.strip(): 
                     qty = float(q) if q else 1
                     price = float(p) if p else 0
                     line_net = qty * price
-                    total_net += line_net
                     
                     cur.execute("""
                         INSERT INTO quote_items (quote_id, description, quantity, unit_price, total)
                         VALUES (%s, %s, %s, %s, %s)
                     """, (quote_id, d, qty, price, line_net))
 
-            # Update Grand Total (Net + Tax)
-            grand_total = total_net * (1 + tax_rate)
+            # --- 3. BULLETPROOF TOTAL CALCULATION ---
+            # We ask the DB for the sum to ensure Auto + Manual lines are ALL counted
+            cur.execute("SELECT SUM(total) FROM quote_items WHERE quote_id = %s", (quote_id,))
+            db_sum = cur.fetchone()[0]
+            real_net_total = float(db_sum) if db_sum else 0.0
+            
+            grand_total = real_net_total * (1 + tax_rate)
+            
             cur.execute("UPDATE quotes SET total = %s WHERE id = %s", (grand_total, quote_id))
             
             conn.commit()
-            flash(f"✅ Quote {ref} Created!", "success")
+            flash(f"✅ Quote {ref} Created! Total: £{grand_total:.2f}", "success")
             return redirect(url_for('quote.view_quote', quote_id=quote_id))
 
         except Exception as e:
@@ -131,21 +182,20 @@ def new_quote():
     cur.execute("SELECT id, name FROM clients WHERE company_id = %s ORDER BY name ASC", (comp_id,))
     clients = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
     
+    cur.execute("SELECT id, reg_plate FROM vehicles WHERE company_id = %s AND status = 'Active'", (comp_id,))
+    fleet = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
+
     pre_client = request.args.get('client_id')
     config = get_site_config(comp_id)
-    
     conn.close()
     
     return render_template('office/create_quote.html', 
-                           clients=clients, 
-                           pre_client=pre_client, 
-                           brand_color=config['color'], 
-                           logo_url=config['logo'],
-                           settings=settings,
-                           tax_rate=tax_rate)
-
+                           clients=clients, fleet=fleet, pre_client=pre_client, 
+                           brand_color=config['color'], logo_url=config['logo'],
+                           settings=settings, tax_rate=tax_rate)
+                           
 # =========================================================
-# 2. VIEW QUOTE
+# 2. VIEW QUOTE (Updated to fetch Title/Desc)
 # =========================================================
 @quote_bp.route('/office/quote/<int:quote_id>')
 def view_quote(quote_id):
@@ -158,8 +208,10 @@ def view_quote(quote_id):
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
     
+    # Updated Query: Added q.job_title [7] and q.job_description [8]
     cur.execute("""
-        SELECT q.id, c.name, q.reference, q.date, q.total, q.status, q.expiry_date 
+        SELECT q.id, c.name, q.reference, q.date, q.total, q.status, q.expiry_date,
+               q.job_title, q.job_description
         FROM quotes q 
         LEFT JOIN clients c ON q.client_id = c.id 
         WHERE q.id = %s AND q.company_id = %s
@@ -179,9 +231,9 @@ def view_quote(quote_id):
                            currency_symbol=currency,
                            brand_color=config['color'], 
                            logo_url=config['logo'])
-
+                           
 # =========================================================
-# 3. CONVERT QUOTE TO JOB (The Bridge)
+# 3. CONVERT QUOTE TO JOB (Transfers Van/Time)
 # =========================================================
 @quote_bp.route('/office/quote/<int:quote_id>/book-job')
 def convert_to_job(quote_id):
@@ -191,28 +243,39 @@ def convert_to_job(quote_id):
     comp_id = session.get('company_id')
 
     try:
-        cur.execute("SELECT client_id, reference, total FROM quotes WHERE id = %s AND company_id = %s", (quote_id, comp_id))
+        # Fetch Quote AND New Details (Van, Days, Title)
+        cur.execute("""
+            SELECT client_id, reference, total, job_title, job_description, estimated_days, preferred_vehicle_id
+            FROM quotes WHERE id = %s AND company_id = %s
+        """, (quote_id, comp_id))
         quote = cur.fetchone()
         
         if not quote: return "Quote not found", 404
-
-        # Get first item for description
-        cur.execute("SELECT description FROM quote_items WHERE quote_id = %s LIMIT 1", (quote_id,))
-        item = cur.fetchone()
-        desc = item[0] if item else "Work from Quote " + quote[1]
-
-        job_ref = quote[1].replace('Q-', 'JOB-')
         
+        client_id, q_ref, total, title, q_desc, days, van_id = quote
+
+        # Determine Description
+        desc = ""
+        if title:
+            desc = f"{title} - {q_desc}" if q_desc else title
+        else:
+            cur.execute("SELECT description FROM quote_items WHERE quote_id = %s LIMIT 1", (quote_id,))
+            item = cur.fetchone()
+            desc = item[0] if item else f"Work from Quote {q_ref}"
+
+        job_ref = q_ref.replace('Q-', 'JOB-')
+        
+        # INSERT JOB (With Van & Days)
         cur.execute("""
-            INSERT INTO jobs (company_id, client_id, ref, description, status, quote_id)
-            VALUES (%s, %s, %s, %s, 'Accepted', %s)
+            INSERT INTO jobs (company_id, client_id, ref, description, status, quote_id, quote_total, vehicle_id, estimated_days)
+            VALUES (%s, %s, %s, %s, 'Accepted', %s, %s, %s, %s)
             RETURNING id
-        """, (comp_id, quote[0], job_ref, desc, quote_id))
+        """, (comp_id, client_id, job_ref, desc, quote_id, total, van_id, days))
         
         cur.execute("UPDATE quotes SET status = 'Accepted' WHERE id = %s", (quote_id,))
         
         conn.commit()
-        flash(f"✅ Job {job_ref} Created! Check the Schedule.", "success")
+        flash(f"✅ Job {job_ref} Created! Assigned to Schedule ({days} Days).", "success")
         return redirect(url_for('office.office_calendar'))
 
     except Exception as e:
@@ -221,9 +284,9 @@ def convert_to_job(quote_id):
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
     finally:
         conn.close()
-
+        
 # =========================================================
-# 4. EMAIL QUOTE
+# 4. EMAIL QUOTE (Sends Title/Desc to PDF with Correct Date)
 # =========================================================
 @quote_bp.route('/office/quote/<int:quote_id>/email')
 def email_quote(quote_id):
@@ -232,32 +295,50 @@ def email_quote(quote_id):
     company_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
     
+    # FETCH Title and Description here too
     cur.execute("""
-        SELECT q.reference, c.name, c.email
+        SELECT q.reference, c.name, c.email, q.job_title, q.job_description
         FROM quotes q JOIN clients c ON q.client_id = c.id
         WHERE q.id = %s AND q.company_id = %s
     """, (quote_id, company_id))
     q = cur.fetchone()
     
     if not q or not q[2]:
-        conn.close()
-        flash("❌ Client has no email address.", "error")
+        conn.close(); flash("❌ Client has no email address.", "error")
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
 
-    ref, client_name, client_email = q[0], q[1], q[2]
+    ref, client_name, client_email, title, desc = q[0], q[1], q[2], q[3], q[4]
 
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     
     if 'smtp_host' not in settings:
-        conn.close()
-        flash("⚠️ SMTP Settings missing. Configure them in Finance Settings.", "warning")
+        conn.close(); flash("⚠️ SMTP Settings missing.", "warning")
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
 
     cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
     items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
     
-    context = {'invoice': {'ref': ref, 'date': datetime.now()}, 'items': items, 'settings': settings, 'is_quote': True}
+    # --- THIS IS THE NEW PART YOU ASKED ABOUT ---
+    # Determine Country for Date Formatting
+    country = settings.get('country_code', 'UK')
+    date_fmt = '%m/%d/%Y' if country == 'US' else '%d/%m/%Y'
+    formatted_date = datetime.now().strftime(date_fmt)
+
+    # PASS Title/Desc to PDF Context
+    context = {
+        'invoice': {
+            'ref': ref, 
+            'date': formatted_date, # <--- FORMATTED
+            'job_title': title,         
+            'job_description': desc     
+        }, 
+        'items': items, 
+        'settings': settings, 
+        'is_quote': True
+    }
+    # --- END NEW PART ---
+
     filename = f"Quote_{ref}.pdf"
     
     try:
@@ -266,8 +347,8 @@ def email_quote(quote_id):
         msg = MIMEMultipart()
         msg['From'] = settings.get('smtp_email')
         msg['To'] = client_email
-        msg['Subject'] = f"Quote {ref} from {session.get('company_name')}"
-        msg.attach(MIMEText(f"Dear {client_name},\n\nPlease find attached the quote {ref}.\n\nKind regards,", 'plain'))
+        msg['Subject'] = f"Quote {ref} - {title or 'Proposal'}"
+        msg.attach(MIMEText(f"Dear {client_name},\n\nPlease find attached the quote for {title}.\n\nKind regards,", 'plain'))
         
         with open(pdf_path, "rb") as f:
             part = MIMEApplication(f.read(), Name=filename)
@@ -281,17 +362,62 @@ def email_quote(quote_id):
         server.quit()
         
         cur.execute("UPDATE quotes SET status = 'Sent' WHERE id = %s", (quote_id,))
-        conn.commit()
-        flash(f"✅ Quote emailed to {client_email}!", "success")
+        conn.commit(); flash(f"✅ Quote emailed to {client_email}!", "success")
 
     except Exception as e:
         flash(f"❌ Email failed: {e}", "error")
     
     conn.close()
     return redirect(url_for('quote.view_quote', quote_id=quote_id))
+    
+    cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
+    items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
+    
+    # PASS Title/Desc to PDF Context
+    context = {
+        'invoice': {
+            'ref': ref, 
+            'date': datetime.now(),
+            'job_title': title,         
+            'job_description': desc     
+        }, 
+        'items': items, 
+        'settings': settings, 
+        'is_quote': True
+    }
+    filename = f"Quote_{ref}.pdf"
+    
+    try:
+        pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
+        
+        msg = MIMEMultipart()
+        msg['From'] = settings.get('smtp_email')
+        msg['To'] = client_email
+        msg['Subject'] = f"Quote {ref} - {title or 'Proposal'}"
+        msg.attach(MIMEText(f"Dear {client_name},\n\nPlease find attached the quote for {title}.\n\nKind regards,", 'plain'))
+        
+        with open(pdf_path, "rb") as f:
+            part = MIMEApplication(f.read(), Name=filename)
+            part['Content-Disposition'] = f'attachment; filename="{filename}"'
+            msg.attach(part)
 
+        server = smtplib.SMTP(settings['smtp_host'], int(settings.get('smtp_port', 587)))
+        server.starttls()
+        server.login(settings['smtp_email'], settings['smtp_password'])
+        server.send_message(msg)
+        server.quit()
+        
+        cur.execute("UPDATE quotes SET status = 'Sent' WHERE id = %s", (quote_id,))
+        conn.commit(); flash(f"✅ Quote emailed to {client_email}!", "success")
+
+    except Exception as e:
+        flash(f"❌ Email failed: {e}", "error")
+    
+    conn.close()
+    return redirect(url_for('quote.view_quote', quote_id=quote_id))
+    
 # =========================================================
-# 5. CONVERT TO INVOICE (With Dynamic Due Date)
+# 5. CONVERT TO INVOICE (Now links to Job ID)
 # =========================================================
 @quote_bp.route('/office/quote/<int:quote_id>/convert')
 def convert_to_invoice(quote_id):
@@ -309,34 +435,43 @@ def convert_to_invoice(quote_id):
         flash("⚠️ Already converted.", "warning")
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
 
-    # 2. Get Payment Days Setting
+    # 2. FIND LINKED JOB (Critical Fix - This is the smart part!)
+    cur.execute("SELECT id FROM jobs WHERE quote_id = %s", (quote_id,))
+    job_row = cur.fetchone()
+    job_id = job_row[0] if job_row else None
+
+    # 3. Get Payment Days Setting
     cur.execute("SELECT value FROM settings WHERE key = 'payment_days' AND company_id = %s", (comp_id,))
     res = cur.fetchone()
-    days = int(res[0]) if res and res[0] else 14 # Default to 14 days if not set
+    days = int(res[0]) if res and res[0] else 14 
 
-    # 3. Create Invoice
+    # 4. Create Invoice (Inserting job_id now)
     new_ref = f"INV-{quote[3]}" 
     try:
-        # We inject the variable 'days' into the SQL interval
         cur.execute(f"""
-            INSERT INTO invoices (company_id, client_id, ref, date_created, due_date, status, total_amount)
-            VALUES (%s, %s, %s, CURRENT_DATE, CURRENT_DATE + INTERVAL '{days} days', 'Unpaid', %s)
+            INSERT INTO invoices (company_id, client_id, job_id, quote_id, ref, date_created, due_date, status, total_amount)
+            VALUES (%s, %s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE + INTERVAL '{days} days', 'Unpaid', %s)
             RETURNING id
-        """, (comp_id, quote[0], new_ref, quote[1]))
+        """, (comp_id, quote[0], job_id, quote_id, new_ref, quote[1]))
+        
         new_inv_id = cur.fetchone()[0]
 
-        # 4. Copy Items
+        # 5. Copy Items
         cur.execute("""
             INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
             SELECT %s, description, quantity, unit_price, total
             FROM quote_items WHERE quote_id = %s
         """, (new_inv_id, quote_id))
 
-        # 5. Update Quote Status
+        # 6. Update Quote Status
         cur.execute("UPDATE quotes SET status = 'Converted' WHERE id = %s", (quote_id,))
         conn.commit()
         
         flash(f"✅ Converted to Invoice {new_ref}", "success")
+        
+        # Redirect back to Job if possible (Better UX)
+        if job_id:
+            return redirect(f"/office/job/{job_id}/files")
         return redirect(url_for('finance.finance_invoices'))
         
     except Exception as e:
@@ -344,8 +479,8 @@ def convert_to_invoice(quote_id):
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
     finally:
         conn.close()
-        
-        # =========================================================
+
+# =========================================================
 # 6. PDF REDIRECT (The Fix for the 404 Button)
 # =========================================================
 @quote_bp.route('/office/quote/<int:quote_id>/pdf')

@@ -332,18 +332,25 @@ def update_job(job_id):
             else:
                 flash("✅ Job Started.")
 
-        # B. COMPLETE JOB (With Auto-Material Billing)
+# B. COMPLETE JOB (With Auto-Material Billing)
         elif action == 'complete':
             signature = request.form.get('signature')
             work_summary = request.form.get('work_summary')
             private_notes = request.form.get('private_notes')
             
-            # 1. Fetch Job Data
-            cur.execute("SELECT client_id, ref, description, start_date, property_id FROM jobs WHERE id = %s", (job_id,))
+            # 1. Fetch Job Data (NOW INCLUDING quote_id)
+            cur.execute("""
+                SELECT client_id, ref, description, start_date, property_id, quote_id 
+                FROM jobs WHERE id = %s AND company_id = %s
+            """, (job_id, comp_id))
             job_data = cur.fetchone()
-            client_id, job_ref, job_desc, job_date, prop_id = job_data
-            clean_ref = job_ref.replace("Ref: ", "").replace("Quote Work: ", "").strip()
+            
+            if not job_data:
+                flash("❌ Job not found.", "error")
+                return redirect(url_for('site.site_dashboard'))
 
+            client_id, job_ref, job_desc, job_date, prop_id, linked_quote_id = job_data
+            
             # 2. Update Job Record
             cur.execute("""
                 UPDATE jobs 
@@ -352,31 +359,28 @@ def update_job(job_id):
                 WHERE id = %s
             """, (work_summary, private_notes, job_id))
 
-            # 3. Check for Linked Quote
-            cur.execute("SELECT id FROM quotes WHERE reference = %s AND company_id = %s", (clean_ref, comp_id))
-            quote_row = cur.fetchone()
-
             # Generate Invoice Reference
             cur.execute("SELECT COUNT(*) FROM invoices WHERE company_id = %s", (comp_id,))
             inv_ref = f"INV-{1000 + cur.fetchone()[0] + 1}"
             
-            # Initialize Invoice ID
             inv_id = None
 
-            # --- PATH A: QUOTED JOB ---
-            if quote_row:
-                quote_id = quote_row[0]
+            # --- PATH A: QUOTED JOB (ROBUST LINK) ---
+            # We now check linked_quote_id directly, instead of searching by text string
+            if linked_quote_id:
                 # Create Invoice from Quote
                 cur.execute("""
-                    INSERT INTO invoices (company_id, client_id, quote_ref, reference, date, due_date, status, subtotal, tax, total, notes) 
-                    VALUES (%s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE + 14, 'Unpaid', 0, 0, 0, %s) 
+                    INSERT INTO invoices (company_id, client_id, quote_ref, reference, date, due_date, status, subtotal, tax, total, job_id, notes) 
+                    VALUES (%s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE + 14, 'Unpaid', 0, 0, 0, %s, %s) 
                     RETURNING id
-                """, (comp_id, client_id, clean_ref, inv_ref, f"Signed by: {signature}"))
+                """, (comp_id, client_id, job_ref, inv_ref, job_id, f"Signed by: {signature}"))
                 inv_id = cur.fetchone()[0]
                 
-                # Copy Quote Items
-                cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
-                for item in cur.fetchall():
+                # Copy Items from the SPECIFIC Quote ID
+                cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (linked_quote_id,))
+                quote_items = cur.fetchall()
+                
+                for item in quote_items:
                     cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, %s, %s, %s)",
                                (inv_id, item[0], item[1], item[2], item[3]))
                 
@@ -386,13 +390,13 @@ def update_job(job_id):
             else:
                 # Create Invoice Shell
                 cur.execute("""
-                    INSERT INTO invoices (company_id, client_id, reference, date, due_date, status, subtotal, tax, total, notes) 
-                    VALUES (%s, %s, %s, CURRENT_DATE, CURRENT_DATE + 14, 'Draft', 0, 0, 0, %s) 
+                    INSERT INTO invoices (company_id, client_id, reference, date, due_date, status, subtotal, tax, total, job_id, notes) 
+                    VALUES (%s, %s, %s, CURRENT_DATE, CURRENT_DATE + 14, 'Draft', 0, 0, 0, %s, %s) 
                     RETURNING id
-                """, (comp_id, client_id, inv_ref, f"Pending Pricing. Work: {work_summary}"))
+                """, (comp_id, client_id, inv_ref, job_id, f"Pending Pricing. Work: {work_summary}"))
                 inv_id = cur.fetchone()[0]
                 
-                # Add Labour Line (Placeholder)
+                # Add Labour Line
                 cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, 1, 0, 0)", 
                            (inv_id, f"Labour: {work_summary}"))
                 
@@ -421,7 +425,7 @@ def update_job(job_id):
             cur.execute("SELECT SUM(total) FROM invoice_items WHERE invoice_id = %s", (inv_id,))
             new_subtotal = cur.fetchone()[0] or 0.0
             
-# --- SMART TAX CALCULATION (Updated) ---
+            # --- SMART TAX CALCULATION (Updated) ---
             # 1. Get All Settings
             cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
             settings = {row[0]: row[1] for row in cur.fetchall()}
@@ -661,3 +665,100 @@ def setup_site_db():
         return f"<h1>Error</h1><p>{e}</p>"
     finally:
         conn.close()
+        
+        # --- SMART SITE CLOCK (Start/Stop Crew) ---
+        
+@site_bp.route('/site/job/<int:job_id>/toggle-site-time', methods=['POST'])
+def toggle_site_time(job_id):
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    comp_id = session.get('company_id')
+    
+    try:
+        action = request.form.get('action') # 'start' or 'stop'
+        
+        # 1. FIND THE VAN & CREW
+        # We look up which vehicle is assigned to this job
+        cur.execute("SELECT vehicle_id FROM jobs WHERE id = %s", (job_id,))
+        row = cur.fetchone()
+        
+        if not row or not row[0]:
+            flash("❌ No Van assigned to this job! Cannot auto-clock crew.", "error")
+            return redirect(f"/site/job/{job_id}")
+            
+        vehicle_id = row[0]
+        
+        # 2. GET ALL STAFF IN THAT VAN
+        # (Driver + Passengers)
+        cur.execute("""
+            SELECT s.id 
+            FROM staff s 
+            WHERE s.id = (SELECT assigned_driver_id FROM vehicles WHERE id = %s)
+            UNION
+            SELECT staff_id FROM vehicle_crew WHERE vehicle_id = %s
+        """, (vehicle_id, vehicle_id))
+        
+        crew_ids = [r[0] for r in cur.fetchall()]
+        
+        if not crew_ids:
+            flash("⚠️ Van is empty! No crew found to clock in.", "warning")
+            return redirect(f"/site/job/{job_id}")
+
+        # 3. EXECUTE CLOCK IN / OUT
+        timestamp = datetime.now()
+        
+        if action == 'start':
+            # Create a new "Active" timesheet for EVERYONE in the van
+            for staff_id in crew_ids:
+                # Check if they are already clocked onto THIS job to prevent duplicates
+                cur.execute("""
+                    SELECT id FROM staff_timesheets 
+                    WHERE staff_id = %s AND job_id = %s AND end_time IS NULL
+                """, (staff_id, job_id))
+                
+                if not cur.fetchone():
+                    cur.execute("""
+                        INSERT INTO staff_timesheets (company_id, staff_id, job_id, date, start_time, status)
+                        VALUES (%s, %s, %s, CURRENT_DATE, %s, 'Site - Active')
+                    """, (comp_id, staff_id, job_id, timestamp))
+            
+            # Update Job Status
+            cur.execute("UPDATE jobs SET status = 'In Progress' WHERE id = %s", (job_id,))
+            flash(f"✅ Site Clock STARTED for {len(crew_ids)} crew members.", "success")
+
+        elif action == 'stop':
+            # Find OPEN timesheets for this job and close them
+            for staff_id in crew_ids:
+                cur.execute("""
+                    SELECT id, start_time FROM staff_timesheets 
+                    WHERE staff_id = %s AND job_id = %s AND end_time IS NULL
+                """, (staff_id, job_id))
+                active_sheet = cur.fetchone()
+                
+                if active_sheet:
+                    sheet_id = active_sheet[0]
+                    start_time = active_sheet[1]
+                    
+                    # Calculate Hours (Difference between Now and Start)
+                    duration = (timestamp - start_time).total_seconds() / 3600 # Convert to Hours
+                    hours = round(duration, 2)
+                    
+                    cur.execute("""
+                        UPDATE staff_timesheets 
+                        SET end_time = %s, hours = %s, status = 'Approved' 
+                        WHERE id = %s
+                    """, (timestamp, hours, sheet_id))
+            
+            flash(f"🛑 Site Clock STOPPED. Hours logged for {len(crew_ids)} staff.", "success")
+
+        conn.commit()
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(request.referrer) # Go back to the job page

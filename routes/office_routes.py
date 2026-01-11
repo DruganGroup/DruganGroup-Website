@@ -114,16 +114,18 @@ def office_dashboard():
     """, (company_id,))
     recent_quotes = [{'id': r[0], 'client': r[1], 'ref': r[2], 'date': format_date(r[3]), 'total': r[4], 'status': r[5]} for r in cur.fetchall()]
 
-    # ACCEPTED QUOTES (Need converting to jobs)
+  # ACCEPTED QUOTES (Exclude ones that already have a Job linked)
     cur.execute("""
         SELECT q.id, c.name, q.reference, q.total 
         FROM quotes q 
         LEFT JOIN clients c ON q.client_id = c.id 
-        WHERE q.company_id = %s AND q.status = 'Accepted' 
+        WHERE q.company_id = %s 
+        AND q.status = 'Accepted' 
+        AND NOT EXISTS (SELECT 1 FROM jobs j WHERE j.quote_id = q.id)
         ORDER BY q.date DESC
     """, (company_id,))
     accepted_quotes = [{'id': r[0], 'client': r[1], 'ref': r[2], 'total': r[3]} for r in cur.fetchall()]
-
+    
     # COMPLETED JOBS (Ready for Invoice)
     cur.execute("""
         SELECT j.id, j.ref, j.site_address, c.name, j.description, j.start_date 
@@ -177,41 +179,46 @@ def office_dashboard():
                            brand_color=config['color'], 
                            logo_url=config['logo'])
 
-# =========================================================
-# CALENDAR & SCHEDULING (UPDATED)
-# =========================================================
-
 @office_bp.route('/office/calendar')
 def office_calendar():
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
-    config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
 
-    # 1. Fetch "Unscheduled" Jobs (Accepted but no date yet)
-    # We join with properties to get the postcode for the card
+    # 1. Get Unscheduled Jobs
     cur.execute("""
-        SELECT j.id, j.ref, c.name, j.description, p.postcode 
-        FROM jobs j
-        JOIN clients c ON j.client_id = c.id
-        JOIN properties p ON j.property_id = p.id
-        WHERE j.company_id = %s AND j.status = 'Accepted' AND j.start_date IS NULL
+        SELECT j.id, j.ref, c.name, j.description, COALESCE(p.postcode, 'No Postcode') 
+        FROM jobs j JOIN clients c ON j.client_id = c.id
+        LEFT JOIN properties p ON j.property_id = p.id
+        WHERE j.company_id = %s AND j.status IN ('Accepted', 'Pending') AND j.start_date IS NULL
+    """, (comp_id,))
+    unscheduled = [{'id': r[0], 'ref': r[1], 'client': r[2], 'desc': r[3], 'postcode': r[4]} for r in cur.fetchall()]
+
+    # 2. GET ACTIVE VANS (With Driver & Crew Count)
+    # This replaces the old 'Get Staff' query
+    cur.execute("""
+        SELECT v.id, v.reg_plate, s.name, 
+               (SELECT COUNT(*) FROM vehicle_crew vc WHERE vc.vehicle_id = v.id) as crew_size
+        FROM vehicles v
+        LEFT JOIN staff s ON v.assigned_driver_id = s.id
+        WHERE v.company_id = %s AND v.status = 'Active'
+        ORDER BY v.reg_plate
     """, (comp_id,))
     
-    unscheduled = [{'id': r[0], 'ref': r[1], 'client': r[2], 'desc': r[3], 'postcode': r[4]} for r in cur.fetchall()]
-    
-    # 2. Get Settings (For Region/Date Format)
+    fleet = []
+    for r in cur.fetchall():
+        driver_name = r[2] if r[2] else "No Driver Assigned"
+        crew_txt = f"+ {r[3]} Crew" if r[3] > 0 else "(Driver Only)"
+        fleet.append({'id': r[0], 'name': f"{r[1]} - {driver_name} {crew_txt}"})
+
+    # 3. Get Settings
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
-
     conn.close()
     
-    return render_template('office/calendar.html', 
-                           unscheduled_jobs=unscheduled, 
-                           settings=settings,
-                           brand_color=config['color'], 
-                           logo_url=config['logo'])
+    # Pass 'fleet' instead of 'staff'
+    return render_template('office/calendar.html', unscheduled_jobs=unscheduled, fleet=fleet, settings=settings)
 
 @office_bp.route('/office/calendar/data')
 def get_calendar_data():
@@ -251,21 +258,32 @@ def get_calendar_data():
     conn.close()
     return jsonify(events)
 
-# --- NEW ROUTES FOR DRAG & DROP SAVING ---
-
 @office_bp.route('/office/calendar/schedule-job', methods=['POST'])
 def schedule_job():
     if not check_office_access(): return jsonify({'status': 'error'}), 403
     data = request.json
     conn = get_db(); cur = conn.cursor()
     try:
-        # Assign date and change status to 'Scheduled'
+        # 1. Find the Driver for this Van
+        vehicle_id = data.get('vehicle_id')
+        cur.execute("SELECT assigned_driver_id FROM vehicles WHERE id = %s", (vehicle_id,))
+        row = cur.fetchone()
+        
+        if not row or not row[0]:
+            return jsonify({'status': 'error', 'message': 'This van has no driver assigned! Go to Fleet to assign one.'})
+            
+        driver_id = row[0]
+
+        # 2. Assign Job to that Driver AND that Vehicle
         cur.execute("""
-            UPDATE jobs SET start_date = %s, status = 'Scheduled' 
+            UPDATE jobs 
+            SET start_date = %s, engineer_id = %s, vehicle_id = %s, status = 'Scheduled' 
             WHERE id = %s AND company_id = %s
-        """, (data['date'], data['job_id'], session.get('company_id')))
+        """, (data['date'], driver_id, vehicle_id, data['job_id'], session.get('company_id')))
+        
         conn.commit()
         return jsonify({'status': 'success'})
+        
     except Exception as e:
         conn.rollback(); return jsonify({'status': 'error', 'message': str(e)})
     finally: conn.close()
@@ -882,18 +900,25 @@ def save_eicr_cert():
     finally:
         conn.close()
 
-# =========================================================
-# 5. UPLOAD CENTER & CLIENT PORTAL
-# =========================================================
-
 @office_bp.route('/office/upload-center', methods=['POST'])
 def universal_upload():
     if not check_office_access(): return jsonify({'error': 'Unauthorized'}), 403
     
     comp_id = session.get('company_id')
-    allowed, msg = check_limit(comp_id, 'max_storage')
-    if not allowed:
-        return jsonify({'status': 'error', 'message': msg}), 403
+    
+    # 1. CHECK FOR FORCED JOB CONTEXT (The Fix)
+    # If uploaded from a specific Job Page, use that Job ID.
+    forced_job_ref = request.form.get('job_ref')
+    forced_job_id = None
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    if forced_job_ref:
+        cur.execute("SELECT id FROM jobs WHERE ref = %s AND company_id = %s", (forced_job_ref, comp_id))
+        row = cur.fetchone()
+        if row: forced_job_id = row[0]
+
+    # 2. SAVE FILE
     file = request.files.get('file')
     if not file: return jsonify({'error': 'No file'}), 400
 
@@ -905,23 +930,30 @@ def universal_upload():
     file.save(full_path)
     db_path = f"uploads/{comp_id}/inbox/{filename}"
     
-    # Use the AI Sorter if available
+    # 3. RUN AI SCAN (Readex)
     if not universal_sort_document:
+        # Fallback if AI is broken: Just save as expense linked to job
+        if forced_job_id:
+            cur.execute("INSERT INTO job_expenses (company_id, job_id, description, cost, date, receipt_path) VALUES (%s, %s, %s, 0, CURRENT_DATE, %s)", 
+                        (comp_id, forced_job_id, "Manual Upload (AI Offline)", db_path))
+            conn.commit(); conn.close()
+            return redirect(request.referrer)
         return jsonify({'status': 'success', 'message': 'File uploaded (AI disabled)', 'data': {}})
 
     scan = universal_sort_document(full_path)
     
     if not scan['success']:
+        conn.close()
         return jsonify({'status': 'error', 'message': scan.get('error')})
 
     result = scan['result']
     doc_type = result.get('doc_type')
     data = result.get('data', {})
     
-    conn = get_db(); cur = conn.cursor()
     msg = "File Processed"
     
     try:
+        # 4. HANDLE FUEL RECEIPTS
         if doc_type == 'fuel_receipt':
             v_id = None
             reg = data.get('vehicle_reg')
@@ -935,23 +967,41 @@ def universal_upload():
                         (comp_id, v_id, f"AI: {data.get('vendor')} ({reg or 'Unknown'})", data.get('date') or date.today(), data.get('total_cost') or 0, db_path))
             msg = f"Fuel Logged. Linked to Van: {reg if v_id else 'No Match Found'}"
 
-        elif doc_type == 'supplier_invoice':
-            cur.execute("CREATE TABLE IF NOT EXISTS job_expenses (id SERIAL PRIMARY KEY, company_id INTEGER, job_id INTEGER, description TEXT, cost REAL, date DATE, receipt_path TEXT)")
-            j_id = None
-            ref = data.get('job_ref')
-            if ref:
+        # 5. HANDLE INVOICES / MATERIALS (Linked to Job)
+        elif doc_type == 'supplier_invoice' or forced_job_id:
+            # Use Forced ID if available, otherwise trust AI
+            final_job_id = forced_job_id 
+            
+            # If no forced ID, try to find one from the AI data
+            if not final_job_id and data.get('job_ref'):
+                ref = data.get('job_ref')
                 cur.execute("SELECT id FROM jobs WHERE ref ILIKE %s AND company_id=%s", (f"%{ref}%", comp_id))
                 row = cur.fetchone()
-                if row: j_id = row[0]
+                if row: final_job_id = row[0]
             
-            cur.execute("INSERT INTO job_expenses (company_id, job_id, description, cost, date, receipt_path) VALUES (%s, %s, %s, %s, %s, %s)", 
-                        (comp_id, j_id, f"Invoice: {data.get('supplier_name')}", data.get('total') or 0, data.get('date') or date.today(), db_path))
-            msg = f"Invoice Filed. Linked to Job: {ref if j_id else 'Unassigned'}"
+            desc = f"Invoice: {data.get('supplier_name', 'Unknown Supplier')}"
+            cost = data.get('total') or 0
+            doc_date = data.get('date') or date.today()
+
+            cur.execute("""
+                INSERT INTO job_expenses (company_id, job_id, description, cost, date, receipt_path) 
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (comp_id, final_job_id, desc, cost, doc_date, db_path))
+            
+            msg = f"Invoice Filed. Linked to Job: {forced_job_ref if forced_job_id else 'Unassigned'}"
 
         conn.commit()
+        
+        # If we came from a job page, go back there
+        if forced_job_ref:
+            return redirect(f"/office/job/{forced_job_id}/files")
+            
         return jsonify({'status': 'success', 'doc_type': doc_type, 'message': msg, 'data': data})
-    except Exception as e: conn.rollback(); return jsonify({'status': 'error', 'message': str(e)})
-    finally: conn.close()
+
+    except Exception as e:
+        conn.rollback(); return jsonify({'status': 'error', 'message': str(e)})
+    finally:
+        conn.close()
 
 @office_bp.route('/office/client/<int:client_id>/enable-portal', methods=['POST'])
 def enable_portal(client_id):
@@ -1136,3 +1186,203 @@ def create_eicr_cert():
         prop_data = {'id': prop_id, 'address': full_addr, 'client': data[3]}
         
     return render_template('office/certs/uk/eicr.html', prop=prop_data, next_five_years=(date.today() + timedelta(days=365*5)))
+    
+@office_bp.route('/office/quotes')
+def quotes_dashboard():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    config = get_site_config(comp_id)
+    
+    # Fetch All Quotes
+    cur.execute("""
+        SELECT q.id, q.reference, c.name, q.date, q.total, q.status, q.job_title
+        FROM quotes q
+        LEFT JOIN clients c ON q.client_id = c.id
+        WHERE q.company_id = %s
+        ORDER BY q.id DESC
+    """, (comp_id,))
+    
+    quotes = [{
+        'id': r[0], 'ref': r[1], 'client': r[2], 
+        'date': format_date(r[3]), 'total': r[4], 
+        'status': r[5], 'title': r[6]
+    } for r in cur.fetchall()]
+    
+    conn.close()
+    # Note: Ensure you have a 'quotes_dashboard.html' or redirect to a generic list
+    # For now, we will render the same view but you might want to create a specific template later
+    return render_template('office/office_dashboard.html', 
+                           recent_quotes=quotes, # Re-using the variable name to show list
+                           brand_color=config['color'], logo_url=config['logo'])
+                           
+@office_bp.route('/office/job/<int:job_id>/files')
+def job_dashboard(job_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. FETCH JOB DETAILS
+    cur.execute("""
+        SELECT j.ref, j.description, j.site_address, j.status, j.quote_id, j.quote_total
+        FROM jobs j 
+        WHERE j.id = %s AND j.company_id = %s
+    """, (job_id, comp_id))
+    job_row = cur.fetchone()
+    
+    if not job_row: conn.close(); return "Job not found", 404
+    
+    # Job Data Tuple
+    job = (job_row[0], job_row[1], job_row[2], job_row[3])
+    quote_id = job_row[4]
+    quote_total = float(job_row[5]) if job_row[5] else 0.0
+
+    # 2. CALCULATE FINANCIALS
+    
+    # Invoiced
+    cur.execute("SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE job_id = %s AND status != 'Void'", (job_id,))
+    row = cur.fetchone()
+    total_billed = float(row[0]) if row and row[0] else 0.0
+    
+    # Expenses
+    cur.execute("SELECT COALESCE(SUM(cost), 0) FROM job_expenses WHERE job_id = %s", (job_id,))
+    row = cur.fetchone()
+    expenses = float(row[0]) if row and row[0] else 0.0
+    
+    # Labour (Hours * Rate)
+    cur.execute("""
+        SELECT COALESCE(SUM(t.hours * s.pay_rate), 0)
+        FROM staff_timesheets t
+        JOIN staff s ON t.staff_id = s.id
+        WHERE t.job_id = %s
+    """, (job_id,))
+    row = cur.fetchone()
+    labour = float(row[0]) if row and row[0] else 0.0
+    
+    total_cost = expenses + labour
+    profit = quote_total - total_cost
+    budget_remaining = quote_total - total_cost
+
+    # 3. FETCH FILES (Now including Labor)
+    files = []
+    
+    # A. Invoices
+    cur.execute("SELECT id, ref, total_amount, date_created FROM invoices WHERE job_id = %s ORDER BY date_created DESC", (job_id,))
+    for r in cur.fetchall():
+        files.append(('Client Invoice', r[1], float(r[2]), format_date(r[3]), 'invoice', r[0]))
+
+    # B. Expenses
+    cur.execute("SELECT description, cost, date, receipt_path, id FROM job_expenses WHERE job_id = %s ORDER BY date DESC", (job_id,))
+    for r in cur.fetchall():
+        path = r[3] if r[3] else 'No Link'
+        files.append(('Expense Receipt', r[0], float(r[1]), format_date(r[2]), path, r[4]))
+        
+    # C. Labor (NEW: Shows Staff Costs in the List)
+    cur.execute("""
+        SELECT t.id, s.name, t.hours, s.pay_rate, t.date
+        FROM staff_timesheets t
+        JOIN staff s ON t.staff_id = s.id
+        WHERE t.job_id = %s
+        ORDER BY t.date DESC
+    """, (job_id,))
+    
+    for r in cur.fetchall():
+        t_id, name, hours, rate, date_val = r
+        # Calculate cost for this specific entry
+        cost = float(hours) * float(rate)
+        desc = f"Labor: {name} ({hours} hrs)"
+        # Append to files list with type 'Staff Labor'
+        files.append(('Staff Labor', desc, cost, format_date(date_val), 'No Link', t_id))
+
+    # D. Staff List (For Dropdown)
+    cur.execute("SELECT id, name FROM staff WHERE company_id = %s AND status='Active'", (comp_id,))
+    staff = cur.fetchall()
+    
+    conn.close()
+    
+    return render_template('office/job_files.html', 
+                           job=job, quote_id=quote_id, quote_total=quote_total,
+                           total_billed=total_billed, total_cost=total_cost, profit=profit,
+                           budget_remaining=budget_remaining,
+                           files=files, staff=staff, today=date.today(),
+                           brand_color=config['color'], logo_url=config['logo'])
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. FETCH JOB DETAILS
+    cur.execute("""
+        SELECT j.ref, j.description, j.site_address, j.status, j.quote_id, j.quote_total
+        FROM jobs j 
+        WHERE j.id = %s AND j.company_id = %s
+    """, (job_id, comp_id))
+    job_row = cur.fetchone()
+    
+    if not job_row: conn.close(); return "Job not found", 404
+    
+    # Job Data Tuple
+    job = (job_row[0], job_row[1], job_row[2], job_row[3])
+    quote_id = job_row[4]
+    quote_total = float(job_row[5]) if job_row[5] else 0.0
+
+    # 2. CALCULATE FINANCIALS
+    
+    # Invoiced (Cash Position)
+    cur.execute("SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE job_id = %s AND status != 'Void'", (job_id,))
+    row = cur.fetchone()
+    total_billed = float(row[0]) if row and row[0] else 0.0
+    
+    # Expenses
+    cur.execute("SELECT COALESCE(SUM(cost), 0) FROM job_expenses WHERE job_id = %s", (job_id,))
+    row = cur.fetchone()
+    expenses = float(row[0]) if row and row[0] else 0.0
+    
+    # Labour
+    cur.execute("""
+        SELECT COALESCE(SUM(t.hours * s.pay_rate), 0)
+        FROM staff_timesheets t
+        JOIN staff s ON t.staff_id = s.id
+        WHERE t.job_id = %s
+    """, (job_id,))
+    row = cur.fetchone()
+    labour = float(row[0]) if row and row[0] else 0.0
+    
+    total_cost = expenses + labour
+    
+    # --- CHANGED: PROFIT CALCULATION ---
+    # Old Way: Profit = Invoiced - Cost (Cash Flow View)
+    # New Way: Profit = Quote - Cost (Project Margin View)
+    profit = quote_total - total_cost
+    
+    budget_remaining = quote_total - total_cost
+
+    # 3. FETCH FILES
+    files = []
+    # Invoices
+    cur.execute("SELECT id, ref, total_amount, date_created FROM invoices WHERE job_id = %s ORDER BY date_created DESC", (job_id,))
+    for r in cur.fetchall():
+        files.append(('Client Invoice', r[1], float(r[2]), format_date(r[3]), 'invoice', r[0]))
+
+    # Expenses
+    cur.execute("SELECT description, cost, date, receipt_path FROM job_expenses WHERE job_id = %s ORDER BY date DESC", (job_id,))
+    for r in cur.fetchall():
+        path = r[3] if r[3] else 'No Link'
+        files.append(('Expense Receipt', r[0], float(r[1]), format_date(r[2]), path, 0))
+        
+    # Staff List
+    cur.execute("SELECT id, name FROM staff WHERE company_id = %s AND status='Active'", (comp_id,))
+    staff = cur.fetchall()
+    
+    conn.close()
+    
+    return render_template('office/job_files.html', 
+                           job=job, quote_id=quote_id, quote_total=quote_total,
+                           total_billed=total_billed, total_cost=total_cost, profit=profit,
+                           budget_remaining=budget_remaining,
+                           files=files, staff=staff, today=date.today(),
+                           brand_color=config['color'], logo_url=config['logo'])
