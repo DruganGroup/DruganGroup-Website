@@ -179,6 +179,10 @@ def office_dashboard():
                            brand_color=config['color'], 
                            logo_url=config['logo'])
 
+# =========================================================
+# CALENDAR & SCHEDULING (Updated for Crew Assignment)
+# =========================================================
+
 @office_bp.route('/office/calendar')
 def office_calendar():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -186,40 +190,109 @@ def office_calendar():
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
 
-    # 1. Get Unscheduled Jobs
+    # 1. GET UNSCHEDULED JOBS (Now fetching the Pre-Assigned Vehicle from the Quote)
     cur.execute("""
-        SELECT j.id, j.ref, c.name, j.description, COALESCE(p.postcode, 'No Postcode') 
-        FROM jobs j JOIN clients c ON j.client_id = c.id
+        SELECT j.id, j.ref, c.name, j.description, COALESCE(p.postcode, 'No Postcode'), j.vehicle_id 
+        FROM jobs j 
+        JOIN clients c ON j.client_id = c.id
         LEFT JOIN properties p ON j.property_id = p.id
         WHERE j.company_id = %s AND j.status IN ('Accepted', 'Pending') AND j.start_date IS NULL
     """, (comp_id,))
-    unscheduled = [{'id': r[0], 'ref': r[1], 'client': r[2], 'desc': r[3], 'postcode': r[4]} for r in cur.fetchall()]
+    
+    unscheduled = []
+    for r in cur.fetchall():
+        unscheduled.append({
+            'id': r[0], 'ref': r[1], 'client': r[2], 'desc': r[3], 'postcode': r[4], 
+            'pre_vehicle_id': r[5] # <--- This carries the van choice from the quote
+        })
 
-    # 2. GET ACTIVE VANS (With Driver & Crew Count)
-    # This replaces the old 'Get Staff' query
+    # 2. GET ACTIVE VANS (With Assigned Driver & Crew Gang)
+    # We build a dictionary of vans so the frontend knows exactly who belongs to which van
     cur.execute("""
-        SELECT v.id, v.reg_plate, s.name, 
-               (SELECT COUNT(*) FROM vehicle_crew vc WHERE vc.vehicle_id = v.id) as crew_size
-        FROM vehicles v
-        LEFT JOIN staff s ON v.assigned_driver_id = s.id
-        WHERE v.company_id = %s AND v.status = 'Active'
+        SELECT v.id, v.reg_plate, v.make_model, v.assigned_driver_id
+        FROM vehicles v 
+        WHERE v.company_id = %s AND v.status = 'Active' 
         ORDER BY v.reg_plate
     """, (comp_id,))
     
+    fleet_rows = cur.fetchall()
     fleet = []
-    for r in cur.fetchall():
-        driver_name = r[2] if r[2] else "No Driver Assigned"
-        crew_txt = f"+ {r[3]} Crew" if r[3] > 0 else "(Driver Only)"
-        fleet.append({'id': r[0], 'name': f"{r[1]} - {driver_name} {crew_txt}"})
+    
+    for v in fleet_rows:
+        v_id, reg, model, driver_id = v
+        
+        # Fetch the Crew (Gang) assigned to this vehicle
+        cur.execute("SELECT staff_id FROM vehicle_crew WHERE vehicle_id = %s", (v_id,))
+        crew_ids = [row[0] for row in cur.fetchall()]
+        
+        fleet.append({
+            'id': v_id, 
+            'name': f"{reg} ({model})", 
+            'driver_id': driver_id,  # The default Lead
+            'crew_ids': crew_ids     # The default Gang
+        })
 
-    # 3. Get Settings
+    # 3. GET ALL ACTIVE STAFF
+    cur.execute("SELECT id, name, position FROM staff WHERE company_id = %s AND status = 'Active' ORDER BY name", (comp_id,))
+    staff = [{'id': r[0], 'name': r[1], 'role': r[2]} for r in cur.fetchall()]
+
+    # 4. Settings
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     conn.close()
     
-    # Pass 'fleet' instead of 'staff'
-    return render_template('office/calendar.html', unscheduled_jobs=unscheduled, fleet=fleet, settings=settings)
+    return render_template('office/calendar.html', 
+                           unscheduled_jobs=unscheduled, 
+                           fleet=fleet, 
+                           staff=staff, 
+                           settings=settings)
+                           
+@office_bp.route('/office/calendar/schedule-job', methods=['POST'])
+def schedule_job():
+    if not check_office_access(): return jsonify({'status': 'error'}), 403
+    
+    data = request.json
+    job_id = data.get('job_id')
+    date_str = data.get('date')
+    vehicle_id = data.get('vehicle_id')
+    lead_id = data.get('lead_id')   # The Driver / Lead Engineer
+    crew_ids = data.get('crew_ids', []) # List of Crew IDs
+    comp_id = session.get('company_id')
 
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # 1. UPDATE THE JOB
+        # We explicitly link the Lead Engineer (so it shows in their app)
+        cur.execute("""
+            UPDATE jobs 
+            SET start_date = %s, engineer_id = %s, vehicle_id = %s, status = 'Scheduled' 
+            WHERE id = %s AND company_id = %s
+        """, (date_str, lead_id, vehicle_id, job_id, comp_id))
+        
+        # 2. UPDATE THE VEHICLE (Sync the Van to this Job)
+        # We set the Van's driver to the Lead Engineer chosen for this job
+        cur.execute("UPDATE vehicles SET assigned_driver_id = %s WHERE id = %s", (lead_id, vehicle_id))
+        
+        # 3. UPDATE THE CREW (Sync the Crew to the Van)
+        # This ensures that when the Lead clicks "Start Shift", these crew members are clocked in
+        
+        # A. Clear old crew for this van
+        cur.execute("DELETE FROM vehicle_crew WHERE vehicle_id = %s", (vehicle_id,))
+        
+        # B. Add new crew members (excluding the lead, to avoid duplicates)
+        for staff_id in crew_ids:
+            if str(staff_id) != str(lead_id): 
+                cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (vehicle_id, staff_id))
+        
+        conn.commit()
+        return jsonify({'status': 'success'})
+        
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'status': 'error', 'message': str(e)})
+    finally:
+        conn.close()
+        
 @office_bp.route('/office/calendar/data')
 def get_calendar_data():
     if not check_office_access(): return jsonify([])
@@ -257,36 +330,6 @@ def get_calendar_data():
         
     conn.close()
     return jsonify(events)
-
-@office_bp.route('/office/calendar/schedule-job', methods=['POST'])
-def schedule_job():
-    if not check_office_access(): return jsonify({'status': 'error'}), 403
-    data = request.json
-    conn = get_db(); cur = conn.cursor()
-    try:
-        # 1. Find the Driver for this Van
-        vehicle_id = data.get('vehicle_id')
-        cur.execute("SELECT assigned_driver_id FROM vehicles WHERE id = %s", (vehicle_id,))
-        row = cur.fetchone()
-        
-        if not row or not row[0]:
-            return jsonify({'status': 'error', 'message': 'This van has no driver assigned! Go to Fleet to assign one.'})
-            
-        driver_id = row[0]
-
-        # 2. Assign Job to that Driver AND that Vehicle
-        cur.execute("""
-            UPDATE jobs 
-            SET start_date = %s, engineer_id = %s, vehicle_id = %s, status = 'Scheduled' 
-            WHERE id = %s AND company_id = %s
-        """, (data['date'], driver_id, vehicle_id, data['job_id'], session.get('company_id')))
-        
-        conn.commit()
-        return jsonify({'status': 'success'})
-        
-    except Exception as e:
-        conn.rollback(); return jsonify({'status': 'error', 'message': str(e)})
-    finally: conn.close()
 
 @office_bp.route('/office/calendar/reschedule-job', methods=['POST'])
 def reschedule_job():
@@ -691,6 +734,104 @@ def service_desk():
 
     conn.close()
     return render_template('office/service_desk.html', requests=requests, staff=staff, brand_color=config['color'], logo_url=config['logo'])
+
+# =========================================================
+# QUOTE SAVING & LOGIC (The Fix for Ghost Data)
+# =========================================================
+
+@office_bp.route('/office/quote/save', methods=['POST'])
+def save_quote():
+    if not check_office_access(): return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
+    
+    data = request.json
+    quote_id = data.get('quote_id')
+    client_id = data.get('client_id')
+    vehicle_id = data.get('vehicle_id')
+    items = data.get('items', [])
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    try:
+        # 1. GENERATE REFERENCE (If New)
+        if not quote_id:
+            cur.execute("SELECT COUNT(*) FROM quotes WHERE company_id = %s", (session['company_id'],))
+            count = cur.fetchone()[0]
+            ref = f"Q-{1000 + count + 1}"
+            
+            cur.execute("""
+                INSERT INTO quotes (company_id, client_id, reference, date, status, vehicle_id)
+                VALUES (%s, %s, %s, CURRENT_DATE, 'Draft', %s)
+                RETURNING id
+            """, (session['company_id'], client_id, ref, vehicle_id))
+            quote_id = cur.fetchone()[0]
+        else:
+            # Update existing header
+            cur.execute("UPDATE quotes SET client_id = %s, vehicle_id = %s WHERE id = %s", (client_id, vehicle_id, quote_id))
+
+        # --- THE FIX: WIPE OLD ITEMS FIRST ---
+        # This prevents "Ghost Data" by deleting previous items before saving the new ones
+        cur.execute("DELETE FROM quote_items WHERE quote_id = %s", (quote_id,))
+        # -------------------------------------
+
+        # 2. INSERT NEW ITEMS
+        total_quote_value = 0.0
+        
+        for item in items:
+            # Skip empty rows to prevent blank lines
+            if not item['description'] and not item['price']:
+                continue
+                
+            qty = float(item.get('quantity', 0))
+            price = float(item.get('unit_price', 0))
+            line_total = qty * price
+            total_quote_value += line_total
+            
+            cur.execute("""
+                INSERT INTO quote_items (quote_id, description, quantity, unit_price, total)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (quote_id, item['description'], qty, price, line_total))
+
+        # 3. AUTO-ADD VAN COST (Smart Logic)
+        if vehicle_id:
+            # Calculate Gang Cost (Van + Driver + Crew)
+            cur.execute("""
+                SELECT 
+                    (v.daily_cost + 
+                     COALESCE((SELECT s.pay_rate FROM staff s WHERE s.id = v.assigned_driver_id), 0) +
+                     COALESCE((SELECT SUM(s.pay_rate) FROM vehicle_crew vc JOIN staff s ON vc.staff_id = s.id WHERE vc.vehicle_id = v.id), 0)
+                    ) as total_daily_cost,
+                    v.reg_plate
+                FROM vehicles v
+                WHERE v.id = %s
+            """, (vehicle_id,))
+            
+            row = cur.fetchone()
+            if row:
+                van_cost = float(row[0])
+                reg = row[1]
+                
+                # Check if "Labor & Logistics" is already in the list (prevents double charging)
+                already_added = any("Labor & Logistics" in i['description'] for i in items)
+                
+                if not already_added:
+                    desc = f"Labor & Logistics: {reg} (Driver + Crew)"
+                    cur.execute("""
+                        INSERT INTO quote_items (quote_id, description, quantity, unit_price, total)
+                        VALUES (%s, %s, 1, %s, %s)
+                    """, (quote_id, desc, van_cost, van_cost))
+                    total_quote_value += van_cost
+
+        # 4. UPDATE TOTAL
+        cur.execute("UPDATE quotes SET total = %s WHERE id = %s", (total_quote_value, quote_id))
+        
+        conn.commit()
+        return jsonify({'status': 'success', 'quote_id': quote_id})
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'status': 'error', 'message': str(e)})
+    finally:
+        conn.close()
 
 @office_bp.route('/office/create-work-order', methods=['POST'])
 def create_work_order():
@@ -1217,6 +1358,8 @@ def quotes_dashboard():
                            recent_quotes=quotes, # Re-using the variable name to show list
                            brand_color=config['color'], logo_url=config['logo'])
                            
+# UPDATE THIS FUNCTION IN routes/office_routes.py
+
 @office_bp.route('/office/job/<int:job_id>/files')
 def job_dashboard(job_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -1244,29 +1387,30 @@ def job_dashboard(job_id):
     
     # Invoiced
     cur.execute("SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE job_id = %s AND status != 'Void'", (job_id,))
-    row = cur.fetchone()
-    total_billed = float(row[0]) if row and row[0] else 0.0
+    total_billed = float(cur.fetchone()[0])
     
-    # Expenses
+    # Expenses (Cash/Receipts)
     cur.execute("SELECT COALESCE(SUM(cost), 0) FROM job_expenses WHERE job_id = %s", (job_id,))
-    row = cur.fetchone()
-    expenses = float(row[0]) if row and row[0] else 0.0
+    expenses = float(cur.fetchone()[0])
+
+    # Materials (Stock/Site Added) - THIS WAS MISSING
+    cur.execute("SELECT COALESCE(SUM(quantity * unit_price), 0) FROM job_materials WHERE job_id = %s", (job_id,))
+    materials_cost = float(cur.fetchone()[0])
     
-    # Labour (Hours * Rate)
+    # Labour
     cur.execute("""
         SELECT COALESCE(SUM(t.hours * s.pay_rate), 0)
         FROM staff_timesheets t
         JOIN staff s ON t.staff_id = s.id
         WHERE t.job_id = %s
     """, (job_id,))
-    row = cur.fetchone()
-    labour = float(row[0]) if row and row[0] else 0.0
+    labour = float(cur.fetchone()[0])
     
-    total_cost = expenses + labour
+    total_cost = expenses + materials_cost + labour
     profit = quote_total - total_cost
     budget_remaining = quote_total - total_cost
 
-    # 3. FETCH FILES (Now including Labor)
+    # 3. FETCH FILES LIST
     files = []
     
     # A. Invoices
@@ -1280,7 +1424,15 @@ def job_dashboard(job_id):
         path = r[3] if r[3] else 'No Link'
         files.append(('Expense Receipt', r[0], float(r[1]), format_date(r[2]), path, r[4]))
         
-    # C. Labor (NEW: Shows Staff Costs in the List)
+    # C. Materials (THIS ADDS THEM TO THE LIST)
+    cur.execute("SELECT description, quantity, unit_price, date_added, id FROM job_materials WHERE job_id = %s ORDER BY date_added DESC", (job_id,))
+    for r in cur.fetchall():
+        desc = f"{r[1]}x {r[0]}" # e.g. "2x Copper Pipe"
+        cost = float(r[1]) * float(r[2])
+        # This tag 'Site Material' matches your HTML logic perfectly
+        files.append(('Site Material', desc, cost, format_date(r[3]), 'Material', r[4]))
+
+    # D. Labor
     cur.execute("""
         SELECT t.id, s.name, t.hours, s.pay_rate, t.date
         FROM staff_timesheets t
@@ -1291,13 +1443,12 @@ def job_dashboard(job_id):
     
     for r in cur.fetchall():
         t_id, name, hours, rate, date_val = r
-        # Calculate cost for this specific entry
         cost = float(hours) * float(rate)
-        desc = f"Labor: {name} ({hours} hrs)"
-        # Append to files list with type 'Staff Labor'
-        files.append(('Staff Labor', desc, cost, format_date(date_val), 'No Link', t_id))
+        # If 0 hours, they are currently active
+        desc = f"Labor: {name} ({hours} hrs)" if hours > 0 else f"Labor: {name} (Active)"
+        files.append(('Timesheet', desc, cost, format_date(date_val), 'No Link', t_id))
 
-    # D. Staff List (For Dropdown)
+    # E. Staff List
     cur.execute("SELECT id, name FROM staff WHERE company_id = %s AND status='Active'", (comp_id,))
     staff = cur.fetchall()
     
@@ -1309,80 +1460,26 @@ def job_dashboard(job_id):
                            budget_remaining=budget_remaining,
                            files=files, staff=staff, today=date.today(),
                            brand_color=config['color'], logo_url=config['logo'])
+                           
+@office_bp.route('/office/quote/delete/<int:quote_id>')
+def delete_quote(quote_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
     
-    comp_id = session.get('company_id')
-    config = get_site_config(comp_id)
-    conn = get_db(); cur = conn.cursor()
-    
-    # 1. FETCH JOB DETAILS
-    cur.execute("""
-        SELECT j.ref, j.description, j.site_address, j.status, j.quote_id, j.quote_total
-        FROM jobs j 
-        WHERE j.id = %s AND j.company_id = %s
-    """, (job_id, comp_id))
-    job_row = cur.fetchone()
-    
-    if not job_row: conn.close(); return "Job not found", 404
-    
-    # Job Data Tuple
-    job = (job_row[0], job_row[1], job_row[2], job_row[3])
-    quote_id = job_row[4]
-    quote_total = float(job_row[5]) if job_row[5] else 0.0
-
-    # 2. CALCULATE FINANCIALS
-    
-    # Invoiced (Cash Position)
-    cur.execute("SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE job_id = %s AND status != 'Void'", (job_id,))
-    row = cur.fetchone()
-    total_billed = float(row[0]) if row and row[0] else 0.0
-    
-    # Expenses
-    cur.execute("SELECT COALESCE(SUM(cost), 0) FROM job_expenses WHERE job_id = %s", (job_id,))
-    row = cur.fetchone()
-    expenses = float(row[0]) if row and row[0] else 0.0
-    
-    # Labour
-    cur.execute("""
-        SELECT COALESCE(SUM(t.hours * s.pay_rate), 0)
-        FROM staff_timesheets t
-        JOIN staff s ON t.staff_id = s.id
-        WHERE t.job_id = %s
-    """, (job_id,))
-    row = cur.fetchone()
-    labour = float(row[0]) if row and row[0] else 0.0
-    
-    total_cost = expenses + labour
-    
-    # --- CHANGED: PROFIT CALCULATION ---
-    # Old Way: Profit = Invoiced - Cost (Cash Flow View)
-    # New Way: Profit = Quote - Cost (Project Margin View)
-    profit = quote_total - total_cost
-    
-    budget_remaining = quote_total - total_cost
-
-    # 3. FETCH FILES
-    files = []
-    # Invoices
-    cur.execute("SELECT id, ref, total_amount, date_created FROM invoices WHERE job_id = %s ORDER BY date_created DESC", (job_id,))
-    for r in cur.fetchall():
-        files.append(('Client Invoice', r[1], float(r[2]), format_date(r[3]), 'invoice', r[0]))
-
-    # Expenses
-    cur.execute("SELECT description, cost, date, receipt_path FROM job_expenses WHERE job_id = %s ORDER BY date DESC", (job_id,))
-    for r in cur.fetchall():
-        path = r[3] if r[3] else 'No Link'
-        files.append(('Expense Receipt', r[0], float(r[1]), format_date(r[2]), path, 0))
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # 1. Delete Items first (Foreign Key cleanup)
+        cur.execute("DELETE FROM quote_items WHERE quote_id = %s", (quote_id,))
         
-    # Staff List
-    cur.execute("SELECT id, name FROM staff WHERE company_id = %s AND status='Active'", (comp_id,))
-    staff = cur.fetchall()
-    
-    conn.close()
-    
-    return render_template('office/job_files.html', 
-                           job=job, quote_id=quote_id, quote_total=quote_total,
-                           total_billed=total_billed, total_cost=total_cost, profit=profit,
-                           budget_remaining=budget_remaining,
-                           files=files, staff=staff, today=date.today(),
-                           brand_color=config['color'], logo_url=config['logo'])
+        # 2. Delete the Quote Header
+        cur.execute("DELETE FROM quotes WHERE id = %s AND company_id = %s", (quote_id, session.get('company_id')))
+        
+        conn.commit()
+        flash("🗑️ Quote deleted successfully.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error deleting quote: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('office.office_dashboard'))

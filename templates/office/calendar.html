@@ -20,7 +20,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold m-0">Master Schedule</h2>
-            <p class="text-muted mb-0">Drag jobs to assign dates & vans</p>
+            <p class="text-muted mb-0">Drag jobs to assign dates. Gangs auto-fill based on Van selection.</p>
         </div>
         <div class="bg-white px-3 py-2 rounded-pill shadow-sm small border">
             <span class="me-3"><i class="fas fa-circle text-primary me-1"></i> Scheduled</span>
@@ -40,8 +40,8 @@
                         <div class="card mb-2 border-0 shadow-sm job-card fc-event" 
                              data-id="{{ job.id }}" 
                              data-title="{{ job.client }}" 
-                             data-color="#0d6efd">
-                            <div class="card-body p-3">
+                             data-color="#0d6efd"
+                             data-pre-vehicle="{{ job.pre_vehicle_id or '' }}"> <div class="card-body p-3">
                                 <strong class="text-dark small">{{ job.ref }}</strong>
                                 <div class="fw-bold text-primary mt-1">{{ job.client }}</div>
                                 <div class="small text-muted text-truncate">{{ job.desc }}</div>
@@ -67,26 +67,57 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fw-bold"><i class="fas fa-shuttle-van me-2"></i>Dispatch Job</h5>
+                    <h5 class="modal-title fw-bold"><i class="fas fa-users-cog me-2"></i>Assign Crew & Van</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <p class="text-muted mb-3">Select the vehicle for this job. The assigned Driver and Crew will be notified.</p>
+                    <p class="text-muted mb-3">Assigning job for <span id="modalDateDisplay" class="fw-bold text-dark"></span></p>
                     
                     <input type="hidden" id="modalJobId">
                     <input type="hidden" id="modalDate">
-                    
-                    <label class="small fw-bold text-dark mb-2">Select Van / Crew</label>
-                    <select id="modalVehicle" class="form-select form-select-lg mb-3 shadow-sm border-2">
-                        <option value="">-- Choose Van --</option>
-                        {% for v in fleet %}
-                            <option value="{{ v.id }}">{{ v.name }}</option>
-                        {% endfor %}
-                    </select>
+
+                    <div class="mb-3">
+                        <label class="fw-bold small text-muted">Vehicle</label>
+                        <select class="form-select shadow-sm fw-bold" id="modalVehicle" onchange="autoFillGang()">
+                            <option value="">-- Choose Van --</option>
+                            {% for v in fleet %}
+                                <option value="{{ v.id }}" 
+                                        data-driver="{{ v.driver_id }}" 
+                                        data-crew='{{ v.crew_ids|tojson }}'>
+                                    {{ v.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text small text-success" id="gang-msg" style="display:none;">
+                            <i class="fas fa-magic me-1"></i> Gang auto-selected from Fleet settings.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="fw-bold small text-muted">Lead Engineer (Driver)</label>
+                        <select class="form-select shadow-sm" id="modalLead">
+                            <option value="">-- Select Driver --</option>
+                            {% for s in staff %}
+                                <option value="{{ s.id }}">{{ s.name }} ({{ s.role }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="fw-bold small text-muted">Crew Members (Multi-Select)</label>
+                        <select class="form-select shadow-sm" id="modalCrew" multiple style="height: 120px;">
+                            {% for s in staff %}
+                                <option value="{{ s.id }}">{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text small">Hold Ctrl/Cmd to adjust selection manually.</div>
+                    </div>
+
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-success w-100 fw-bold py-2" onclick="confirmAssignment()">
-                        <i class="fas fa-check-circle me-2"></i> Confirm & Schedule
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success w-100 fw-bold" onclick="confirmAssignment()">
+                        <i class="fas fa-check-circle me-2"></i> Confirm Schedule
                     </button>
                 </div>
             </div>
@@ -98,6 +129,39 @@
 <script>
     var calendar; 
     var assignModal;
+
+    // 1. AUTO-FILL GANG LOGIC (The Brains)
+    function autoFillGang() {
+        var vehicleSelect = document.getElementById('modalVehicle');
+        var selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+        
+        // Get data from the selected van
+        var driverId = selectedOption.getAttribute('data-driver');
+        var crewData = selectedOption.getAttribute('data-crew');
+        
+        if (driverId && driverId !== 'None') {
+            // Set Lead Engineer
+            document.getElementById('modalLead').value = driverId;
+            
+            // Set Crew Members
+            var crewIds = JSON.parse(crewData);
+            var crewSelect = document.getElementById('modalCrew');
+            
+            for (var i = 0; i < crewSelect.options.length; i++) {
+                // Select if they are in the gang list (or if they are the driver)
+                if (crewIds.includes(parseInt(crewSelect.options[i].value))) {
+                    crewSelect.options[i].selected = true;
+                } else {
+                    crewSelect.options[i].selected = false;
+                }
+            }
+            
+            // Show "Magic" Message
+            document.getElementById('gang-msg').style.display = 'block';
+        } else {
+            document.getElementById('gang-msg').style.display = 'none';
+        }
+    }
 
     document.addEventListener('DOMContentLoaded', function() {
         var Calendar = FullCalendar.Calendar;
@@ -112,7 +176,9 @@
                 return {
                     title: eventEl.getAttribute('data-title'),
                     id: eventEl.getAttribute('data-id'),
-                    color: eventEl.getAttribute('data-color')
+                    color: eventEl.getAttribute('data-color'),
+                    // Store the pre-assigned vehicle ID
+                    extendedProps: { preVehicle: eventEl.getAttribute('data-pre-vehicle') }
                 };
             }
         });
@@ -124,18 +190,31 @@
             editable: true, droppable: true,
             events: '/office/calendar/data',
             
-            // 1. DROP HANDLER
+            // 2. DROP HANDLER (Smart Selection)
             eventReceive: function(info) {
                 document.getElementById('modalJobId').value = info.event.id;
                 document.getElementById('modalDate').value = info.event.startStr;
+                document.getElementById('modalDateDisplay').innerText = info.event.startStr;
                 
-                // Show "Pending" color yellow
-                info.event.setProp('backgroundColor', '#ffc107'); 
-                
+                // CHECK FOR PRE-ASSIGNED VAN FROM QUOTE
+                var preVehicle = info.event.extendedProps.preVehicle;
+                if (preVehicle && preVehicle !== 'None') {
+                    var vSelect = document.getElementById('modalVehicle');
+                    vSelect.value = preVehicle;
+                    // Trigger the gang auto-fill immediately
+                    autoFillGang(); 
+                } else {
+                    // Reset if no preference
+                    document.getElementById('modalVehicle').value = "";
+                    document.getElementById('modalLead').value = "";
+                    document.getElementById('gang-msg').style.display = 'none';
+                }
+
+                info.event.setProp('backgroundColor', '#ffc107'); // Yellow while pending
                 assignModal.show();
             },
 
-            // 2. MOVE HANDLER (Date change only)
+            // 3. MOVE HANDLER
             eventDrop: function(info) {
                 fetch('/office/calendar/reschedule-job', {
                     method: 'POST',
@@ -147,24 +226,35 @@
         calendar.render();
     });
 
-    // 3. SAVE BUTTON HANDLER
+    // 4. SAVE HANDLER
     function confirmAssignment() {
         var jobId = document.getElementById('modalJobId').value;
         var date = document.getElementById('modalDate').value;
         var vehicleId = document.getElementById('modalVehicle').value;
+        var leadId = document.getElementById('modalLead').value;
+        
+        var crewSelect = document.getElementById('modalCrew');
+        var crewIds = Array.from(crewSelect.selectedOptions).map(option => option.value);
 
         if(!vehicleId) { alert("Please select a vehicle!"); return; }
+        if(!leadId) { alert("Please select a Lead Engineer!"); return; }
 
         fetch('/office/calendar/schedule-job', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ job_id: jobId, date: date, vehicle_id: vehicleId })
+            body: JSON.stringify({ 
+                job_id: jobId, 
+                date: date, 
+                vehicle_id: vehicleId,
+                lead_id: leadId,
+                crew_ids: crewIds
+            })
         })
         .then(response => response.json())
         .then(data => {
             if(data.status === 'success') {
                 assignModal.hide();
-                calendar.refetchEvents(); // Refresh to show correct color
+                calendar.refetchEvents(); 
                 var card = document.querySelector(`.job-card[data-id="${jobId}"]`);
                 if(card) card.remove();
             } else {

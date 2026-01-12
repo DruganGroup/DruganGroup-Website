@@ -131,11 +131,13 @@ def super_admin_dashboard():
             
             # 3. Create Subscription
             cur.execute("INSERT INTO subscriptions (company_id, plan_tier, status, start_date) VALUES (%s, %s, 'Active', CURRENT_DATE)", (new_id, plan))
-            
-            # 4. Create Admin User (With Real Name)
-            secure_pass = generate_password_hash(owner_pass)
-            cur.execute("INSERT INTO users (username, password_hash, email, role, company_id, name) VALUES (%s, %s, %s, 'Admin', %s, %s)", (owner_email, secure_pass, owner_email, new_id, owner_name))
-            
+           
+            cur.execute("""
+                INSERT INTO staff (company_id, name, email, phone, position, status, pay_rate)
+                VALUES (%s, %s, %s, '0000000000', 'Director', 'Active', 0.00)
+            """, (new_id, owner_name, owner_email))
+            # -------------------------------------------------------------           
+           
             # 5. INITIALIZE SETTINGS (Day 1 Config)
             # Smart Default for VAT: Yes for UK/IE, No for US/CAN/AUS/NZ initially
             is_vat = 'yes' if country in ['UK', 'IE', 'EU'] else 'no'

@@ -72,7 +72,6 @@ def send_email_notification(company_id, to_email, client_name, job_ref, address)
     except Exception: return False
     finally: conn.close()
 
-# --- 1. SITE DASHBOARD ---
 @site_bp.route('/site-hub')
 @site_bp.route('/site-companion')
 def site_dashboard():
@@ -80,16 +79,30 @@ def site_dashboard():
     
     conn = get_db(); cur = conn.cursor()
     
-    # USE HELPER (Matches Clock-In Logic)
-    staff_id, _, _ = get_staff_identity(session['user_id'], cur)
+    # 1. IDENTIFY STAFF
+    staff_id, staff_name, _ = get_staff_identity(session['user_id'], cur)
     
-    # A. CLOCK STATUS
-    is_clocked_in = False
+    # 2. CHECK STATUSES
+    is_at_work = False   # Day Clock
+    active_job = None    # Job Clock
+    
     if staff_id:
-        cur.execute("SELECT id FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
-        is_clocked_in = cur.fetchone() is not None
-    
-    # B. 7-DAY CALENDAR (With ::DATE Fix)
+        # A. Check Day Clock (Attendance)
+        cur.execute("SELECT id FROM staff_attendance WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
+        is_at_work = cur.fetchone() is not None
+        
+        # B. Check Job Clock (Timesheets) - If active, get the Job Name
+        cur.execute("""
+            SELECT t.job_id, j.site_address 
+            FROM staff_timesheets t
+            JOIN jobs j ON t.job_id = j.id
+            WHERE t.staff_id = %s AND t.clock_out IS NULL
+        """, (staff_id,))
+        row = cur.fetchone()
+        if row:
+            active_job = {'id': row[0], 'name': row[1]}
+
+    # 3. FETCH ASSIGNED JOBS
     jobs = []
     if staff_id:
         cur.execute("""
@@ -98,15 +111,17 @@ def site_dashboard():
             LEFT JOIN clients c ON j.client_id = c.id 
             WHERE j.engineer_id = %s 
             AND j.status != 'Completed'
-            AND j.start_date::DATE >= CURRENT_DATE 
-            AND j.start_date::DATE <= CURRENT_DATE + INTERVAL '7 days'
-            ORDER BY j.start_date ASC
+            ORDER BY j.status ASC, j.start_date ASC
         """, (staff_id,))
         jobs = cur.fetchall()
     
     conn.close()
-    return render_template('site/site_dashboard.html', jobs=jobs, is_clocked_in=is_clocked_in)  
-
+    return render_template('site/site_dashboard.html', 
+                           jobs=jobs, 
+                           is_at_work=is_at_work, 
+                           active_job=active_job,
+                           staff_name=staff_name)
+    
 # --- 2. CLOCK IN ---
 @site_bp.route('/site/clock-in', methods=['POST'])
 def clock_in():
@@ -240,40 +255,70 @@ def van_check_page():
     # Pass 'assigned_van' (tuple) or 'vehicles' (list)
     return render_template('site/van_check_form.html', vehicles=vehicles, assigned_van=assigned_van)
 
-# --- 5. VIEW SINGLE JOB (Updated to show Materials) ---
+# REPLACE 'def view_job' WITH THIS:
+
 @site_bp.route('/site/job/<int:job_id>')
-def view_job(job_id):
+def job_details(job_id):
     if not check_site_access(): return redirect(url_for('auth.login'))
     
-    comp_id = session.get('company_id')
-    conn = get_db()
-    cur = conn.cursor()
+    conn = get_db(); cur = conn.cursor()
     
-    # 1. Get Job Details
+    # 1. IDENTIFY STAFF
+    staff_id, staff_name, _ = get_staff_identity(session['user_id'], cur)
+    
+    # 2. GET JOB DETAILS
     cur.execute("""
-        SELECT j.id, j.ref, j.status, j.start_date, j.description, 
-               c.name, c.phone, j.site_address, j.description, j.id
+        SELECT j.id, j.ref, j.status, c.name, j.description, 
+               c.name, c.phone, j.site_address, j.description
         FROM jobs j
         LEFT JOIN clients c ON j.client_id = c.id
-        WHERE j.id = %s AND j.company_id = %s
-    """, (job_id, comp_id))
+        WHERE j.id = %s
+    """, (job_id,))
     job = cur.fetchone()
+    
+    if not job: conn.close(); return "Job not found", 404
 
-    # 2. Get Photos
-    cur.execute("SELECT filepath FROM job_evidence WHERE job_id = %s ORDER BY uploaded_at DESC", (job_id,))
-    photos = [r[0] for r in cur.fetchall()]
+    # 3. CHECK IF *YOU* ARE CLOCKED IN (The Missing Logic)
+    user_is_clocked_in = False
+    if staff_id:
+        cur.execute("""
+            SELECT id FROM staff_timesheets 
+            WHERE staff_id = %s AND job_id = %s AND clock_out IS NULL
+        """, (staff_id, job_id))
+        if cur.fetchone():
+            user_is_clocked_in = True
 
-    # 3. Get Materials (THIS IS THE NEW PART YOU NEED)
-    cur.execute("SELECT description, quantity, unit_price FROM job_materials WHERE job_id = %s ORDER BY added_at ASC", (job_id,))
+    # 4. FETCH EXTRAS
+    cur.execute("SELECT description, quantity, unit_price FROM job_materials WHERE job_id = %s", (job_id,))
     materials = cur.fetchall()
+
+    import os
+    photos = []
+    comp_id = str(session.get('company_id', 0))
+    job_path = os.path.join('static', 'uploads', comp_id, 'jobs', str(job_id))
+    if os.path.exists(job_path):
+        photos = [f"uploads/{comp_id}/jobs/{job_id}/{f}" for f in os.listdir(job_path) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+
+    # 5. FETCH BRANDING
+    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'logo'", (session['company_id'],))
+    logo_row = cur.fetchone()
+    logo_url = logo_row[0] if logo_row else None
+    
+    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'brand_color'", (session['company_id'],))
+    color_row = cur.fetchone()
+    brand_color = color_row[0] if color_row else '#333333'
 
     conn.close()
     
-    if not job: return "Job not found", 404
-    
-    # Pass 'materials' to the template so the list isn't empty
-    return render_template('site/job_details.html', job=job, photos=photos, materials=materials)
-    
+    # 6. PASS 'user_is_clocked_in' TO THE HTML
+    return render_template('site/job_details.html', 
+                           job=job, 
+                           materials=materials, 
+                           photos=photos, 
+                           user_is_clocked_in=user_is_clocked_in,
+                           logo_url=logo_url,
+                           brand_color=brand_color)
+                           
 # --- NEW: ADD MATERIAL TO JOB ---
 @site_bp.route('/site/job/<int:job_id>/add-material', methods=['POST'])
 def add_job_material(job_id):
@@ -666,99 +711,150 @@ def setup_site_db():
     finally:
         conn.close()
         
-        # --- SMART SITE CLOCK (Start/Stop Crew) ---
-        
+# UPDATE THIS FUNCTION IN routes/site_routes.py
+
 @site_bp.route('/site/job/<int:job_id>/toggle-site-time', methods=['POST'])
 def toggle_site_time(job_id):
-    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    if not check_site_access(): return redirect(url_for('auth.login'))
     
-    conn = get_db()
-    cur = conn.cursor()
-    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. IDENTIFY THE INDIVIDUAL USER
+    staff_id, staff_name, _ = get_staff_identity(session['user_id'], cur)
+    action = request.form.get('action') # 'start' or 'stop'
     
     try:
-        action = request.form.get('action') # 'start' or 'stop'
-        
-        # 1. FIND THE VAN & CREW
-        # We look up which vehicle is assigned to this job
-        cur.execute("SELECT vehicle_id FROM jobs WHERE id = %s", (job_id,))
-        row = cur.fetchone()
-        
-        if not row or not row[0]:
-            flash("❌ No Van assigned to this job! Cannot auto-clock crew.", "error")
-            return redirect(f"/site/job/{job_id}")
-            
-        vehicle_id = row[0]
-        
-        # 2. GET ALL STAFF IN THAT VAN
-        # (Driver + Passengers)
-        cur.execute("""
-            SELECT s.id 
-            FROM staff s 
-            WHERE s.id = (SELECT assigned_driver_id FROM vehicles WHERE id = %s)
-            UNION
-            SELECT staff_id FROM vehicle_crew WHERE vehicle_id = %s
-        """, (vehicle_id, vehicle_id))
-        
-        crew_ids = [r[0] for r in cur.fetchall()]
-        
-        if not crew_ids:
-            flash("⚠️ Van is empty! No crew found to clock in.", "warning")
-            return redirect(f"/site/job/{job_id}")
-
-        # 3. EXECUTE CLOCK IN / OUT
-        timestamp = datetime.now()
-        
         if action == 'start':
-            # Create a new "Active" timesheet for EVERYONE in the van
-            for staff_id in crew_ids:
-                # Check if they are already clocked onto THIS job to prevent duplicates
+            # Check if THIS PERSON is already clocked in
+            cur.execute("SELECT id FROM staff_timesheets WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
+            if cur.fetchone():
+                flash("⚠️ You are already clocked in!", "warning")
+            else:
+                # Clock in ONLY this person (Using CURRENT_TIMESTAMP)
                 cur.execute("""
-                    SELECT id FROM staff_timesheets 
-                    WHERE staff_id = %s AND job_id = %s AND end_time IS NULL
-                """, (staff_id, job_id))
-                
-                if not cur.fetchone():
-                    cur.execute("""
-                        INSERT INTO staff_timesheets (company_id, staff_id, job_id, date, start_time, status)
-                        VALUES (%s, %s, %s, CURRENT_DATE, %s, 'Site - Active')
-                    """, (comp_id, staff_id, job_id, timestamp))
-            
-            # Update Job Status
-            cur.execute("UPDATE jobs SET status = 'In Progress' WHERE id = %s", (job_id,))
-            flash(f"✅ Site Clock STARTED for {len(crew_ids)} crew members.", "success")
+                    INSERT INTO staff_timesheets (company_id, staff_id, job_id, date, clock_in)
+                    VALUES (%s, %s, %s, CURRENT_DATE, CURRENT_TIMESTAMP)
+                """, (session['company_id'], staff_id, job_id))
+                flash(f"✅ Clocked IN: {staff_name}", "success")
 
         elif action == 'stop':
-            # Find OPEN timesheets for this job and close them
-            for staff_id in crew_ids:
-                cur.execute("""
-                    SELECT id, start_time FROM staff_timesheets 
-                    WHERE staff_id = %s AND job_id = %s AND end_time IS NULL
-                """, (staff_id, job_id))
-                active_sheet = cur.fetchone()
-                
-                if active_sheet:
-                    sheet_id = active_sheet[0]
-                    start_time = active_sheet[1]
-                    
-                    # Calculate Hours (Difference between Now and Start)
-                    duration = (timestamp - start_time).total_seconds() / 3600 # Convert to Hours
-                    hours = round(duration, 2)
-                    
-                    cur.execute("""
-                        UPDATE staff_timesheets 
-                        SET end_time = %s, hours = %s, status = 'Approved' 
-                        WHERE id = %s
-                    """, (timestamp, hours, sheet_id))
+            # Clock out ONLY this person (Using CURRENT_TIMESTAMP for math)
+            # We calculate hours by subtracting the stored timestamp from NOW
+            cur.execute("""
+                UPDATE staff_timesheets 
+                SET clock_out = CURRENT_TIMESTAMP, 
+                    hours = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - clock_in))/3600 
+                WHERE staff_id = %s AND job_id = %s AND clock_out IS NULL
+            """, (staff_id, job_id))
+            flash(f"🛑 Clocked OUT: {staff_name}", "success")
             
-            flash(f"🛑 Site Clock STOPPED. Hours logged for {len(crew_ids)} staff.", "success")
-
         conn.commit()
-        
     except Exception as e:
         conn.rollback()
         flash(f"Error: {e}", "error")
     finally:
         conn.close()
         
-    return redirect(request.referrer) # Go back to the job page
+    return redirect(url_for('site.job_details', job_id=job_id))
+
+@site_bp.route('/site/job/<int:job_id>')
+def job_details(job_id):
+    if not check_site_access(): return redirect(url_for('auth.login'))
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. IDENTIFY STAFF (CRITICAL)
+    # We need to know who YOU are to check YOUR timesheet
+    staff_id, staff_name, _ = get_staff_identity(session['user_id'], cur)
+    
+    # 2. GET JOB DETAILS
+    cur.execute("""
+        SELECT j.id, j.ref, j.status, c.name, j.description, 
+               c.name, c.phone, j.site_address, j.description
+        FROM jobs j
+        LEFT JOIN clients c ON j.client_id = c.id
+        WHERE j.id = %s
+    """, (job_id,))
+    job = cur.fetchone()
+    
+    if not job: conn.close(); return "Job not found", 404
+
+    # 3. CHECK IF *YOU* ARE CLOCKED IN (The Missing Link)
+    user_is_clocked_in = False
+    if staff_id:
+        # Check specifically for THIS staff member on THIS job
+        cur.execute("""
+            SELECT id FROM staff_timesheets 
+            WHERE staff_id = %s AND job_id = %s AND clock_out IS NULL
+        """, (staff_id, job_id))
+        if cur.fetchone():
+            user_is_clocked_in = True
+
+    # 4. FETCH MATERIALS & PHOTOS
+    cur.execute("SELECT description, quantity, unit_price FROM job_materials WHERE job_id = %s", (job_id,))
+    materials = cur.fetchall()
+
+    import os
+    photos = []
+    comp_id = str(session.get('company_id', 0))
+    job_folder = os.path.join('static', 'uploads', comp_id, 'jobs', str(job_id))
+    if os.path.exists(job_folder):
+        photos = [f"uploads/{comp_id}/jobs/{job_id}/{f}" for f in os.listdir(job_folder) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+
+    # 5. FETCH BRANDING (White Label)
+    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'logo'", (session['company_id'],))
+    logo_row = cur.fetchone()
+    logo_url = logo_row[0] if logo_row else None
+    
+    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'brand_color'", (session['company_id'],))
+    color_row = cur.fetchone()
+    brand_color = color_row[0] if color_row else '#333333'
+
+    conn.close()
+    
+    # 6. SEND EVERYTHING TO THE PAGE
+    return render_template('site/job_details.html', 
+                           job=job, 
+                           materials=materials, 
+                           photos=photos, 
+                           user_is_clocked_in=user_is_clocked_in, # <--- This is what your HTML is waiting for!
+                           logo_url=logo_url,
+                           brand_color=brand_color)
+                           
+@site_bp.route('/site/toggle-day-clock', methods=['POST'])
+def toggle_day_clock():
+    if not check_site_access(): return redirect(url_for('auth.login'))
+    
+    conn = get_db(); cur = conn.cursor()
+    staff_id, _, _ = get_staff_identity(session['user_id'], cur)
+    action = request.form.get('action')
+    
+    try:
+        if action == 'start':
+            # Start Day
+            cur.execute("SELECT id FROM staff_attendance WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
+            if not cur.fetchone():
+                cur.execute("""
+                    INSERT INTO staff_attendance (company_id, staff_id, date, clock_in)
+                    VALUES (%s, %s, CURRENT_DATE, CURRENT_TIMESTAMP)
+                """, (session['company_id'], staff_id))
+                flash("☀️ Good Morning! You are clocked in for PAYROLL.", "success")
+
+        elif action == 'stop':
+            # End Day
+            cur.execute("""
+                UPDATE staff_attendance 
+                SET clock_out = CURRENT_TIMESTAMP, 
+                    total_hours = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - clock_in))/3600 
+                WHERE staff_id = %s AND clock_out IS NULL
+            """, (staff_id,))
+            flash("🌙 Shift Ended. See you tomorrow!", "success")
+            
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('site.site_dashboard'))

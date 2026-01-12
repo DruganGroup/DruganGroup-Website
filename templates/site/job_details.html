@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -7,7 +8,15 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; padding-bottom: 80px; }
-        .header-bar { background-color: #333; color: white; padding: 15px; border-radius: 0 0 15px 15px; margin-bottom: 20px; }
+        /* DYNAMIC BRAND COLOR */
+        .header-bar { 
+            background-color: {{ brand_color or '#333' }}; 
+            color: white; 
+            padding: 15px; 
+            border-radius: 0 0 15px 15px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
         .action-btn { border-radius: 12px; padding: 15px; font-weight: bold; font-size: 1.1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; margin-bottom: 10px; }
         .evidence-img { width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 2px solid #ddd; }
         .material-item { border-bottom: 1px solid #eee; padding: 10px 0; }
@@ -16,17 +25,28 @@
 </head>
 <body>
 
-    <div class="header-bar d-flex justify-content-between align-items-center">
-        <a href="/site-hub" class="text-white"><i class="fas fa-arrow-left fa-lg"></i></a>
-        <h4 class="m-0 fw-bold">{{ job[1] }}</h4> 
-        <span class="badge {{ 'bg-success' if job[2] == 'In Progress' else 'bg-warning text-dark' }}">{{ job[2] }}</span> 
+    <div class="header-bar">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <a href="/site-hub" class="text-white"><i class="fas fa-arrow-left fa-lg"></i></a>
+            
+            {% if logo_url %}
+                <img src="{{ logo_url }}" style="max-height: 40px; background: rgba(255,255,255,0.9); padding: 5px; border-radius: 5px;">
+            {% else %}
+                <span class="fw-bold text-uppercase small opacity-50">Site App</span>
+            {% endif %}
+            
+            <span class="badge {{ 'bg-success' if job[2] == 'In Progress' else 'bg-warning text-dark' }} shadow-sm">
+                {{ job[2] }}
+            </span> 
+        </div>
+        <h4 class="m-0 fw-bold text-center">{{ job[1] }}</h4>
     </div>
 
     <div class="container">
         
         {% with messages = get_flashed_messages() %}
             {% if messages %}
-                <div class="alert alert-success shadow-sm rounded-4 mb-3">{{ messages[0] }}</div>
+                <div class="alert alert-success shadow-sm rounded-4 mb-3 fw-bold">{{ messages[0] }}</div>
             {% endif %}
         {% endwith %}
 
@@ -66,7 +86,6 @@
             </div>
         </div>
 
-        {% if job[2] == 'In Progress' %}
         <div class="card shadow-sm border-0 mb-3">
             <div class="card-header bg-white border-bottom-0 d-flex justify-content-between align-items-center">
                 <h6 class="text-muted fw-bold text-uppercase small m-0">Materials & Parts</h6>
@@ -90,68 +109,67 @@
                 {% endif %}
             </div>
         </div>
-        {% endif %}
 
         <div class="mb-4">
-            {% if job[2] == 'Scheduled' or job[2] == 'Accepted' %}
-                <div class="card bg-light border-success mb-3">
-                    <div class="card-body text-center">
-                        <h6 class="fw-bold text-success mb-2">ARRIVED AT SITE?</h6>
-                        <p class="small text-muted mb-3">Tap below to clock the whole van onto this job.</p>
-                        
-                        <form method="POST" action="/site/job/{{ job[0] }}/toggle-site-time">
-                            <input type="hidden" name="action" value="start">
-                            <button type="submit" class="btn btn-success w-100 btn-lg fw-bold shadow">
-                                <i class="fas fa-stopwatch me-2"></i> START SITE CLOCK
-                            </button>
-                        </form>
-                    </div>
+            
+            {% if job[2] == 'Completed' %}
+                <div class="alert alert-secondary text-center fw-bold">
+                    <i class="fas fa-check-circle me-2"></i> Job Completed
                 </div>
 
-            {% elif job[2] == 'In Progress' %}
+            {% elif user_is_clocked_in %}
                 <div class="card bg-success text-white mb-3">
                     <div class="card-body text-center">
                         <div class="spinner-grow spinner-grow-sm text-white mb-2" role="status"></div>
-                        <h6 class="fw-bold mb-2">WORK IN PROGRESS</h6>
-                        <p class="small text-white-50 mb-3">Time is being logged for the crew.</p>
+                        <h6 class="fw-bold mb-2">YOU ARE CLOCKED IN</h6>
+                        <p class="small text-white-50 mb-3">Time is being recorded.</p>
                         
                         <form method="POST" action="/site/job/{{ job[0] }}/toggle-site-time">
                             <input type="hidden" name="action" value="stop">
                             <button type="submit" class="btn btn-danger w-100 btn-lg fw-bold shadow border-2 border-white">
-                                <i class="fas fa-sign-out-alt me-2"></i> STOP SITE CLOCK
+                                <i class="fas fa-sign-out-alt me-2"></i> STOP YOUR SHIFT
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+            {% else %}
+                <div class="card bg-light border-success mb-3">
+                    <div class="card-body text-center">
+                        <h6 class="fw-bold text-success mb-2">ARRIVED AT SITE?</h6>
+                        <p class="small text-muted mb-3">Tap below to start YOUR shift.</p>
+                        
+                        <form method="POST" action="/site/job/{{ job[0] }}/toggle-site-time">
+                            <input type="hidden" name="action" value="start">
+                            <button type="submit" class="btn btn-success w-100 btn-lg fw-bold shadow">
+                                <i class="fas fa-stopwatch me-2"></i> START YOUR SHIFT
                             </button>
                         </form>
                     </div>
                 </div>
             {% endif %}
-            
-            {% if job[2] == 'In Progress' %}
-               {% endif %}
         </div>
 
-            {% if job[2] == 'In Progress' %}
-                <button class="btn btn-outline-dark action-btn" onclick="document.getElementById('photoInput').click();">
-                    <i class="fas fa-camera me-2"></i> Add Evidence Photo
-                </button>
-                <form method="POST" action="/site/job/{{ job[0] }}/update" enctype="multipart/form-data" id="photoForm" style="display:none;">
-                    <input type="hidden" name="action" value="upload_photo">
-                    <input type="file" name="photo" id="photoInput" accept="image/*" capture="environment" onchange="document.getElementById('photoForm').submit();">
-                </form>
+        <button class="btn btn-outline-dark action-btn" onclick="document.getElementById('photoInput').click();">
+            <i class="fas fa-camera me-2"></i> Add Evidence Photo
+        </button>
+        <form method="POST" action="/site/job/{{ job[0] }}/update" enctype="multipart/form-data" id="photoForm" style="display:none;">
+            <input type="hidden" name="action" value="upload_photo">
+            <input type="file" name="photo" id="photoInput" accept="image/*" capture="environment" onchange="document.getElementById('photoForm').submit();">
+        </form>
 
-                {% if not photos %}
-                    <button type="button" class="btn btn-secondary action-btn" disabled>
-                        <i class="fas fa-exclamation-triangle me-2"></i> Add Photo to Complete
-                    </button>
-                {% else %}
-                    <button type="button" class="btn btn-primary action-btn text-white mt-2" data-bs-toggle="modal" data-bs-target="#completeJobModal">
-                        <i class="fas fa-check-circle me-2"></i> Sign Off & Complete
-                    </button>
-                {% endif %}
-            {% endif %}
-        </div>
+        {% if not photos %}
+            <button type="button" class="btn btn-secondary action-btn" disabled>
+                <i class="fas fa-exclamation-triangle me-2"></i> Add Photo to Complete
+            </button>
+        {% else %}
+            <button type="button" class="btn btn-primary action-btn text-white mt-2" data-bs-toggle="modal" data-bs-target="#completeJobModal">
+                <i class="fas fa-check-circle me-2"></i> Sign Off & Complete
+            </button>
+        {% endif %}
 
         {% if photos %}
-        <div class="card shadow-sm border-0 mb-4">
+        <div class="card shadow-sm border-0 mb-4 mt-3">
             <div class="card-body">
                 <h6 class="text-muted fw-bold text-uppercase small mb-3">Evidence Gallery</h6>
                 <div class="d-flex flex-wrap gap-2">

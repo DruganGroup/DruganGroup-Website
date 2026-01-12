@@ -3,29 +3,38 @@
 {% block title %}Site Hub | Business Better{% endblock %}
 
 {% block content %}
-    <div class="card shadow-sm border-0 mb-4 {{ 'bg-success text-white' if is_clocked_in else 'bg-white' }}">
-        <div class="card-body d-flex justify-content-between align-items-center p-3">
-            <div>
-                <h5 class="fw-bold m-0 text-uppercase">{{ 'On Shift' if is_clocked_in else 'Off Shift' }}</h5>
-                <small class="{{ 'text-white-50' if is_clocked_in else 'text-muted' }}" style="font-size: 0.8rem;">
-                    {{ 'Time is being logged.' if is_clocked_in else 'Tap to start your day.' }}
-                </small>
+<div class="container py-3">
+
+    <div class="card shadow-sm border-0 mb-4 overflow-hidden">
+        {% if is_at_work %}
+            <div class="card-body bg-primary text-white d-flex justify-content-between align-items-center p-4">
+                <div>
+                    <h2 class="fw-bold m-0"><i class="fas fa-sun me-2"></i>ON SHIFT</h2>
+                    <small class="text-white-50">Clocked in for Payroll</small>
+                </div>
+                
+                <form action="/site/toggle-day-clock" method="POST" class="m-0">
+                    <input type="hidden" name="action" value="stop">
+                    <button type="submit" class="btn btn-light text-primary fw-bold shadow-sm">
+                        <i class="fas fa-sign-out-alt me-2"></i> End Day
+                    </button>
+                </form>
             </div>
-            
-            {% if is_clocked_in %}
-                <form action="/site/clock-out" method="POST" class="m-0">
-                    <button type="submit" class="btn btn-danger fw-bold shadow">
-                        <i class="fas fa-stop me-2"></i> Stop
+        {% else %}
+            <div class="card-body bg-dark text-white d-flex justify-content-between align-items-center p-4">
+                <div>
+                    <h2 class="fw-bold m-0">START DAY</h2>
+                    <small class="text-white-50">Arrived at Yard/Site?</small>
+                </div>
+                
+                <form action="/site/toggle-day-clock" method="POST" class="m-0">
+                    <input type="hidden" name="action" value="start">
+                    <button type="submit" class="btn btn-success fw-bold shadow btn-lg">
+                        <i class="fas fa-clock me-2"></i> CLOCK IN
                     </button>
                 </form>
-            {% else %}
-                <form action="/site/clock-in" method="POST" class="m-0">
-                    <button type="submit" class="btn btn-success fw-bold shadow">
-                        <i class="fas fa-play me-2"></i> Start
-                    </button>
-                </form>
-            {% endif %}
-        </div>
+            </div>
+        {% endif %}
     </div>
 
     <div class="row g-2 mb-4">
@@ -48,8 +57,18 @@
         </div>
     </div>
 
+    {% if active_job %}
+    <div class="alert alert-warning border-start border-4 border-warning shadow-sm d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <div class="small fw-bold text-uppercase text-muted">Currently Working On</div>
+            <div class="fw-bold text-dark">{{ active_job.name }}</div>
+        </div>
+        <a href="/site/job/{{ active_job.id }}" class="btn btn-sm btn-dark fw-bold">View Job</a>
+    </div>
+    {% endif %}
+
     <div class="d-flex justify-content-between align-items-center mb-2 px-1">
-        <h6 class="fw-bold text-uppercase text-secondary m-0 small">Upcoming Schedule (7 Days)</h6>
+        <h6 class="fw-bold text-uppercase text-secondary m-0 small">Upcoming Schedule</h6>
         <span class="badge bg-light text-dark border">{{ jobs|length }} Jobs</span>
     </div>
 
@@ -65,7 +84,7 @@
                             {% elif job[6] == 'Scheduled' %}
                                 <span class="badge bg-primary mb-2">
                                     {% if job[5] %}
-                                        {{ job[5].strftime('%a %d %b') }} - {{ job[5].strftime('%H:%M') }}
+                                        {{ job[5].strftime('%H:%M') }}
                                     {% else %}
                                         Scheduled
                                     {% endif %}
@@ -93,4 +112,5 @@
         </div>
     {% endif %}
 
+</div>
 {% endblock %}

@@ -5,7 +5,6 @@ from email_service import send_company_email
 
 auth_bp = Blueprint('auth', __name__)
 
-# --- 1. STAFF & ADMIN LOGIN ---
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     # If already logged in, send them to the launcher
@@ -18,35 +17,64 @@ def login():
         
         conn = get_db()
         cur = conn.cursor()
-        # Check users table and join with staff to get real name
+        
+        # 1. FETCH USER & CHECK IF STAFF EXISTS
+        # We grab the User ID AND the Staff ID (s.id) to see if they are linked
         cur.execute("""
-            SELECT u.id, u.username, u.password_hash, u.role, u.company_id, s.name 
+            SELECT u.id, u.username, u.password_hash, u.role, u.company_id, s.id, s.name 
             FROM users u 
             LEFT JOIN staff s ON LOWER(TRIM(u.email)) = LOWER(TRIM(s.email)) 
             WHERE LOWER(TRIM(u.username)) = LOWER(TRIM(%s))
         """, (email,))
         
         user = cur.fetchone()
-        conn.close()
-
+        
         if user and check_password_hash(user[2], password):
-            session['user_id'] = user[0]
-            session['username'] = user[1]
-            session['user_email'] = user[2]
-            session['role'] = user[3]
-            session['company_id'] = user[4]
+            user_id = user[0]
+            name = user[1]
+            role = user[3]
+            comp_id = user[4]
+            staff_id = user[5]  # This will be None if they are missing from Staff table
+            real_name = user[6]
+
+            # --- THE FIX: AUTO-CREATE STAFF IF MISSING ---
+            if not staff_id:
+                try:
+                    # Create a "Director" staff profile automatically
+                    # This fixes the "Ghost Admin" bug instantly on login
+                    cur.execute("""
+                        INSERT INTO staff (company_id, name, email, phone, position, status, pay_rate)
+                        VALUES (%s, %s, %s, '0000000000', 'Director', 'Active', 0.00)
+                        RETURNING id, name
+                    """, (comp_id, name, email))
+                    
+                    new_staff = cur.fetchone()
+                    staff_id = new_staff[0]
+                    real_name = new_staff[1]
+                    conn.commit()
+                    flash("✅ Account verified: Staff Profile created successfully.", "success")
+                except Exception as e:
+                    conn.rollback()
+                    print(f"Auto-Staff Error: {e}")
+            # ---------------------------------------------
+
+            # Set Session Data
+            session['user_id'] = user_id
+            session['username'] = name
+            session['user_email'] = email 
+            session['role'] = role
+            session['company_id'] = comp_id
+            # Store the real name (from Staff) if available, otherwise User name
+            session['user_name'] = real_name if real_name else name
             
-            # STORE THE REAL NAME (User[5] is the name from the staff table)
-            # If no staff record is found, it falls back to the username
-            session['user_name'] = user[5] if user[5] else user[1] 
-            
+            conn.close()
             return redirect(url_for('auth.main_launcher'))
         else:
-            flash("❌ Invalid Staff Credentials")
+            conn.close()
+            flash("❌ Invalid Credentials")
             
-    # Render the login page (ensure this template exists in templates/public/login.html)
     return render_template('public/login.html')
-
+    
 @auth_bp.route('/launcher')
 def main_launcher():
     # 1. Security Check
