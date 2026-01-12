@@ -1084,24 +1084,46 @@ def finance_dashboard():
     # --- 4. GENERATE VIRTUAL TRANSACTION LIST ---
     # This guarantees the list ALWAYS matches your invoices and logs.
     query = """
-        SELECT date, 'Income' as type, 'Invoice' as category, 
-               reference || ' - ' || c.name as description, 
-               total as amount, job_id
-        FROM invoices i
-        JOIN clients c ON i.client_id = c.id
-        WHERE i.company_id = %s AND i.status != 'Void'
-
+        (
+            SELECT 
+                date_created as date, 
+                'Income' as type, 
+                'Sales' as category, 
+                -- Safe Description: If client is deleted, show 'Unknown Client'
+                ref || ' - ' || COALESCE((SELECT name FROM clients WHERE id = invoices.client_id), 'Unknown Client') as description, 
+                COALESCE(total, 0) as amount,  -- <--- SHIELD: Forces NULL to 0
+                job_id
+            FROM invoices 
+            WHERE company_id = %s AND status = 'Paid'
+        )
         UNION ALL
-
-        SELECT date, 'Expense' as type, 'Fleet' as category, 
-               description, cost as amount, NULL as job_id
-        FROM maintenance_logs
-        WHERE company_id = %s
-
-        ORDER BY date DESC
-        LIMIT 20
+        (
+            SELECT 
+                date, 
+                'Expense' as type, 
+                'Job Cost' as category, 
+                COALESCE(description, 'Uncategorized Expense'), -- <--- SHIELD: Prevents empty text
+                COALESCE(cost, 0) as amount,   -- <--- SHIELD: Forces NULL to 0
+                job_id
+            FROM job_expenses 
+            WHERE company_id = %s
+        )
+        UNION ALL
+        (
+            SELECT 
+                date_incurred as date, 
+                'Expense' as type, 
+                'Overhead' as category, 
+                COALESCE(name, 'General Overhead'), 
+                COALESCE(amount, 0) as amount, -- <--- SHIELD: Forces NULL to 0
+                NULL as job_id
+            FROM overhead_items 
+            WHERE category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)
+        )
+        ORDER BY date DESC 
+        LIMIT 15
     """
-    cur.execute(query, (comp_id, comp_id))
+    cur.execute(query, (comp_id, comp_id, comp_id))
     transactions = cur.fetchall()
 
     # --- 5. CHART DATA (Last 6 Months) ---

@@ -945,3 +945,41 @@ def execute_live_migration():
         return f"<h1>❌ Migration Failed</h1><pre>{e}</pre>"
     finally:
         conn.close()
+        
+        # =========================================================
+#  NULL VALUE CLEANER (Run once to fix 500 Errors)
+# =========================================================
+@admin_bp.route('/admin/fix-null-values')
+def fix_null_values():
+    if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Fix Invoices
+        cur.execute("UPDATE invoices SET total = 0 WHERE total IS NULL")
+        
+        # 2. Fix Expenses
+        cur.execute("UPDATE job_expenses SET cost = 0 WHERE cost IS NULL")
+        
+        # 3. Fix Overheads
+        cur.execute("UPDATE overhead_items SET amount = 0 WHERE amount IS NULL")
+        
+        # 4. Fix Maintenance Logs
+        cur.execute("UPDATE maintenance_logs SET cost = 0 WHERE cost IS NULL")
+        
+        conn.commit()
+        return """
+        <div style="text-align:center; padding:50px; font-family:sans-serif;">
+            <h1 style="color:green;">✅ Database Sanitized</h1>
+            <p>All NULL financial values have been converted to 0.00.</p>
+            <p>Your 500 Errors on the Dashboard should now be gone.</p>
+            <a href="/finance-dashboard" style="background:#333; color:white; padding:10px 20px; text-decoration:none;">Go to Dashboard</a>
+        </div>
+        """
+    except Exception as e:
+        conn.rollback()
+        return f"<h1>❌ Fix Failed</h1><pre>{e}</pre>"
+    finally:
+        conn.close()
