@@ -129,21 +129,23 @@ def delete_client(id):
     conn.commit(); conn.close()
     return redirect(url_for('client.client_dashboard'))
 
-# --- 5. OFFICE VIEW: INDIVIDUAL CLIENT PROFILE ---
+# OPEN: routes/client_routes.py
+# FIND the 'view_client' function and REPLACE it with this:
+
 @client_bp.route('/client/<int:client_id>')
 def view_client(client_id):
-    if session.get('role') not in ['Admin', 'Office', 'Manager', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    if session.get('role') not in ['Admin', 'Office', 'Manager', 'SuperAdmin']: 
+        return redirect(url_for('auth.login'))
     
-    conn = get_db()
-    cur = conn.cursor()
+    conn = get_db(); cur = conn.cursor()
+    comp_id = session['company_id']
     
-    cur.execute("SELECT * FROM clients WHERE id = %s AND company_id = %s", (client_id, session['company_id']))
+    # 1. Fetch Client
+    cur.execute("SELECT * FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
     client = cur.fetchone()
-    
-    if not client:
-        conn.close()
-        return "Client not found", 404
+    if not client: conn.close(); return "Client not found", 404
         
+    # 2. Fetch Properties
     cur.execute("""
         SELECT id, address_line1, postcode, tenant_name, 
                gas_safety_due, eicr_due, pat_test_due, fire_risk_due, epc_expiry, tenant_phone
@@ -171,7 +173,13 @@ def view_client(client_id):
                 'EPC': {'date': p[8], 'status': get_status(p[8])}
             }
         })
-    
+
+    # 3. FETCH VANS (Real Database Query)
+    cur.execute("SELECT id, reg_plate FROM vehicles WHERE company_id = %s ORDER BY reg_plate", (comp_id,))
+    rows = cur.fetchall()
+    vans_list = [{'id': r[0], 'name': r[1]} for r in rows]
+    if not vans_list: vans_list.append({'id': '', 'name': 'No Vehicles Found'})
+
     conn.close()
     
     client_data = {
@@ -179,8 +187,12 @@ def view_client(client_id):
         'phone': client[4], 'addr': client[5] or client[6] 
     }
     
-    return render_template('office/client_details.html', client=client_data, properties=properties)
-
+    return render_template('office/client_details.html', 
+                           client=client_data, 
+                           properties=properties, 
+                           vans_list=vans_list,  # <--- Sending Real Data
+                           today=today)
+                           
 # --- 6. OFFICE VIEW: ADD PROPERTY (WITH COMPLIANCE DATES) ---
 @client_bp.route('/client/<int:client_id>/add-property', methods=['POST'])
 def add_property(client_id):

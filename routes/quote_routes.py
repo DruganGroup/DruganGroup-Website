@@ -416,70 +416,45 @@ def email_quote(quote_id):
     conn.close()
     return redirect(url_for('quote.view_quote', quote_id=quote_id))
     
-# =========================================================
-# 5. CONVERT TO INVOICE (Now links to Job ID)
-# =========================================================
 @quote_bp.route('/office/quote/<int:quote_id>/convert')
 def convert_to_invoice(quote_id):
     if not check_access(): return redirect(url_for('auth.login'))
-    
-    conn = get_db(); cur = conn.cursor()
-    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor(); comp_id = session.get('company_id')
 
     # 1. Fetch Quote Data
     cur.execute("SELECT client_id, total, status, reference FROM quotes WHERE id = %s AND company_id = %s", (quote_id, comp_id))
     quote = cur.fetchone()
-    
     if not quote: return "Quote not found", 404
-    if quote[2] == 'Converted':
-        flash("⚠️ Already converted.", "warning")
-        return redirect(url_for('quote.view_quote', quote_id=quote_id))
+    if quote[2] == 'Converted': return redirect(url_for('quote.view_quote', quote_id=quote_id))
 
-    # 2. FIND LINKED JOB (Critical Fix - This is the smart part!)
+    # 2. Find Linked Job
     cur.execute("SELECT id FROM jobs WHERE quote_id = %s", (quote_id,))
-    job_row = cur.fetchone()
-    job_id = job_row[0] if job_row else None
+    job_row = cur.fetchone(); job_id = job_row[0] if job_row else None
 
-    # 3. Get Payment Days Setting
+    # 3. Get Payment Days
     cur.execute("SELECT value FROM settings WHERE key = 'payment_days' AND company_id = %s", (comp_id,))
-    res = cur.fetchone()
-    days = int(res[0]) if res and res[0] else 14 
+    res = cur.fetchone(); days = int(res[0]) if res and res[0] else 14 
 
-    # 4. Create Invoice (Inserting job_id now)
+    # 4. Create Invoice (UPDATED: Writes to reference, date, total)
     new_ref = f"INV-{quote[3]}" 
     try:
         cur.execute(f"""
-            INSERT INTO invoices (company_id, client_id, job_id, quote_id, ref, date_created, due_date, status, total_amount)
+            INSERT INTO invoices (company_id, client_id, job_id, quote_id, reference, date, due_date, status, total)
             VALUES (%s, %s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE + INTERVAL '{days} days', 'Unpaid', %s)
             RETURNING id
         """, (comp_id, quote[0], job_id, quote_id, new_ref, quote[1]))
         
         new_inv_id = cur.fetchone()[0]
 
-        # 5. Copy Items
-        cur.execute("""
-            INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
-            SELECT %s, description, quantity, unit_price, total
-            FROM quote_items WHERE quote_id = %s
-        """, (new_inv_id, quote_id))
-
-        # 6. Update Quote Status
+        cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) SELECT %s, description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (new_inv_id, quote_id))
         cur.execute("UPDATE quotes SET status = 'Converted' WHERE id = %s", (quote_id,))
         conn.commit()
-        
         flash(f"✅ Converted to Invoice {new_ref}", "success")
-        
-        # Redirect back to Job if possible (Better UX)
-        if job_id:
-            return redirect(f"/office/job/{job_id}/files")
-        return redirect(url_for('finance.finance_invoices'))
-        
+        return redirect(f"/office/job/{job_id}/files") if job_id else redirect(url_for('finance.finance_invoices'))
     except Exception as e:
-        conn.rollback(); flash(f"Error: {e}", "error")
-        return redirect(url_for('quote.view_quote', quote_id=quote_id))
-    finally:
-        conn.close()
-
+        conn.rollback(); flash(f"Error: {e}", "error"); return redirect(url_for('quote.view_quote', quote_id=quote_id))
+    finally: conn.close()
+    
 # =========================================================
 # 6. PDF REDIRECT (The Fix for the 404 Button)
 # =========================================================

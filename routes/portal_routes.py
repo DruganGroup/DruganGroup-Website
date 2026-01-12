@@ -119,22 +119,20 @@ def portal_logout():
     session.pop('portal_client_id', None)
     return redirect(url_for('portal.portal_login', company_id=comp_id))
 
-# --- 5. MY INVOICES PAGE ---
 @portal_bp.route('/portal/invoices')
 def portal_invoices():
     if not check_portal_access(): return redirect(get_login_url())
+    client_id = session['portal_client_id']; comp_id = session['portal_company_id']
+    config = get_site_config(comp_id); conn = get_db(); cur = conn.cursor()
     
-    client_id = session['portal_client_id']
-    comp_id = session['portal_company_id']
-    config = get_site_config(comp_id)
-    
-    conn = get_db(); cur = conn.cursor()
+    # UPDATED SELECT: Uses reference, date, total
     cur.execute("""
-        SELECT id, invoice_number, date_issue, total_amount, status, file_path 
+        SELECT id, reference, date, total, status, file_path 
         FROM invoices 
         WHERE client_id = %s 
-        ORDER BY date_issue DESC
+        ORDER BY date DESC
     """, (client_id,))
+    
     invoices = cur.fetchall()
     conn.close()
     
@@ -144,7 +142,7 @@ def portal_invoices():
                          logo_url=config.get('logo'),
                          brand_color=config.get('color'),
                          invoices=invoices)
-
+                         
 # --- 6. ADD PROPERTY ---
 @portal_bp.route('/portal/property/add', methods=['POST'])
 def add_property():

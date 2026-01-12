@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request
 from db import get_db
+from datetime import date
 
 # Define the Blueprint
 jobs_bp = Blueprint('jobs', __name__)
@@ -180,3 +181,51 @@ def log_hours(job_id):
         conn.close()
         
     return redirect(f"/office/job/{job_id}/files")
+    
+    # =========================================================
+#  CREATE MANUAL JOB ("Do & Charge") - ADDED LOGIC
+# =========================================================
+@jobs_bp.route('/office/job/create', methods=['POST'])
+def create_job():
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    comp_id = session.get('company_id')
+    
+    try:
+        # 1. Capture Form Data
+        client_id = request.form.get('client_id')
+        description = request.form.get('description')
+        engineer_id = request.form.get('engineer_id') or None
+        start_date = request.form.get('start_date') or date.today()
+        vehicle_id = request.form.get('vehicle_id') or None
+        est_days = request.form.get('days') or 1
+        
+        # 2. Generate Reference (JOB-100X)
+        cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id = %s", (comp_id,))
+        count = cur.fetchone()[0]
+        ref = f"JOB-{1000 + count + 1}"
+
+        # 3. Insert Job (quote_id is NULL for manual jobs)
+        cur.execute("""
+            INSERT INTO jobs (
+                company_id, client_id, engineer_id, vehicle_id, 
+                ref, description, status, start_date, estimated_days
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, 'Pending', %s, %s)
+            RETURNING id
+        """, (comp_id, client_id, engineer_id, vehicle_id, ref, description, start_date, est_days))
+        
+        new_job_id = cur.fetchone()[0]
+        conn.commit()
+        
+        flash(f"✅ Job {ref} Created Successfully", "success")
+        return redirect(f"/office/job/{new_job_id}/files")
+
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error creating job: {e}", "error")
+        return redirect(request.referrer or '/clients')
+    finally:
+        conn.close()

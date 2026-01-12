@@ -7,7 +7,7 @@ import string
 import os
 import csv
 from io import TextIOWrapper
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from db import get_db, get_site_config, allowed_file, UPLOAD_FOLDER
 from email_service import send_company_email
 from email.mime.application import MIMEApplication
@@ -69,54 +69,48 @@ def parse_date(d):
         except: return None
     return d
 
-# --- 1.5 SALES LEDGER ---
 @finance_bp.route('/finance/invoices')
 def finance_invoices():
-    # 1. Security Check
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']: 
         return redirect(url_for('auth.login'))
     
     company_id = session.get('company_id')
     config = get_site_config(company_id)
-    conn = get_db()
-    cur = conn.cursor()
-    
+    conn = get_db(); cur = conn.cursor()
     date_fmt = get_date_fmt_str(company_id)
-    
-    # 2. Get Currency from Settings (The New Part)
-    cur.execute("SELECT value FROM settings WHERE key = 'currency_symbol' AND company_id = %s", (company_id,))
-    res = cur.fetchone()
-    currency_symbol = res[0] if res else '£' # Default to £ if missing
 
-    # 3. Fetch Invoices (Note: I changed i.reference to i.ref to match your DB)
+    # 1. Get Currency
+    cur.execute("SELECT value FROM settings WHERE key='currency_symbol' AND company_id=%s", (company_id,))
+    res = cur.fetchone(); currency = res[0] if res else '£'
+
+    # 2. Fetch Invoices (UPDATED to match DB: reference, date, total)
     cur.execute("""
-        SELECT i.id, i.ref, c.name, i.date_created, i.due_date, i.total_amount, i.status 
+        SELECT i.id, i.reference, c.name, i.date, i.due_date, i.total, i.status 
         FROM invoices i 
         JOIN clients c ON i.client_id = c.id 
         WHERE i.company_id = %s 
-        ORDER BY i.date_created DESC
+        ORDER BY i.date DESC
     """, (company_id,))
     
     invoices = []
     for r in cur.fetchall():
         invoices.append({
             'id': r[0], 
-            'ref': r[1], 
+            'ref': r[1],          # Pulling from 'reference' column
             'client': r[2], 
             'date': format_date(r[3], date_fmt), 
             'due': format_date(r[4], date_fmt), 
-            'total': r[5], 
+            'total': r[5],        # Pulling from 'total' column
             'status': r[6]
         })
         
     conn.close()
     
-    # 4. Pass 'currency' to the template
     return render_template('finance/finance_invoices.html', 
                            invoices=invoices, 
                            brand_color=config['color'], 
                            logo_url=config['logo'],
-                           currency=currency_symbol) # <--- Sending it to the HTML
+                           currency=currency)
                            
 # --- 2. HR & STAFF ---
 @finance_bp.route('/finance/hr')
@@ -685,83 +679,41 @@ def search_materials_api():
 @finance_bp.route('/finance/analysis')
 def finance_analysis():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    
-    comp_id = session.get('company_id')
-    config = get_site_config(comp_id)
-    conn = get_db()
-    cur = conn.cursor()
+    comp_id = session.get('company_id'); config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
 
-    # 1. FETCH JOBS (Completed & In Progress)
-    # We ignore 'Pending' jobs because they have no financial data yet.
     cur.execute("""
-        SELECT j.id, j.ref, c.name, j.status
-        FROM jobs j
+        SELECT j.id, j.ref, c.name, j.status FROM jobs j
         JOIN clients c ON j.client_id = c.id
         WHERE j.company_id = %s AND j.status IN ('Completed', 'In Progress')
         ORDER BY j.start_date DESC
     """, (comp_id,))
     jobs_raw = cur.fetchall()
 
-    analyzed_jobs = []
-    total_rev = 0
-    total_cost = 0
+    analyzed, total_rev, total_cost = [], 0, 0
 
     for job in jobs_raw:
         job_id, ref, client, status = job
-
-        # 2. CALCULATE REAL REVENUE (Invoices)
-        cur.execute("SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE job_id = %s AND status != 'Void'", (job_id,))
+        # UPDATED: Uses 'total' column
+        cur.execute("SELECT COALESCE(SUM(total), 0) FROM invoices WHERE job_id=%s AND status!='Void'", (job_id,))
         revenue = float(cur.fetchone()[0])
 
-        # 3. CALCULATE REAL EXPENSES (Materials/Receipts)
-        cur.execute("SELECT COALESCE(SUM(cost), 0) FROM job_expenses WHERE job_id = %s", (job_id,))
+        cur.execute("SELECT COALESCE(SUM(cost), 0) FROM job_expenses WHERE job_id=%s", (job_id,))
         expenses = float(cur.fetchone()[0])
-
-        # 4. CALCULATE REAL LABOR (Timesheets)
-        cur.execute("""
-            SELECT COALESCE(SUM(t.hours * s.pay_rate), 0)
-            FROM staff_timesheets t
-            JOIN staff s ON t.staff_id = s.id
-            WHERE t.job_id = %s
-        """, (job_id,))
-        labor = float(cur.fetchone()[0])
-
-        # 5. THE REAL MATH
-        actual_cost = expenses + labor
-        profit = revenue - actual_cost
         
-        # Avoid division by zero if no invoice sent yet
+        cur.execute("SELECT COALESCE(SUM(t.hours * s.pay_rate), 0) FROM staff_timesheets t JOIN staff s ON t.staff_id=s.id WHERE t.job_id=%s", (job_id,))
+        labor = float(cur.fetchone()[0]) if cur.rowcount > 0 else 0.0
+
+        actual_cost = expenses + labor; profit = revenue - actual_cost
         margin = (profit / revenue * 100) if revenue > 0 else 0.0
-
-        # Add to totals
-        total_rev += revenue
-        total_cost += actual_cost
-
-        analyzed_jobs.append({
-            "ref": ref,
-            "client": client,
-            "status": status,
-            "rev": revenue,
-            "cost": actual_cost,
-            "profit": profit,
-            "margin": margin
-        })
+        total_rev += revenue; total_cost += actual_cost
+        analyzed.append({"ref": ref, "client": client, "status": status, "rev": revenue, "cost": actual_cost, "profit": profit, "margin": margin})
     
     conn.close()
-    
-    # Calculate Total Company Average Margin
     total_profit = total_rev - total_cost
     avg_margin = (total_profit / total_rev * 100) if total_rev > 0 else 0
+    return render_template('finance/finance_analysis.html', jobs=analyzed, total_rev=total_rev, total_cost=total_cost, total_profit=total_profit, avg_margin=avg_margin, brand_color=config['color'], logo_url=config['logo'])
     
-    return render_template('finance/finance_analysis.html', 
-                           jobs=analyzed_jobs, 
-                           total_rev=total_rev, 
-                           total_cost=total_cost, 
-                           total_profit=total_profit, 
-                           avg_margin=avg_margin, 
-                           brand_color=config['color'], 
-                           logo_url=config['logo'])
-                           
 @finance_bp.route('/finance/settings')
 def settings_redirect(): return redirect(url_for('finance.settings_general'))
 
@@ -949,13 +901,12 @@ def email_invoice(invoice_id):
 
     # 2. Fetch Invoice & Client Data
     cur.execute("""
-        SELECT i.id, i.ref, i.date_created, i.total_amount, i.status, 
+        SELECT i.id, i.reference, i.date, i.total, i.status, 
                c.name, c.email, c.address
         FROM invoices i
         JOIN clients c ON i.client_id = c.id
         WHERE i.id = %s AND i.company_id = %s
     """, (invoice_id, company_id))
-    inv = cur.fetchone()
     
     if not inv:
         conn.close()
@@ -1085,3 +1036,121 @@ def delete_invoice(invoice_id):
         conn.close()
         
     return redirect(url_for('finance.finance_invoices'))
+    
+    # --- FINANCE DASHBOARD (The Permanent Fix) ---
+@finance_bp.route('/finance-dashboard')
+def finance_dashboard():
+    # 1. Security Check
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']: 
+        return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # 2. Get Settings
+    cur.execute("SELECT value FROM settings WHERE key='currency_symbol' AND company_id=%s", (comp_id,))
+    res = cur.fetchone()
+    currency = res[0] if res else '£'
+
+    # --- 3. LIVE CALCULATIONS ---
+    
+    # A. TOTAL INCOME (Sum Invoices using the NEW 'total' column)
+    cur.execute("""
+        SELECT COALESCE(SUM(total), 0) 
+        FROM invoices 
+        WHERE company_id = %s AND status != 'Void'
+    """, (comp_id,))
+    total_income = float(cur.fetchone()[0])
+
+    # B. TOTAL EXPENSES (Sum Fleet + Overheads)
+    # Fleet Maintenance
+    cur.execute("SELECT COALESCE(SUM(cost), 0) FROM maintenance_logs WHERE company_id = %s", (comp_id,))
+    fleet_cost = float(cur.fetchone()[0])
+    
+    # Monthly Overheads (Estimated)
+    cur.execute("SELECT COALESCE(SUM(amount), 0) FROM overhead_items JOIN overhead_categories c ON overhead_items.category_id = c.id WHERE c.company_id = %s", (comp_id,))
+    monthly_overhead = float(cur.fetchone()[0])
+    
+    total_expense = fleet_cost + monthly_overhead
+
+    # C. NET BALANCE
+    total_balance = total_income - total_expense
+    
+    # D. BREAK EVEN (Daily)
+    break_even = (monthly_overhead * 12) / 365 if monthly_overhead > 0 else 0
+
+    # --- 4. GENERATE VIRTUAL TRANSACTION LIST ---
+    # This guarantees the list ALWAYS matches your invoices and logs.
+    query = """
+        SELECT date, 'Income' as type, 'Invoice' as category, 
+               reference || ' - ' || c.name as description, 
+               total as amount, job_id
+        FROM invoices i
+        JOIN clients c ON i.client_id = c.id
+        WHERE i.company_id = %s AND i.status != 'Void'
+
+        UNION ALL
+
+        SELECT date, 'Expense' as type, 'Fleet' as category, 
+               description, cost as amount, NULL as job_id
+        FROM maintenance_logs
+        WHERE company_id = %s
+
+        ORDER BY date DESC
+        LIMIT 20
+    """
+    cur.execute(query, (comp_id, comp_id))
+    transactions = cur.fetchall()
+
+    # --- 5. CHART DATA (Last 6 Months) ---
+    chart_labels = []
+    chart_income = []
+    chart_expense = []
+    
+    today = date.today()
+    for i in range(5, -1, -1):
+        d = today - timedelta(days=i*30)
+        month_str = d.strftime("%B")
+        chart_labels.append(month_str)
+        
+        # Monthly Income
+        cur.execute("""
+            SELECT COALESCE(SUM(total), 0) FROM invoices 
+            WHERE company_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s
+        """, (comp_id, d.month, d.year))
+        chart_income.append(float(cur.fetchone()[0]))
+        
+        # Monthly Expense
+        cur.execute("""
+            SELECT COALESCE(SUM(cost), 0) FROM maintenance_logs 
+            WHERE company_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s
+        """, (comp_id, d.month, d.year))
+        chart_expense.append(float(cur.fetchone()[0]) + monthly_overhead)
+
+    # --- 6. AUDIT LOGS ---
+    cur.execute("""
+        SELECT created_at, admin_email, action, details 
+        FROM audit_logs 
+        WHERE company_id = %s OR company_id IS NULL
+        ORDER BY created_at DESC LIMIT 5
+    """, (comp_id,))
+    raw_logs = cur.fetchall()
+    logs = [{'time': format_date(r[0], "%d/%m %H:%M"), 'user': r[1], 'action': r[2], 'details': r[3]} for r in raw_logs]
+
+    conn.close()
+
+    return render_template('finance/finance_dashboard.html',
+                           currency_symbol=currency,
+                           total_income=total_income,
+                           total_expense=total_expense,
+                           total_balance=total_balance,
+                           break_even=break_even,
+                           transactions=transactions,
+                           logs=logs,
+                           chart_labels=chart_labels,
+                           chart_income=chart_income,
+                           chart_expense=chart_expense,
+                           brand_color=config['color'],
+                           logo_url=config['logo'])

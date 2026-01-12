@@ -254,70 +254,6 @@ def van_check_page():
     
     # Pass 'assigned_van' (tuple) or 'vehicles' (list)
     return render_template('site/van_check_form.html', vehicles=vehicles, assigned_van=assigned_van)
-
-# REPLACE 'def view_job' WITH THIS:
-
-@site_bp.route('/site/job/<int:job_id>')
-def job_details(job_id):
-    if not check_site_access(): return redirect(url_for('auth.login'))
-    
-    conn = get_db(); cur = conn.cursor()
-    
-    # 1. IDENTIFY STAFF
-    staff_id, staff_name, _ = get_staff_identity(session['user_id'], cur)
-    
-    # 2. GET JOB DETAILS
-    cur.execute("""
-        SELECT j.id, j.ref, j.status, c.name, j.description, 
-               c.name, c.phone, j.site_address, j.description
-        FROM jobs j
-        LEFT JOIN clients c ON j.client_id = c.id
-        WHERE j.id = %s
-    """, (job_id,))
-    job = cur.fetchone()
-    
-    if not job: conn.close(); return "Job not found", 404
-
-    # 3. CHECK IF *YOU* ARE CLOCKED IN (The Missing Logic)
-    user_is_clocked_in = False
-    if staff_id:
-        cur.execute("""
-            SELECT id FROM staff_timesheets 
-            WHERE staff_id = %s AND job_id = %s AND clock_out IS NULL
-        """, (staff_id, job_id))
-        if cur.fetchone():
-            user_is_clocked_in = True
-
-    # 4. FETCH EXTRAS
-    cur.execute("SELECT description, quantity, unit_price FROM job_materials WHERE job_id = %s", (job_id,))
-    materials = cur.fetchall()
-
-    import os
-    photos = []
-    comp_id = str(session.get('company_id', 0))
-    job_path = os.path.join('static', 'uploads', comp_id, 'jobs', str(job_id))
-    if os.path.exists(job_path):
-        photos = [f"uploads/{comp_id}/jobs/{job_id}/{f}" for f in os.listdir(job_path) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-
-    # 5. FETCH BRANDING
-    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'logo'", (session['company_id'],))
-    logo_row = cur.fetchone()
-    logo_url = logo_row[0] if logo_row else None
-    
-    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'brand_color'", (session['company_id'],))
-    color_row = cur.fetchone()
-    brand_color = color_row[0] if color_row else '#333333'
-
-    conn.close()
-    
-    # 6. PASS 'user_is_clocked_in' TO THE HTML
-    return render_template('site/job_details.html', 
-                           job=job, 
-                           materials=materials, 
-                           photos=photos, 
-                           user_is_clocked_in=user_is_clocked_in,
-                           logo_url=logo_url,
-                           brand_color=brand_color)
                            
 # --- NEW: ADD MATERIAL TO JOB ---
 @site_bp.route('/site/job/<int:job_id>/add-material', methods=['POST'])
@@ -344,7 +280,7 @@ def add_job_material(job_id):
     finally:
         conn.close()
     
-    return redirect(url_for('site.view_job', job_id=job_id))
+    return redirect(url_for('site.job_details', job_id=job_id))
 
 # --- 6. UPDATE JOB (With Auto-Billing) ---
 @site_bp.route('/site/job/<int:job_id>/update', methods=['POST'])
@@ -520,7 +456,7 @@ def update_job(job_id):
     except Exception as e: conn.rollback(); flash(f"Error: {e}")
     finally: conn.close()
     if action == 'complete': return redirect(url_for('site.site_dashboard'))
-    return redirect(url_for('site.view_job', job_id=job_id))
+    return redirect(url_for('site.job_details', job_id=job_id))
 
 # --- PUBLIC PAGES ---
 @site_bp.route('/advertise')
@@ -794,12 +730,10 @@ def job_details(job_id):
     cur.execute("SELECT description, quantity, unit_price FROM job_materials WHERE job_id = %s", (job_id,))
     materials = cur.fetchall()
 
-    import os
-    photos = []
-    comp_id = str(session.get('company_id', 0))
-    job_folder = os.path.join('static', 'uploads', comp_id, 'jobs', str(job_id))
-    if os.path.exists(job_folder):
-        photos = [f"uploads/{comp_id}/jobs/{job_id}/{f}" for f in os.listdir(job_folder) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+# --- FETCH PHOTOS FROM DB ---
+    cur.execute("SELECT filepath FROM job_evidence WHERE job_id = %s", (job_id,))
+    # Convert list of tuples [('path1',), ('path2',)] -> list of strings ['path1', 'path2']
+    photos = [row[0] for row in cur.fetchall()]
 
     # 5. FETCH BRANDING (White Label)
     cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'logo'", (session['company_id'],))
@@ -858,3 +792,53 @@ def toggle_day_clock():
         conn.close()
         
     return redirect(url_for('site.site_dashboard'))
+    
+@site_bp.route('/site/unify-database')
+def unify_database():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Unauthorized"
+    conn = get_db(); cur = conn.cursor()
+    log = []
+    try:
+        # 1. Ensure Target NEW Columns Exist
+        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS reference TEXT;")
+        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS total NUMERIC(10,2) DEFAULT 0;")
+        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS date DATE;")
+        log.append("✅ Target columns (reference, total, date) checked.")
+
+        # 2. Sync REFERENCE (Try 'ref' first)
+        try:
+            # We only try to read 'ref', ignoring 'invoice_number' since it crashed
+            cur.execute("UPDATE invoices SET reference = ref WHERE reference IS NULL AND ref IS NOT NULL")
+            log.append("✅ Synced 'ref' -> 'reference'")
+        except Exception as e:
+            conn.rollback()
+            log.append(f"⚠️ Could not sync Ref: {e}")
+
+        # 3. Sync TOTAL (Try 'total_amount')
+        try:
+            cur.execute("UPDATE invoices SET total = total_amount WHERE (total IS NULL OR total = 0) AND total_amount > 0")
+            log.append("✅ Synced 'total_amount' -> 'total'")
+        except Exception as e:
+            conn.rollback()
+            log.append(f"⚠️ Could not sync Total: {e}")
+
+        # 4. Sync DATE (Try 'date_created' or 'date_issue')
+        try:
+            # Try date_created first (standard)
+            cur.execute("UPDATE invoices SET date = date_created WHERE date IS NULL AND date_created IS NOT NULL")
+            log.append("✅ Synced 'date_created' -> 'date'")
+        except:
+            conn.rollback()
+            try:
+                # Fallback to date_issue (portal style)
+                cur.execute("UPDATE invoices SET date = date_issue WHERE date IS NULL AND date_issue IS NOT NULL")
+                log.append("✅ Synced 'date_issue' -> 'date'")
+            except:
+                conn.rollback()
+
+        conn.commit()
+        return f"<h1>Database Unified</h1><br>{'<br>'.join(log)}"
+    except Exception as e:
+        conn.rollback(); return f"Error: {e}"
+    finally:
+        conn.close()

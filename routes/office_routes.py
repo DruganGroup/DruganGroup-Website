@@ -1188,59 +1188,6 @@ def enable_portal(client_id):
     except Exception as e: conn.rollback(); flash(f"Error: {e}", "error")
     finally: conn.close()
     
-# --- VIEW CLIENT PROFILE (Add this to fix the BuildError) ---
-@office_bp.route('/client/<int:client_id>')
-def view_client(client_id):
-    if not check_office_access(): return redirect(url_for('auth.login'))
-    
-    comp_id = session.get('company_id')
-    config = get_site_config(comp_id)
-    conn = get_db()
-    cur = conn.cursor()
-    
-    # 1. Fetch Client Details
-    cur.execute("SELECT id, name, email, phone, billing_address FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
-    c = cur.fetchone()
-    
-    if not c:
-        conn.close()
-        return "Client not found", 404
-        
-    client = {'id': c[0], 'name': c[1], 'email': c[2], 'phone': c[3], 'addr': c[4]}
-
-    # 2. Fetch Properties
-    cur.execute("""
-        SELECT id, address_line1, postcode, tenant, 
-               gas_expiry, eicr_expiry, pat_expiry, fire_alarm_expiry, tenant_phone
-        FROM properties 
-        WHERE client_id = %s
-        ORDER BY address_line1
-    """, (client_id,))
-    
-    properties = []
-    for r in cur.fetchall():
-        # Helper to check compliance dates
-        def check_comp(d):
-            if not d: return {'status': 'Missing', 'date': None}
-            if d < date.today(): return {'status': 'Expired', 'date': d.strftime('%d/%m/%y')}
-            if d < (date.today() + timedelta(days=30)): return {'status': 'Due', 'date': d.strftime('%d/%m/%y')}
-            return {'status': 'Valid', 'date': d.strftime('%d/%m/%y')}
-
-        properties.append({
-            'id': r[0], 'addr': r[1], 'postcode': r[2], 'tenant': r[3], 'tenant_phone': r[8],
-            'compliance': {
-                'Gas': check_comp(r[4]),
-                'EICR': check_comp(r[5]),
-                'PAT': check_comp(r[6]),
-                'Fire': check_comp(r[7])
-            }
-        })
-    
-    conn.close()
-    
-    # This points to your existing file in templates/office/
-    return render_template('office/client_details.html', client=client, properties=properties, brand_color=config['color'], logo_url=config['logo'])
-
 @office_bp.route('/client/<int:client_id>/add_property', methods=['POST'])
 def add_property(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))

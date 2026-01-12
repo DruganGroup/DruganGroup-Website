@@ -807,3 +807,141 @@ def fix_db_schema():
         return f"Error: {e}"
     finally:
         conn.close()
+        
+        # =========================================================
+#  MASTER MIGRATION ROUTE (RUN ONCE ON LIVE SERVER)
+# =========================================================
+@admin_bp.route('/admin/execute-live-migration')
+def execute_live_migration():
+    # 1. Security Lock: Only SuperAdmin can run this
+    if session.get('role') != 'SuperAdmin': 
+        return "⛔ Access Denied. SuperAdmin only."
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # 2. The Master SQL Script
+    migration_sql = """
+    -- 1. INVOICE FIXES
+    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS reference TEXT;
+    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS total NUMERIC(10,2) DEFAULT 0;
+    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS date DATE;
+    
+    UPDATE invoices SET reference = ref WHERE reference IS NULL AND ref IS NOT NULL;
+    UPDATE invoices SET total = total_amount WHERE (total IS NULL OR total = 0) AND total_amount > 0;
+    UPDATE invoices SET date = date_created WHERE date IS NULL AND date_created IS NOT NULL;
+
+    -- 2. SITE & JOBS TABLES
+    CREATE TABLE IF NOT EXISTS staff_timesheets (
+        id SERIAL PRIMARY KEY, company_id INTEGER, staff_id INTEGER, job_id INTEGER,
+        date DATE DEFAULT CURRENT_DATE, clock_in TIMESTAMP, clock_out TIMESTAMP,
+        hours NUMERIC(5,2), total_hours NUMERIC(5,2), status VARCHAR(20) DEFAULT 'Pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS job_materials (
+        id SERIAL PRIMARY KEY, job_id INTEGER, description TEXT, quantity INTEGER,
+        unit_price NUMERIC(10,2), added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS job_evidence (
+        id SERIAL PRIMARY KEY, job_id INTEGER, filepath TEXT, uploaded_by INTEGER,
+        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 3. FLEET UPGRADES
+    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tax_due DATE;
+    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS insurance_due DATE;
+    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS service_due DATE;
+    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tracker_url TEXT;
+    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS telematics_provider VARCHAR(50);
+    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tracking_device_id VARCHAR(100);
+    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_notes TEXT;
+    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_image_url TEXT;
+
+    CREATE TABLE IF NOT EXISTS vehicle_crew (
+        vehicle_id INTEGER, staff_id INTEGER, PRIMARY KEY(vehicle_id, staff_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS maintenance_logs (
+        id SERIAL PRIMARY KEY, company_id INTEGER, vehicle_id INTEGER,
+        date DATE DEFAULT CURRENT_DATE, type VARCHAR(50), description TEXT,
+        cost DECIMAL(10,2) DEFAULT 0.00, receipt_path TEXT, litres DECIMAL(10,2),
+        fuel_type VARCHAR(20), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    ALTER TABLE staff ADD COLUMN IF NOT EXISTS license_path TEXT;
+    ALTER TABLE staff ADD COLUMN IF NOT EXISTS next_of_kin_name TEXT;
+    ALTER TABLE staff ADD COLUMN IF NOT EXISTS next_of_kin_phone TEXT;
+
+    -- 4. CLIENT PORTAL & PROPERTIES
+    ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT;
+
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS address_line1 TEXT;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS postcode TEXT;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS tenant_name TEXT;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS tenant_phone TEXT;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS access_info TEXT;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS gas_safety_due DATE;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS eicr_due DATE;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS pat_test_due DATE;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS fire_risk_due DATE;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS epc_expiry DATE;
+
+    CREATE TABLE IF NOT EXISTS service_requests (
+        id SERIAL PRIMARY KEY, property_id INTEGER REFERENCES properties(id) ON DELETE CASCADE,
+        client_id INTEGER, company_id INTEGER, issue_description TEXT, severity TEXT,
+        status TEXT DEFAULT 'Pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 5. COMPLIANCE & FINANCE
+    CREATE TABLE IF NOT EXISTS certificates (
+        id SERIAL PRIMARY KEY, company_id INTEGER, property_id INTEGER, type VARCHAR(20),
+        status VARCHAR(20), data JSONB, engineer_name VARCHAR(100), date_issued DATE,
+        expiry_date DATE, pdf_path TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS overhead_categories (
+        id SERIAL PRIMARY KEY, company_id INTEGER, name VARCHAR(100)
+    );
+
+    CREATE TABLE IF NOT EXISTS overhead_items (
+        id SERIAL PRIMARY KEY, category_id INTEGER, name VARCHAR(100),
+        amount DECIMAL(10,2) DEFAULT 0.00, date_incurred DATE DEFAULT CURRENT_DATE,
+        receipt_path TEXT, FOREIGN KEY (category_id) REFERENCES overhead_categories(id) ON DELETE CASCADE
+    );
+
+    -- 6. SYSTEM LOGS
+    CREATE TABLE IF NOT EXISTS audit_logs (
+        id SERIAL PRIMARY KEY, company_id INTEGER, admin_email VARCHAR(150),
+        action VARCHAR(100), target VARCHAR(255), details TEXT, ip_address VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS system_logs (
+        id SERIAL PRIMARY KEY, level VARCHAR(20), message TEXT, traceback TEXT,
+        route VARCHAR(100), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    -- Fix Settings Unique Constraint
+    ALTER TABLE settings DROP CONSTRAINT IF EXISTS unique_company_key;
+    ALTER TABLE settings ADD CONSTRAINT unique_company_key UNIQUE (company_id, key);
+    """
+
+    # 3. Execution
+    try:
+        cur.execute(migration_sql)
+        conn.commit()
+        return """
+        <div style="font-family:sans-serif; text-align:center; padding:50px;">
+            <h1 style="color:green;">✅ Live Database Updated Successfully</h1>
+            <p>All tables, columns, and data types have been synchronized.</p>
+            <p>Your new features (Fleet, Portal, Site App) are now active.</p>
+            <a href="/admin/super-admin" style="background:#333; color:white; padding:10px 20px; text-decoration:none;">Return to Dashboard</a>
+        </div>
+        """
+    except Exception as e:
+        conn.rollback()
+        return f"<h1>❌ Migration Failed</h1><pre>{e}</pre>"
+    finally:
+        conn.close()
