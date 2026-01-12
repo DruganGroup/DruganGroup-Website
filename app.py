@@ -1,10 +1,10 @@
 import os
 import traceback
 from flask import Flask, render_template, request, session
+from werkzeug.exceptions import HTTPException  # <--- ADDED THIS IMPORT
 from db import get_db
 
-
-# 1. Import all Blueprints (Just importing, not registering yet)
+# 1. Import all Blueprints
 from routes.portal_routes import portal_bp
 from routes.public_routes import public_bp
 from routes.auth_routes import auth_bp
@@ -21,14 +21,14 @@ from routes.transactions import transactions_bp
 from routes.job_routes import jobs_bp
 from routes.quote_routes import quote_bp
 
-# 2. CREATE THE APP (This must happen before we use 'app')
+# 2. CREATE THE APP
 app = Flask(__name__)
 
 # Configuration
 app.secret_key = os.environ.get("SECRET_KEY", "dev_key_123") 
 app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'static', 'uploads', 'logos')
 
-# 3. REGISTER BLUEPRINTS (Now 'app' exists, so this works!)
+# 3. REGISTER BLUEPRINTS
 app.register_blueprint(portal_bp)
 app.register_blueprint(public_bp)
 app.register_blueprint(auth_bp)
@@ -45,6 +45,40 @@ app.register_blueprint(transactions_bp)
 app.register_blueprint(jobs_bp)
 app.register_blueprint(quote_bp)
 
+# =========================================================
+# GLOBAL ERROR CAPTURE (The "Black Box")
+# This catches crashes and writes them to your Admin Log
+# =========================================================
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # 1. Pass through standard HTTP errors (like 404 Page Not Found)
+    if isinstance(e, HTTPException):
+        return e
+
+    # 2. Capture the Crash Details
+    tb = traceback.format_exc()
+    err_msg = str(e)
+    route = request.path
+    
+    print(f"🚨 CRITICAL ERROR at {route}: {err_msg}") 
+    
+    # 3. Save to Database (system_logs table)
+    try:
+        conn = get_db()
+        if conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO system_logs (level, message, traceback, route, created_at)
+                VALUES ('CRITICAL', %s, %s, %s, CURRENT_TIMESTAMP)
+            """, (err_msg, tb, route))
+            conn.commit()
+            conn.close()
+    except Exception as db_err:
+        print(f"❌ LOGGING FAILED: {db_err}")
+
+    # 4. Show a friendly error page
+    return "<h1>500 Internal Server Error</h1><p>The system administrator has been notified.</p>", 500
+
 # --- DEBUG ROUTE ---
 @app.route('/debug-files')
 def debug_files():
@@ -58,7 +92,7 @@ def debug_files():
         for f in files:
             output += f"{subindent}{f}<br>"
     return output
-    
+
 # --- SYSTEM BROADCAST CONTEXT PROCESSOR ---
 @app.context_processor
 def inject_global_alert():
@@ -67,29 +101,28 @@ def inject_global_alert():
         conn = get_db()
         if conn:
             cur = conn.cursor()
-            cur.execute("SELECT value FROM system_settings WHERE key = 'global_alert'")
-            row = cur.fetchone()
-            if row and row[0]: 
-                alert_msg = row[0]
+            try:
+                cur.execute("SELECT value FROM system_settings WHERE key = 'global_alert'")
+                row = cur.fetchone()
+                if row and row[0]: 
+                    alert_msg = row[0]
+            except: pass
             conn.close()
     except: pass
     
     return dict(global_system_alert=alert_msg)
-    # --- GLOBAL CURRENCY INJECTOR ---
+
+# --- GLOBAL CURRENCY INJECTOR ---
 @app.context_processor
 def inject_currency():
-    # Default to Pound if no user is logged in
     default_sym = '£'
-    
     if 'company_id' not in session:
         return dict(currency_symbol=default_sym)
     
     try:
-        # Check if we already cached it in session (Optimization)
         if 'currency_symbol' in session:
             return dict(currency_symbol=session['currency_symbol'])
             
-        # Otherwise, fetch from DB
         conn = get_db()
         cur = conn.cursor()
         cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'currency_symbol'", (session['company_id'],))
@@ -97,35 +130,28 @@ def inject_currency():
         conn.close()
         
         symbol = row[0] if row else default_sym
-        
-        # Save to session so we don't hit DB on every click
         session['currency_symbol'] = symbol
         return dict(currency_symbol=symbol)
         
     except Exception:
         return dict(currency_symbol=default_sym)
-        
-        # --- GLOBAL BRANDING INJECTOR (Multi-Tenant Safe) ---
+
+# --- GLOBAL BRANDING INJECTOR ---
 @app.context_processor
 def inject_branding():
-    # Defaults
     default_color = '#2c3e50'
     default_logo = None
     
-    # SAFETY CHECK: If no company is logged in, show defaults
     if 'company_id' not in session:
         return dict(brand_color=default_color, logo=default_logo)
 
-    # 1. Try Session (Fast)
     color = session.get('brand_color')
     logo = session.get('logo')
 
-    # 2. If missing, Check Database for THIS Company ID
     if not color or not logo:
         try:
             conn = get_db()
             cur = conn.cursor()
-            # The 'WHERE company_id = %s' ensures we only get THIS company's data
             cur.execute("""
                 SELECT key, value FROM settings 
                 WHERE company_id = %s AND key IN ('brand_color', 'logo')
@@ -136,7 +162,6 @@ def inject_branding():
             color = row_dict.get('brand_color', default_color)
             logo = row_dict.get('logo')
             
-            # Update session to keep it fast next time
             session['brand_color'] = color
             session['logo'] = logo
         except Exception:
@@ -144,27 +169,22 @@ def inject_branding():
 
     return dict(brand_color=color or default_color, logo=logo)
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    # Turn DEBUG ON so we can see the error
-    app.run(host='0.0.0.0', port=port, debug=True)
-    
-# --- FIX JOBS TABLE (Enables 'Convert to Job') ---
+# --- FIX JOBS TABLE (Moved Up) ---
 @app.route('/fix-jobs-table')
 def fix_jobs_table():
     try:
         conn = get_db()
         cur = conn.cursor()
-        
-        # Add the missing column that links Jobs to Quotes
         cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS quote_id INTEGER;")
-        
-        # Add these too, as the conversion usually copies the price over
         cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS quote_total NUMERIC DEFAULT 0;")
         cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS contractor_cost REAL DEFAULT 0;")
-        
         conn.commit()
         conn.close()
-        return "✅ Success! Jobs table updated. You can now Convert Quotes to Jobs."
+        return "✅ Success! Jobs table updated."
     except Exception as e:
         return f"❌ Error: {e}"
+
+# --- APP ENTRY POINT ---
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
