@@ -701,7 +701,7 @@ def finance_analysis():
         cur.execute("SELECT COALESCE(SUM(cost), 0) FROM job_expenses WHERE job_id=%s", (job_id,))
         expenses = float(cur.fetchone()[0])
         
-        cur.execute("SELECT COALESCE(SUM(t.hours * s.pay_rate), 0) FROM staff_timesheets t JOIN staff s ON t.staff_id=s.id WHERE t.job_id=%s", (job_id,))
+        cur.execute("SELECT COALESCE(SUM(t.total_hours * s.pay_rate), 0) FROM staff_timesheets t JOIN staff s ON t.staff_id=s.id WHERE t.job_id=%s", (job_id,))
         labor = float(cur.fetchone()[0]) if cur.rowcount > 0 else 0.0
 
         actual_cost = expenses + labor; profit = revenue - actual_cost

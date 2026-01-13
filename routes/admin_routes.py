@@ -723,178 +723,32 @@ def view_audit_logs():
     
     return render_template('admin/audit_logs.html', logs=logs, page=page, total_pages=total_pages)
 
-# =========================================================
-#  MASTER MIGRATION ROUTE (RUN ONCE ON LIVE SERVER)
-# =========================================================
-@admin_bp.route('/admin/execute-live-migration')
-def execute_live_migration():
-    # 1. Security Lock: Only SuperAdmin can run this
-    if session.get('role') != 'SuperAdmin': 
-        return "⛔ Access Denied. SuperAdmin only."
+# --- VIEW: SYSTEM ERROR LOGS (The Missing Route) ---
+@admin_bp.route('/admin/logs/system')
+def view_system_logs():
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
     
     conn = get_db()
     cur = conn.cursor()
     
-    # 2. The Master SQL Script
-    migration_sql = """
-    -- 1. INVOICE FIXES
-    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS reference TEXT;
-    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS total NUMERIC(10,2) DEFAULT 0;
-    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS date DATE;
+    # Fetch logs
+    cur.execute("SELECT * FROM system_logs ORDER BY id DESC LIMIT 50")
+    rows = cur.fetchall()
+    conn.close()
     
-    UPDATE invoices SET reference = ref WHERE reference IS NULL AND ref IS NOT NULL;
-    UPDATE invoices SET total = total_amount WHERE (total IS NULL OR total = 0) AND total_amount > 0;
-    UPDATE invoices SET date = date_created WHERE date IS NULL AND date_created IS NOT NULL;
+    # Safe Format: Ensure the date is handled correctly before sending to HTML
+    logs = []
+    for r in rows:
+        # Check if r[5] (created_at) is a string or datetime object
+        log_date = r[5]
+        if isinstance(log_date, str):
+            formatted_date = log_date 
+        elif hasattr(log_date, 'strftime'):
+            formatted_date = log_date.strftime('%d-%b %H:%M:%S')
+        else:
+            formatted_date = "Unknown Date"
 
-    -- 2. SITE & JOBS TABLES
-    CREATE TABLE IF NOT EXISTS staff_timesheets (
-        id SERIAL PRIMARY KEY, company_id INTEGER, staff_id INTEGER, job_id INTEGER,
-        date DATE DEFAULT CURRENT_DATE, clock_in TIMESTAMP, clock_out TIMESTAMP,
-        hours NUMERIC(5,2), total_hours NUMERIC(5,2), status VARCHAR(20) DEFAULT 'Pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
+        # Append safe tuple
+        logs.append((r[0], r[1], r[2], r[3], r[4], formatted_date))
 
-    CREATE TABLE IF NOT EXISTS job_materials (
-        id SERIAL PRIMARY KEY, job_id INTEGER, description TEXT, quantity INTEGER,
-        unit_price NUMERIC(10,2), added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS job_evidence (
-        id SERIAL PRIMARY KEY, job_id INTEGER, filepath TEXT, uploaded_by INTEGER,
-        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- 3. FLEET UPGRADES
-    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tax_due DATE;
-    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS insurance_due DATE;
-    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS service_due DATE;
-    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tracker_url TEXT;
-    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS telematics_provider VARCHAR(50);
-    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tracking_device_id VARCHAR(100);
-    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_notes TEXT;
-    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_image_url TEXT;
-
-    CREATE TABLE IF NOT EXISTS vehicle_crew (
-        vehicle_id INTEGER, staff_id INTEGER, PRIMARY KEY(vehicle_id, staff_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS maintenance_logs (
-        id SERIAL PRIMARY KEY, company_id INTEGER, vehicle_id INTEGER,
-        date DATE DEFAULT CURRENT_DATE, type VARCHAR(50), description TEXT,
-        cost DECIMAL(10,2) DEFAULT 0.00, receipt_path TEXT, litres DECIMAL(10,2),
-        fuel_type VARCHAR(20), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    ALTER TABLE staff ADD COLUMN IF NOT EXISTS license_path TEXT;
-    ALTER TABLE staff ADD COLUMN IF NOT EXISTS next_of_kin_name TEXT;
-    ALTER TABLE staff ADD COLUMN IF NOT EXISTS next_of_kin_phone TEXT;
-
-    -- 4. CLIENT PORTAL & PROPERTIES
-    ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT;
-
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS address_line1 TEXT;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS postcode TEXT;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS tenant_name TEXT;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS tenant_phone TEXT;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS access_info TEXT;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS gas_safety_due DATE;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS eicr_due DATE;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS pat_test_due DATE;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS fire_risk_due DATE;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS epc_expiry DATE;
-
-    CREATE TABLE IF NOT EXISTS service_requests (
-        id SERIAL PRIMARY KEY, property_id INTEGER REFERENCES properties(id) ON DELETE CASCADE,
-        client_id INTEGER, company_id INTEGER, issue_description TEXT, severity TEXT,
-        status TEXT DEFAULT 'Pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- 5. COMPLIANCE & FINANCE
-    CREATE TABLE IF NOT EXISTS certificates (
-        id SERIAL PRIMARY KEY, company_id INTEGER, property_id INTEGER, type VARCHAR(20),
-        status VARCHAR(20), data JSONB, engineer_name VARCHAR(100), date_issued DATE,
-        expiry_date DATE, pdf_path TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS overhead_categories (
-        id SERIAL PRIMARY KEY, company_id INTEGER, name VARCHAR(100)
-    );
-
-    CREATE TABLE IF NOT EXISTS overhead_items (
-        id SERIAL PRIMARY KEY, category_id INTEGER, name VARCHAR(100),
-        amount DECIMAL(10,2) DEFAULT 0.00, date_incurred DATE DEFAULT CURRENT_DATE,
-        receipt_path TEXT, FOREIGN KEY (category_id) REFERENCES overhead_categories(id) ON DELETE CASCADE
-    );
-
-    -- 6. SYSTEM LOGS
-    CREATE TABLE IF NOT EXISTS audit_logs (
-        id SERIAL PRIMARY KEY, company_id INTEGER, admin_email VARCHAR(150),
-        action VARCHAR(100), target VARCHAR(255), details TEXT, ip_address VARCHAR(50),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS system_logs (
-        id SERIAL PRIMARY KEY, level VARCHAR(20), message TEXT, traceback TEXT,
-        route VARCHAR(100), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    
-    -- Fix Settings Unique Constraint
-    ALTER TABLE settings DROP CONSTRAINT IF EXISTS unique_company_key;
-    ALTER TABLE settings ADD CONSTRAINT unique_company_key UNIQUE (company_id, key);
-    """
-
-    # 3. Execution
-    try:
-        cur.execute(migration_sql)
-        conn.commit()
-        return """
-        <div style="font-family:sans-serif; text-align:center; padding:50px;">
-            <h1 style="color:green;">✅ Live Database Updated Successfully</h1>
-            <p>All tables, columns, and data types have been synchronized.</p>
-            <p>Your new features (Fleet, Portal, Site App) are now active.</p>
-            <a href="/admin/super-admin" style="background:#333; color:white; padding:10px 20px; text-decoration:none;">Return to Dashboard</a>
-        </div>
-        """
-    except Exception as e:
-        conn.rollback()
-        return f"<h1>❌ Migration Failed</h1><pre>{e}</pre>"
-    finally:
-        conn.close()
-        
-        # =========================================================
-#  NULL VALUE CLEANER (Run once to fix 500 Errors)
-# =========================================================
-@admin_bp.route('/admin/fix-null-values')
-def fix_null_values():
-    if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
-    
-    conn = get_db()
-    cur = conn.cursor()
-    
-    try:
-        # 1. Fix Invoices
-        cur.execute("UPDATE invoices SET total = 0 WHERE total IS NULL")
-        
-        # 2. Fix Expenses
-        cur.execute("UPDATE job_expenses SET cost = 0 WHERE cost IS NULL")
-        
-        # 3. Fix Overheads
-        cur.execute("UPDATE overhead_items SET amount = 0 WHERE amount IS NULL")
-        
-        # 4. Fix Maintenance Logs
-        cur.execute("UPDATE maintenance_logs SET cost = 0 WHERE cost IS NULL")
-        
-        conn.commit()
-        return """
-        <div style="text-align:center; padding:50px; font-family:sans-serif;">
-            <h1 style="color:green;">✅ Database Sanitized</h1>
-            <p>All NULL financial values have been converted to 0.00.</p>
-            <p>Your 500 Errors on the Dashboard should now be gone.</p>
-            <a href="/finance-dashboard" style="background:#333; color:white; padding:10px 20px; text-decoration:none;">Go to Dashboard</a>
-        </div>
-        """
-    except Exception as e:
-        conn.rollback()
-        return f"<h1>❌ Fix Failed</h1><pre>{e}</pre>"
-    finally:
-        conn.close()
+    return render_template('admin/system_logs.html', logs=logs)
