@@ -764,57 +764,64 @@ def view_system_logs():
 
     return render_template('admin/system_logs.html', logs=logs)
     
-    # =========================================================
-#  SMART WIPE: RESET EVERYTHING EXCEPT ME (FIXED)
+# =========================================================
+#  SMART WIPE: THE FINAL "CLEAN SLATE" FIX
 # =========================================================
 @admin_bp.route('/admin/smart-wipe-execute')
 def smart_wipe_execute():
-    # 1. Security Check
     if session.get('role') != 'SuperAdmin': 
         return "⛔ Access Denied. SuperAdmin only."
     
     my_id = session.get('user_id')
-    my_company_id = session.get('company_id')
     
     conn = get_db()
     cur = conn.cursor()
     
     try:
-        # 2. DELETE BUSINESS DATA
-        # Added 'subscriptions' to this list so it doesn't block the wipe
-        business_tables = [
-            "subscriptions",  # <--- ADDED THIS TO FIX THE ERROR
-            "staff", "clients", "properties", "jobs", "quotes", "invoices", 
-            "vehicles", "maintenance_logs", "job_expenses", "job_materials", 
-            "job_evidence", "staff_timesheets", "staff_attendance", 
-            "suppliers", "materials", "overhead_items", "overhead_categories",
-            "system_logs", "audit_logs"
+        # 1. DETACH SUPER ADMIN FROM COMPANY (Prevents FK errors when deleting company)
+        # We set your company_id to NULL so you survive the wipe
+        cur.execute("UPDATE users SET company_id = NULL WHERE id = %s", (my_id,))
+
+        # 2. WIPE ALL DATA TABLES (Order matters to prevent crashes)
+        # We include 'subscriptions' here to fix the previous error
+        tables = [
+            "subscriptions", "staff_timesheets", "staff_attendance", 
+            "job_expenses", "job_materials", "job_evidence", "invoices", 
+            "quotes", "jobs", "properties", "clients", 
+            "maintenance_logs", "vehicles", "staff", 
+            "materials", "suppliers", "overhead_items", "overhead_categories",
+            "system_logs", "audit_logs", "settings"
         ]
         
-        for table in business_tables:
-            # We use IF EXISTS just in case a table is missing
-            cur.execute(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE;")
-            
-        # 3. DELETE SETTINGS (Resets Logo & Brand Color)
-        cur.execute("TRUNCATE TABLE settings RESTART IDENTITY CASCADE;")
+        for t in tables:
+            cur.execute(f"TRUNCATE TABLE {t} RESTART IDENTITY CASCADE;")
 
-        # 4. DELETE OTHER USERS (Keep YOU)
+        # 3. DELETE ALL COMPANIES (Now safe because subscriptions are gone)
+        cur.execute("TRUNCATE TABLE companies RESTART IDENTITY CASCADE;")
+
+        # 4. DELETE ALL OTHER USERS (Keep only you)
         cur.execute("DELETE FROM users WHERE id != %s", (my_id,))
-        
-        # 5. DELETE OTHER COMPANIES (Keep YOURS)
-        if my_company_id:
-             cur.execute("DELETE FROM companies WHERE id != %s", (my_company_id,))
 
         conn.commit()
         
+        # 5. Clear session company_id so you don't get "Company not found" errors
+        session['company_id'] = None
+        
         return f"""
-        <div style="font-family:sans-serif; text-align:center; padding:50px; background-color: #fff0f0;">
-            <h1 style="color:red;">✅ Server Wiped (Safe Mode)</h1>
-            <p><strong>Success!</strong> All business data, settings, and other users have been deleted.</p>
-            <p><strong>Your Super Admin account (ID {my_id}) was SAVED.</strong></p>
+        <div style="font-family:sans-serif; text-align:center; padding:50px; background-color: #e8f5e9;">
+            <h1 style="color:green;">✅ SUCCESS: SYSTEM FULLY WIPED</h1>
+            <p><strong>The following has been deleted:</strong></p>
+            <ul style="display:inline-block; text-align:left;">
+                <li>All Companies & Subscriptions</li>
+                <li>All Jobs, Clients, Staff & Finance Data</li>
+                <li>All Settings & Logos</li>
+                <li>All Users (Except You)</li>
+            </ul>
+            <br><br>
+            <p><strong>Your Admin Account (ID {my_id}) is safe.</strong></p>
             <hr>
-            <a href="/super-admin" style="background:#333; color:white; padding:15px 30px; text-decoration:none; font-weight:bold; border-radius:5px;">
-                Return to Dashboard
+            <a href="/register" style="background:#0d6efd; color:white; padding:15px 30px; text-decoration:none; font-weight:bold; border-radius:5px;">
+                Create Your New Company
             </a>
         </div>
         """
