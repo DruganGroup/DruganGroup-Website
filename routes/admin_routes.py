@@ -800,3 +800,37 @@ def fix_job_columns():
         return f"<h1>❌ Fix Failed</h1><pre>{e}</pre>"
     finally:
         conn.close()
+        
+        # =========================================================
+#  FIX JOB MATERIALS (Add 'date_added')
+# =========================================================
+@admin_bp.route('/admin/fix-materials-date')
+def fix_materials_date():
+    if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # Add the missing column your code is looking for
+        cur.execute("ALTER TABLE job_materials ADD COLUMN IF NOT EXISTS date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP;")
+        
+        # Also ensure 'unit_price' exists (just in case)
+        cur.execute("ALTER TABLE job_materials ADD COLUMN IF NOT EXISTS unit_price NUMERIC(10,2) DEFAULT 0.00;")
+        
+        conn.commit()
+        return """
+        <div style="font-family:sans-serif; text-align:center; padding:50px;">
+            <h1 style="color:green;">✅ Job Materials Fixed</h1>
+            <p>Added 'date_added' column to job_materials table.</p>
+            <p><strong>Your Job Dashboard should now load without error.</strong></p>
+            <br>
+            <a href="/office-hub" style="background:#333; color:white; padding:10px 20px; text-decoration:none;">Return to Office</a>
+        </div>
+        """
+        
+    except Exception as e:
+        conn.rollback()
+        return f"<h1>❌ Fix Failed</h1><pre>{e}</pre>"
+    finally:
+        conn.close()
