@@ -84,7 +84,7 @@
                             {% elif job[6] == 'Scheduled' %}
                                 <span class="badge bg-primary mb-2">
                                     {% if job[5] %}
-                                        {{ job[5].strftime('%H:%M') }}
+                                        {{ job[5] }}
                                     {% else %}
                                         Scheduled
                                     {% endif %}

@@ -765,30 +765,33 @@ def view_system_logs():
     return render_template('admin/system_logs.html', logs=logs)
     
 # =========================================================
-#  CALENDAR FIX: Add 'vehicle_id' to Jobs
+#  FIX MISSING JOB COLUMNS (Quote Total & Vehicle)
 # =========================================================
-@admin_bp.route('/admin/fix-calendar-schema')
-def fix_calendar_schema():
+@admin_bp.route('/admin/fix-job-columns')
+def fix_job_columns():
     if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
     
     conn = get_db()
     cur = conn.cursor()
     
     try:
-        # 1. Add vehicle_id to Jobs (Links Van to Job)
+        # 1. Add quote_total (The cause of your error)
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS quote_total NUMERIC(10,2) DEFAULT 0.00;")
+        
+        # 2. Add vehicle_id (Often missing too, causing calendar crashes)
         cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS vehicle_id INTEGER;")
         
-        # 2. Add engineer_id to Jobs (Links Lead Engineer to Job) - Just in case
+        # 3. Add engineer_id (Just to be safe)
         cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS engineer_id INTEGER;")
-        
+
         conn.commit()
         return """
         <div style="font-family:sans-serif; text-align:center; padding:50px;">
-            <h1 style="color:green;">✅ Calendar Fixed</h1>
-            <p>Added 'vehicle_id' and 'engineer_id' to the Jobs table.</p>
-            <p><strong>The Schedule Page will now load correctly.</strong></p>
+            <h1 style="color:green;">✅ Job Table Repaired</h1>
+            <p>Added 'quote_total' and 'vehicle_id' columns.</p>
+            <p>Your Office Dashboard and Site Hub should now work.</p>
             <br>
-            <a href="/office/calendar" style="background:#333; color:white; padding:10px 20px; text-decoration:none;">Open Calendar</a>
+            <a href="/office-hub" style="background:#333; color:white; padding:10px 20px; text-decoration:none;">Go to Office Hub</a>
         </div>
         """
         
