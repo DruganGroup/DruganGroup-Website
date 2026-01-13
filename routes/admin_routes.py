@@ -801,36 +801,69 @@ def fix_job_columns():
     finally:
         conn.close()
         
-        # =========================================================
-#  FIX JOB MATERIALS (Add 'date_added')
 # =========================================================
-@admin_bp.route('/admin/fix-materials-date')
-def fix_materials_date():
-    if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
+#  SMART WIPE: RESET EVERYTHING EXCEPT ME
+# =========================================================
+@admin_bp.route('/admin/smart-wipe-execute')
+def smart_wipe_execute():
+    # 1. Security Check
+    if session.get('role') != 'SuperAdmin': 
+        return "⛔ Access Denied. SuperAdmin only."
+    
+    my_id = session.get('user_id')
+    my_company_id = session.get('company_id')
     
     conn = get_db()
     cur = conn.cursor()
     
     try:
-        # Add the missing column your code is looking for
-        cur.execute("ALTER TABLE job_materials ADD COLUMN IF NOT EXISTS date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP;")
+        # 2. DELETE BUSINESS DATA (The easy stuff)
+        # We wipe these tables completely as they depend on the company/user anyway.
+        business_tables = [
+            "staff", "clients", "properties", "jobs", "quotes", "invoices", 
+            "vehicles", "maintenance_logs", "job_expenses", "job_materials", 
+            "job_evidence", "staff_timesheets", "staff_attendance", 
+            "suppliers", "materials", "overhead_items", "overhead_categories",
+            "system_logs", "audit_logs"
+        ]
         
-        # Also ensure 'unit_price' exists (just in case)
-        cur.execute("ALTER TABLE job_materials ADD COLUMN IF NOT EXISTS unit_price NUMERIC(10,2) DEFAULT 0.00;")
+        for table in business_tables:
+            cur.execute(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE;")
+            
+        # 3. DELETE SETTINGS (Resets Logo & Brand Color)
+        cur.execute("TRUNCATE TABLE settings RESTART IDENTITY CASCADE;")
+
+        # 4. DELETE OTHER USERS (Keep YOU)
+        # We delete everyone who is NOT the current logged-in user
+        cur.execute("DELETE FROM users WHERE id != %s", (my_id,))
         
+        # 5. DELETE OTHER COMPANIES (Keep YOURS)
+        # We delete every company that isn't the one you are currently in
+        if my_company_id:
+             cur.execute("DELETE FROM companies WHERE id != %s", (my_company_id,))
+
         conn.commit()
-        return """
-        <div style="font-family:sans-serif; text-align:center; padding:50px;">
-            <h1 style="color:green;">✅ Job Materials Fixed</h1>
-            <p>Added 'date_added' column to job_materials table.</p>
-            <p><strong>Your Job Dashboard should now load without error.</strong></p>
-            <br>
-            <a href="/office-hub" style="background:#333; color:white; padding:10px 20px; text-decoration:none;">Return to Office</a>
+        
+        return f"""
+        <div style="font-family:sans-serif; text-align:center; padding:50px; background-color: #fff0f0;">
+            <h1 style="color:red;">⚠️ Server Wiped (Safe Mode)</h1>
+            <p><strong>Success!</strong> The following has been deleted:</p>
+            <ul style="text-align:left; display:inline-block;">
+                <li>All Jobs, Clients, Staff, and Finance Data</li>
+                <li>All Settings (Logos, Colors, Bank Details)</li>
+                <li>All Other Users</li>
+                <li>All Other Companies</li>
+            </ul>
+            <p><strong>Your Super Admin account (ID {my_id}) was SAVED.</strong></p>
+            <hr>
+            <a href="/super-admin" style="background:#333; color:white; padding:15px 30px; text-decoration:none; font-weight:bold; border-radius:5px;">
+                Return to Dashboard & Setup Branding
+            </a>
         </div>
         """
         
     except Exception as e:
         conn.rollback()
-        return f"<h1>❌ Fix Failed</h1><pre>{e}</pre>"
+        return f"<h1>❌ Wipe Failed</h1><pre>{e}</pre>"
     finally:
         conn.close()
