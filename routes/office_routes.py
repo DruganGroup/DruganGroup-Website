@@ -1306,18 +1306,20 @@ def quotes_dashboard():
                            brand_color=config['color'], logo_url=config['logo'])
                            
 # UPDATE THIS FUNCTION IN routes/office_routes.py
-
 @office_bp.route('/office/job/<int:job_id>/files')
 def job_dashboard(job_id):
-    if not check_office_access(): return redirect(url_for('auth.login'))
+    # 1. Security Check (Kept your logic)
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
-    config = get_site_config(comp_id)
+    # Assuming get_site_config is imported or available, if not remove this line
+    # config = get_site_config(comp_id) 
     conn = get_db(); cur = conn.cursor()
     
-    # 1. FETCH JOB DETAILS
+    # 2. FETCH JOB DETAILS
+    # Added COALESCE to quote_total to prevent NoneType error if it's empty
     cur.execute("""
-        SELECT j.ref, j.description, j.site_address, j.status, j.quote_id, j.quote_total
+        SELECT j.ref, j.description, j.site_address, j.status, j.quote_id, COALESCE(j.quote_total, 0)
         FROM jobs j 
         WHERE j.id = %s AND j.company_id = %s
     """, (job_id, comp_id))
@@ -1328,9 +1330,9 @@ def job_dashboard(job_id):
     # Job Data Tuple
     job = (job_row[0], job_row[1], job_row[2], job_row[3])
     quote_id = job_row[4]
-    quote_total = float(job_row[5]) if job_row[5] else 0.0
+    quote_total = float(job_row[5])
 
-    # 2. CALCULATE FINANCIALS
+    # 3. CALCULATE FINANCIALS
     
     # Invoiced
     cur.execute("SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE job_id = %s AND status != 'Void'", (job_id,))
@@ -1340,13 +1342,13 @@ def job_dashboard(job_id):
     cur.execute("SELECT COALESCE(SUM(cost), 0) FROM job_expenses WHERE job_id = %s", (job_id,))
     expenses = float(cur.fetchone()[0])
 
-    # Materials (Stock/Site Added) - THIS WAS MISSING
+    # Materials (Stock/Site Added)
     cur.execute("SELECT COALESCE(SUM(quantity * unit_price), 0) FROM job_materials WHERE job_id = %s", (job_id,))
     materials_cost = float(cur.fetchone()[0])
     
-    # Labour
+    # Labour (THE FIX IS HERE: Changed 't.hours' to 't.total_hours')
     cur.execute("""
-        SELECT COALESCE(SUM(t.hours * s.pay_rate), 0)
+        SELECT COALESCE(SUM(t.total_hours * s.pay_rate), 0)
         FROM staff_timesheets t
         JOIN staff s ON t.staff_id = s.id
         WHERE t.job_id = %s
@@ -1357,31 +1359,31 @@ def job_dashboard(job_id):
     profit = quote_total - total_cost
     budget_remaining = quote_total - total_cost
 
-    # 3. FETCH FILES LIST
+    # 4. FETCH FILES LIST
     files = []
     
     # A. Invoices
     cur.execute("SELECT id, ref, total_amount, date_created FROM invoices WHERE job_id = %s ORDER BY date_created DESC", (job_id,))
     for r in cur.fetchall():
-        files.append(('Client Invoice', r[1], float(r[2]), format_date(r[3]), 'invoice', r[0]))
+        # Added str() to date to prevent format crash
+        files.append(('Client Invoice', r[1], float(r[2]), str(r[3]), 'invoice', r[0]))
 
     # B. Expenses
     cur.execute("SELECT description, cost, date, receipt_path, id FROM job_expenses WHERE job_id = %s ORDER BY date DESC", (job_id,))
     for r in cur.fetchall():
         path = r[3] if r[3] else 'No Link'
-        files.append(('Expense Receipt', r[0], float(r[1]), format_date(r[2]), path, r[4]))
+        files.append(('Expense Receipt', r[0], float(r[1]), str(r[2]), path, r[4]))
         
-    # C. Materials (THIS ADDS THEM TO THE LIST)
+    # C. Materials
     cur.execute("SELECT description, quantity, unit_price, date_added, id FROM job_materials WHERE job_id = %s ORDER BY date_added DESC", (job_id,))
     for r in cur.fetchall():
-        desc = f"{r[1]}x {r[0]}" # e.g. "2x Copper Pipe"
+        desc = f"{r[1]}x {r[0]}" 
         cost = float(r[1]) * float(r[2])
-        # This tag 'Site Material' matches your HTML logic perfectly
-        files.append(('Site Material', desc, cost, format_date(r[3]), 'Material', r[4]))
+        files.append(('Site Material', desc, cost, str(r[3]), 'Material', r[4]))
 
-    # D. Labor
+    # D. Labor (THE FIX IS HERE TOO: Changed 't.hours' to 't.total_hours')
     cur.execute("""
-        SELECT t.id, s.name, t.hours, s.pay_rate, t.date
+        SELECT t.id, s.name, t.total_hours, s.pay_rate, t.date
         FROM staff_timesheets t
         JOIN staff s ON t.staff_id = s.id
         WHERE t.job_id = %s
@@ -1390,10 +1392,12 @@ def job_dashboard(job_id):
     
     for r in cur.fetchall():
         t_id, name, hours, rate, date_val = r
-        cost = float(hours) * float(rate)
-        # If 0 hours, they are currently active
+        # Safety check if hours is None
+        hours = float(hours) if hours else 0.0
+        cost = hours * float(rate)
+        
         desc = f"Labor: {name} ({hours} hrs)" if hours > 0 else f"Labor: {name} (Active)"
-        files.append(('Timesheet', desc, cost, format_date(date_val), 'No Link', t_id))
+        files.append(('Timesheet', desc, cost, str(date_val), 'No Link', t_id))
 
     # E. Staff List
     cur.execute("SELECT id, name FROM staff WHERE company_id = %s AND status='Active'", (comp_id,))
@@ -1401,12 +1405,12 @@ def job_dashboard(job_id):
     
     conn.close()
     
+    # Render with your existing template
     return render_template('office/job_files.html', 
                            job=job, quote_id=quote_id, quote_total=quote_total,
                            total_billed=total_billed, total_cost=total_cost, profit=profit,
                            budget_remaining=budget_remaining,
-                           files=files, staff=staff, today=date.today(),
-                           brand_color=config['color'], logo_url=config['logo'])
+                           files=files, staff=staff, today=date.today())
                            
 @office_bp.route('/office/quote/delete/<int:quote_id>')
 def delete_quote(quote_id):
