@@ -764,11 +764,44 @@ def view_system_logs():
 
     return render_template('admin/system_logs.html', logs=logs)
     
+# --- VIEW: SYSTEM ERROR LOGS ---
+@admin_bp.route('/admin/logs/system')
+def view_system_logs():
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # Fetch logs
+    cur.execute("SELECT * FROM system_logs ORDER BY id DESC LIMIT 50")
+    rows = cur.fetchall()
+    conn.close()
+    
+    # Safe Format: Ensure the date is handled correctly before sending to HTML
+    logs = []
+    for r in rows:
+        # Check if r[5] (created_at) is a string or datetime object
+        log_date = r[5]
+        if isinstance(log_date, str):
+            formatted_date = log_date 
+        elif hasattr(log_date, 'strftime'):
+            formatted_date = log_date.strftime('%d-%b %H:%M:%S')
+        else:
+            formatted_date = "Unknown Date"
+
+        # Append safe tuple
+        logs.append((r[0], r[1], r[2], r[3], r[4], formatted_date))
+
+    return render_template('admin/system_logs.html', logs=logs)
+
 # =========================================================
-#  EMERGENCY FIX: RESTORE SUPER ADMIN (v2)
+#  EMERGENCY FIX: RESTORE SUPER ADMIN
 # =========================================================
 @admin_bp.route('/public/restore-admin')
 def restore_admin():
+    # Import here to avoid syntax errors at the top level
+    from werkzeug.security import generate_password_hash 
+
     conn = get_db()
     cur = conn.cursor()
     
@@ -776,7 +809,8 @@ def restore_admin():
         # 1. Create the hashed password
         hashed_pw = generate_password_hash('47ST3E9AZ114D') 
         
-        # 2. Insert User
+        # 2. Insert User (Using 'password_hash')
+        # We also use ON CONFLICT to update the user if they already exist
         cur.execute("""
             INSERT INTO users (name, email, password_hash, role, company_id) 
             VALUES ('Super Admin', 'admin@drugangroup.co.uk', %s, 'SuperAdmin', NULL)
