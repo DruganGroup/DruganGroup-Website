@@ -808,4 +808,49 @@ def restore_admin():
         conn.rollback()
         return f"<h1>❌ Restoration Failed</h1><pre>{e}</pre>"
     finally:
+        conn.close()from werkzeug.security import generate_password_hash
+
+# =========================================================
+#  EMERGENCY FIX: RESTORE SUPER ADMIN (v2)
+# =========================================================
+@admin_bp.route('/public/restore-admin')
+def restore_admin():
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Create the hashed password
+        hashed_pw = generate_password_hash('47ST3E9AZ114D') 
+        
+        # 2. Insert User (Using 'password_hash' this time)
+        # We also use ON CONFLICT DO NOTHING to prevent crashing if the email exists but you just forgot the password
+        cur.execute("""
+            INSERT INTO users (name, email, password_hash, role, company_id) 
+            VALUES ('Super Admin', 'admin@drugangroup.co.uk', %s, 'SuperAdmin', NULL)
+            ON CONFLICT (email) DO UPDATE 
+            SET password_hash = EXCLUDED.password_hash, role = 'SuperAdmin';
+        """, (hashed_pw,))
+        
+        conn.commit()
+        
+        return f"""
+        <div style="text-align:center; padding:50px; font-family:sans-serif;">
+            <h1 style="color:green;">✅ Admin Account Restored</h1>
+            <p>You can now log in.</p>
+            <ul style="display:inline-block; text-align:left;">
+                <li><strong>Email:</strong> admin@drugangroup.co.uk</li>
+                <li><strong>Password:</strong> admin123</li>
+            </ul>
+            <br><br>
+            <a href="/login" style="background:#000; color:white; padding:10px 20px; text-decoration:none; border-radius:5px;">Go to Login</a>
+            <br><br>
+            <p style="color:red;">⚠️ REMEMBER: Remove this code from admin_routes.py once logged in.</p>
+        </div>
+        """
+        
+    except Exception as e:
+        conn.rollback()
+        # If it still fails, print the specific error
+        return f"<h1>❌ Restoration Failed</h1><pre>{e}</pre>"
+    finally:
         conn.close()
