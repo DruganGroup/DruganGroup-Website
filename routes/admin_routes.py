@@ -706,20 +706,31 @@ def view_audit_logs():
     
     page = request.args.get('page', 1, type=int)
     per_page = 20
+    offset = (page - 1) * per_page
     
     conn = get_db(); cur = conn.cursor()
     
-    # Get total count for pagination
     cur.execute("SELECT COUNT(*) FROM audit_logs")
     total_logs = cur.fetchone()[0]
     total_pages = (total_logs + per_page - 1) // per_page
     
-    # Get logs for current page
-    offset = (page - 1) * per_page
-    cur.execute("SELECT * FROM audit_logs ORDER BY id DESC LIMIT %s OFFSET %s", (per_page, offset))
-    logs = cur.fetchall()
+    # SAFE QUERY: We explicitly select columns so the HTML indices match
+    # 0=Time, 1=Admin, 2=Action, 3=Target, 4=Details, 5=IP
+    cur.execute("""
+        SELECT created_at, admin_email, action, target, details, ip_address 
+        FROM audit_logs 
+        ORDER BY id DESC LIMIT %s OFFSET %s
+    """, (per_page, offset))
     
+    rows = cur.fetchall()
     conn.close()
+
+    # Pre-format date in Python to prevent HTML crashes
+    logs = []
+    for r in rows:
+        # Check if date exists
+        date_str = r[0].strftime('%d-%b %H:%M') if r[0] else "Unknown"
+        logs.append((date_str, r[1], r[2], r[3], r[4], r[5]))
     
     return render_template('admin/audit_logs.html', logs=logs, page=page, total_pages=total_pages)
 

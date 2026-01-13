@@ -65,7 +65,7 @@
         <tbody>
             {% for log in logs %}
             <tr>
-                <td style="width: 15%; font-family: monospace; color: #aaa;">{{ log[5].strftime('%d-%b %H:%M:%S') }}</td>
+                <td style="width: 15%; font-family: monospace; color: #aaa;">{{ log[5] }}</td>
                 <td style="width: 20%"><code style="color: var(--primary-gold);">{{ log[4] }}</code></td>
                 <td>{{ log[2] }}</td>
                 <td style="width: 10%">

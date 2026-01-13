@@ -29,6 +29,7 @@ def job_files(job_id):
     quote_amount = job_row[5] if job_row[5] else 0.0
     
     # 3. THE MASTER UNION QUERY (Merges 5 Sources)
+    # FIX: Changed 't.hours' to 't.total_hours' to match your database
     cur.execute("""
         SELECT 'Client Invoice' as type, ref as name, total_amount as cost, date_created as date, 'Generated' as path, id 
         FROM invoices WHERE job_id = %s
@@ -50,7 +51,7 @@ def job_files(job_id):
 
         UNION ALL
         
-        SELECT 'Timesheet', s.name || ' (' || t.hours || ' hrs)', (t.hours * s.pay_rate), t.date, 'No Link', t.id
+        SELECT 'Timesheet', s.name || ' (' || COALESCE(t.total_hours, 0) || ' hrs)', (COALESCE(t.total_hours, 0) * s.pay_rate), t.date, 'No Link', t.id
         FROM staff_timesheets t
         JOIN staff s ON t.staff_id = s.id
         WHERE t.job_id = %s
@@ -68,11 +69,10 @@ def job_files(job_id):
     profit = revenue_baseline - total_cost
     budget_remaining = quote_amount - total_cost
     
-    # 5. Get Staff List (MOVED UP before closing connection)
+    # 5. Get Staff List
     cur.execute("SELECT id, name FROM staff WHERE company_id = %s ORDER BY name", (session.get('company_id'),))
     staff_list = cur.fetchall()
     
-    # 6. NOW Close the connection
     conn.close()
     
     return render_template('office/job_files.html', 
@@ -94,7 +94,6 @@ def add_manual_cost(job_ref):
     cur = conn.cursor()
     
     try:
-        # Get Job ID from Ref
         cur.execute("SELECT id FROM jobs WHERE ref = %s", (job_ref,))
         res = cur.fetchone()
         if not res: return "Job not found", 404
@@ -103,7 +102,6 @@ def add_manual_cost(job_ref):
         desc = request.form.get('description')
         cost = request.form.get('cost')
         
-        # Insert as an Expense (with 'Manual Entry' as the receipt path)
         cur.execute("""
             INSERT INTO job_expenses (company_id, job_id, description, cost, date, receipt_path)
             VALUES (%s, %s, %s, %s, CURRENT_DATE, 'Manual Entry')
@@ -120,7 +118,7 @@ def add_manual_cost(job_ref):
         
     return redirect(f"/office/job/{job_id}/files")
 
-# --- DELETE ITEM (Updated with Path Fix) ---
+# --- DELETE ITEM ---
 @jobs_bp.route('/office/job/delete-item/<int:item_id>/<path:item_type>')
 def delete_job_item(item_id, item_type):
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -129,7 +127,6 @@ def delete_job_item(item_id, item_type):
     cur = conn.cursor()
     
     try:
-        # Determine which table to delete from
         if 'Invoice' in item_type:
              flash("⚠️ Cannot delete Invoices from here. Go to Finance > Invoices.", "warning")
         elif 'Expense' in item_type or 'Receipt' in item_type or 'Manual' in item_type:
@@ -151,7 +148,7 @@ def delete_job_item(item_id, item_type):
         
     return redirect(request.referrer)
     
-    # --- LOG TIMESHEET (Staff Hours) ---
+# --- LOG TIMESHEET (Staff Hours) ---
 @jobs_bp.route('/office/job/<int:job_id>/log-hours', methods=['POST'])
 def log_hours(job_id):
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -161,13 +158,12 @@ def log_hours(job_id):
     
     try:
         staff_id = request.form.get('staff_id')
-        hours = request.form.get('hours')
+        hours = request.form.get('hours') # Form field name is still 'hours', which is fine
         date_worked = request.form.get('date')
         
-        # Insert into staff_timesheets
-        # Note: We rely on the database knowing the pay_rate from the staff table later
+        # FIX: Writing to 'total_hours' (Correct Database Column)
         cur.execute("""
-            INSERT INTO staff_timesheets (company_id, staff_id, job_id, hours, date, status)
+            INSERT INTO staff_timesheets (company_id, staff_id, job_id, total_hours, date, status)
             VALUES (%s, %s, %s, %s, %s, 'Approved')
         """, (session.get('company_id'), staff_id, job_id, hours, date_worked))
         
@@ -182,9 +178,7 @@ def log_hours(job_id):
         
     return redirect(f"/office/job/{job_id}/files")
     
-    # =========================================================
-#  CREATE MANUAL JOB ("Do & Charge") - ADDED LOGIC
-# =========================================================
+# --- CREATE MANUAL JOB ---
 @jobs_bp.route('/office/job/create', methods=['POST'])
 def create_job():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -194,7 +188,6 @@ def create_job():
     comp_id = session.get('company_id')
     
     try:
-        # 1. Capture Form Data
         client_id = request.form.get('client_id')
         description = request.form.get('description')
         engineer_id = request.form.get('engineer_id') or None
@@ -202,12 +195,10 @@ def create_job():
         vehicle_id = request.form.get('vehicle_id') or None
         est_days = request.form.get('days') or 1
         
-        # 2. Generate Reference (JOB-100X)
         cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id = %s", (comp_id,))
         count = cur.fetchone()[0]
         ref = f"JOB-{1000 + count + 1}"
 
-        # 3. Insert Job (quote_id is NULL for manual jobs)
         cur.execute("""
             INSERT INTO jobs (
                 company_id, client_id, engineer_id, vehicle_id, 
