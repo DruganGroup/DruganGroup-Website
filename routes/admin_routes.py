@@ -733,36 +733,6 @@ def view_audit_logs():
         logs.append((date_str, r[1], r[2], r[3], r[4], r[5]))
     
     return render_template('admin/audit_logs.html', logs=logs, page=page, total_pages=total_pages)
-           
-# --- VIEW: SYSTEM ERROR LOGS (The Missing Route) ---
-@admin_bp.route('/admin/logs/system')
-def view_system_logs():
-    if session.get('role') != 'SuperAdmin': return "Access Denied"
-    
-    conn = get_db()
-    cur = conn.cursor()
-    
-    # Fetch logs
-    cur.execute("SELECT * FROM system_logs ORDER BY id DESC LIMIT 50")
-    rows = cur.fetchall()
-    conn.close()
-    
-    # Safe Format: Ensure the date is handled correctly before sending to HTML
-    logs = []
-    for r in rows:
-        # Check if r[5] (created_at) is a string or datetime object
-        log_date = r[5]
-        if isinstance(log_date, str):
-            formatted_date = log_date 
-        elif hasattr(log_date, 'strftime'):
-            formatted_date = log_date.strftime('%d-%b %H:%M:%S')
-        else:
-            formatted_date = "Unknown Date"
-
-        # Append safe tuple
-        logs.append((r[0], r[1], r[2], r[3], r[4], formatted_date))
-
-    return render_template('admin/system_logs.html', logs=logs)
     
 # --- VIEW: SYSTEM ERROR LOGS ---
 @admin_bp.route('/admin/logs/system')
