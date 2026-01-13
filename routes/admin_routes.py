@@ -764,70 +764,48 @@ def view_system_logs():
 
     return render_template('admin/system_logs.html', logs=logs)
     
+from werkzeug.security import generate_password_hash # <--- MAKE SURE THIS IS INCLUDED
+
 # =========================================================
-#  SMART WIPE: THE FINAL "CLEAN SLATE" FIX
+#  EMERGENCY: CREATE SUPER ADMIN (NO LOGIN REQUIRED)
 # =========================================================
-@admin_bp.route('/admin/smart-wipe-execute')
-def smart_wipe_execute():
-    if session.get('role') != 'SuperAdmin': 
-        return "⛔ Access Denied. SuperAdmin only."
-    
-    my_id = session.get('user_id')
+@admin_bp.route('/public/restore-admin')
+def restore_admin():
+    # NO SECURITY CHECK - This is your rescue key.
     
     conn = get_db()
     cur = conn.cursor()
     
     try:
-        # 1. DETACH SUPER ADMIN FROM COMPANY (Prevents FK errors when deleting company)
-        # We set your company_id to NULL so you survive the wipe
-        cur.execute("UPDATE users SET company_id = NULL WHERE id = %s", (my_id,))
-
-        # 2. WIPE ALL DATA TABLES (Order matters to prevent crashes)
-        # We include 'subscriptions' here to fix the previous error
-        tables = [
-            "subscriptions", "staff_timesheets", "staff_attendance", 
-            "job_expenses", "job_materials", "job_evidence", "invoices", 
-            "quotes", "jobs", "properties", "clients", 
-            "maintenance_logs", "vehicles", "staff", 
-            "materials", "suppliers", "overhead_items", "overhead_categories",
-            "system_logs", "audit_logs", "settings"
-        ]
+        hashed_pw = generate_password_hash('47ST3E9AZ114D') 
         
-        for t in tables:
-            cur.execute(f"TRUNCATE TABLE {t} RESTART IDENTITY CASCADE;")
-
-        # 3. DELETE ALL COMPANIES (Now safe because subscriptions are gone)
-        cur.execute("TRUNCATE TABLE companies RESTART IDENTITY CASCADE;")
-
-        # 4. DELETE ALL OTHER USERS (Keep only you)
-        cur.execute("DELETE FROM users WHERE id != %s", (my_id,))
-
+        # 2. Insert the User
+        cur.execute("""
+            INSERT INTO users (name, email, password, role, company_id) 
+            VALUES ('Super Admin', 'admin@drugangroup.co.uk', %s, 'SuperAdmin', NULL)
+            RETURNING id;
+        """, (hashed_pw,))
+        
+        new_id = cur.fetchone()[0]
         conn.commit()
         
-        # 5. Clear session company_id so you don't get "Company not found" errors
-        session['company_id'] = None
-        
         return f"""
-        <div style="font-family:sans-serif; text-align:center; padding:50px; background-color: #e8f5e9;">
-            <h1 style="color:green;">✅ SUCCESS: SYSTEM FULLY WIPED</h1>
-            <p><strong>The following has been deleted:</strong></p>
+        <div style="text-align:center; padding:50px; font-family:sans-serif;">
+            <h1 style="color:green;">✅ Admin Account Restored</h1>
+            <p>You can now log in with:</p>
             <ul style="display:inline-block; text-align:left;">
-                <li>All Companies & Subscriptions</li>
-                <li>All Jobs, Clients, Staff & Finance Data</li>
-                <li>All Settings & Logos</li>
-                <li>All Users (Except You)</li>
+                <li><strong>Email:</strong> admin@drugangroup.co.uk</li>
+                <li><strong>Password:</strong> admin123</li>
             </ul>
             <br><br>
-            <p><strong>Your Admin Account (ID {my_id}) is safe.</strong></p>
-            <hr>
-            <a href="/register" style="background:#0d6efd; color:white; padding:15px 30px; text-decoration:none; font-weight:bold; border-radius:5px;">
-                Create Your New Company
-            </a>
+            <a href="/login" style="background:#000; color:white; padding:10px 20px; text-decoration:none; border-radius:5px;">Go to Login</a>
+            <br><br>
+            <p style="color:red; font-weight:bold;">⚠️ IMPORTANT: Delete this code block from admin_routes.py after logging in!</p>
         </div>
         """
         
     except Exception as e:
         conn.rollback()
-        return f"<h1>❌ Wipe Failed</h1><pre>{e}</pre>"
+        return f"<h1>❌ Restoration Failed</h1><pre>{e}</pre>"
     finally:
         conn.close()
