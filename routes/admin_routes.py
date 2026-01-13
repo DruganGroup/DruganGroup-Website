@@ -768,7 +768,7 @@ def fix_attendance_table():
     finally:
         conn.close()
         
-        @admin_bp.route('/admin/fix-inventory-tables')
+@admin_bp.route('/admin/fix-inventory-tables')
 def fix_inventory_tables():
     if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
     conn = get_db(); cur = conn.cursor()
