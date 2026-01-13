@@ -866,4 +866,63 @@ def smart_wipe_execute():
         conn.rollback()
         return f"<h1>❌ Wipe Failed</h1><pre>{e}</pre>"
     finally:
+        conn.close()# =========================================================
+#  SMART WIPE: RESET EVERYTHING EXCEPT ME (FIXED)
+# =========================================================
+@admin_bp.route('/admin/smart-wipe-execute')
+def smart_wipe_execute():
+    # 1. Security Check
+    if session.get('role') != 'SuperAdmin': 
+        return "⛔ Access Denied. SuperAdmin only."
+    
+    my_id = session.get('user_id')
+    my_company_id = session.get('company_id')
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 2. DELETE BUSINESS DATA
+        # Added 'subscriptions' to this list so it doesn't block the wipe
+        business_tables = [
+            "subscriptions",  # <--- ADDED THIS TO FIX THE ERROR
+            "staff", "clients", "properties", "jobs", "quotes", "invoices", 
+            "vehicles", "maintenance_logs", "job_expenses", "job_materials", 
+            "job_evidence", "staff_timesheets", "staff_attendance", 
+            "suppliers", "materials", "overhead_items", "overhead_categories",
+            "system_logs", "audit_logs"
+        ]
+        
+        for table in business_tables:
+            # We use IF EXISTS just in case a table is missing
+            cur.execute(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE;")
+            
+        # 3. DELETE SETTINGS (Resets Logo & Brand Color)
+        cur.execute("TRUNCATE TABLE settings RESTART IDENTITY CASCADE;")
+
+        # 4. DELETE OTHER USERS (Keep YOU)
+        cur.execute("DELETE FROM users WHERE id != %s", (my_id,))
+        
+        # 5. DELETE OTHER COMPANIES (Keep YOURS)
+        if my_company_id:
+             cur.execute("DELETE FROM companies WHERE id != %s", (my_company_id,))
+
+        conn.commit()
+        
+        return f"""
+        <div style="font-family:sans-serif; text-align:center; padding:50px; background-color: #fff0f0;">
+            <h1 style="color:red;">✅ Server Wiped (Safe Mode)</h1>
+            <p><strong>Success!</strong> All business data, settings, and other users have been deleted.</p>
+            <p><strong>Your Super Admin account (ID {my_id}) was SAVED.</strong></p>
+            <hr>
+            <a href="/super-admin" style="background:#333; color:white; padding:15px 30px; text-decoration:none; font-weight:bold; border-radius:5px;">
+                Return to Dashboard
+            </a>
+        </div>
+        """
+        
+    except Exception as e:
+        conn.rollback()
+        return f"<h1>❌ Wipe Failed</h1><pre>{e}</pre>"
+    finally:
         conn.close()
