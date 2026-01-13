@@ -733,73 +733,7 @@ def view_audit_logs():
         logs.append((date_str, r[1], r[2], r[3], r[4], r[5]))
     
     return render_template('admin/audit_logs.html', logs=logs, page=page, total_pages=total_pages)
-    
-    # =========================================================
-#  FIX MISSING ATTENDANCE TABLE (Run Once)
-# =========================================================
-@admin_bp.route('/admin/fix-attendance-table')
-def fix_attendance_table():
-    if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
-    
-    conn = get_db()
-    cur = conn.cursor()
-    
-    try:
-        # Create the missing table
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS staff_attendance (
-                id SERIAL PRIMARY KEY,
-                company_id INTEGER,
-                staff_id INTEGER,
-                date DATE DEFAULT CURRENT_DATE,
-                clock_in TIMESTAMP,
-                clock_out TIMESTAMP,
-                total_hours NUMERIC(5,2),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
-        
-        conn.commit()
-        return "<h1>✅ Success: 'staff_attendance' table created.</h1><p>The Site Hub should now load correctly.</p>"
-        
-    except Exception as e:
-        conn.rollback()
-        return f"<h1>❌ Error</h1><pre>{e}</pre>"
-    finally:
-        conn.close()
-        
-@admin_bp.route('/admin/fix-inventory-tables')
-def fix_inventory_tables():
-    if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
-    conn = get_db(); cur = conn.cursor()
-    try:
-        # Create Suppliers
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS suppliers (
-                id SERIAL PRIMARY KEY,
-                company_id INTEGER,
-                name VARCHAR(100)
-            );
-        """)
-        # Create Materials Inventory (Stock)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS materials (
-                id SERIAL PRIMARY KEY,
-                company_id INTEGER,
-                supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL,
-                sku VARCHAR(50),
-                name VARCHAR(200),
-                category VARCHAR(100),
-                unit VARCHAR(20),
-                cost_price DECIMAL(10,2) DEFAULT 0.00
-            );
-        """)
-        conn.commit()
-        return "<h1>✅ Inventory Tables Created</h1>"
-    except Exception as e:
-        conn.rollback(); return f"❌ Error: {e}"
-    finally: conn.close()
-
+           
 # --- VIEW: SYSTEM ERROR LOGS (The Missing Route) ---
 @admin_bp.route('/admin/logs/system')
 def view_system_logs():
@@ -829,3 +763,45 @@ def view_system_logs():
         logs.append((r[0], r[1], r[2], r[3], r[4], formatted_date))
 
     return render_template('admin/system_logs.html', logs=logs)
+    
+    # =========================================================
+#  SITE APP PATCH (Fixes "Complete Job" & "Fuel" Crashes)
+# =========================================================
+@admin_bp.route('/admin/fix-site-schema')
+def fix_site_schema():
+    if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Fix Vehicles (For Fuel Log)
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS mileage INTEGER DEFAULT 0;")
+        
+        # 2. Fix Jobs (For Job Completion Modal)
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS work_summary TEXT;")
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS private_notes TEXT;")
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS sub_contractor_cost NUMERIC(10,2) DEFAULT 0;")
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS end_date TIMESTAMP;")
+        
+        # 3. Fix Maintenance Logs (For Fuel Receipts)
+        cur.execute("ALTER TABLE maintenance_logs ADD COLUMN IF NOT EXISTS litres NUMERIC(10,2);")
+        cur.execute("ALTER TABLE maintenance_logs ADD COLUMN IF NOT EXISTS fuel_type VARCHAR(50);")
+
+        conn.commit()
+        return """
+        <div style="font-family:sans-serif; text-align:center; padding:50px;">
+            <h1 style="color:green;">✅ Site App Database Patched</h1>
+            <p>Added 'mileage' to Vehicles.</p>
+            <p>Added 'work_summary', 'private_notes', and 'sub_contractor_cost' to Jobs.</p>
+            <p><strong>You can now use the Site App without 500 Errors.</strong></p>
+            <br>
+            <a href="/site-hub" style="background:#333; color:white; padding:10px 20px; text-decoration:none;">Go to Site Hub</a>
+        </div>
+        """
+        
+    except Exception as e:
+        conn.rollback()
+        return f"<h1>❌ Error</h1><pre>{e}</pre>"
+    finally:
+        conn.close()
