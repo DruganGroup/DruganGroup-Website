@@ -765,130 +765,35 @@ def view_system_logs():
     return render_template('admin/system_logs.html', logs=logs)
     
 # =========================================================
-#  THE "MEGA FIX" - SYNCHRONIZE EVERYTHING (Run Once)
+#  CALENDAR FIX: Add 'vehicle_id' to Jobs
 # =========================================================
-@admin_bp.route('/admin/mega-db-fix')
-def mega_db_fix():
+@admin_bp.route('/admin/fix-calendar-schema')
+def fix_calendar_schema():
     if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
     
     conn = get_db()
     cur = conn.cursor()
-    log = []
     
     try:
-        # 1. FIX TIMESHEETS (The cause of your current 500 Error)
-        cur.execute("ALTER TABLE staff_timesheets ADD COLUMN IF NOT EXISTS job_id INTEGER;")
-        cur.execute("ALTER TABLE staff_timesheets ADD COLUMN IF NOT EXISTS total_hours NUMERIC(5,2);")
-        log.append("✅ Timesheets: Added 'job_id' and 'total_hours'")
-
-        # 2. FIX VEHICLES (For Fuel Log)
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS mileage INTEGER DEFAULT 0;")
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_notes TEXT;")
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS defect_image_url TEXT;")
-        log.append("✅ Vehicles: Added 'mileage' and defect columns")
-
-        # 3. FIX JOBS (For Site App Completion & Signatures)
-        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS work_summary TEXT;")
-        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS private_notes TEXT;")
-        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS sub_contractor_cost NUMERIC(10,2) DEFAULT 0;")
-        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS end_date TIMESTAMP;")
-        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS client_signature TEXT;")
-        log.append("✅ Jobs: Added summary, notes, costs, and signature columns")
-
-        # 4. FIX QUOTES (For New Quote Form)
-        cur.execute("ALTER TABLE quotes ADD COLUMN IF NOT EXISTS job_title TEXT;")
-        cur.execute("ALTER TABLE quotes ADD COLUMN IF NOT EXISTS job_description TEXT;")
-        cur.execute("ALTER TABLE quotes ADD COLUMN IF NOT EXISTS estimated_days NUMERIC(5,1) DEFAULT 1.0;")
-        cur.execute("ALTER TABLE quotes ADD COLUMN IF NOT EXISTS preferred_vehicle_id INTEGER;")
-        log.append("✅ Quotes: Added title, scope, and vehicle preference")
-
-        # 5. FIX MAINTENANCE LOGS (For Receipts)
-        cur.execute("ALTER TABLE maintenance_logs ADD COLUMN IF NOT EXISTS litres NUMERIC(10,2);")
-        cur.execute("ALTER TABLE maintenance_logs ADD COLUMN IF NOT EXISTS fuel_type VARCHAR(50);")
-        log.append("✅ Maintenance: Added fuel tracking columns")
-
-        # 6. FIX STAFF ATTENDANCE (If missed earlier)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS staff_attendance (
-                id SERIAL PRIMARY KEY, company_id INTEGER, staff_id INTEGER,
-                date DATE DEFAULT CURRENT_DATE, clock_in TIMESTAMP, clock_out TIMESTAMP,
-                total_hours NUMERIC(5,2), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
-        log.append("✅ Attendance: Table verified")
-
-        conn.commit()
+        # 1. Add vehicle_id to Jobs (Links Van to Job)
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS vehicle_id INTEGER;")
         
-        return f"""
+        # 2. Add engineer_id to Jobs (Links Lead Engineer to Job) - Just in case
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS engineer_id INTEGER;")
+        
+        conn.commit()
+        return """
         <div style="font-family:sans-serif; text-align:center; padding:50px;">
-            <h1 style="color:green;">✅ Database Fully Synchronized</h1>
-            <ul style="list-style:none; padding:0; line-height:2;">
-                {''.join(f'<li>{item}</li>' for item in log)}
-            </ul>
+            <h1 style="color:green;">✅ Calendar Fixed</h1>
+            <p>Added 'vehicle_id' and 'engineer_id' to the Jobs table.</p>
+            <p><strong>The Schedule Page will now load correctly.</strong></p>
             <br>
-            <a href="/site-hub" style="background:#333; color:white; padding:15px 30px; text-decoration:none; font-weight:bold; border-radius:5px;">
-                Open Site Hub
-            </a>
+            <a href="/office/calendar" style="background:#333; color:white; padding:10px 20px; text-decoration:none;">Open Calendar</a>
         </div>
         """
         
     except Exception as e:
         conn.rollback()
         return f"<h1>❌ Fix Failed</h1><pre>{e}</pre>"
-    finally:
-        conn.close()
-        
-        # =========================================================
-#  HR & FINANCE POLISH PATCH
-# =========================================================
-@admin_bp.route('/admin/fix-hr-finance-schema')
-def fix_hr_finance_schema():
-    if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
-    
-    conn = get_db()
-    cur = conn.cursor()
-    
-    try:
-        # 1. Upgrade Staff Table (For HR Form)
-        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS dept TEXT;")
-        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS tax_id TEXT;")
-        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS employment_type TEXT DEFAULT 'Full Time';")
-        
-        # 2. Upgrade Materials Table (For CSV Import)
-        # Ensure the table exists first
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS materials (
-                id SERIAL PRIMARY KEY,
-                company_id INTEGER,
-                supplier_id INTEGER,
-                name VARCHAR(200),
-                cost_price DECIMAL(10,2) DEFAULT 0.00
-            );
-        """)
-        # Add columns if they were missing from the create
-        cur.execute("ALTER TABLE materials ADD COLUMN IF NOT EXISTS sku VARCHAR(50);")
-        cur.execute("ALTER TABLE materials ADD COLUMN IF NOT EXISTS category VARCHAR(100);")
-        cur.execute("ALTER TABLE materials ADD COLUMN IF NOT EXISTS unit VARCHAR(20);")
-        
-        # 3. Upgrade Overheads (For Receipt Filing)
-        cur.execute("ALTER TABLE overhead_items ADD COLUMN IF NOT EXISTS receipt_path TEXT;")
-        cur.execute("ALTER TABLE overhead_items ADD COLUMN IF NOT EXISTS date_incurred DATE DEFAULT CURRENT_DATE;")
-
-        conn.commit()
-        return """
-        <div style="font-family:sans-serif; text-align:center; padding:50px;">
-            <h1 style="color:green;">✅ HR & Finance Database Patched</h1>
-            <p>Added 'Dept', 'Tax ID', and 'Employment Type' to Staff.</p>
-            <p>Added 'SKU', 'Category', and 'Unit' to Materials.</p>
-            <p>Added 'Receipt Path' to Overheads.</p>
-            <p><strong>Your HR and Bookkeeping systems are now fully supported.</strong></p>
-            <br>
-            <a href="/finance-dashboard" style="background:#333; color:white; padding:10px 20px; text-decoration:none;">Return to Finance</a>
-        </div>
-        """
-        
-    except Exception as e:
-        conn.rollback()
-        return f"<h1>❌ Error</h1><pre>{e}</pre>"
     finally:
         conn.close()
