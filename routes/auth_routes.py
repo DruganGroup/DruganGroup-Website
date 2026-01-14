@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash
 from db import get_db
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from email_service import send_company_email
 
 auth_bp = Blueprint('auth', __name__)
@@ -18,8 +18,7 @@ def login():
         conn = get_db()
         cur = conn.cursor()
         
-        # 1. FETCH USER (The Fix: Search by EMAIL, not Username)
-        # We search WHERE email = %s instead of username = %s
+        # 1. FETCH USER (Your custom Email Search Logic)
         cur.execute("""
             SELECT u.id, u.name, u.password_hash, u.role, u.company_id, s.id, s.name 
             FROM users u 
@@ -38,7 +37,6 @@ def login():
             real_name = user[6]
 
             # --- AUTO-CREATE STAFF IF MISSING ---
-            # We skip this for SuperAdmin because SuperAdmins don't belong to a specific company/staff list
             if not staff_id and role != 'SuperAdmin': 
                 try:
                     cur.execute("""
@@ -62,8 +60,6 @@ def login():
             session['user_email'] = email 
             session['role'] = role
             session['company_id'] = comp_id
-            
-            # Use real name from staff if available, otherwise account name
             session['user_name'] = real_name if real_name else name
             
             # SPECIAL HANDLE: SuperAdmin goes straight to dashboard
@@ -93,13 +89,13 @@ def main_launcher():
         session['company_name'] = "Business Better HQ"
         return redirect(url_for('admin.super_admin_dashboard'))
 
-    # 3. FETCH USER PROFILE DATA (For the new modal)
+    # 3. FETCH USER PROFILE DATA
     conn = get_db()
     cur = conn.cursor()
     
-    # We try to find the staff record linked to the logged-in user's email
+    # --- UPDATED QUERY: Pulls the new NOK columns ---
     cur.execute("""
-        SELECT phone, address, next_of_kin_name, next_of_kin_phone 
+        SELECT phone, address, nok_name, nok_phone, nok_relationship, nok_address 
         FROM staff 
         WHERE email = %s AND company_id = %s
     """, (session.get('user_email'), session.get('company_id')))
@@ -107,15 +103,17 @@ def main_launcher():
     row = cur.fetchone()
     conn.close()
     
-    # Create a safe dictionary (handles missing data gracefully)
+    # Create a safe dictionary
     my_profile = {
         'phone': row[0] if row else '',
         'address': row[1] if row else '',
         'nok_name': row[2] if row else '',
-        'nok_phone': row[3] if row else ''
+        'nok_phone': row[3] if row else '',
+        'nok_relationship': row[4] if row else '',
+        'nok_address': row[5] if row else ''
     }
 
-    # 4. RENDER TEMPLATE WITH PROFILE DATA
+    # 4. RENDER TEMPLATE
     return render_template('main_launcher.html', 
                            role=session.get('role'), 
                            my_profile=my_profile)
@@ -128,25 +126,27 @@ def update_profile():
     cur = conn.cursor()
     
     try:
-        # Auto-Upgrade: Ensure columns exist (Runs only once if needed)
-        try:
-            cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS next_of_kin_name TEXT")
-            cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS next_of_kin_phone TEXT")
-            conn.commit()
-        except:
-            conn.rollback() # Columns likely exist already
-
-        # Update the staff record
+        # --- UPDATED SAVE LOGIC ---
+        # Note: I removed the auto "ALTER TABLE" block here because 
+        # we ran the /fix-nok-columns script separately. It is safer this way.
+        
         cur.execute("""
             UPDATE staff 
-            SET phone = %s, address = %s, next_of_kin_name = %s, next_of_kin_phone = %s
+            SET phone = %s, 
+                address = %s, 
+                nok_name = %s, 
+                nok_phone = %s,
+                nok_relationship = %s, 
+                nok_address = %s
             WHERE email = %s AND company_id = %s
         """, (
             request.form.get('phone'),
             request.form.get('address'),
             request.form.get('nok_name'),
             request.form.get('nok_phone'),
-            session.get('user_email'), # Ensure your session sets this on login!
+            request.form.get('nok_relationship'),
+            request.form.get('nok_address'),
+            session.get('user_email'), 
             session.get('company_id')
         ))
         
@@ -168,19 +168,18 @@ def logout():
     flash("🔒 You have been logged out securely.")
     return redirect(url_for('auth.login'))
     
-    # --- 4. SYSTEM: TEST EMAIL CONNECTION ---
+# --- 4. SYSTEM: TEST EMAIL CONNECTION ---
 @auth_bp.route('/auth/email/test')
 def test_email_connection():
-    # 1. Security Check (Only Admin/Finance can test this)
+    # 1. Security Check
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']:
         flash("❌ Access Denied", "error")
         return redirect(url_for('finance.settings_general'))
     
     comp_id = session.get('company_id')
-    user_email = session.get('user_email') # Send the test to the logged-in user
+    user_email = session.get('user_email') 
     
     # 2. Trigger the Email Service
-    # We pass the company_id so the service looks up the SMTP details from the DB
     success, msg = send_company_email(
         comp_id,
         user_email,
@@ -199,11 +198,8 @@ def test_email_connection():
     else:
         flash(f"❌ Connection Failed: {msg}", "error")
         
-    # Redirect back to the Settings Page
     return redirect(url_for('finance.settings_general'))
     
-    from werkzeug.security import check_password_hash, generate_password_hash
-
 @auth_bp.route('/auth/change-password', methods=['POST'])
 def change_password():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
