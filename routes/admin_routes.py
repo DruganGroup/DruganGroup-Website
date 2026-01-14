@@ -9,7 +9,7 @@ from datetime import datetime, date, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, send_from_directory
-from db import get_db
+from db import get_db, get_site_config
 from werkzeug.security import generate_password_hash
 
 admin_bp = Blueprint('admin', __name__)
@@ -690,7 +690,12 @@ def debug_logo():
     if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
     
     comp_id = session.get('company_id')
-    config = get_site_config(comp_id)
+    
+    # This was likely the cause of the 500 error (missing import)
+    try:
+        config = get_site_config(comp_id)
+    except NameError:
+        return "❌ Error: 'get_site_config' is not imported in admin_routes.py. Please add it to the imports from db."
     
     # 1. What does the Database say?
     db_logo_path = config.get('logo')
