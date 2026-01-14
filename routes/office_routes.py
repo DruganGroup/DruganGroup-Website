@@ -334,14 +334,19 @@ def get_calendar_data():
 @office_bp.route('/office/calendar/reschedule-job', methods=['POST'])
 def reschedule_job():
     if not check_office_access(): return jsonify({'status': 'error'}), 403
+    
     data = request.json
     conn = get_db(); cur = conn.cursor()
     try:
-        # Just move the date
+        # THE FIX: We add ", status = 'Scheduled'" to the query.
+        # This ensures that dragging a job from the sidebar (or moving it) 
+        # instantly marks it as Scheduled in the database.
         cur.execute("""
-            UPDATE jobs SET start_date = %s 
+            UPDATE jobs 
+            SET start_date = %s, status = 'Scheduled' 
             WHERE id = %s AND company_id = %s
         """, (data['date'], data['job_id'], session.get('company_id')))
+        
         conn.commit()
         return jsonify({'status': 'success'})
     except Exception as e:

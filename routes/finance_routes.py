@@ -888,7 +888,7 @@ def setup_invoice_templates():
         return f"❌ Migration Error: {e}"
     finally:
         conn.close()
-        # --- EMAIL INVOICE TO CLIENT ---
+
 @finance_bp.route('/finance/invoice/<int:invoice_id>/email')
 def email_invoice(invoice_id):
     # 1. Security Check
@@ -908,6 +908,8 @@ def email_invoice(invoice_id):
         WHERE i.id = %s AND i.company_id = %s
     """, (invoice_id, company_id))
     
+    inv = cur.fetchone()
+    
     if not inv:
         conn.close()
         flash("❌ Invoice not found.", "error")
@@ -925,29 +927,26 @@ def email_invoice(invoice_id):
         flash("⚠️ Cannot Email: SMTP settings missing. Go to Settings > General.", "warning")
         return redirect(url_for('finance.finance_invoices'))
 
-    # 4. Generate the PDF (Server-side)
-    # Fetch Items
+    # 4. Generate the PDF
     cur.execute("SELECT description, quantity, unit_price, total FROM invoice_items WHERE invoice_id = %s", (invoice_id,))
     items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
     
-    # Calculate Tax/Net Logic (Reusing your PDF logic)
+    # Calculate Tax
     total_val = float(inv[3]) if inv[3] else 0.0
-    
-    # Check VAT Status
-    is_vat_registered = settings.get('vat_registered', settings.get('tax_enabled', '0'))
-    country_code = settings.get('country', 'GB').upper()
-    
-    # Simple lookup for tax rate (matches pdf_routes)
-    TAX_RATES = {'GB': 20.0, 'ES': 21.0, 'FR': 20.0, 'DE': 19.0, 'IE': 23.0, 'US': 0.0}
-    
-    if str(is_vat_registered).lower() in ['1', 'true', 'yes', 'on']:
-        tax_rate = TAX_RATES.get(country_code, 20.0)
-    else:
-        tax_rate = 0.0
-
+    is_vat = settings.get('vat_registered', 'no')
+    tax_rate = 20.0 if str(is_vat).lower() in ['1', 'true', 'yes', 'on'] else 0.0
     divisor = 1 + (tax_rate / 100)
     subtotal = total_val / divisor if divisor > 1 else total_val
     tax = total_val - subtotal
+
+    # --- WHITE LABEL LOGO FIX ---
+    # 1. Get the config for THIS specific company
+    config = get_site_config(company_id)
+    
+    # 2. Convert the relative path (/static/uploads/5/logo.png) 
+    #    to an Absolute URL (https://site.com/static/uploads/5/logo.png)
+    if config.get('logo') and config['logo'].startswith('/'):
+        config['logo'] = f"{request.url_root.rstrip('/')}{config['logo']}"
 
     context = {
         'invoice': {
@@ -957,13 +956,14 @@ def email_invoice(invoice_id):
             'tax_rate_display': tax_rate, 'currency_symbol': settings.get('currency_symbol', '£')
         },
         'company': {'name': session.get('company_name')},
-        'items': items, 'settings': settings, 'config': get_site_config(company_id)
+        'items': items, 
+        'settings': settings, 
+        'config': config  # <--- Passes the correct logo for THIS company
     }
 
     filename = f"Invoice_{invoice_ref}.pdf"
     
     try:
-        # Generate file path
         pdf_path = generate_pdf('office/pdf_quote.html', context, filename)
         
         # 5. Send Email
@@ -975,20 +975,17 @@ def email_invoice(invoice_id):
         body = f"Dear {inv[5]},\n\nPlease find attached invoice {invoice_ref}.\n\nTotal Due: {settings.get('currency_symbol','£')}{total_val:.2f}\n\nKind regards,\n{session.get('company_name')}"
         msg.attach(MIMEText(body, 'plain'))
         
-        # Attach PDF
         with open(pdf_path, "rb") as f:
             part = MIMEApplication(f.read(), Name=filename)
             part['Content-Disposition'] = f'attachment; filename="{filename}"'
             msg.attach(part)
 
-        # Connect to SMTP Server
         server = smtplib.SMTP(settings['smtp_host'], int(settings.get('smtp_port', 587)))
         server.starttls()
         server.login(settings['smtp_email'], settings['smtp_password'])
         server.send_message(msg)
         server.quit()
         
-        # 6. Update Status to 'Sent'
         cur.execute("UPDATE invoices SET status = 'Sent' WHERE id = %s", (invoice_id,))
         conn.commit()
         

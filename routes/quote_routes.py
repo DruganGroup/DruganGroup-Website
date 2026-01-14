@@ -286,18 +286,20 @@ def convert_to_job(quote_id):
         conn.close()
         
 # =========================================================
-# 4. EMAIL QUOTE (Sends Title/Desc to PDF with Correct Date)
+# 4. EMAIL QUOTE (Fixed: Logo & Absolute URLs)
 # =========================================================
 @quote_bp.route('/office/quote/<int:quote_id>/email')
 def email_quote(quote_id):
-    if not check_access(): return redirect(url_for('auth.login'))
+    # 1. Security Check
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']:
+        return redirect(url_for('auth.login'))
     
     company_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
     
-    # FETCH Title and Description here too
+    # 2. Fetch Quote & Client Data
     cur.execute("""
-        SELECT q.reference, c.name, c.email, q.job_title, q.job_description
+        SELECT q.reference, c.name, c.email, q.job_title, q.job_description, q.date, q.total
         FROM quotes q JOIN clients c ON q.client_id = c.id
         WHERE q.id = %s AND q.company_id = %s
     """, (quote_id, company_id))
@@ -307,8 +309,9 @@ def email_quote(quote_id):
         conn.close(); flash("❌ Client has no email address.", "error")
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
 
-    ref, client_name, client_email, title, desc = q[0], q[1], q[2], q[3], q[4]
+    ref, client_name, client_email, title, desc, q_date, total_val = q[0], q[1], q[2], q[3], q[4], q[5], float(q[6] or 0)
 
+    # 3. Fetch Settings
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     
@@ -316,39 +319,57 @@ def email_quote(quote_id):
         conn.close(); flash("⚠️ SMTP Settings missing.", "warning")
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
 
+    # 4. Fetch Items
     cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
     items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
     
-    # --- THIS IS THE NEW PART YOU ASKED ABOUT ---
-    # Determine Country for Date Formatting
+    # 5. Prepare Config & Fix Logo (The Missing Piece!)
+    config = get_site_config(company_id)
+    
+    # FORCE ABSOLUTE URL FOR LOGO (Crucial for Email)
+    if config.get('logo') and config['logo'].startswith('/'):
+        # Converts "/static/..." to "https://your-site.com/static/..."
+        config['logo'] = f"{request.url_root.rstrip('/')}{config['logo']}"
+
+    # 6. Determine Date Format
     country = settings.get('country_code', 'UK')
     date_fmt = '%m/%d/%Y' if country == 'US' else '%d/%m/%Y'
-    formatted_date = datetime.now().strftime(date_fmt)
+    
+    # Use real quote date if available, otherwise today
+    formatted_date = q_date.strftime(date_fmt) if q_date else datetime.now().strftime(date_fmt)
 
-    # PASS Title/Desc to PDF Context
+    # 7. Build PDF Context
     context = {
         'invoice': {
             'ref': ref, 
-            'date': formatted_date, # <--- FORMATTED
-            'job_title': title,         
-            'job_description': desc     
+            'date': formatted_date,
+            'job_title': title,          
+            'job_description': desc,
+            'total': total_val,
+            # Add simple subtotal/tax logic for display
+            'subtotal': total_val, # Simplified for quote
+            'tax': 0.0,
+            'currency_symbol': settings.get('currency_symbol', '£')
         }, 
         'items': items, 
         'settings': settings, 
+        'config': config,  # <--- Now includes the fixed logo URL
         'is_quote': True
     }
-    # --- END NEW PART ---
 
     filename = f"Quote_{ref}.pdf"
     
     try:
         pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
         
+        # 8. Send Email
         msg = MIMEMultipart()
         msg['From'] = settings.get('smtp_email')
         msg['To'] = client_email
         msg['Subject'] = f"Quote {ref} - {title or 'Proposal'}"
-        msg.attach(MIMEText(f"Dear {client_name},\n\nPlease find attached the quote for {title}.\n\nKind regards,", 'plain'))
+        
+        body = f"Dear {client_name},\n\nPlease find attached the quote for {title}.\n\nTotal: {settings.get('currency_symbol','£')}{total_val:.2f}\n\nKind regards,\n{session.get('company_name')}"
+        msg.attach(MIMEText(body, 'plain'))
         
         with open(pdf_path, "rb") as f:
             part = MIMEApplication(f.read(), Name=filename)
@@ -362,53 +383,8 @@ def email_quote(quote_id):
         server.quit()
         
         cur.execute("UPDATE quotes SET status = 'Sent' WHERE id = %s", (quote_id,))
-        conn.commit(); flash(f"✅ Quote emailed to {client_email}!", "success")
-
-    except Exception as e:
-        flash(f"❌ Email failed: {e}", "error")
-    
-    conn.close()
-    return redirect(url_for('quote.view_quote', quote_id=quote_id))
-    
-    cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
-    items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
-    
-    # PASS Title/Desc to PDF Context
-    context = {
-        'invoice': {
-            'ref': ref, 
-            'date': datetime.now(),
-            'job_title': title,         
-            'job_description': desc     
-        }, 
-        'items': items, 
-        'settings': settings, 
-        'is_quote': True
-    }
-    filename = f"Quote_{ref}.pdf"
-    
-    try:
-        pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
-        
-        msg = MIMEMultipart()
-        msg['From'] = settings.get('smtp_email')
-        msg['To'] = client_email
-        msg['Subject'] = f"Quote {ref} - {title or 'Proposal'}"
-        msg.attach(MIMEText(f"Dear {client_name},\n\nPlease find attached the quote for {title}.\n\nKind regards,", 'plain'))
-        
-        with open(pdf_path, "rb") as f:
-            part = MIMEApplication(f.read(), Name=filename)
-            part['Content-Disposition'] = f'attachment; filename="{filename}"'
-            msg.attach(part)
-
-        server = smtplib.SMTP(settings['smtp_host'], int(settings.get('smtp_port', 587)))
-        server.starttls()
-        server.login(settings['smtp_email'], settings['smtp_password'])
-        server.send_message(msg)
-        server.quit()
-        
-        cur.execute("UPDATE quotes SET status = 'Sent' WHERE id = %s", (quote_id,))
-        conn.commit(); flash(f"✅ Quote emailed to {client_email}!", "success")
+        conn.commit()
+        flash(f"✅ Quote emailed to {client_email}!", "success")
 
     except Exception as e:
         flash(f"❌ Email failed: {e}", "error")
