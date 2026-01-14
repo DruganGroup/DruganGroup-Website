@@ -764,34 +764,41 @@ def view_system_logs():
 
     return render_template('admin/system_logs.html', logs=logs)
     
+    # =========================================================
+#  EMERGENCY MAGIC LOGIN (Bypass Password Entirely)
 # =========================================================
-#  PASTE THIS RIGHT AFTER "admin_bp = Blueprint(...)"
-# =========================================================
-@admin_bp.route('/public/restore-admin')
-def restore_admin():
-    from werkzeug.security import generate_password_hash 
+@admin_bp.route('/public/force-login')
+def force_login():
     conn = get_db(); cur = conn.cursor()
-    try:
-        # 1. EXPAND COLUMN SIZE (Fixes the "Password Cutoff" bug)
-        cur.execute("ALTER TABLE users ALTER COLUMN password_hash TYPE VARCHAR(255);")
-        
-        # 2. Check if user exists
-        cur.execute("SELECT id FROM users WHERE email = 'admin@drugangroup.co.uk'")
-        exists = cur.fetchone()
-        
-        # 3. Hash Simple Password ('admin123')
+    
+    # 1. Ensure the User Exists
+    cur.execute("SELECT id, name, role, company_id FROM users WHERE email = 'admin@drugangroup.co.uk'")
+    user = cur.fetchone()
+    
+    # If not found, create them instantly with a dummy password
+    if not user:
+        from werkzeug.security import generate_password_hash 
         pw = generate_password_hash('admin123')
-        
-        if exists:
-            cur.execute("UPDATE users SET password_hash = %s, role = 'SuperAdmin', company_id = NULL WHERE id = %s", (pw, exists[0]))
-        else:
-            cur.execute("INSERT INTO users (name, email, password_hash, role, company_id) VALUES ('Super Admin', 'admin@drugangroup.co.uk', %s, 'SuperAdmin', NULL)", (pw,))
-            
+        cur.execute("""
+            INSERT INTO users (name, email, password_hash, role, company_id) 
+            VALUES ('Super Admin', 'admin@drugangroup.co.uk', %s, 'SuperAdmin', NULL)
+            RETURNING id, name, role, company_id
+        """, (pw,))
+        user = cur.fetchone()
         conn.commit()
-        return "<h1>✅ Success: Log in with admin@drugangroup.co.uk / admin123</h1>"
-    except Exception as e:
-        conn.rollback()
-        return f"<h1>Error: {e}</h1>"
-    finally:
-        conn.close()
+    
+    conn.close()
+
+    # 2. FORCE THE SESSION (The "Magic" Part)
+    # We manually inject the login cookies into your browser
+    session.clear()
+    session['user_id'] = user[0]
+    session['user_name'] = user[1]
+    session['user_email'] = 'admin@drugangroup.co.uk'
+    session['role'] = user[2]  # Should be 'SuperAdmin'
+    session['company_id'] = user[3]
+    session['logged_in'] = True
+    
+    # 3. Redirect straight to Dashboard
+    return redirect('/super-admin')
 # =========================================================
