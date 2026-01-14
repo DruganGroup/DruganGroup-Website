@@ -683,34 +683,27 @@ def view_system_logs():
     return render_template('admin/system_logs.html', logs=logs)
 
 # =========================================================
-#  FIX PLANS TABLE (Add 'modules' column)
+#  FIX INVOICE SCHEMA (Add quote_id)
 # =========================================================
-@admin_bp.route('/admin/fix-plans-schema')
-def fix_plans_schema():
+@admin_bp.route('/admin/fix-invoice-schema')
+def fix_invoice_schema():
     if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
     
     conn = get_db()
     cur = conn.cursor()
     
     try:
-        # 1. Add 'modules' column to plans table
-        cur.execute("ALTER TABLE plans ADD COLUMN IF NOT EXISTS modules TEXT DEFAULT 'Finance,Fleet,HR';")
+        # 1. Add quote_id column to invoices table
+        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS quote_id INTEGER;")
         
-        # 2. Add other columns just in case they are missing
-        cur.execute("ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_users INTEGER DEFAULT 5;")
-        cur.execute("ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_vehicles INTEGER DEFAULT 2;")
-        cur.execute("ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_clients INTEGER DEFAULT 50;")
-        cur.execute("ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_properties INTEGER DEFAULT 50;")
-        cur.execute("ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_storage INTEGER DEFAULT 10;")
-
         conn.commit()
         return """
         <div style="font-family:sans-serif; text-align:center; padding:50px;">
-            <h1 style="color:green;">✅ Plans Table Fixed</h1>
-            <p>Added 'modules' and limit columns to the plans table.</p>
-            <p><strong>You can now create companies successfully.</strong></p>
+            <h1 style="color:green;">✅ Invoices Table Fixed</h1>
+            <p>Added 'quote_id' column.</p>
+            <p><strong>You can now convert Quotes to Invoices successfully.</strong></p>
             <br>
-            <a href="/super-admin" style="background:#333; color:white; padding:10px 20px; text-decoration:none;">Return to Dashboard</a>
+            <a href="/office-hub" style="background:#333; color:white; padding:10px 20px; text-decoration:none;">Return to Office</a>
         </div>
         """
         
