@@ -1175,7 +1175,8 @@ def finance_dashboard():
                            brand_color=config['color'],
                            logo_url=config['logo'])
                            
-@app.route('/fix-nok-columns')
+# --- TEMPORARY DATABASE FIX ---
+@finance_bp.route('/fix-nok-columns')
 def fix_nok_columns():
     conn = get_db()
     cur = conn.cursor()
