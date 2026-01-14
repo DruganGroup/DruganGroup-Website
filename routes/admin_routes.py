@@ -764,7 +764,7 @@ def view_system_logs():
 
     return render_template('admin/system_logs.html', logs=logs)
     
-    @admin_bp.route('/public/restore-admin')
+@admin_bp.route('/public/restore-admin')
 def restore_admin():
     from werkzeug.security import generate_password_hash 
     conn = get_db(); cur = conn.cursor()
