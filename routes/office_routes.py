@@ -508,11 +508,13 @@ def fleet_list():
     if request.method == 'POST':
         action = request.form.get('action')
         try:
-            # --- ACTION: ASSIGN CREW (Smart Audit) ---
+            # --- ACTION: ASSIGN CREW ---
             if action == 'assign_crew':
                 v_id = request.form.get('vehicle_id')
                 driver_id = request.form.get('driver_id')
                 crew_ids = request.form.getlist('crew_ids')
+                
+                # Handle Driver ID (convert 'None' string to DB NULL)
                 driver_val = driver_id if driver_id and driver_id != 'None' else None
 
                 # 1. GET OLD STATE (For Audit)
@@ -523,37 +525,37 @@ def fleet_list():
                 cur.execute("SELECT s.name FROM vehicle_crew vc JOIN staff s ON vc.staff_id = s.id WHERE vc.vehicle_id = %s", (v_id,))
                 old_crew = [r[0] for r in cur.fetchall()]
 
-                # 2. PERFORM UPDATES
+                # 2. PERFORM UPDATES (Driver & Crew)
                 cur.execute("UPDATE vehicles SET assigned_driver_id = %s WHERE id = %s AND company_id = %s", (driver_val, v_id, comp_id))
-                cur.execute("DELETE FROM vehicle_crew WHERE vehicle_id = %s", (v_id,))
                 
+                # Reset Crew
+                cur.execute("DELETE FROM vehicle_crew WHERE vehicle_id = %s", (v_id,))
                 for staff_id in crew_ids:
                     if str(staff_id) != str(driver_val): 
                         cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (v_id, staff_id))
                 
-                # Update Settings (If submitted)
+                # --- THIS IS THE FIX: Save the Dates & Settings ---
                 daily = request.form.get('daily_cost')
-                if daily is not None:
-                     cur.execute("""
-                        UPDATE vehicles 
-                        SET daily_cost=%s, tracker_url=%s, telematics_provider=%s, tracking_device_id=%s 
-                        WHERE id=%s AND company_id=%s
-                    """, (daily, request.form.get('tracker_url'), request.form.get('telematics_provider'), request.form.get('tracking_device_id'), v_id, comp_id))
+                # We catch the dates from the form here
+                mot = request.form.get('mot_expiry') or None
+                tax = request.form.get('tax_expiry') or None
+                ins = request.form.get('ins_expiry') or None
 
-                # 3. GET NEW STATE (For Audit)
-                new_driver = "None"
-                if driver_val:
-                    cur.execute("SELECT name FROM staff WHERE id = %s", (driver_val,))
-                    res = cur.fetchone()
-                    if res: new_driver = res[0]
-                
-                # 4. AUDIT LOG
+                # We save to the columns that DEFINITELY exist in your DB now
+                if daily is not None:
+                      cur.execute("""
+                        UPDATE vehicles 
+                        SET daily_cost=%s, tracker_url=%s, telematics_provider=%s, tracking_device_id=%s,
+                            mot_expiry=%s, tax_expiry=%s, ins_expiry=%s 
+                        WHERE id=%s AND company_id=%s
+                    """, (daily, request.form.get('tracker_url'), request.form.get('telematics_provider'), 
+                          request.form.get('tracking_device_id'), mot, tax, ins, v_id, comp_id))
+
+                # 3. AUDIT LOG
                 changes = []
                 if old_driver != new_driver: changes.append(f"Driver: {old_driver} -> {new_driver}")
-                # (Simple check for crew changes to keep it fast)
                 if len(old_crew) != len(crew_ids): changes.append("Crew list updated")
-                
-                log_details = " | ".join(changes) if changes else "Vehicle settings updated"
+                log_details = " | ".join(changes) if changes else "Vehicle settings/dates updated"
 
                 try:
                     admin_name = session.get('user_name', 'Admin')
@@ -566,7 +568,7 @@ def fleet_list():
 
                 flash("✅ Crew & Settings Updated")
                 
-            # --- ACTION: ADD MAINTENANCE LOG ---
+            # --- ACTION: ADD MAINTENANCE LOG (Kept exactly as your file) ---
             elif action == 'add_log':
                 file_url = None
                 cost = request.form.get('cost')
@@ -599,13 +601,10 @@ def fleet_list():
                 cur.execute("INSERT INTO maintenance_logs (company_id, vehicle_id, type, description, date, cost, receipt_path) VALUES (%s, %s, %s, %s, %s, %s, %s)", 
                             (comp_id, request.form.get('vehicle_id'), request.form.get('log_type'), desc or 'Receipt', date_val or date.today(), cost or 0, file_url))
                 
-                # Audit Log for Maintenance
                 cur.execute("INSERT INTO audit_logs (company_id, action, target, details, admin_email, created_at) VALUES (%s, 'FLEET_LOG', %s, %s, %s, CURRENT_TIMESTAMP)",
-                           (comp_id, f"Vehicle {request.form.get('vehicle_id')}", f"Added {request.form.get('log_type')} log: £{cost}", session.get('user_name', 'Admin')))
-                
+                            (comp_id, f"Vehicle {request.form.get('vehicle_id')}", f"Added {request.form.get('log_type')} log: £{cost}", session.get('user_name', 'Admin')))
                 flash("✅ Log Added")
             
-            # --- CRITICAL: COMMIT AT THE END OF TRY BLOCK ---
             conn.commit()
             
         except Exception as e:
@@ -613,8 +612,10 @@ def fleet_list():
             flash(f"Error: {e}")
 
     # --- FETCH DATA FOR DISPLAY ---
+    # FIX: Changed mot_due -> mot_expiry (and tax/insurance) to match DB
     cur.execute("""
-        SELECT v.id, v.reg_plate, v.make_model, v.status, s.name, v.assigned_driver_id, v.mot_due, v.tax_due, v.insurance_due, v.tracker_url
+        SELECT v.id, v.reg_plate, v.make_model, v.status, s.name, v.assigned_driver_id, 
+               v.mot_expiry, v.tax_expiry, v.ins_expiry, v.tracker_url
         FROM vehicles v 
         LEFT JOIN staff s ON v.assigned_driver_id = s.id 
         WHERE v.company_id = %s 
@@ -636,8 +637,10 @@ def fleet_list():
         vehicles.append({
             'id': row[0], 'reg_number': row[1], 'make_model': row[2], 'status': row[3], 
             'driver_name': row[4], 'assigned_driver_id': row[5], 
-            'mot_expiry': parse_date(row[6]), 'tax_expiry': parse_date(row[7]), 
-            'ins_expiry': parse_date(row[8]), 'tracker_url': row[9], 
+            'mot_expiry': parse_date(row[6]), # Mapped correctly
+            'tax_expiry': parse_date(row[7]), # Mapped correctly
+            'ins_expiry': parse_date(row[8]), # Mapped correctly
+            'tracker_url': row[9], 
             'crew': crew, 'history': history
         })
         
@@ -652,7 +655,8 @@ def fleet_list():
                            today=date.today(), 
                            date_fmt='%d/%m/%Y', 
                            brand_color=config['color'], 
-                           logo_url=config['logo'])# =========================================================
+                           logo_url=config['logo'])
+
 # 3. SERVICE DESK (With Compliance Alerts)
 # =========================================================
 
