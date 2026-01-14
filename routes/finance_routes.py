@@ -729,7 +729,6 @@ def settings_general():
     if request.method == 'POST':
         try:
             # 1. Update Text Settings
-            # ADD 'default_tax_rate' to this list so it saves!
             fields = [
                 'company_name', 'company_website', 'company_email', 'company_phone', 
                 'company_address', 'brand_color', 'smtp_host', 'smtp_port', 
@@ -747,8 +746,13 @@ def settings_general():
                         ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
                     """, (comp_id, field, val))
 
-            # 2. HANDLE CHECKBOXES / TOGGLES (The Fix)
-            # If unchecked, browsers send NOTHING. We must manually force it to 'no'.
+            # --- [FIX] INSTANTLY UPDATE SESSION NAME ---
+            new_name = request.form.get('company_name')
+            if new_name:
+                session['company_name'] = new_name
+            # -------------------------------------------
+
+            # 2. Handle Checkboxes (VAT)
             vat_val = 'yes' if request.form.get('vat_registered') else 'no'
             cur.execute("""
                 INSERT INTO settings (company_id, key, value) 
@@ -756,7 +760,7 @@ def settings_general():
                 ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
             """, (comp_id, vat_val))
 
-            # [FIX] Update Session immediately so Sidebar doesn't stay blue
+            # [FIX] Update Session Color immediately
             new_color = request.form.get('brand_color')
             if new_color:
                 session['brand_color'] = new_color
@@ -772,9 +776,11 @@ def settings_general():
                     full_path = os.path.join(save_dir, filename)
                     f.save(full_path)
                     
+                    # Save relative path for web
                     web_path = f"/static/uploads/{comp_id}/{filename}"
                     cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo', %s) ON CONFLICT (company_id, key) DO UPDATE SET value=EXCLUDED.value", (comp_id, web_path))
                     
+                    # Update Session Logo immediately
                     session['logo'] = web_path
 
             conn.commit()
