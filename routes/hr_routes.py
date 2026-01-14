@@ -6,20 +6,6 @@ from db import get_db
 
 hr_bp = Blueprint('hr_bp', __name__)
 
-# --- 1. DATABASE FIX (Run once then ignore) ---
-@hr_bp.route('/fix-license-column')
-def fix_license_column():
-    conn = get_db()
-    cur = conn.cursor()
-    try:
-        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS driving_license TEXT;")
-        conn.commit()
-        return "✅ Success: 'driving_license' column added to Staff table."
-    except Exception as e:
-        return f"❌ Error: {e}"
-    finally:
-        conn.close()
-
 # --- 2. STAFF PROFILE ---
 @hr_bp.route('/hr/staff/<int:staff_id>')
 def staff_profile(staff_id):

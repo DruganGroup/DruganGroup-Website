@@ -1137,3 +1137,30 @@ def finance_dashboard():
                            chart_expense=chart_expense,
                            brand_color=config['color'],
                            logo_url=config['logo'])
+                           
+@finance_bp.route('/fix-fleet-db')
+def fix_fleet_db():
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # 1. Fix the column name mismatch (just in case)
+        # Rename reg_number to reg_plate if it exists in the old format
+        try:
+            cur.execute("ALTER TABLE vehicles RENAME COLUMN reg_number TO reg_plate")
+            conn.commit()
+        except:
+            conn.rollback() # It probably already exists as reg_plate
+
+        # 2. Add the missing Telematics/Tracker columns
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS telematics_data JSONB;")
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS last_updated_time TIMESTAMP;")
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS telematics_provider VARCHAR(50);")
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tracking_device_id VARCHAR(100);")
+        
+        conn.commit()
+        return "✅ Success: Fleet Database Columns Fixed."
+    except Exception as e:
+        conn.rollback()
+        return f"❌ Error: {e}"
+    finally:
+        conn.close()
