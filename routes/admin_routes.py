@@ -100,8 +100,7 @@ def super_admin_dashboard():
         owner_email = request.form.get('owner_email')
         plan_id = request.form.get('plan_id') 
         
-        # A. Fetch the selected plan details
-        # Now filtering by ID, which is safe
+        # Fetch Plan Details
         cur.execute("SELECT name, max_users, max_vehicles, max_clients, max_properties, max_storage, modules FROM plans WHERE id = %s", (plan_id,))
         selected_plan = cur.fetchone()
         
@@ -114,18 +113,18 @@ def super_admin_dashboard():
             final_slug = base_slug
             
             try:
-                # B. Create Company
+                # Create Company
                 cur.execute("INSERT INTO companies (name, contact_email, subdomain) VALUES (%s, %s, %s) RETURNING id", (c_name, owner_email, final_slug))
                 new_id = cur.fetchone()[0]
                 
-                # C. Create Subscription (LINKED TO PLAN LIMITS)
+                # Create Subscription
                 cur.execute("""
                     INSERT INTO subscriptions 
                     (company_id, plan_id, plan_tier, status, start_date, max_users, max_vehicles, max_clients, max_properties, max_storage, modules) 
                     VALUES (%s, %s, %s, 'Active', CURRENT_DATE, %s, %s, %s, %s, %s, %s)
                 """, (new_id, plan_id, plan_name, p_users, p_vehicles, p_clients, p_props, p_storage, p_modules))
                 
-                # D. Create Owner
+                # Create Owner
                 from werkzeug.security import generate_password_hash
                 import random, string
                 temp_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
@@ -136,7 +135,7 @@ def super_admin_dashboard():
                     VALUES (%s, %s, %s, %s, 'Admin')
                 """, (new_id, owner_name, owner_email, hashed))
 
-                # E. Auto-Create Director Staff Profile
+                # Create Staff Profile
                 cur.execute("""
                     INSERT INTO staff (company_id, name, email, position, status, pay_rate) 
                     VALUES (%s, %s, %s, 'Director', 'Active', 0.00)
@@ -153,15 +152,14 @@ def super_admin_dashboard():
 
     # --- 2. FETCH DATA FOR DASHBOARD ---
     
-    # A. Fetch Plans (THE FIX IS HERE)
+    # A. Fetch Plans
     cur.execute("SELECT id, name, price FROM plans ORDER BY price ASC")
     rows = cur.fetchall()
-    # Convert tuples to Dictionaries so {{ plan.name }} works in HTML
     available_plans = [{'id': r[0], 'name': r[1], 'price': r[2]} for r in rows]
 
-    # B. Fetch Companies List
+    # B. Fetch Companies List (NOW INCLUDES START DATE)
     cur.execute("""
-        SELECT c.id, c.name, c.subdomain, s.plan_tier, s.status, u.email 
+        SELECT c.id, c.name, c.subdomain, s.plan_tier, s.status, u.email, s.start_date
         FROM companies c
         LEFT JOIN subscriptions s ON c.id = s.company_id
         LEFT JOIN users u ON c.id = u.company_id AND u.role = 'Admin'
@@ -169,7 +167,19 @@ def super_admin_dashboard():
     """)
     companies = []
     for row in cur.fetchall():
-        companies.append({'id': row[0], 'name': row[1], 'subdomain': row[2], 'plan': row[3], 'status': row[4], 'admin': row[5]})
+        # Format the date nicely (e.g. "14 Jan 2026")
+        raw_date = row[6]
+        formatted_date = raw_date.strftime('%d %b %Y') if raw_date else "Pending"
+
+        companies.append({
+            'id': row[0], 
+            'name': row[1], 
+            'subdomain': row[2], 
+            'plan': row[3], 
+            'status': row[4], 
+            'admin': row[5],
+            'joined': formatted_date  # <--- THIS WAS MISSING
+        })
 
     conn.close()
     return render_template('super_admin.html', companies=companies, plans=available_plans)
