@@ -98,16 +98,17 @@ def super_admin_dashboard():
         c_name = request.form.get('company_name')
         owner_name = request.form.get('owner_name')
         owner_email = request.form.get('owner_email')
-        plan_id = request.form.get('plan_id')  # <--- NEW: Get ID, not text
+        plan_id = request.form.get('plan_id') 
         
-        # A. Fetch the selected plan details to enforce limits
+        # A. Fetch the selected plan details
+        # Now filtering by ID, which is safe
         cur.execute("SELECT name, max_users, max_vehicles, max_clients, max_properties, max_storage, modules FROM plans WHERE id = %s", (plan_id,))
         selected_plan = cur.fetchone()
         
         if selected_plan:
             plan_name, p_users, p_vehicles, p_clients, p_props, p_storage, p_modules = selected_plan
             
-            # Generate Subdomain (slug)
+            # Generate Subdomain
             import re
             base_slug = re.sub(r'[^a-z0-9-]', '', c_name.lower().replace(' ', '-'))
             final_slug = base_slug
@@ -118,7 +119,6 @@ def super_admin_dashboard():
                 new_id = cur.fetchone()[0]
                 
                 # C. Create Subscription (LINKED TO PLAN LIMITS)
-                # We save the Plan ID and snapshot the limits
                 cur.execute("""
                     INSERT INTO subscriptions 
                     (company_id, plan_id, plan_tier, status, start_date, max_users, max_vehicles, max_clients, max_properties, max_storage, modules) 
@@ -136,7 +136,7 @@ def super_admin_dashboard():
                     VALUES (%s, %s, %s, %s, 'Admin')
                 """, (new_id, owner_name, owner_email, hashed))
 
-                # E. Auto-Create Director Staff Profile (Required for login)
+                # E. Auto-Create Director Staff Profile
                 cur.execute("""
                     INSERT INTO staff (company_id, name, email, position, status, pay_rate) 
                     VALUES (%s, %s, %s, 'Director', 'Active', 0.00)
@@ -152,11 +152,14 @@ def super_admin_dashboard():
             flash("❌ Error: Selected plan not found.")
 
     # --- 2. FETCH DATA FOR DASHBOARD ---
-    # Fetch Plans for the Dropdown
+    
+    # A. Fetch Plans (THE FIX IS HERE)
     cur.execute("SELECT id, name, price FROM plans ORDER BY price ASC")
-    available_plans = cur.fetchall() # <--- Pass this to HTML
+    rows = cur.fetchall()
+    # Convert tuples to Dictionaries so {{ plan.name }} works in HTML
+    available_plans = [{'id': r[0], 'name': r[1], 'price': r[2]} for r in rows]
 
-    # Fetch Companies List
+    # B. Fetch Companies List
     cur.execute("""
         SELECT c.id, c.name, c.subdomain, s.plan_tier, s.status, u.email 
         FROM companies c
@@ -627,7 +630,7 @@ def view_audit_logs():
         ORDER BY id DESC LIMIT %s OFFSET %s
     """, (per_page, offset))
     
-    rows = cur.fetchall()
+        rows = cur.fetchall()
     conn.close()
 
     # Pre-format date in Python to prevent HTML crashes
@@ -669,22 +672,40 @@ def view_system_logs():
 
     return render_template('admin/system_logs.html', logs=logs)
 
-@admin_bp.route('/admin/upgrade-subscription-table')
-def upgrade_sub_table():
-    if session.get('role') != 'SuperAdmin': return "Access Denied"
-    conn = get_db(); cur = conn.cursor()
+# =========================================================
+#  FIX PLANS TABLE (Add 'modules' column)
+# =========================================================
+@admin_bp.route('/admin/fix-plans-schema')
+def fix_plans_schema():
+    if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
     try:
-        # Add columns to store the limits permanently on the subscription
-        cur.execute("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan_id INTEGER;")
-        cur.execute("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS max_users INTEGER DEFAULT 5;")
-        cur.execute("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS max_vehicles INTEGER DEFAULT 2;")
-        cur.execute("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS max_clients INTEGER DEFAULT 50;")
-        cur.execute("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS max_properties INTEGER DEFAULT 50;")
-        cur.execute("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS max_storage INTEGER DEFAULT 10;")
-        cur.execute("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS modules TEXT;")
+        # 1. Add 'modules' column to plans table
+        cur.execute("ALTER TABLE plans ADD COLUMN IF NOT EXISTS modules TEXT DEFAULT 'Finance,Fleet,HR';")
+        
+        # 2. Add other columns just in case they are missing
+        cur.execute("ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_users INTEGER DEFAULT 5;")
+        cur.execute("ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_vehicles INTEGER DEFAULT 2;")
+        cur.execute("ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_clients INTEGER DEFAULT 50;")
+        cur.execute("ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_properties INTEGER DEFAULT 50;")
+        cur.execute("ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_storage INTEGER DEFAULT 10;")
+
         conn.commit()
-        return "✅ Subscription Table Upgraded"
+        return """
+        <div style="font-family:sans-serif; text-align:center; padding:50px;">
+            <h1 style="color:green;">✅ Plans Table Fixed</h1>
+            <p>Added 'modules' and limit columns to the plans table.</p>
+            <p><strong>You can now create companies successfully.</strong></p>
+            <br>
+            <a href="/super-admin" style="background:#333; color:white; padding:10px 20px; text-decoration:none;">Return to Dashboard</a>
+        </div>
+        """
+        
     except Exception as e:
-        return f"❌ Error: {e}"
+        conn.rollback()
+        return f"<h1>❌ Fix Failed</h1><pre>{e}</pre>"
     finally:
         conn.close()
