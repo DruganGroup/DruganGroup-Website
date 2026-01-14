@@ -681,27 +681,28 @@ def view_system_logs():
         logs.append((r[0], r[1], r[2], r[3], r[4], formatted_date))
 
     return render_template('admin/system_logs.html', logs=logs)
-
+    
+    # =========================================================
+#  FIX JOBS SCHEMA (Add estimated_days)
 # =========================================================
-#  FIX INVOICE SCHEMA (Add quote_id)
-# =========================================================
-@admin_bp.route('/admin/fix-invoice-schema')
-def fix_invoice_schema():
+@admin_bp.route('/admin/fix-jobs-schema')
+def fix_jobs_schema():
     if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
     
     conn = get_db()
     cur = conn.cursor()
     
     try:
-        # 1. Add quote_id column to invoices table
-        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS quote_id INTEGER;")
+        # 1. Add estimated_days column to jobs table
+        # We set a default of 1 to prevent errors with existing rows
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS estimated_days INTEGER DEFAULT 1;")
         
         conn.commit()
         return """
         <div style="font-family:sans-serif; text-align:center; padding:50px;">
-            <h1 style="color:green;">✅ Invoices Table Fixed</h1>
-            <p>Added 'quote_id' column.</p>
-            <p><strong>You can now convert Quotes to Invoices successfully.</strong></p>
+            <h1 style="color:green;">✅ Jobs Table Fixed</h1>
+            <p>Added 'estimated_days' column.</p>
+            <p><strong>You can now convert Quotes to Jobs successfully.</strong></p>
             <br>
             <a href="/office-hub" style="background:#333; color:white; padding:10px 20px; text-decoration:none;">Return to Office</a>
         </div>
