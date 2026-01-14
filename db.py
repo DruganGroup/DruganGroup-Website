@@ -4,6 +4,13 @@ import os
 # Database Configuration
 DB_URL = os.environ.get("DATABASE_URL")
 
+# --- THIS WAS MISSING ---
+# We define the upload folder here so other files can import it
+if os.path.exists('/opt/render/project/src'):
+    UPLOAD_FOLDER = '/opt/render/project/src/static/uploads/logos'
+else:
+    UPLOAD_FOLDER = 'static/uploads/logos'
+
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 def get_db():
@@ -45,8 +52,7 @@ def get_site_config(comp_id):
         rows = cur.fetchall()
         settings_dict = {row[0]: row[1] for row in rows}
         
-        # --- THE FIX IS HERE ---
-        # We now look for 'logo', not 'logo_url'
+        # This keeps the "logo" fix we added earlier
         return {
             "color": settings_dict.get('brand_color', '#27AE60'),
             "logo": settings_dict.get('logo', '/static/images/logo.png') 
