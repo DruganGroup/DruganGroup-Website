@@ -1442,3 +1442,106 @@ def delete_quote(quote_id):
         conn.close()
         
     return redirect(url_for('office.office_dashboard'))
+    
+    # --- OFFICE: FLEET MANAGER ---
+@office_bp.route('/office/fleet', methods=['GET', 'POST'])
+def office_fleet():
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    # Check if user has access (Office or Admin/SuperAdmin)
+    if session.get('role') not in ['Office', 'Admin', 'SuperAdmin', 'Manager']:
+        return redirect(url_for('office.office_dashboard'))
+
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+
+    # --- HANDLE POST (Assign Driver/Crew or Add Log) ---
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        try:
+            if action == 'assign_crew':
+                veh_id = request.form.get('vehicle_id')
+                driver_id = request.form.get('driver_id')
+                
+                # If "None" is selected, convert to None type for DB
+                if driver_id == 'None': driver_id = None
+
+                # Update Driver
+                cur.execute("UPDATE vehicles SET assigned_driver_id = %s WHERE id = %s AND company_id = %s", 
+                           (driver_id, veh_id, comp_id))
+                
+                # Update Crew
+                crew_ids = request.form.getlist('crew_ids')
+                cur.execute("DELETE FROM vehicle_crew WHERE vehicle_id = %s", (veh_id,))
+                for staff_id in crew_ids:
+                    cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (veh_id, staff_id))
+                
+                flash("✅ Crew and Driver updated.")
+
+            elif action == 'add_log':
+                # (Keep your existing Log/Receipt logic here if you have it)
+                # This part likely handles the receipt upload in your current file
+                pass 
+
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error: {e}")
+
+    # --- GET REQUEST: FETCH DATA ---
+    # UPDATED QUERY: Now selects mot_expiry and tax_expiry
+    cur.execute("""
+        SELECT v.id, v.reg_plate, v.make_model, v.status, 
+               v.assigned_driver_id, s.name as driver_name,
+               v.mot_expiry, v.tax_expiry
+        FROM vehicles v
+        LEFT JOIN staff s ON v.assigned_driver_id = s.id
+        WHERE v.company_id = %s
+        ORDER BY v.reg_plate
+    """, (comp_id,))
+    
+    vehicles_raw = cur.fetchall()
+    vehicles = []
+    
+    for r in vehicles_raw:
+        v_id = r[0]
+        
+        # Fetch Crew
+        cur.execute("""
+            SELECT s.id, s.name 
+            FROM vehicle_crew vc
+            JOIN staff s ON vc.staff_id = s.id
+            WHERE vc.vehicle_id = %s
+        """, (v_id,))
+        crew = [{'id': c[0], 'name': c[1]} for c in cur.fetchall()]
+
+        # Fetch History/Logs (for the receipts tab)
+        # Assuming you have a maintenance_logs table logic here
+        # (I am keeping this minimal to prevent crashing, add your logs query if needed)
+        history = [] 
+
+        vehicles.append({
+            'id': v_id,
+            'reg_number': r[1],      # Maps reg_plate -> reg_number
+            'make_model': r[2],
+            'status': r[3],
+            'assigned_driver_id': r[4],
+            'driver_name': r[5],
+            'mot_expiry': r[6],      # NOW EXISTS
+            'tax_expiry': r[7],      # NOW EXISTS
+            'crew': crew,
+            'history': history
+        })
+
+    # Fetch Staff for dropdowns
+    cur.execute("SELECT id, name FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
+    staff = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
+    
+    conn.close()
+
+    # We pass 'today' so your date_check macro works
+    return render_template('office/fleet_management.html', 
+                           vehicles=vehicles, 
+                           staff=staff,
+                           today=datetime.now().date())
