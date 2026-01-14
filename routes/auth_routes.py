@@ -18,13 +18,13 @@ def login():
         conn = get_db()
         cur = conn.cursor()
         
-        # 1. FETCH USER & CHECK IF STAFF EXISTS
-        # We grab the User ID AND the Staff ID (s.id) to see if they are linked
+        # 1. FETCH USER (The Fix: Search by EMAIL, not Username)
+        # We search WHERE email = %s instead of username = %s
         cur.execute("""
-            SELECT u.id, u.username, u.password_hash, u.role, u.company_id, s.id, s.name 
+            SELECT u.id, u.name, u.password_hash, u.role, u.company_id, s.id, s.name 
             FROM users u 
             LEFT JOIN staff s ON LOWER(TRIM(u.email)) = LOWER(TRIM(s.email)) 
-            WHERE LOWER(TRIM(u.username)) = LOWER(TRIM(%s))
+            WHERE LOWER(TRIM(u.email)) = LOWER(TRIM(%s))
         """, (email,))
         
         user = cur.fetchone()
@@ -34,14 +34,13 @@ def login():
             name = user[1]
             role = user[3]
             comp_id = user[4]
-            staff_id = user[5]  # This will be None if they are missing from Staff table
+            staff_id = user[5]
             real_name = user[6]
 
-            # --- THE FIX: AUTO-CREATE STAFF IF MISSING ---
-            if not staff_id:
+            # --- AUTO-CREATE STAFF IF MISSING ---
+            # We skip this for SuperAdmin because SuperAdmins don't belong to a specific company/staff list
+            if not staff_id and role != 'SuperAdmin': 
                 try:
-                    # Create a "Director" staff profile automatically
-                    # This fixes the "Ghost Admin" bug instantly on login
                     cur.execute("""
                         INSERT INTO staff (company_id, name, email, phone, position, status, pay_rate)
                         VALUES (%s, %s, %s, '0000000000', 'Director', 'Active', 0.00)
@@ -52,7 +51,6 @@ def login():
                     staff_id = new_staff[0]
                     real_name = new_staff[1]
                     conn.commit()
-                    flash("✅ Account verified: Staff Profile created successfully.", "success")
                 except Exception as e:
                     conn.rollback()
                     print(f"Auto-Staff Error: {e}")
@@ -64,9 +62,17 @@ def login():
             session['user_email'] = email 
             session['role'] = role
             session['company_id'] = comp_id
-            # Store the real name (from Staff) if available, otherwise User name
+            
+            # Use real name from staff if available, otherwise account name
             session['user_name'] = real_name if real_name else name
             
+            # SPECIAL HANDLE: SuperAdmin goes straight to dashboard
+            if role == 'SuperAdmin':
+                session['company_name'] = "HQ"
+                session['logged_in'] = True
+                conn.close()
+                return redirect(url_for('admin.super_admin_dashboard'))
+
             conn.close()
             return redirect(url_for('auth.main_launcher'))
         else:
@@ -74,7 +80,7 @@ def login():
             flash("❌ Invalid Credentials")
             
     return render_template('public/login.html')
-    
+   
 @auth_bp.route('/launcher')
 def main_launcher():
     # 1. Security Check
