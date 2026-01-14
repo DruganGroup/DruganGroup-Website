@@ -8,7 +8,7 @@ import smtplib
 from datetime import datetime, date, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, send_from_directory
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, send_from_directory, current_app
 from db import get_db, get_site_config
 from werkzeug.security import generate_password_hash
 
