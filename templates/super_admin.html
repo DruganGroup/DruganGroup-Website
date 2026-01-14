@@ -201,14 +201,16 @@
                                     <option value="€">€ (EUR)</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label">SUBSCRIPTION</label>
-                                <select name="plan" class="form-select">
-                                    <option value="Starter">Starter</option>
-                                    <option value="Professional" selected>Professional</option>
-                                    <option value="Enterprise">Enterprise</option>
-                                </select>
-                            </div>
+                            <div class="col-md-6">
+    <label class="form-label">Subscription Plan</label>
+    <select name="plan_id" class="form-select" required>
+        <option value="" disabled selected>Select a Tier...</option>
+        {% for plan in plans %}
+            <option value="{{ plan.id }}">{{ plan.name }} (£{{ plan.price }}/mo)</option>
+        {% endfor %}
+    </select>
+    <div class="form-text">Limits and modules will be applied automatically.</div>
+</div>
                         </div>
 
                     </div>

@@ -86,7 +86,6 @@ def perform_company_backup(company_id, cur):
         except: pass
     return backup_data
 
-# --- 1. SUPER ADMIN DASHBOARD ---
 @admin_bp.route('/super-admin', methods=['GET', 'POST'])
 def super_admin_dashboard():
     if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
@@ -94,177 +93,83 @@ def super_admin_dashboard():
     conn = get_db()
     cur = conn.cursor()
     
-    # --- CREATE NEW COMPANY (UPDATED LOGIC) ---
+    # --- 1. HANDLE FORM SUBMISSION (CREATE COMPANY) ---
     if request.method == 'POST':
-        # 1. Capture All Inputs
         c_name = request.form.get('company_name')
-        
-        # Owner Details
         owner_name = request.form.get('owner_name')
         owner_email = request.form.get('owner_email')
+        plan_id = request.form.get('plan_id')  # <--- NEW: Get ID, not text
         
-        # Address & Config
-        addr1 = request.form.get('address_line1')
-        postcode = request.form.get('postcode')
-        full_address = f"{addr1}, {postcode}"
+        # A. Fetch the selected plan details to enforce limits
+        cur.execute("SELECT name, max_users, max_vehicles, max_clients, max_properties, max_storage, modules FROM plans WHERE id = %s", (plan_id,))
+        selected_plan = cur.fetchone()
         
-        plan = request.form.get('plan')
-        country = request.form.get('country_code') # 'UK', 'US', 'IE', etc.
-        currency = request.form.get('currency_symbol')
+        if selected_plan:
+            plan_name, p_users, p_vehicles, p_clients, p_props, p_storage, p_modules = selected_plan
+            
+            # Generate Subdomain (slug)
+            import re
+            base_slug = re.sub(r'[^a-z0-9-]', '', c_name.lower().replace(' ', '-'))
+            final_slug = base_slug
+            
+            try:
+                # B. Create Company
+                cur.execute("INSERT INTO companies (name, contact_email, subdomain) VALUES (%s, %s, %s) RETURNING id", (c_name, owner_email, final_slug))
+                new_id = cur.fetchone()[0]
+                
+                # C. Create Subscription (LINKED TO PLAN LIMITS)
+                # We save the Plan ID and snapshot the limits
+                cur.execute("""
+                    INSERT INTO subscriptions 
+                    (company_id, plan_id, plan_tier, status, start_date, max_users, max_vehicles, max_clients, max_properties, max_storage, modules) 
+                    VALUES (%s, %s, %s, 'Active', CURRENT_DATE, %s, %s, %s, %s, %s, %s)
+                """, (new_id, plan_id, plan_name, p_users, p_vehicles, p_clients, p_props, p_storage, p_modules))
+                
+                # D. Create Owner
+                from werkzeug.security import generate_password_hash
+                import random, string
+                temp_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+                hashed = generate_password_hash(temp_pass)
+                
+                cur.execute("""
+                    INSERT INTO users (company_id, name, email, password_hash, role) 
+                    VALUES (%s, %s, %s, %s, 'Admin')
+                """, (new_id, owner_name, owner_email, hashed))
 
-        # Generate a random initial password
-        chars = string.ascii_letters + string.digits + "!@#$%"
-        owner_pass = ''.join(random.choice(chars) for i in range(12))
+                # E. Auto-Create Director Staff Profile (Required for login)
+                cur.execute("""
+                    INSERT INTO staff (company_id, name, email, position, status, pay_rate) 
+                    VALUES (%s, %s, %s, 'Director', 'Active', 0.00)
+                """, (new_id, owner_name, owner_email))
 
-        # Generate Subdomain
-        base_slug = re.sub(r'[^a-z0-9-]', '', c_name.lower().replace(' ', '-'))
-        final_slug = base_slug; counter = 1
-        while True:
-            cur.execute("SELECT id FROM companies WHERE subdomain = %s", (final_slug,))
-            if not cur.fetchone(): break 
-            final_slug = f"{base_slug}-{counter}"; counter += 1
-
-        try:
-            # 2. Create Tenant
-            cur.execute("INSERT INTO companies (name, contact_email, subdomain) VALUES (%s, %s, %s) RETURNING id", (c_name, owner_email, final_slug))
-            new_id = cur.fetchone()[0]
-            
-            # 3. Create Subscription
-            cur.execute("INSERT INTO subscriptions (company_id, plan_tier, status, start_date) VALUES (%s, %s, 'Active', CURRENT_DATE)", (new_id, plan))
-           
-            cur.execute("""
-                INSERT INTO staff (company_id, name, email, phone, position, status, pay_rate)
-                VALUES (%s, %s, %s, '0000000000', 'Director', 'Active', 0.00)
-            """, (new_id, owner_name, owner_email))
-            # -------------------------------------------------------------           
-           
-            # 5. INITIALIZE SETTINGS (Day 1 Config)
-            # Smart Default for VAT: Yes for UK/IE, No for US/CAN/AUS/NZ initially
-            is_vat = 'yes' if country in ['UK', 'IE', 'EU'] else 'no'
-            
-            # Smart Default for Tax Rate
-            tax_map = {'UK': '0.20', 'IE': '0.23', 'US': '0.08', 'CAN': '0.05', 'AUS': '0.10', 'NZ': '0.15'}
-            tax_rate = tax_map.get(country, '0.0')
-
-            default_settings = [
-                ('country_code', country),
-                ('currency_symbol', currency),
-                ('vat_registered', is_vat),
-                ('tax_rate', tax_rate),
-                ('company_address', full_address),
-                ('brand_color', '#2c3e50'),
-                ('smtp_host', ''), 
-                ('smtp_port', '587')
-            ]
-            
-            for key, val in default_settings:
-                cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s)", (new_id, key, val))
-            
-            # 6. Send Welcome Email
-            cur.execute("SELECT key, value FROM system_settings")
-            sys_conf = {row[0]: row[1] for row in cur.fetchall()}
-            
-            if sys_conf.get('smtp_server') and sys_conf.get('smtp_email'):
-                try:
-                    msg = MIMEMultipart()
-                    msg['From'] = sys_conf['smtp_email']
-                    msg['To'] = owner_email
-                    msg['Subject'] = f"Welcome to Business Better - {c_name} Setup Complete"
-                    
-                    body = f"""
-                    Welcome to Business Better by Drugan Group!
-                    
-                    Your environment has been successfully deployed.
-                    
-                    DETAILS:
-                    --------------------------------------------------
-                    Company:   {c_name}
-                    Plan:      {plan}
-                    Region:    {country} ({currency})
-                    Login URL: https://www.drugangroup.co.uk/login
-                    --------------------------------------------------
-                    
-                    CREDENTIALS:
-                    Username:  {owner_email}
-                    Password:  {owner_pass}
-                    
-                    Please login immediately and change your password.
-                    """
-                    msg.attach(MIMEText(body, 'plain'))
-                    
-                    server = smtplib.SMTP(sys_conf['smtp_server'], int(sys_conf.get('smtp_port', 587)))
-                    server.starttls()
-                    server.login(sys_conf['smtp_email'], sys_conf['smtp_password'])
-                    server.send_message(msg)
-                    server.quit()
-                    
-                    conn.commit()
-                    log_audit("CREATE COMPANY", c_name, f"Plan: {plan}, Admin: {owner_email}")
-                    flash(f"✅ Success! {c_name} created. Credentials emailed to {owner_email}.")
-                except Exception as e:
-                    conn.commit()
-                    flash(f"⚠️ Account created, but Email Failed: {e}. Password is: {owner_pass}")
-            else:
                 conn.commit()
-                flash(f"⚠️ Account created, but SMTP not configured. Password is: {owner_pass}")
+                flash(f"✅ Company '{c_name}' created on '{plan_name}' Plan! Password: {temp_pass}")
+                
+            except Exception as e:
+                conn.rollback()
+                flash(f"❌ Error: {e}")
+        else:
+            flash("❌ Error: Selected plan not found.")
 
-        except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
-            
-    # --- FETCH DATA ---
+    # --- 2. FETCH DATA FOR DASHBOARD ---
+    # Fetch Plans for the Dropdown
+    cur.execute("SELECT id, name, price FROM plans ORDER BY price ASC")
+    available_plans = cur.fetchall() # <--- Pass this to HTML
+
+    # Fetch Companies List
     cur.execute("""
-        SELECT 
-            c.id, c.name, c.subdomain,
-            s.plan_tier, s.status, s.start_date,
-            u.email
+        SELECT c.id, c.name, c.subdomain, s.plan_tier, s.status, u.email 
         FROM companies c
         LEFT JOIN subscriptions s ON c.id = s.company_id
         LEFT JOIN users u ON c.id = u.company_id AND u.role = 'Admin'
         ORDER BY c.id DESC
     """)
-    raw_companies = cur.fetchall()
-    
     companies = []
-    today = date.today()
+    for row in cur.fetchall():
+        companies.append({'id': row[0], 'name': row[1], 'subdomain': row[2], 'plan': row[3], 'status': row[4], 'admin': row[5]})
 
-    for c in raw_companies:
-        created_date = c[5] if c[5] else today
-        next_bill = "Unknown"
-        if created_date:
-            try:
-                if today.day > created_date.day:
-                    month = today.month + 1 if today.month < 12 else 1
-                    year = today.year if today.month < 12 else today.year + 1
-                    next_bill = date(year, month, created_date.day)
-                else:
-                    next_bill = date(today.year, today.month, created_date.day)
-            except:
-                next_bill = created_date + timedelta(days=30)
-
-        real_size_mb = get_real_company_usage(c[0], cur)
-        est_bandwidth = round(real_size_mb * 5, 2)
-        
-        companies.append({
-            'id': c[0], 'name': c[1] or 'Unknown',
-            'subdomain': c[2],
-            'plan': c[3] if c[3] else 'Basic', 
-            'status': c[4] if c[4] else 'Active', 
-            'email': c[6] if c[6] else 'No Admin',
-            'created': created_date,
-            'next_bill': next_bill,
-            'storage': real_size_mb, 
-            'bandwidth': est_bandwidth
-        })
-    
-    cur.execute("SELECT id, username, role, company_id FROM users WHERE role IN ('SuperAdmin', 'Admin') ORDER BY id ASC")
-    users = cur.fetchall()
-    
-    cur.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)") 
-    conn.commit()
-    cur.execute("SELECT key, value FROM system_settings")
-    system_config = {row[0]: row[1] for row in cur.fetchall()}
-    
     conn.close()
-    return render_template('super_admin.html', companies=companies, users=users, config=system_config)
+    return render_template('super_admin.html', companies=companies, plans=available_plans)
 
 @admin_bp.route('/super-admin/analytics')
 def super_admin_analytics():
@@ -763,3 +668,23 @@ def view_system_logs():
         logs.append((r[0], r[1], r[2], r[3], r[4], formatted_date))
 
     return render_template('admin/system_logs.html', logs=logs)
+    
+    @admin_bp.route('/admin/upgrade-subscription-table')
+def upgrade_sub_table():
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Add columns to store the limits permanently on the subscription
+        cur.execute("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan_id INTEGER;")
+        cur.execute("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS max_users INTEGER DEFAULT 5;")
+        cur.execute("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS max_vehicles INTEGER DEFAULT 2;")
+        cur.execute("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS max_clients INTEGER DEFAULT 50;")
+        cur.execute("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS max_properties INTEGER DEFAULT 50;")
+        cur.execute("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS max_storage INTEGER DEFAULT 10;")
+        cur.execute("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS modules TEXT;")
+        conn.commit()
+        return "✅ Subscription Table Upgraded"
+    except Exception as e:
+        return f"❌ Error: {e}"
+    finally:
+        conn.close()
