@@ -1,188 +1,201 @@
-{% extends "finance/finance_base.html" %}
+	{% extends "finance/finance_base.html" %}
 
-{% block title %}HR & Staff | Business Better{% endblock %}
+	{% block title %}HR & Staff | Business Better{% endblock %}
 
-{% block content %}
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold m-0">HR Management</h2>
-            <p class="text-muted mb-0">Payroll & Access Control</p>
-        </div>
-        <button class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#staffModal" onclick="resetAddStaff()">
-            <i class="fas fa-user-plus me-2"></i> New Employee
-        </button>
-    </div>
+	{% block content %}
+		<div class="d-flex justify-content-between align-items-center mb-4">
+			<div>
+				<h2 class="fw-bold m-0">HR Management</h2>
+				<p class="text-muted mb-0">Payroll & Access Control</p>
+			</div>
+			<button class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#staffModal" onclick="resetAddStaff()">
+				<i class="fas fa-user-plus me-2"></i> New Employee
+			</button>
+		</div>
 
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light text-uppercase small">
-                <tr>
-                    <th class="ps-4">Employee</th>
-                    <th>Job Title</th>
-                    <th>System Access</th>
-                    <th>Contact</th>
-                    <th>Pay Rate</th>
-                    <th class="text-end pe-4">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for s in staff %}
-                <tr>
-                    <td class="ps-4">
-					<a href="/hr/staff/{{ s.id }}" class="fw-bold text-primary text-decoration-none">
-					{{ s.name }} <i class="fas fa-external-link-alt ms-1 small opacity-50"></i></a><div class="small text-muted">{{ s.address or 'No address' }}</div>
-					</td>
-                    <td>
-                        <span class="badge bg-secondary mb-1">{{ s.position or 'Staff' }}</span>
-                        <div class="small text-muted">{{ s.dept }}</div>
-                    </td>
-                    <td>
-                        {% if s.access_level and s.access_level != 'None' %}
-                            <span class="badge bg-success"><i class="fas fa-shield-alt me-1"></i> {{ s.access_level }}</span>
-                        {% else %}
-                            <span class="badge bg-light text-muted border">No Access</span>
-                        {% endif %}
-                    </td>
-                    <td class="small">
-                        {% if s.email %}<div><i class="fas fa-envelope me-2 text-muted"></i>{{ s.email }}</div>{% endif %}
-                        {% if s.phone %}<div><i class="fas fa-phone me-2 text-muted"></i>{{ s.phone }}</div>{% endif %}
-                    </td>
-                    <td class="fw-bold text-success">£{{ s.pay_rate }}/{{ s.pay_model }}</td>
-                    <td class="text-end pe-4">
-                        <button class="btn btn-sm btn-outline-dark me-1" 
-                            data-bs-toggle="modal" data-bs-target="#staffModal"
-                            data-id="{{ s.id }}" data-name="{{ s.name }}" data-pos="{{ s.position }}"
-                            data-dept="{{ s.dept }}" data-email="{{ s.email }}" data-phone="{{ s.phone }}" 
-                            data-addr="{{ s.address }}" data-type="{{ s.employment_type }}" 
-                            data-rate="{{ s.pay_rate }}" data-model="{{ s.pay_model }}"
-                            data-tax="{{ s.tax_id }}" data-access="{{ s.access_level }}"
-                            onclick="fillEditStaff(this)">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        
-                        <a href="/finance/hr/delete/{{ s.id }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure? This will remove the staff member and revoke their login access.');">
-                            <i class="fas fa-trash"></i>
-                        </a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="6" class="text-center py-5 text-muted">No staff found. Click "New Employee" to start.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+		<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light text-uppercase small">
+					<tr>
+						<th class="ps-4">Employee</th>
+						<th>Job Title</th>
+						<th>System Access</th>
+						<th>License?</th>
+						<th>Contact</th>
+						<th>Pay Rate</th>
+						<th class="text-end pe-4">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for s in staff %}
+					<tr>
+						<td class="ps-4">
+						<a href="/hr/staff/{{ s.id }}" class="fw-bold text-primary text-decoration-none">
+						{{ s.name }} <i class="fas fa-external-link-alt ms-1 small opacity-50"></i></a><div class="small text-muted">{{ s.address or 'No address' }}</div>
+						</td>
+						<td>
+							<span class="badge bg-secondary mb-1">{{ s.position or 'Staff' }}</span>
+							<div class="small text-muted">{{ s.dept }}</div>
+						</td>
+						<td>
+							{% if s.access_level and s.access_level != 'None' %}
+								<span class="badge bg-success"><i class="fas fa-shield-alt me-1"></i> {{ s.access_level }}</span>
+							{% else %}
+								<span class="badge bg-light text-muted border">No Access</span>
+							{% endif %}
+						</td>
+						<td>
+    {% if s.driving_license %}
+        <span class="text-success small"><i class="fas fa-check-circle"></i> On File</span>
+    {% else %}
+        <span class="text-muted small opacity-50"><i class="fas fa-times-circle"></i> Missing</span>
+    {% endif %}
+</td>
+						<td class="small">
+							{% if s.email %}<div><i class="fas fa-envelope me-2 text-muted"></i>{{ s.email }}</div>{% endif %}
+							{% if s.phone %}<div><i class="fas fa-phone me-2 text-muted"></i>{{ s.phone }}</div>{% endif %}
+						</td>
+						<td class="fw-bold text-success">£{{ s.pay_rate }}/{{ s.pay_model }}</td>
+						<td class="text-end pe-4">
+							<button class="btn btn-sm btn-outline-dark me-1" 
+								data-bs-toggle="modal" data-bs-target="#staffModal"
+								data-id="{{ s.id }}" data-name="{{ s.name }}" data-pos="{{ s.position }}"
+								data-dept="{{ s.dept }}" data-email="{{ s.email }}" data-phone="{{ s.phone }}" 
+								data-addr="{{ s.address }}" data-type="{{ s.employment_type }}" 
+								data-rate="{{ s.pay_rate }}" data-model="{{ s.pay_model }}"
+								data-tax="{{ s.tax_id }}" data-access="{{ s.access_level }}"
+								onclick="fillEditStaff(this)">
+								<i class="fas fa-edit"></i>
+							</button>
+							
+							<a href="/finance/hr/delete/{{ s.id }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure? This will remove the staff member and revoke their login access.');">
+								<i class="fas fa-trash"></i>
+							</a>
+						</td>
+					</tr>
+					{% else %}
+					<tr><td colspan="6" class="text-center py-5 text-muted">No staff found. Click "New Employee" to start.</td></tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</div>
 
-    <div class="modal fade" id="staffModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <form method="POST" action="/finance/hr/add" id="staffForm">
-                    <div class="modal-header">
-                        <h5 class="modal-title fw-bold" id="modalTitle">New Employee Record</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <input type="hidden" name="staff_id" id="edit_id">
-                        
-                        <div class="row g-3">
-                            <div class="col-md-6"><label class="small fw-bold">Full Name</label><input type="text" name="name" id="edit_name" class="form-control" required></div>
-                            <div class="col-md-6"><label class="small fw-bold">Job Title</label><input type="text" name="position" id="edit_pos" class="form-control" placeholder="e.g. Site Manager"></div>
-                            
-                            <div class="col-md-6"><label class="small fw-bold">Email</label><input type="email" name="email" id="edit_email" class="form-control"></div>
-                            <div class="col-md-6"><label class="small fw-bold">Phone</label><input type="text" name="phone" id="edit_phone" class="form-control"></div>
-                            <div class="col-12"><label class="small fw-bold">Address</label><input type="text" name="address" id="edit_addr" class="form-control"></div>
-                            
-                            <div class="col-12"><hr></div>
-                            
-                            <div class="col-md-4"><label class="small fw-bold">Employment Type</label>
-                                <select name="employment_type" id="edit_type" class="form-select">
-                                    <option value="Full Time">Full Time (PAYE)</option>
-                                    <option value="Part Time">Part Time (PAYE)</option>
-                                    <option value="Sub-Contractor">Sub-Contractor (CIS)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4"><label class="small fw-bold">Dept</label>
-                                <select name="dept" id="edit_dept" class="form-select">
-                                    <option value="Site">Site</option>
-                                    <option value="Office">Office</option>
-                                    <option value="Management">Management</option>
-                                </select>
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <label class="small fw-bold">Rate (£)</label>
-                                <input type="number" step="0.01" name="pay_rate" id="edit_rate" class="form-control">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="small fw-bold">Per</label>
-                                <select name="pay_model" id="edit_model" class="form-select">
-                                    <option value="Hour">Hour</option>
-                                    <option value="Day">Day</option>
-                                    <option value="Year">Year</option>
-                                </select>
-                            </div>
-                            
-                            <div class="col-12 mt-4 p-3 bg-light rounded border border-secondary-subtle">
-                                <label class="fw-bold mb-2 text-dark"><i class="fas fa-lock me-2"></i>System Access</label>
-                                <div class="row align-items-center">
-                                    <div class="col-md-6">
-                                        <select name="access_level" id="edit_access" class="form-select border-dark fw-bold">
-                                            <option value="None">No Access</option>
-                                            <option value="Site">Site Dashboard</option>
-                                            <option value="Office">Office Dashboard</option>
-                                            <option value="Admin">Finance Dashboard</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="small text-muted lh-sm">
-                                            <i class="fas fa-info-circle me-1"></i> 
-                                            If granted, a <strong>secure password</strong> will be auto-emailed to the user immediately.
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+		<div class="modal fade" id="staffModal" tabindex="-1">
+			<div class="modal-dialog modal-lg">
+				<div class="modal-content">
+					<form method="POST" action="/finance/hr/add" id="staffForm" enctype="multipart/form-data">
+						<div class="modal-header">
+							<h5 class="modal-title fw-bold" id="modalTitle">New Employee Record</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+						</div>
+						<div class="modal-body">
+							<input type="hidden" name="staff_id" id="edit_id">
+							
+							<div class="row g-3">
+								<div class="col-md-6"><label class="small fw-bold">Full Name</label><input type="text" name="name" id="edit_name" class="form-control" required></div>
+								<div class="col-md-6"><label class="small fw-bold">Job Title</label><input type="text" name="position" id="edit_pos" class="form-control" placeholder="e.g. Site Manager"></div>
+								
+								<div class="col-md-6"><label class="small fw-bold">Email</label><input type="email" name="email" id="edit_email" class="form-control"></div>
+								<div class="col-md-6"><label class="small fw-bold">Phone</label><input type="text" name="phone" id="edit_phone" class="form-control"></div>
+								<div class="col-12"><label class="small fw-bold">Address</label><input type="text" name="address" id="edit_addr" class="form-control"></div>
+								<div class="col-12 mt-3 bg-warning bg-opacity-10 p-3 rounded border border-warning">
+    <label class="fw-bold text-dark mb-2"><i class="fas fa-id-card me-2"></i>Driving License / ID Compliance</label>
+    <input type="file" name="driving_license" class="form-control">
+    <div class="form-text small">Upload a photo of the front of the driving license for insurance compliance.</div>
+</div>
+								
+								<div class="col-12"><hr></div>
+								
+								<div class="col-md-4"><label class="small fw-bold">Employment Type</label>
+									<select name="employment_type" id="edit_type" class="form-select">
+										<option value="Full Time">Full Time (PAYE)</option>
+										<option value="Part Time">Part Time (PAYE)</option>
+										<option value="Sub-Contractor">Sub-Contractor (CIS)</option>
+									</select>
+								</div>
+								<div class="col-md-4"><label class="small fw-bold">Dept</label>
+									<select name="dept" id="edit_dept" class="form-select">
+										<option value="Site">Site</option>
+										<option value="Office">Office</option>
+										<option value="Management">Management</option>
+									</select>
+								</div>
+								
+								<div class="col-md-2">
+									<label class="small fw-bold">Rate (£)</label>
+									<input type="number" step="0.01" name="pay_rate" id="edit_rate" class="form-control">
+								</div>
+								<div class="col-md-2">
+									<label class="small fw-bold">Per</label>
+									<select name="pay_model" id="edit_model" class="form-select">
+										<option value="Hour">Hour</option>
+										<option value="Day">Day</option>
+										<option value="Year">Year</option>
+									</select>
+								</div>
+								
+								<div class="col-12 mt-4 p-3 bg-light rounded border border-secondary-subtle">
+									<label class="fw-bold mb-2 text-dark"><i class="fas fa-lock me-2"></i>System Access</label>
+									<div class="row align-items-center">
+										<div class="col-md-6">
+											<select name="access_level" id="edit_access" class="form-select border-dark fw-bold">
+												<option value="None">No Access</option>
+												<option value="Site">Site Dashboard</option>
+												<option value="Office">Office Dashboard</option>
+												<option value="Admin">Finance Dashboard</option>
+											</select>
+										</div>
+										<div class="col-md-6">
+											<div class="small text-muted lh-sm">
+												<i class="fas fa-info-circle me-1"></i> 
+												If granted, a <strong>secure password</strong> will be auto-emailed to the user immediately.
+											</div>
+										</div>
+									</div>
+								</div>
 
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary fw-bold">Save Record</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-{% endblock %}
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="submit" class="btn btn-primary fw-bold">Save Record</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+	{% endblock %}
 
-{% block scripts %}
-<script>
-    // FIX: Clears the form for "New Employee" so it doesn't show old edit data
-    function resetAddStaff() {
-        document.getElementById('staffForm').reset();
-        document.getElementById('staffForm').action = "/finance/hr/add";
-        document.getElementById('edit_id').value = ""; 
-        document.getElementById('modalTitle').innerText = "New Employee Record";
-    }
+	{% block scripts %}
+	<script>
+		// FIX: Clears the form for "New Employee" so it doesn't show old edit data
+		function resetAddStaff() {
+			document.getElementById('staffForm').reset();
+			document.getElementById('staffForm').action = "/finance/hr/add";
+			document.getElementById('edit_id').value = ""; 
+			document.getElementById('modalTitle').innerText = "New Employee Record";
+		}
 
-    function fillEditStaff(btn) {
-        // Switch form action to update
-        document.getElementById('staffForm').action = "/finance/hr/update";
-        document.getElementById('modalTitle').innerText = "Edit Employee";
-        
-        document.getElementById('edit_id').value = btn.getAttribute('data-id');
-        document.getElementById('edit_name').value = btn.getAttribute('data-name');
-        document.getElementById('edit_pos').value = btn.getAttribute('data-pos');
-        document.getElementById('edit_email').value = btn.getAttribute('data-email');
-        document.getElementById('edit_phone').value = btn.getAttribute('data-phone');
-        document.getElementById('edit_addr').value = btn.getAttribute('data-addr');
-        document.getElementById('edit_type').value = btn.getAttribute('data-type');
-        document.getElementById('edit_dept').value = btn.getAttribute('data-dept');
-        
-        // These now align with the new input names
-        document.getElementById('edit_rate').value = btn.getAttribute('data-rate');
-        document.getElementById('edit_model').value = btn.getAttribute('data-model');
-        
-        // Handle Access Level
-        let access = btn.getAttribute('data-access');
-        document.getElementById('edit_access').value = (access && access !== 'None') ? access : 'None';
-    }
-</script>
-{% endblock %}
+		function fillEditStaff(btn) {
+			// Switch form action to update
+			document.getElementById('staffForm').action = "/finance/hr/update";
+			document.getElementById('modalTitle').innerText = "Edit Employee";
+			
+			document.getElementById('edit_id').value = btn.getAttribute('data-id');
+			document.getElementById('edit_name').value = btn.getAttribute('data-name');
+			document.getElementById('edit_pos').value = btn.getAttribute('data-pos');
+			document.getElementById('edit_email').value = btn.getAttribute('data-email');
+			document.getElementById('edit_phone').value = btn.getAttribute('data-phone');
+			document.getElementById('edit_addr').value = btn.getAttribute('data-addr');
+			document.getElementById('edit_type').value = btn.getAttribute('data-type');
+			document.getElementById('edit_dept').value = btn.getAttribute('data-dept');
+			
+			// These now align with the new input names
+			document.getElementById('edit_rate').value = btn.getAttribute('data-rate');
+			document.getElementById('edit_model').value = btn.getAttribute('data-model');
+			
+			// Handle Access Level
+			let access = btn.getAttribute('data-access');
+			document.getElementById('edit_access').value = (access && access !== 'None') ? access : 'None';
+		}
+	</script>
+	{% endblock %}

@@ -44,6 +44,27 @@
                 </ul>
             </div>
         </div>
+		<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-warning bg-opacity-25 fw-bold text-dark">
+        <i class="fas fa-id-card me-2"></i> Compliance & ID
+    </div>
+    <div class="card-body text-center">
+        {% if staff.driving_license %}
+            <img src="/static/{{ staff.driving_license }}" class="img-fluid rounded border mb-3 shadow-sm" style="max-height: 200px;" alt="Driving License">
+            <div class="d-grid">
+                <a href="/static/{{ staff.driving_license }}" target="_blank" class="btn btn-outline-dark btn-sm">
+                    <i class="fas fa-expand me-2"></i> View Full Size
+                </a>
+            </div>
+        {% else %}
+            <div class="py-4 text-muted">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2 text-warning"></i>
+                <p class="mb-0 small fw-bold">No License on File</p>
+                <small>Upload via HR Dashboard</small>
+            </div>
+        {% endif %}
+    </div>
+</div>
 
         <div class="card border-0 shadow-sm rounded-4 mb-4 border-start border-4 border-danger">
             <div class="card-header bg-white fw-bold text-danger">
