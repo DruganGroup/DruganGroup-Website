@@ -65,10 +65,10 @@
 
         <div class="col-md-2">
             <div class="card p-3 border-0 shadow-sm text-center h-100 bg-warning bg-gradient text-dark card-hover">
-                <h6 class="text-uppercase small fw-bold opacity-75">To Invoice</h6>
-                <h2 class="fw-bold m-0">{{ jobs_to_invoice }}</h2>
-                <small class="fw-bold">Completed Jobs</small>
-                <a href="#completed-jobs" class="stretched-link"></a>
+                <h6 class="text-uppercase small fw-bold opacity-75">To Review</h6>
+                <h2 class="fw-bold m-0">{{ invoices_to_review }}</h2>
+                <small class="fw-bold">Draft Invoices</small>
+                <a href="#draft-invoices" class="stretched-link"></a>
             </div>
         </div>
     </div>
@@ -91,7 +91,47 @@
                                 <td class="text-muted small">{{ q.ref }}</td>
                                 <td class="text-end pe-4">
                                 <a href="/office/quote/{{ q.id }}/book-job" class="btn btn-sm btn-success fw-bold text-white">
-								<i class="fas fa-calendar-plus me-1"></i> Book to Calendar </a>
+                                <i class="fas fa-calendar-plus me-1"></i> Book to Calendar </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if draft_invoices %}
+            <div id="draft-invoices" class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-envelope-open-text me-2"></i> Invoices to Review & Send</span>
+                    <span class="badge bg-dark text-white">{{ draft_invoices|length }} Pending</span>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light small text-muted text-uppercase">
+                            <tr>
+                                <th class="ps-4">Client</th>
+                                <th>Ref</th>
+                                <th>Total</th>
+                                <th class="text-end pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for inv in draft_invoices %}
+                            <tr>
+                                <td class="ps-4 fw-bold">{{ inv.client }}</td>
+                                <td class="small text-muted">{{ inv.ref }} <br> <span class="text-truncate" style="max-width: 150px; display:inline-block;">{{ inv.desc }}</span></td>
+                                <td class="fw-bold">{{ currency_symbol }}{{ "%.2f"|format(inv.total) }}</td>
+                                <td class="text-end pe-4">
+                                    <div class="btn-group">
+                                        <a href="/finance/invoice/{{ inv.id }}/download" target="_blank" class="btn btn-sm btn-outline-dark" title="Preview PDF">
+                                            <i class="fas fa-file-pdf"></i> View
+                                        </a>
+                                        <a href="/finance/invoice/{{ inv.id }}/email" class="btn btn-sm btn-dark fw-bold" title="Email to Client">
+                                            <i class="fas fa-paper-plane me-1"></i> Send
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -130,14 +170,14 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-end pe-3">
-    <a href="/office/quote/{{ q.id }}" class="btn btn-sm btn-light border" title="View"><i class="fas fa-eye"></i></a>
-    <a href="/office/quote/delete/{{ q.id }}" 
-       class="btn btn-sm btn-outline-danger ms-1" 
-       onclick="return confirm('Are you sure? This cannot be undone.');" 
-       title="Delete">
-        <i class="fas fa-trash"></i>
-    </a>
-</td>
+                                    <a href="/office/quote/{{ q.id }}" class="btn btn-sm btn-light border" title="View"><i class="fas fa-eye"></i></a>
+                                    <a href="/office/quote/delete/{{ q.id }}" 
+                                       class="btn btn-sm btn-outline-danger ms-1" 
+                                       onclick="return confirm('Are you sure? This cannot be undone.');" 
+                                       title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </td>
                             </tr>
                             {% else %}
                             <tr><td colspan="5" class="text-center py-4 text-muted">No active quotes.</td></tr>
@@ -146,33 +186,6 @@
                     </table>
                 </div>
             </div>
-
-            {% if completed_jobs %}
-            <div id="completed-jobs" class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-warning text-dark fw-bold">
-                    <i class="fas fa-file-invoice me-2"></i> Jobs Ready for Invoicing
-                </div>
-                <div class="card-body p-0">
-                    <table class="table table-hover align-middle mb-0">
-                        <tbody>
-                            {% for job in completed_jobs %}
-                            <tr>
-                                <td class="ps-4 fw-bold">{{ job.client }}</td>
-                                <td class="small">{{ job.desc }}</td>
-                                <td class="text-end pe-4">
-                                    <form method="POST" action="/office/job/{{ job.id }}/invoice">
-                                        <button type="submit" class="btn btn-sm btn-dark fw-bold">
-                                            Create Invoice &rarr;
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            {% endif %}
 
         </div>
 

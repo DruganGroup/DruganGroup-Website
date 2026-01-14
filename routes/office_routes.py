@@ -62,8 +62,7 @@ def office_dashboard():
     config = get_site_config(company_id)
     conn = get_db(); cur = conn.cursor()
     
-    # 1. SALES PIPELINE (Counts & Values)
-    # We count how many quotes are in each stage and sum their total value
+    # 1. SALES PIPELINE
     cur.execute("""
         SELECT status, COUNT(*), SUM(total) 
         FROM quotes 
@@ -72,7 +71,6 @@ def office_dashboard():
     """, (company_id,))
     rows = cur.fetchall()
     
-    # Convert DB rows into a clean dictionary
     pipeline = {
         'Draft': {'count': 0, 'value': 0},
         'Sent': {'count': 0, 'value': 0},
@@ -83,28 +81,29 @@ def office_dashboard():
         if status in pipeline:
             pipeline[status] = {'count': count, 'value': total or 0}
 
-    # 2. LEADS (Clients marked as 'Lead')
+    # 2. LEADS
     cur.execute("SELECT COUNT(*) FROM clients WHERE company_id = %s AND status = 'Lead'", (company_id,))
     leads_count = cur.fetchone()[0]
 
-    # 3. JOBS BREAKDOWN
-    # Scheduled = Has a date, not started. Active = Started. Completed = Done.
+    # 3. JOBS & INVOICE STATS (Updated Logic)
     cur.execute("""
         SELECT 
             COUNT(*) FILTER (WHERE status = 'Scheduled'),
-            COUNT(*) FILTER (WHERE status = 'In Progress'),
-            COUNT(*) FILTER (WHERE status = 'Completed' AND NOT EXISTS (SELECT 1 FROM invoices i WHERE i.job_id = jobs.id))
+            COUNT(*) FILTER (WHERE status = 'In Progress')
         FROM jobs 
         WHERE company_id = %s
     """, (company_id,))
     job_stats = cur.fetchone()
     jobs_scheduled = job_stats[0]
     jobs_active = job_stats[1]
-    jobs_to_invoice = job_stats[2]
 
-    # 4. FETCH LISTS (For the tables)
+    # --- NEW: Count Draft Invoices instead of Completed Jobs ---
+    cur.execute("SELECT COUNT(*) FROM invoices WHERE company_id = %s AND status = 'Draft'", (company_id,))
+    invoices_to_review = cur.fetchone()[0]
+
+    # 4. FETCH LISTS
     
-    # RECENT QUOTES (Show Drafts & Sent)
+    # RECENT QUOTES
     cur.execute("""
         SELECT q.id, c.name, q.reference, q.date, q.total, q.status 
         FROM quotes q 
@@ -114,7 +113,7 @@ def office_dashboard():
     """, (company_id,))
     recent_quotes = [{'id': r[0], 'client': r[1], 'ref': r[2], 'date': format_date(r[3]), 'total': r[4], 'status': r[5]} for r in cur.fetchall()]
 
-  # ACCEPTED QUOTES (Exclude ones that already have a Job linked)
+    # ACCEPTED QUOTES
     cur.execute("""
         SELECT q.id, c.name, q.reference, q.total 
         FROM quotes q 
@@ -126,18 +125,27 @@ def office_dashboard():
     """, (company_id,))
     accepted_quotes = [{'id': r[0], 'client': r[1], 'ref': r[2], 'total': r[3]} for r in cur.fetchall()]
     
-    # COMPLETED JOBS (Ready for Invoice)
+    # --- NEW: DRAFT INVOICES LIST (To Review & Send) ---
     cur.execute("""
-        SELECT j.id, j.ref, j.site_address, c.name, j.description, j.start_date 
-        FROM jobs j 
-        LEFT JOIN clients c ON j.client_id = c.id 
-        WHERE j.company_id = %s 
-        AND j.status = 'Completed' 
-        AND NOT EXISTS (SELECT 1 FROM invoices i WHERE i.job_id = j.id)
-        ORDER BY j.start_date DESC
+        SELECT i.id, i.reference, c.name, i.total, j.description 
+        FROM invoices i 
+        JOIN clients c ON i.client_id = c.id 
+        LEFT JOIN jobs j ON i.job_id = j.id
+        WHERE i.company_id = %s 
+        AND i.status = 'Draft' 
+        ORDER BY i.date DESC
     """, (company_id,))
-    completed_jobs = [{'id': r[0], 'ref': r[1], 'address': r[2], 'client': r[3], 'desc': r[4], 'date': format_date(r[5])} for r in cur.fetchall()]
+    
+    # We pass this as 'draft_invoices' instead of 'completed_jobs'
+    draft_invoices = [{
+        'id': r[0], 
+        'ref': r[1], 
+        'client': r[2], 
+        'total': r[3], 
+        'desc': r[4] or 'Invoice Generated from App'
+    } for r in cur.fetchall()]
 
+    # LIVE OPS
     try:
         cur.execute("""
             SELECT s.name, t.clock_in, j.site_address
@@ -148,18 +156,14 @@ def office_dashboard():
             AND t.date = CURRENT_DATE 
             AND t.clock_out IS NULL
         """, (company_id,))
-        
         live_ops = []
         for r in cur.fetchall():
-            # If they have an active job, show address. If not, show Office.
             location = r[2] if r[2] else "Head Office / Available"
             live_ops.append({'staff': r[0], 'address': location, 'duration': 'Active'})
-            
-    except Exception as e:
-        print(f"Live Ops Error: {e}")
+    except Exception:
         live_ops = []
 
-    # SERVICE DESK ALERTS
+    # ALERTS
     cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id = %s AND status != 'Completed'", (company_id,))
     pending_requests = cur.fetchone()[0]
 
@@ -170,15 +174,14 @@ def office_dashboard():
                            leads_count=leads_count,
                            jobs_scheduled=jobs_scheduled,
                            jobs_active=jobs_active,
-                           jobs_to_invoice=jobs_to_invoice,
+                           invoices_to_review=invoices_to_review, # <--- Updated Variable
                            recent_quotes=recent_quotes,
                            accepted_quotes=accepted_quotes,
-                           completed_jobs=completed_jobs,
+                           draft_invoices=draft_invoices,         # <--- Updated List
                            live_ops=live_ops,
                            pending_requests=pending_requests,
                            brand_color=config['color'], 
                            logo_url=config['logo'])
-
 # =========================================================
 # CALENDAR & SCHEDULING (Updated for Crew Assignment)
 # =========================================================
