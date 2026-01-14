@@ -242,6 +242,7 @@ def delete_staff(id):
     conn.commit(); conn.close()
     return redirect(url_for('finance.finance_hr'))
 
+# --- FINANCE: FLEET MANAGER (SAFE MODE) ---
 @finance_bp.route('/finance/fleet', methods=['GET', 'POST'])
 def finance_fleet():
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']: 
@@ -255,46 +256,29 @@ def finance_fleet():
         
         try:
             if action == 'add_vehicle':
-                # DATABASE uses 'reg_plate'
+                # We use reg_plate as confirmed
                 reg = request.form.get('reg_number').upper() 
                 model = request.form.get('make_model')
                 daily = request.form.get('daily_cost') or 0.00
                 tracker = request.form.get('tracker_url')
-                
-                mot = request.form.get('mot_expiry') or None
-                tax = request.form.get('tax_expiry') or None
-                ins = request.form.get('ins_expiry') or None
-                
-                provider = request.form.get('telematics_provider') or None
-                dev_id = request.form.get('tracking_device_id') or None
 
-                # INSERT using 'reg_plate' and new columns
                 cur.execute("""
-                    INSERT INTO vehicles 
-                    (company_id, reg_plate, make_model, daily_cost, tracker_url, status, 
-                     mot_expiry, tax_expiry, ins_expiry, telematics_provider, tracking_device_id)
-                    VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s, %s, %s, %s)
-                """, (comp_id, reg, model, daily, tracker, mot, tax, ins, provider, dev_id))
+                    INSERT INTO vehicles (company_id, reg_plate, make_model, daily_cost, tracker_url, status)
+                    VALUES (%s, %s, %s, %s, %s, 'Active')
+                """, (comp_id, reg, model, daily, tracker))
                 flash("✅ Vehicle added successfully.")
 
             elif action == 'assign_crew':
                 veh_id = request.form.get('vehicle_id')
                 daily = request.form.get('daily_cost')
-                
-                mot = request.form.get('mot_expiry') or None
-                tax = request.form.get('tax_expiry') or None
-                ins = request.form.get('ins_expiry') or None
-                
                 tracker_url = request.form.get('tracker_url')
-                provider = request.form.get('telematics_provider')
-                dev_id = request.form.get('tracking_device_id')
 
+                # Only update the columns we KNOW exist
                 cur.execute("""
                     UPDATE vehicles 
-                    SET daily_cost = %s, mot_expiry = %s, tax_expiry = %s, ins_expiry = %s,
-                        tracker_url = %s, telematics_provider = %s, tracking_device_id = %s
+                    SET daily_cost = %s, tracker_url = %s
                     WHERE id = %s AND company_id = %s
-                """, (daily, mot, tax, ins, tracker_url, provider, dev_id, veh_id, comp_id))
+                """, (daily, tracker_url, veh_id, comp_id))
 
                 # Update Crew
                 crew_ids = request.form.getlist('crew_ids')
@@ -310,14 +294,13 @@ def finance_fleet():
             conn.rollback()
             flash(f"Error: {e}")
 
-    # --- GET REQUEST ---
-    # Selects 'reg_plate' from DB, but we alias it or map it carefully
+    # --- GET REQUEST (SAFE SELECT) ---
+    # We removed the columns that were crashing the system.
+    # We kept reg_plate.
     cur.execute("""
         SELECT v.id, v.reg_plate, v.make_model, v.daily_cost, v.status, 
                v.assigned_driver_id, s.name as driver_name, 
-               v.tracker_url, v.telematics_data, v.last_updated_time,
-               v.mot_expiry, v.tax_expiry, v.ins_expiry,
-               v.telematics_provider, v.tracking_device_id
+               v.tracker_url
         FROM vehicles v
         LEFT JOIN staff s ON v.assigned_driver_id = s.id
         WHERE v.company_id = %s
@@ -352,20 +335,18 @@ def finance_fleet():
 
         vehicles.append({
             'id': v_id,
-            'reg_number': r[1], # DATA from reg_plate column -> VIEW uses reg_number
+            'reg_number': r[1], # DATA is reg_plate, mapped to reg_number for HTML
             'make_model': r[2],
             'daily_cost': daily_cost,
             'status': r[4],
             'assigned_driver_id': r[5],
             'driver_name': r[6],
             'tracker_url': r[7],
-            'telematics_data': r[8],     # This column must exist now!
-            'last_updated_time': r[9],   # This column must exist now!
-            'mot_expiry': r[10],
-            'tax_expiry': r[11],
-            'ins_expiry': r[12],
-            'telematics_provider': r[13],
-            'tracking_device_id': r[14],
+            # We pass None for the dates so the HTML renders "N/A" instead of crashing
+            'mot_expiry': None,
+            'tax_expiry': None,
+            'ins_expiry': None,
+            'telematics_data': None,
             'crew': crew_list,
             'total_gang_cost': total_daily_run
         })
@@ -376,7 +357,7 @@ def finance_fleet():
                            vehicles=vehicles, 
                            today=datetime.now().date(),
                            date_fmt='%d/%m/%Y')
-
+                           
 @finance_bp.route('/finance/fleet/delete/<int:id>')
 def delete_vehicle(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
