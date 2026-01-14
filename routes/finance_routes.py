@@ -257,39 +257,37 @@ def finance_fleet():
         try:
             # --- 1. ADD NEW VEHICLE ---
             if action == 'add_vehicle':
-                reg = request.form.get('reg_number').upper()
+                # FIX: Variable is 'reg_plate' in DB
+                reg = request.form.get('reg_number').upper() 
                 model = request.form.get('make_model')
                 daily = request.form.get('daily_cost') or 0.00
                 tracker = request.form.get('tracker_url')
-                
-                # Compliance Dates (Handle empty inputs safely)
-                mot = request.form.get('mot_expiry') or None
-                tax = request.form.get('tax_expiry') or None
-                ins = request.form.get('ins_expiry') or None
-
-                cur.execute("""
-                    INSERT INTO vehicles (company_id, reg_number, make_model, daily_cost, tracker_url, status, mot_expiry, tax_expiry, ins_expiry)
-                    VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s, %s)
-                """, (comp_id, reg, model, daily, tracker, mot, tax, ins))
-                flash("✅ Vehicle added successfully.")
-
-            # --- 2. UPDATE EXISTING VEHICLE (Crew + Compliance + Cost) ---
-            elif action == 'assign_crew':
-                veh_id = request.form.get('vehicle_id')
-                driver_id = request.form.get('driver_id') # If using dropdown
-                daily = request.form.get('daily_cost')
                 
                 # Compliance Dates
                 mot = request.form.get('mot_expiry') or None
                 tax = request.form.get('tax_expiry') or None
                 ins = request.form.get('ins_expiry') or None
+
+                # FIX: Insert into 'reg_plate' column
+                cur.execute("""
+                    INSERT INTO vehicles (company_id, reg_plate, make_model, daily_cost, tracker_url, status, mot_expiry, tax_expiry, ins_expiry)
+                    VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s, %s)
+                """, (comp_id, reg, model, daily, tracker, mot, tax, ins))
+                flash("✅ Vehicle added successfully.")
+
+            # --- 2. UPDATE EXISTING VEHICLE ---
+            elif action == 'assign_crew':
+                veh_id = request.form.get('vehicle_id')
+                daily = request.form.get('daily_cost')
                 
-                # Tracker Settings
+                mot = request.form.get('mot_expiry') or None
+                tax = request.form.get('tax_expiry') or None
+                ins = request.form.get('ins_expiry') or None
+                
                 tracker_url = request.form.get('tracker_url')
                 provider = request.form.get('telematics_provider')
                 dev_id = request.form.get('tracking_device_id')
 
-                # Update Vehicle Details
                 cur.execute("""
                     UPDATE vehicles 
                     SET daily_cost = %s, mot_expiry = %s, tax_expiry = %s, ins_expiry = %s,
@@ -297,21 +295,13 @@ def finance_fleet():
                     WHERE id = %s AND company_id = %s
                 """, (daily, mot, tax, ins, tracker_url, provider, dev_id, veh_id, comp_id))
 
-                # Update Crew (Clear old -> Insert new)
+                # Update Crew
                 crew_ids = request.form.getlist('crew_ids')
-                
-                # 1. Clear current assignments for this vehicle
                 cur.execute("DELETE FROM vehicle_crew WHERE vehicle_id = %s", (veh_id,))
-                
-                # 2. Insert new crew
                 for staff_id in crew_ids:
                     cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (veh_id, staff_id))
                 
-                # 3. Handle Driver Logic (If checked in crew list, or explicit dropdown)
-                # If your system marks the first crew member as driver, logic goes here.
-                # For now, we assume the Crew update logic is sufficient or handled by 'driver_id' if you added that input.
-                
-                flash("✅ Vehicle, Crew & Compliance updated.")
+                flash("✅ Vehicle updated successfully.")
 
             conn.commit()
             
@@ -320,9 +310,9 @@ def finance_fleet():
             flash(f"Error: {e}")
 
     # --- GET REQUEST: FETCH DATA ---
-    # We fetch ALL columns including the new expiry dates
+    # FIX: Select 'reg_plate' instead of 'reg_number'
     cur.execute("""
-        SELECT v.id, v.reg_number, v.make_model, v.daily_cost, v.status, 
+        SELECT v.id, v.reg_plate, v.make_model, v.daily_cost, v.status, 
                v.assigned_driver_id, s.name as driver_name, 
                v.tracker_url, v.telematics_data, v.last_updated_time,
                v.mot_expiry, v.tax_expiry, v.ins_expiry,
@@ -330,7 +320,7 @@ def finance_fleet():
         FROM vehicles v
         LEFT JOIN staff s ON v.assigned_driver_id = s.id
         WHERE v.company_id = %s
-        ORDER BY v.reg_number
+        ORDER BY v.reg_plate
     """, (comp_id,))
     
     vehicles_raw = cur.fetchall()
@@ -340,7 +330,6 @@ def finance_fleet():
         v_id = r[0]
         daily_cost = r[3] or 0.0
 
-        # Fetch Crew for this vehicle
         cur.execute("""
             SELECT s.name, s.pay_rate, s.pay_model 
             FROM vehicle_crew vc
@@ -349,12 +338,10 @@ def finance_fleet():
         """, (v_id,))
         crew = cur.fetchall()
         
-        # Calculate Costs
         total_wages = 0
         crew_list = []
         for c in crew:
             name, rate, model = c
-            # Simple assumption: Hourly = 8 hours, Day = 1 day
             if model == 'Hour': total_wages += (rate * 8)
             elif model == 'Day': total_wages += rate
             elif model == 'Year': total_wages += (rate / 260)
@@ -364,7 +351,7 @@ def finance_fleet():
 
         vehicles.append({
             'id': v_id,
-            'reg_number': r[1],
+            'reg_number': r[1], # Map reg_plate DB col to reg_number template var
             'make_model': r[2],
             'daily_cost': daily_cost,
             'status': r[4],
@@ -373,9 +360,9 @@ def finance_fleet():
             'tracker_url': r[7],
             'telematics_data': r[8],
             'last_updated_time': r[9],
-            'mot_expiry': r[10],  # <--- Now passing this to template
-            'tax_expiry': r[11],  # <--- Now passing this to template
-            'ins_expiry': r[12],  # <--- Now passing this to template
+            'mot_expiry': r[10],
+            'tax_expiry': r[11],
+            'ins_expiry': r[12],
             'telematics_provider': r[13],
             'tracking_device_id': r[14],
             'crew': crew_list,
@@ -384,7 +371,6 @@ def finance_fleet():
 
     conn.close()
     
-    # Pass 'today' and 'date_fmt' for the color coding logic
     return render_template('finance/finance_fleet.html', 
                            vehicles=vehicles, 
                            today=datetime.now().date(),
