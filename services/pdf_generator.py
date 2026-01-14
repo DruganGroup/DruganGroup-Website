@@ -51,13 +51,10 @@ def generate_pdf(template_name_ignored, context, output_filename):
     company = context.get('company', {})
     
     brand_color = settings.get('brand_color', '#333333')
-    
-    # 1. GET CURRENCY SYMBOL (Defaults to £ if missing)
     cur_sym = settings.get('currency_symbol', '£')
-    
-    # 2. SELECT THEME
     selected_theme = settings.get('pdf_theme', 'Modern')
     
+    # Init PDF
     if selected_theme == 'Classic':
         pdf = ClassicPDF(brand_color, company.get('name', ''))
     elif selected_theme == 'Minimal':
@@ -69,19 +66,42 @@ def generate_pdf(template_name_ignored, context, output_filename):
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
     
-    # --- LOGO LOGIC ---
+    # --- SMART LOGO LOGIC (The Fix) ---
     if config.get('logo'):
-        logo_rel_path = config['logo'].lstrip('/')
-        logo_path = os.path.join(current_app.static_folder, '..', logo_rel_path)
-        if 'static/static' in logo_path: logo_path = logo_path.replace('static/static', 'static')
+        raw_logo = config['logo']
+        final_logo_path = None
 
-        if os.path.exists(logo_path):
+        # Case A: Path is already absolute and valid (e.g. /opt/render/...)
+        if os.path.exists(raw_logo):
+            final_logo_path = raw_logo
+        
+        # Case B: Path is 'file://' (e.g. file:///opt/render/...)
+        elif raw_logo.startswith('file://'):
+            clean = raw_logo.replace('file://', '')
+            if os.path.exists(clean):
+                final_logo_path = clean
+
+        # Case C: Path is relative (e.g. /static/uploads/...) - Try to resolve it
+        else:
+            try:
+                # Remove leading slash for join to work
+                rel_path = raw_logo.lstrip('/')
+                # Try finding it in root folder
+                possible_path = os.path.join(current_app.root_path, rel_path)
+                if os.path.exists(possible_path):
+                    final_logo_path = possible_path
+            except:
+                pass
+
+        # If we found a valid image, draw it
+        if final_logo_path:
             try:
                 if selected_theme == 'Minimal':
-                    pdf.image(logo_path, 10, 10, 40)
+                    pdf.image(final_logo_path, 10, 10, 40)
                 else:
-                    pdf.image(logo_path, 10, 25, 50)
-            except: pass
+                    pdf.image(final_logo_path, 10, 25, 50)
+            except Exception as e:
+                print(f"PDF Logo Error: {e}")
 
     # --- DOCUMENT HEADER ---
     pdf.set_y(25 if selected_theme != 'Minimal' else 15)
@@ -103,7 +123,7 @@ def generate_pdf(template_name_ignored, context, output_filename):
     
     pdf.ln(20)
 
-# --- ADDRESS BLOCKS ---
+    # --- ADDRESS BLOCKS ---
     y_start = pdf.get_y()
     
     # LEFT: Bill To
@@ -124,18 +144,15 @@ def generate_pdf(template_name_ignored, context, output_filename):
     pdf.set_x(110)
     pdf.set_font('Helvetica', '', 10)
     pdf.set_text_color(50)
-    company_address = settings.get('company_address', 'Registered Office')
     
-    tax_info = ""
-    if settings.get('tax_id'):
-        tax_info = f"\nTax ID: {settings.get('tax_id')}"
+    company_address = settings.get('company_address', 'Registered Office')
+    tax_info = f"\nTax ID: {settings.get('tax_id')}" if settings.get('tax_id') else ""
         
     pdf.multi_cell(90, 5, f"{company.get('name')}\n{company_address}\n{settings.get('company_email', '')}{tax_info}")
     
     pdf.ln(10)
 
-    # --- NEW: JOB CONTEXT BLOCK ---
-    # Shows Title & Description on BOTH Quotes and Invoices
+    # --- JOB CONTEXT BLOCK ---
     if invoice.get('job_title'):
         pdf.set_font('Helvetica', 'B', 11)
         pdf.set_text_color(*pdf.brand_color)
@@ -146,16 +163,13 @@ def generate_pdf(template_name_ignored, context, output_filename):
             pdf.set_text_color(80)
             pdf.multi_cell(0, 5, f"{invoice.get('job_description')}")
         
-        # ADDED: "Job Completed" line for Invoices
         if not context.get('is_quote'):
             pdf.ln(2)
             pdf.set_font('Helvetica', 'B', 9)
             pdf.set_text_color(50)
-            # We use the Invoice Date as the completion date
             pdf.cell(0, 5, f"Job Completed: {invoice.get('date')}", ln=True)
             
         pdf.ln(5) 
-    # --- END NEW BLOCK ---
 
     pdf.ln(5)
 
@@ -177,7 +191,7 @@ def generate_pdf(template_name_ignored, context, output_filename):
     for item in items:
         if pdf.get_y() > 250:
             pdf.add_page()
-            # Reprint Header if page break
+            # Reprint Header
             pdf.set_font('Helvetica', 'B', 10)
             pdf.set_fill_color(*pdf.brand_color) 
             pdf.set_text_color(255) 
@@ -190,44 +204,18 @@ def generate_pdf(template_name_ignored, context, output_filename):
 
         pdf.cell(100, 10, f"  {item.get('desc')}", 0, 0, 'L', fill)
         pdf.cell(25, 10, str(item.get('qty')), 0, 0, 'C', fill)
-        
-        # --- HERE IS THE CURRENCY FIX ---
         pdf.cell(30, 10, f"{cur_sym}{item.get('price'):.2f}", 0, 0, 'R', fill)
         pdf.cell(35, 10, f"{cur_sym}{item.get('total'):.2f}  ", 0, 1, 'R', fill)
-        
         fill = not fill 
 
-    # --- TOTALS & TAX CALCULATION ---
-    # 1. Calculate Subtotal (Ensure it's a Decimal)
+    # --- TOTALS ---
     subtotal = sum(Decimal(str(item.get('total', 0))) for item in items)
     
-    # 2. Check Tax Status & Country
     vat_enabled = settings.get('vat_registered') == 'yes'
-    country = settings.get('country_code', 'UK')
-    
-    # 3. Determine Tax Rate (As Decimal)
-    tax_rate = Decimal('0.00')
-    tax_name = "Tax"
-    
-    if vat_enabled:
-        if country == 'UK':
-            tax_rate = Decimal('0.20'); tax_name = "VAT (20%)"
-        elif country == 'AUS':
-            tax_rate = Decimal('0.10'); tax_name = "GST (10%)"
-        elif country == 'NZ':
-            tax_rate = Decimal('0.15'); tax_name = "GST (15%)"
-        elif country == 'CAN':
-            tax_rate = Decimal('0.05'); tax_name = "GST (5%)"
-        elif country == 'EU':
-            tax_rate = Decimal('0.21'); tax_name = "VAT (21%)"
-        else:
-            tax_rate = Decimal('0.00'); tax_name = "Tax (0%)"
-
-    # Now we multiply Decimal * Decimal (Safe!)
+    tax_rate = Decimal('0.20') if vat_enabled else Decimal('0.00')
     tax_amount = subtotal * tax_rate
     grand_total = subtotal + tax_amount
 
-    # --- DRAW TOTALS SECTION ---
     pdf.ln(5)
     pdf.set_draw_color(*pdf.brand_color)
     pdf.line(135, pdf.get_y(), 200, pdf.get_y())
@@ -237,36 +225,30 @@ def generate_pdf(template_name_ignored, context, output_filename):
         pdf.set_font('Helvetica', '', 10)
         pdf.cell(155, 6, "Subtotal:", 0, 0, 'R')
         pdf.cell(35, 6, f"{cur_sym}{subtotal:.2f}  ", 0, 1, 'R')
-        
-        pdf.cell(155, 6, tax_name + ":", 0, 0, 'R')
+        pdf.cell(155, 6, "Tax:", 0, 0, 'R')
         pdf.cell(35, 6, f"{cur_sym}{tax_amount:.2f}  ", 0, 1, 'R')
-        
-        # Extra line
         pdf.set_draw_color(200, 200, 200)
         pdf.line(160, pdf.get_y(), 200, pdf.get_y())
         pdf.ln(1)
 
-    # Grand Total
     pdf.set_font('Helvetica', 'B', 12)
     pdf.set_text_color(*pdf.brand_color) 
     pdf.cell(155, 10, "Grand Total:", 0, 0, 'R')
     pdf.cell(35, 10, f"{cur_sym}{grand_total:.2f}  ", 0, 1, 'R')
     
-    # --- FOOTER / TERMS ---
+    # --- FOOTER ---
     pdf.set_y(-60)
     pdf.set_text_color(50)
     pdf.set_font('Helvetica', 'B', 10)
     pdf.cell(0, 10, "Terms & Payment Details", ln=True)
-    
     pdf.set_font('Helvetica', '', 9)
+    
     terms = settings.get('payment_terms', 'Payment is due within 30 days.')
-    bank = ""
-    if settings.get('bank_name'):
-        bank = f"\nBank: {settings.get('bank_name')} | Sort/Route: {settings.get('sort_code')} | Acc: {settings.get('account_number')}"
+    bank = f"\nBank: {settings.get('bank_name')} | Sort: {settings.get('sort_code')} | Acc: {settings.get('account_number')}" if settings.get('bank_name') else ""
     
     pdf.multi_cell(0, 5, terms + bank)
 
-    # --- SAVE FILE ---
+    # --- SAVE ---
     save_dir = os.path.join(current_app.static_folder, 'uploads', 'documents')
     os.makedirs(save_dir, exist_ok=True)
     file_path = os.path.join(save_dir, output_filename)

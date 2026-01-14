@@ -895,11 +895,10 @@ def email_invoice(invoice_id):
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']:
         return redirect(url_for('auth.login'))
         
-    conn = get_db()
-    cur = conn.cursor()
+    conn = get_db(); cur = conn.cursor()
     company_id = session.get('company_id')
 
-    # 2. Fetch Invoice & Client Data
+    # 2. Fetch Invoice
     cur.execute("""
         SELECT i.id, i.reference, i.date, i.total, i.status, 
                c.name, c.email, c.address
@@ -911,62 +910,59 @@ def email_invoice(invoice_id):
     inv = cur.fetchone()
     
     if not inv:
-        conn.close()
-        flash("❌ Invoice not found.", "error")
+        conn.close(); flash("❌ Invoice not found.", "error")
         return redirect(url_for('finance.finance_invoices'))
 
     client_email = inv[6]
     invoice_ref = inv[1]
 
-    # 3. Check SMTP Settings
+    # 3. Settings
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     
-    if 'smtp_host' not in settings or 'smtp_email' not in settings:
-        conn.close()
-        flash("⚠️ Cannot Email: SMTP settings missing. Go to Settings > General.", "warning")
+    if 'smtp_host' not in settings:
+        conn.close(); flash("⚠️ SMTP Settings missing.", "warning")
         return redirect(url_for('finance.finance_invoices'))
 
-    # 4. Generate the PDF
+    # 4. Items
     cur.execute("SELECT description, quantity, unit_price, total FROM invoice_items WHERE invoice_id = %s", (invoice_id,))
     items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
     
-    # Calculate Tax
-    total_val = float(inv[3]) if inv[3] else 0.0
-    is_vat = settings.get('vat_registered', 'no')
-    tax_rate = 20.0 if str(is_vat).lower() in ['1', 'true', 'yes', 'on'] else 0.0
-    divisor = 1 + (tax_rate / 100)
-    subtotal = total_val / divisor if divisor > 1 else total_val
-    tax = total_val - subtotal
-
-    # --- WHITE LABEL LOGO FIX ---
-    # 1. Get the config for THIS specific company
+    # 5. CONFIG & LOGO FIX (This is what you need)
     config = get_site_config(company_id)
     
-    # 2. Convert the relative path (/static/uploads/5/logo.png) 
-    #    to an Absolute URL (https://site.com/static/uploads/5/logo.png)
+    # If a logo exists, calculate the REAL path on the server (e.g. /opt/render/...)
     if config.get('logo') and config['logo'].startswith('/'):
-        config['logo'] = f"{request.url_root.rstrip('/')}{config['logo']}"
+        # Remove the leading slash so we can join it correctly
+        clean_path = config['logo'].lstrip('/')
+        local_path = os.path.join(current_app.root_path, clean_path)
+        
+        # Only use it if the file actually exists on the disk
+        if os.path.exists(local_path):
+            config['logo'] = local_path
 
+    # 6. Context
+    total_val = float(inv[3]) if inv[3] else 0.0
+    
     context = {
         'invoice': {
             'ref': inv[1], 'date': inv[2], 'due': inv[2],
             'client_name': inv[5], 'client_address': inv[7], 'client_email': inv[6],
-            'subtotal': subtotal, 'tax': tax, 'total': total_val,
-            'tax_rate_display': tax_rate, 'currency_symbol': settings.get('currency_symbol', '£')
+            'total': total_val, 'subtotal': total_val, 'tax': 0.0,
+            'currency_symbol': settings.get('currency_symbol', '£')
         },
         'company': {'name': session.get('company_name')},
         'items': items, 
         'settings': settings, 
-        'config': config  # <--- Passes the correct logo for THIS company
+        'config': config # Contains the fixed local path
     }
 
     filename = f"Invoice_{invoice_ref}.pdf"
     
     try:
-        pdf_path = generate_pdf('office/pdf_quote.html', context, filename)
+        pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
         
-        # 5. Send Email
+        # 7. Send Email
         msg = MIMEMultipart()
         msg['From'] = settings.get('smtp_email')
         msg['To'] = client_email
@@ -988,7 +984,6 @@ def email_invoice(invoice_id):
         
         cur.execute("UPDATE invoices SET status = 'Sent' WHERE id = %s", (invoice_id,))
         conn.commit()
-        
         flash(f"✅ Invoice emailed to {client_email}!", "success")
 
     except Exception as e:

@@ -284,10 +284,7 @@ def convert_to_job(quote_id):
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
     finally:
         conn.close()
-        
-# =========================================================
-# 4. EMAIL QUOTE (Fixed: Logo & Absolute URLs)
-# =========================================================
+
 @quote_bp.route('/office/quote/<int:quote_id>/email')
 def email_quote(quote_id):
     # 1. Security Check
@@ -297,7 +294,7 @@ def email_quote(quote_id):
     company_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
     
-    # 2. Fetch Quote & Client Data
+    # 2. Fetch Quote
     cur.execute("""
         SELECT q.reference, c.name, c.email, q.job_title, q.job_description, q.date, q.total
         FROM quotes q JOIN clients c ON q.client_id = c.id
@@ -311,7 +308,7 @@ def email_quote(quote_id):
 
     ref, client_name, client_email, title, desc, q_date, total_val = q[0], q[1], q[2], q[3], q[4], q[5], float(q[6] or 0)
 
-    # 3. Fetch Settings
+    # 3. Settings
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     
@@ -319,26 +316,27 @@ def email_quote(quote_id):
         conn.close(); flash("⚠️ SMTP Settings missing.", "warning")
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
 
-    # 4. Fetch Items
     cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
     items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
     
-    # 5. Prepare Config & Fix Logo (The Missing Piece!)
+    # 4. PREPARE CONFIG & FORCE LOCAL LOGO PATH (The Fix)
     config = get_site_config(company_id)
     
-    # FORCE ABSOLUTE URL FOR LOGO (Crucial for Email)
     if config.get('logo') and config['logo'].startswith('/'):
-        # Converts "/static/..." to "https://your-site.com/static/..."
-        config['logo'] = f"{request.url_root.rstrip('/')}{config['logo']}"
+        # 1. Get the real path on the hard drive (e.g. /opt/render/project/src/static/...)
+        # We strip the leading '/' so os.path.join attaches it correctly
+        local_path = os.path.join(current_app.root_path, config['logo'].lstrip('/'))
+        
+        # 2. Check if it actually exists to avoid errors
+        if os.path.exists(local_path):
+            # 3. Use 'file://' protocol so wkhtmltopdf knows it's local
+            config['logo'] = f"file://{local_path}"
 
-    # 6. Determine Date Format
+    # 5. Date & Context
     country = settings.get('country_code', 'UK')
     date_fmt = '%m/%d/%Y' if country == 'US' else '%d/%m/%Y'
-    
-    # Use real quote date if available, otherwise today
     formatted_date = q_date.strftime(date_fmt) if q_date else datetime.now().strftime(date_fmt)
 
-    # 7. Build PDF Context
     context = {
         'invoice': {
             'ref': ref, 
@@ -346,14 +344,13 @@ def email_quote(quote_id):
             'job_title': title,          
             'job_description': desc,
             'total': total_val,
-            # Add simple subtotal/tax logic for display
-            'subtotal': total_val, # Simplified for quote
+            'subtotal': total_val, 
             'tax': 0.0,
             'currency_symbol': settings.get('currency_symbol', '£')
         }, 
         'items': items, 
         'settings': settings, 
-        'config': config,  # <--- Now includes the fixed logo URL
+        'config': config,  # <--- Now contains the 'file://' path
         'is_quote': True
     }
 
@@ -362,7 +359,7 @@ def email_quote(quote_id):
     try:
         pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
         
-        # 8. Send Email
+        # 6. Send Email
         msg = MIMEMultipart()
         msg['From'] = settings.get('smtp_email')
         msg['To'] = client_email
@@ -390,8 +387,8 @@ def email_quote(quote_id):
         flash(f"❌ Email failed: {e}", "error")
     
     conn.close()
-    return redirect(url_for('quote.view_quote', quote_id=quote_id))
-    
+    return redirect(url_for('quote.view_quote', quote_id=quote_id))        
+   
 @quote_bp.route('/office/quote/<int:quote_id>/convert')
 def convert_to_invoice(quote_id):
     if not check_access(): return redirect(url_for('auth.login'))
