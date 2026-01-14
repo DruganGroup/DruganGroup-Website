@@ -1174,3 +1174,20 @@ def finance_dashboard():
                            chart_expense=chart_expense,
                            brand_color=config['color'],
                            logo_url=config['logo'])
+                           
+@app.route('/fix-nok-columns')
+def fix_nok_columns():
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # Add the new detailed columns to the STAFF table
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS nok_name VARCHAR(100);")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS nok_phone VARCHAR(50);")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS nok_relationship VARCHAR(50);")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS nok_address TEXT;")
+        conn.commit()
+        return "✅ Success: Next of Kin columns added to Staff table."
+    except Exception as e:
+        return f"❌ Error: {e}"
+    finally:
+        conn.close()

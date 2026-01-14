@@ -13,7 +13,7 @@
         
         body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
         
-        /* SIDEBAR STYLING - FIXED SCROLLING */
+        /* SIDEBAR STYLING */
         .sidebar { 
             height: 100vh; 
             background-color: var(--brand-color); 
@@ -28,7 +28,6 @@
             flex-direction: column;
         }
         
-        /* LOGO CONTAINER STYLING */
         .sidebar-brand {
             background: rgba(0,0,0,0.1);
             padding: 25px 15px;
@@ -37,20 +36,18 @@
         }
         
         .sidebar-logo-img {
-            /* This forces the logo to behave, no matter how big the file is */
-            max-width: 100%;      /* Never wider than the sidebar padding */
-            max-height: 80px;     /* Never taller than 80px */
+            max-width: 100%;      
+            max-height: 80px;
             width: auto;
             height: auto;
-            object-fit: contain;  /* Keeps aspect ratio perfect */
+            object-fit: contain;  
             display: block;
             margin: 0 auto 10px auto;
-            background: #fff;     /* White background for transparency safety */
+            background: #fff;     
             padding: 5px;
             border-radius: 6px;
         }
 
-        /* Custom Scrollbar */
         .sidebar::-webkit-scrollbar { width: 6px; }
         .sidebar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
         .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
@@ -65,11 +62,7 @@
             border-left: 4px solid transparent;
         }
         
-        .sidebar a:hover { 
-            background-color: rgba(255,255,255,0.1); 
-            color: white; 
-        }
-        
+        .sidebar a:hover { background-color: rgba(255,255,255,0.1); color: white; }
         .sidebar a.active { 
             background-color: rgba(255,255,255,0.15); 
             color: white; 
@@ -88,6 +81,12 @@
 
         .content { margin-left: 260px; padding: 40px; }
         .currency-text { font-family: 'Consolas', monospace; letter-spacing: -0.5px; }
+
+        /* --- MOBILE VIEW CONTROL (The Logic you asked about) --- */
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; height: auto; position: relative; }
+            .content { margin-left: 0; padding: 20px; }
+        }
     </style>
     {% block head %}{% endblock %}
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
@@ -100,9 +99,7 @@
     <div class="sidebar">
         <div class="sidebar-brand">
             <img src="{{ logo or '/static/images/logo.png' }}" alt="Company Logo" class="sidebar-logo-img">
-            
             <div class="small text-white-50 text-uppercase fw-bold" style="letter-spacing: 1px; font-size: 0.75rem;">Finance Console</div>
-            
             <div class="badge bg-warning text-dark mt-2 shadow-sm">
                 <i class="fas fa-building me-1"></i> {{ session.get('company_name', 'My Company') }}
             </div>
