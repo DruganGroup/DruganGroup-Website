@@ -226,7 +226,7 @@ def update_staff():
         conn.commit()
         flash("✅ Staff Details & Wages Updated")
         
-    except Exception as e:
+    except Exception as e:  
         conn.rollback()
         flash(f"Error: {e}")
     finally:
@@ -242,7 +242,7 @@ def delete_staff(id):
     conn.commit(); conn.close()
     return redirect(url_for('finance.finance_hr'))
 
-# --- FINANCE: FLEET MANAGER (SAFE MODE) ---
+# --- FINANCE: FLEET MANAGER ---
 @finance_bp.route('/finance/fleet', methods=['GET', 'POST'])
 def finance_fleet():
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']: 
@@ -256,29 +256,42 @@ def finance_fleet():
         
         try:
             if action == 'add_vehicle':
-                # We use reg_plate as confirmed
+                # DATABASE uses 'reg_plate'
                 reg = request.form.get('reg_number').upper() 
                 model = request.form.get('make_model')
                 daily = request.form.get('daily_cost') or 0.00
                 tracker = request.form.get('tracker_url')
+                
+                # Compliance Dates
+                mot = request.form.get('mot_expiry') or None
+                tax = request.form.get('tax_expiry') or None
+                ins = request.form.get('ins_expiry') or None
 
+                # We use the new columns here
                 cur.execute("""
-                    INSERT INTO vehicles (company_id, reg_plate, make_model, daily_cost, tracker_url, status)
-                    VALUES (%s, %s, %s, %s, %s, 'Active')
-                """, (comp_id, reg, model, daily, tracker))
+                    INSERT INTO vehicles (company_id, reg_plate, make_model, daily_cost, tracker_url, status, mot_expiry, tax_expiry, ins_expiry)
+                    VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s, %s)
+                """, (comp_id, reg, model, daily, tracker, mot, tax, ins))
                 flash("✅ Vehicle added successfully.")
 
             elif action == 'assign_crew':
                 veh_id = request.form.get('vehicle_id')
                 daily = request.form.get('daily_cost')
+                
+                # Capture the dates from the form
+                mot = request.form.get('mot_expiry') or None
+                tax = request.form.get('tax_expiry') or None
+                ins = request.form.get('ins_expiry') or None
+                
                 tracker_url = request.form.get('tracker_url')
 
-                # Only update the columns we KNOW exist
+                # Update the database with the new dates
                 cur.execute("""
                     UPDATE vehicles 
-                    SET daily_cost = %s, tracker_url = %s
+                    SET daily_cost = %s, mot_expiry = %s, tax_expiry = %s, ins_expiry = %s,
+                        tracker_url = %s
                     WHERE id = %s AND company_id = %s
-                """, (daily, tracker_url, veh_id, comp_id))
+                """, (daily, mot, tax, ins, tracker_url, veh_id, comp_id))
 
                 # Update Crew
                 crew_ids = request.form.getlist('crew_ids')
@@ -294,13 +307,13 @@ def finance_fleet():
             conn.rollback()
             flash(f"Error: {e}")
 
-    # --- GET REQUEST (SAFE SELECT) ---
-    # We removed the columns that were crashing the system.
-    # We kept reg_plate.
+    # --- GET REQUEST ---
+    # Now we safely select the new columns because we created them in Step 1
     cur.execute("""
         SELECT v.id, v.reg_plate, v.make_model, v.daily_cost, v.status, 
                v.assigned_driver_id, s.name as driver_name, 
-               v.tracker_url
+               v.tracker_url, 
+               v.mot_expiry, v.tax_expiry, v.ins_expiry
         FROM vehicles v
         LEFT JOIN staff s ON v.assigned_driver_id = s.id
         WHERE v.company_id = %s
@@ -335,18 +348,16 @@ def finance_fleet():
 
         vehicles.append({
             'id': v_id,
-            'reg_number': r[1], # DATA is reg_plate, mapped to reg_number for HTML
+            'reg_number': r[1],
             'make_model': r[2],
             'daily_cost': daily_cost,
             'status': r[4],
             'assigned_driver_id': r[5],
             'driver_name': r[6],
             'tracker_url': r[7],
-            # We pass None for the dates so the HTML renders "N/A" instead of crashing
-            'mot_expiry': None,
-            'tax_expiry': None,
-            'ins_expiry': None,
-            'telematics_data': None,
+            'mot_expiry': r[8],  # Now fetching real data
+            'tax_expiry': r[9],  # Now fetching real data
+            'ins_expiry': r[10], # Now fetching real data
             'crew': crew_list,
             'total_gang_cost': total_daily_run
         })
@@ -1120,7 +1131,7 @@ def finance_dashboard():
                            brand_color=config['color'],
                            logo_url=config['logo'])
                            
-                           @finance_bp.route('/add-compliance-cols')
+@finance_bp.route('/add-compliance-cols')
 def add_compliance_cols():
     conn = get_db()
     cur = conn.cursor()
