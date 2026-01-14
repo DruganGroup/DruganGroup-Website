@@ -763,48 +763,27 @@ def view_system_logs():
         logs.append((r[0], r[1], r[2], r[3], r[4], formatted_date))
 
     return render_template('admin/system_logs.html', logs=logs)
-
-# =========================================================
-#  EMERGENCY FIX: RESTORE SUPER ADMIN
-# =========================================================
-@admin_bp.route('/public/restore-admin')
-def restore_admin():
-    # Import here to avoid syntax errors at the top level
-    from werkzeug.security import generate_password_hash 
-
-    conn = get_db()
-    cur = conn.cursor()
     
+    @admin_bp.route('/public/restore-admin')
+def restore_admin():
+    from werkzeug.security import generate_password_hash 
+    conn = get_db(); cur = conn.cursor()
     try:
-        # 1. Create the hashed password
-        hashed_pw = generate_password_hash('47ST3E9AZ114D') 
+        # 1. Check if user exists
+        cur.execute("SELECT id FROM users WHERE email = 'admin@drugangroup.co.uk'")
+        exists = cur.fetchone()
         
-        # 2. Insert User (Using 'password_hash')
-        # We also use ON CONFLICT to update the user if they already exist
-        cur.execute("""
-            INSERT INTO users (name, email, password_hash, role, company_id) 
-            VALUES ('Super Admin', 'admin@drugangroup.co.uk', %s, 'SuperAdmin', NULL)
-            ON CONFLICT (email) DO UPDATE 
-            SET password_hash = EXCLUDED.password_hash, role = 'SuperAdmin';
-        """, (hashed_pw,))
+        # 2. Hash Password
+        pw = generate_password_hash('47ST3E9AZ114D')
         
+        if exists:
+            cur.execute("UPDATE users SET password_hash = %s, role = 'SuperAdmin', company_id = NULL WHERE id = %s", (pw, exists[0]))
+        else:
+            cur.execute("INSERT INTO users (name, email, password_hash, role, company_id) VALUES ('Super Admin', 'admin@drugangroup.co.uk', %s, 'SuperAdmin', NULL)", (pw,))
+            
         conn.commit()
-        
-        return f"""
-        <div style="text-align:center; padding:50px; font-family:sans-serif;">
-            <h1 style="color:green;">✅ Admin Account Restored</h1>
-            <p>You can now log in.</p>
-            <ul style="display:inline-block; text-align:left;">
-                <li><strong>Email:</strong> admin@drugangroup.co.uk</li>
-                <li><strong>Password:</strong> 47ST3E9AZ114D</li>
-            </ul>
-            <br><br>
-            <a href="/login" style="background:#000; color:white; padding:10px 20px; text-decoration:none; border-radius:5px;">Go to Login</a>
-        </div>
-        """
-        
+        return "<h1>✅ Success: Log in with admin@drugangroup.co.uk / 47ST3E9AZ114D</h1>"
     except Exception as e:
-        conn.rollback()
-        return f"<h1>❌ Restoration Failed</h1><pre>{e}</pre>"
+        return f"<h1>Error: {e}</h1>"
     finally:
-        conn.close()@admin_bp.route('/public/restore-admin')
+        conn.close()
