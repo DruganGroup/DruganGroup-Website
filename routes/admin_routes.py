@@ -765,40 +765,54 @@ def view_system_logs():
     return render_template('admin/system_logs.html', logs=logs)
     
     # =========================================================
-#  EMERGENCY MAGIC LOGIN (Bypass Password Entirely)
+#  SUPER ADMIN: CHANGE MY PASSWORD
 # =========================================================
-@admin_bp.route('/public/force-login')
-def force_login():
-    conn = get_db(); cur = conn.cursor()
+@admin_bp.route('/admin/my-profile', methods=['GET', 'POST'])
+def admin_profile():
+    # 1. Security Check
+    if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
     
-    # 1. Ensure the User Exists
-    cur.execute("SELECT id, name, role, company_id FROM users WHERE email = 'admin@drugangroup.co.uk'")
-    user = cur.fetchone()
-    
-    # If not found, create them instantly with a dummy password
-    if not user:
-        from werkzeug.security import generate_password_hash 
-        pw = generate_password_hash('admin123')
-        cur.execute("""
-            INSERT INTO users (name, email, password_hash, role, company_id) 
-            VALUES ('Super Admin', 'admin@drugangroup.co.uk', %s, 'SuperAdmin', NULL)
-            RETURNING id, name, role, company_id
-        """, (pw,))
-        user = cur.fetchone()
-        conn.commit()
-    
-    conn.close()
+    msg = ""
+    if request.method == 'POST':
+        new_pass = request.form.get('password')
+        
+        if new_pass and len(new_pass) > 5:
+            from werkzeug.security import generate_password_hash
+            hashed = generate_password_hash(new_pass)
+            
+            conn = get_db(); cur = conn.cursor()
+            try:
+                # Update the logged-in user's password
+                cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hashed, session.get('user_id')))
+                conn.commit()
+                msg = "✅ Password Updated! You can now log in safely."
+            except Exception as e:
+                conn.rollback()
+                msg = f"❌ Error: {e}"
+            finally:
+                conn.close()
+        else:
+            msg = "⚠️ Password must be at least 6 characters."
 
-    # 2. FORCE THE SESSION (The "Magic" Part)
-    # We manually inject the login cookies into your browser
-    session.clear()
-    session['user_id'] = user[0]
-    session['user_name'] = user[1]
-    session['user_email'] = 'admin@drugangroup.co.uk'
-    session['role'] = user[2]  # Should be 'SuperAdmin'
-    session['company_id'] = user[3]
-    session['logged_in'] = True
-    
-    # 3. Redirect straight to Dashboard
-    return redirect('/super-admin')
-# =========================================================
+    # Simple HTML Form
+    return f"""
+    <div style="font-family:sans-serif; max-width:500px; margin:50px auto; padding:30px; border:1px solid #ccc; border-radius:10px;">
+        <h2>🔐 Super Admin Security</h2>
+        <p>Set your permanent password here.</p>
+        
+        <div style="background:#e8f5e9; color:green; padding:10px; margin-bottom:15px; border-radius:5px;">
+            {msg}
+        </div>
+        
+        <form method="POST">
+            <label><strong>New Secure Password:</strong></label><br>
+            <input type="text" name="password" required style="width:100%; padding:10px; margin-top:5px; font-size:16px;">
+            <br><br>
+            <button type="submit" style="background:#000; color:white; padding:12px 20px; border:none; border-radius:5px; cursor:pointer; font-size:16px;">
+                Save Password
+            </button>
+        </form>
+        <br>
+        <a href="/super-admin">Back to Dashboard</a>
+    </div>
+    """
