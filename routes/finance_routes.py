@@ -1119,3 +1119,21 @@ def finance_dashboard():
                            chart_expense=chart_expense,
                            brand_color=config['color'],
                            logo_url=config['logo'])
+                           
+                           @finance_bp.route('/add-compliance-cols')
+def add_compliance_cols():
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # Create the 3 missing columns for compliance
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS mot_expiry DATE;")
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tax_expiry DATE;")
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS ins_expiry DATE;")
+        
+        conn.commit()
+        return "✅ Success: Compliance columns (MOT, Tax, Ins) created."
+    except Exception as e:
+        conn.rollback()
+        return f"❌ Error: {e}"
+    finally:
+        conn.close()
