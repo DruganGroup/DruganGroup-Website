@@ -764,17 +764,23 @@ def view_system_logs():
 
     return render_template('admin/system_logs.html', logs=logs)
     
+# =========================================================
+#  PASTE THIS RIGHT AFTER "admin_bp = Blueprint(...)"
+# =========================================================
 @admin_bp.route('/public/restore-admin')
 def restore_admin():
     from werkzeug.security import generate_password_hash 
     conn = get_db(); cur = conn.cursor()
     try:
-        # 1. Check if user exists
+        # 1. EXPAND COLUMN SIZE (Fixes the "Password Cutoff" bug)
+        cur.execute("ALTER TABLE users ALTER COLUMN password_hash TYPE VARCHAR(255);")
+        
+        # 2. Check if user exists
         cur.execute("SELECT id FROM users WHERE email = 'admin@drugangroup.co.uk'")
         exists = cur.fetchone()
         
-        # 2. Hash Password
-        pw = generate_password_hash('47ST3E9AZ114D')
+        # 3. Hash Simple Password ('admin123')
+        pw = generate_password_hash('admin123')
         
         if exists:
             cur.execute("UPDATE users SET password_hash = %s, role = 'SuperAdmin', company_id = NULL WHERE id = %s", (pw, exists[0]))
@@ -782,8 +788,10 @@ def restore_admin():
             cur.execute("INSERT INTO users (name, email, password_hash, role, company_id) VALUES ('Super Admin', 'admin@drugangroup.co.uk', %s, 'SuperAdmin', NULL)", (pw,))
             
         conn.commit()
-        return "<h1>✅ Success: Log in with admin@drugangroup.co.uk / 47ST3E9AZ114D</h1>"
+        return "<h1>✅ Success: Log in with admin@drugangroup.co.uk / admin123</h1>"
     except Exception as e:
+        conn.rollback()
         return f"<h1>Error: {e}</h1>"
     finally:
         conn.close()
+# =========================================================
