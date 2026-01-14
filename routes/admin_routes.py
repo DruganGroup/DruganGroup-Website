@@ -681,35 +681,54 @@ def view_system_logs():
         logs.append((r[0], r[1], r[2], r[3], r[4], formatted_date))
 
     return render_template('admin/system_logs.html', logs=logs)
-    
-    # =========================================================
-#  FIX JOBS SCHEMA (Add estimated_days)
-# =========================================================
-@admin_bp.route('/admin/fix-jobs-schema')
-def fix_jobs_schema():
+
+import os
+from flask import current_app
+
+@admin_bp.route('/admin/debug-logo')
+def debug_logo():
     if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
     
-    conn = get_db()
-    cur = conn.cursor()
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
     
-    try:
-        # 1. Add estimated_days column to jobs table
-        # We set a default of 1 to prevent errors with existing rows
-        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS estimated_days INTEGER DEFAULT 1;")
+    # 1. What does the Database say?
+    db_logo_path = config.get('logo')
+    
+    # 2. What does the Server File System say?
+    root_path = current_app.root_path
+    
+    # Attempt to resolve the path exactly like the PDF generator does
+    resolved_path = "Could not resolve"
+    file_exists = False
+    
+    if db_logo_path and db_logo_path.startswith('/'):
+        # Remove leading slash and join with root
+        clean_path = db_logo_path.lstrip('/')
+        resolved_path = os.path.join(root_path, clean_path)
+        file_exists = os.path.exists(resolved_path)
+    
+    return f"""
+    <div style="font-family: monospace; padding: 20px;">
+        <h1>🕵️‍♂️ Logo Debugger</h1>
+        <p><strong>Company ID:</strong> {comp_id}</p>
+        <hr>
+        <h3>1. Database Record</h3>
+        <p>The DB thinks your logo is here: <br>
+        <span style="background: #eee; padding: 5px;">{db_logo_path}</span></p>
         
-        conn.commit()
-        return """
-        <div style="font-family:sans-serif; text-align:center; padding:50px;">
-            <h1 style="color:green;">✅ Jobs Table Fixed</h1>
-            <p>Added 'estimated_days' column.</p>
-            <p><strong>You can now convert Quotes to Jobs successfully.</strong></p>
-            <br>
-            <a href="/office-hub" style="background:#333; color:white; padding:10px 20px; text-decoration:none;">Return to Office</a>
-        </div>
-        """
+        <h3>2. Server File Check</h3>
+        <p>Server Root Path: {root_path}</p>
+        <p>Looking for file at: <br>
+        <span style="background: #eee; padding: 5px;">{resolved_path}</span></p>
         
-    except Exception as e:
-        conn.rollback()
-        return f"<h1>❌ Fix Failed</h1><pre>{e}</pre>"
-    finally:
-        conn.close()
+        <h3>3. Result</h3>
+        <p><strong>File Exists?</strong> 
+        <span style="color: {'green' if file_exists else 'red'}; font-weight: bold; font-size: 1.2rem;">
+            {str(file_exists).upper()}
+        </span>
+        </p>
+        
+        <p><em>If this says TRUE, your PDF logo will work. If FALSE, re-upload the logo in settings.</em></p>
+    </div>
+    """
