@@ -668,8 +668,8 @@ def view_system_logs():
         logs.append((r[0], r[1], r[2], r[3], r[4], formatted_date))
 
     return render_template('admin/system_logs.html', logs=logs)
-    
-    @admin_bp.route('/admin/upgrade-subscription-table')
+
+@admin_bp.route('/admin/upgrade-subscription-table')
 def upgrade_sub_table():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
     conn = get_db(); cur = conn.cursor()
