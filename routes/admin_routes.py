@@ -630,7 +630,7 @@ def view_audit_logs():
         ORDER BY id DESC LIMIT %s OFFSET %s
     """, (per_page, offset))
     
-        rows = cur.fetchall()
+    rows = cur.fetchall()
     conn.close()
 
     # Pre-format date in Python to prevent HTML crashes
