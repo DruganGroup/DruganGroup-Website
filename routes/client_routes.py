@@ -118,9 +118,6 @@ def delete_client(id):
     conn.commit(); conn.close()
     return redirect(url_for('client.client_dashboard'))
 
-# OPEN: routes/client_routes.py
-# FIND the 'view_client' function and REPLACE it with this:
-
 @client_bp.route('/client/<int:client_id>')
 def view_client(client_id):
     if session.get('role') not in ['Admin', 'Office', 'Manager', 'SuperAdmin']: 
@@ -129,12 +126,27 @@ def view_client(client_id):
     conn = get_db(); cur = conn.cursor()
     comp_id = session['company_id']
     
-    # 1. Fetch Client
-    cur.execute("SELECT * FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
-    client = cur.fetchone()
-    if not client: conn.close(); return "Client not found", 404
+    # 1. FETCH CLIENT (Explicit Columns - Fixes "None" and "1234" issue)
+    cur.execute("""
+        SELECT id, name, email, phone, billing_address, site_address, password_hash 
+        FROM clients 
+        WHERE id = %s AND company_id = %s
+    """, (client_id, comp_id))
+    
+    row = cur.fetchone()
+    if not row: conn.close(); return "Client not found", 404
         
-    # 2. Fetch Properties
+    # Map the data explicitly so it can't mix up
+    client_data = {
+        'id': row[0],
+        'name': row[1] or "Unknown Name",
+        'email': row[2],
+        'phone': row[3],
+        'addr': row[4] or row[5] or "No Address on File",
+        'has_portal': True if row[6] else False  # Checks if password exists
+    }
+
+    # 2. FETCH PROPERTIES
     cur.execute("""
         SELECT id, address_line1, postcode, tenant_name, 
                gas_safety_due, eicr_due, pat_test_due, fire_risk_due, epc_expiry, tenant_phone
@@ -163,7 +175,7 @@ def view_client(client_id):
             }
         })
 
-    # 3. FETCH VANS (Real Database Query)
+    # 3. FETCH VANS
     cur.execute("SELECT id, reg_plate FROM vehicles WHERE company_id = %s ORDER BY reg_plate", (comp_id,))
     rows = cur.fetchall()
     vans_list = [{'id': r[0], 'name': r[1]} for r in rows]
@@ -171,15 +183,10 @@ def view_client(client_id):
 
     conn.close()
     
-    client_data = {
-        'id': client[0], 'name': client[2], 'email': client[3],
-        'phone': client[4], 'addr': client[5] or client[6] 
-    }
-    
     return render_template('office/client_details.html', 
                            client=client_data, 
                            properties=properties, 
-                           vans_list=vans_list,  # <--- Sending Real Data
+                           vans_list=vans_list,
                            today=today)
                            
 # --- 6. OFFICE VIEW: ADD PROPERTY (WITH COMPLIANCE DATES) ---

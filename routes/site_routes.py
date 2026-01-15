@@ -699,26 +699,36 @@ def job_details(job_id):
     
     conn = get_db(); cur = conn.cursor()
     
-    # 1. IDENTIFY STAFF (CRITICAL)
-    # We need to know who YOU are to check YOUR timesheet
+    # 1. IDENTIFY STAFF
     staff_id, staff_name, _ = get_staff_identity(session['user_id'], cur)
     
-    # 2. GET JOB DETAILS
+    # 2. GET JOB DETAILS (Explicitly)
+    # We select specific columns so we know exactly what we are getting
     cur.execute("""
-        SELECT j.id, j.ref, j.status, c.name, j.description, 
-               c.name, c.phone, j.site_address, j.description
+        SELECT j.id, j.ref, j.status, c.name, c.phone, j.site_address, j.description, c.gate_code
         FROM jobs j
         LEFT JOIN clients c ON j.client_id = c.id
         WHERE j.id = %s
     """, (job_id,))
-    job = cur.fetchone()
+    row = cur.fetchone()
     
-    if not job: conn.close(); return "Job not found", 404
+    if not row: conn.close(); return "Job not found", 404
 
-    # 3. CHECK IF *YOU* ARE CLOCKED IN (The Missing Link)
+    # 3. CONVERT TO SAFE DICTIONARY (This fixes the "1234" address bug)
+    job = {
+        'id': row[0],
+        'ref': row[1],
+        'status': row[2],
+        'client_name': row[3] or "Unknown Client",
+        'client_phone': row[4] or "No Phone",
+        'address': row[5] or "No Address Logged",
+        'description': row[6] or "No Description",
+        'gate_code': row[7] # Now we can show the gate code properly too!
+    }
+
+    # 4. CHECK IF CLOCKED IN
     user_is_clocked_in = False
     if staff_id:
-        # Check specifically for THIS staff member on THIS job
         cur.execute("""
             SELECT id FROM staff_timesheets 
             WHERE staff_id = %s AND job_id = %s AND clock_out IS NULL
@@ -726,32 +736,30 @@ def job_details(job_id):
         if cur.fetchone():
             user_is_clocked_in = True
 
-    # 4. FETCH MATERIALS & PHOTOS
+    # 5. FETCH MATERIALS & PHOTOS
     cur.execute("SELECT description, quantity, unit_price FROM job_materials WHERE job_id = %s", (job_id,))
     materials = cur.fetchall()
 
-# --- FETCH PHOTOS FROM DB ---
     cur.execute("SELECT filepath FROM job_evidence WHERE job_id = %s", (job_id,))
-    # Convert list of tuples [('path1',), ('path2',)] -> list of strings ['path1', 'path2']
     photos = [row[0] for row in cur.fetchall()]
 
-    # 5. FETCH BRANDING (White Label)
-    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'logo'", (session['company_id'],))
+    # 6. FETCH BRANDING
+    comp_id = session.get('company_id')
+    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'logo'", (comp_id,))
     logo_row = cur.fetchone()
     logo_url = logo_row[0] if logo_row else None
     
-    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'brand_color'", (session['company_id'],))
+    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'brand_color'", (comp_id,))
     color_row = cur.fetchone()
     brand_color = color_row[0] if color_row else '#333333'
 
     conn.close()
     
-    # 6. SEND EVERYTHING TO THE PAGE
     return render_template('site/job_details.html', 
                            job=job, 
                            materials=materials, 
                            photos=photos, 
-                           user_is_clocked_in=user_is_clocked_in, # <--- This is what your HTML is waiting for!
+                           user_is_clocked_in=user_is_clocked_in, 
                            logo_url=logo_url,
                            brand_color=brand_color)
                            

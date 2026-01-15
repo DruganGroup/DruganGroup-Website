@@ -16,11 +16,23 @@
             </div>
         </div>
         <div class="col-md-5 text-end">
+            <form action="/office/client/{{ client.id }}/enable-portal" method="POST" class="d-inline">
+                {% if client.has_portal %}
+                    <button type="submit" class="btn btn-outline-warning fw-bold me-2" title="Resend Invite / Reset Password">
+                        <i class="fas fa-key me-1"></i> Reset Portal
+                    </button>
+                {% else %}
+                    <button type="submit" class="btn btn-warning fw-bold me-2 text-dark">
+                        <i class="fas fa-lock-open me-1"></i> Enable Portal
+                    </button>
+                {% endif %}
+            </form>
             <button class="btn btn-success text-white fw-bold me-2" data-bs-toggle="modal" data-bs-target="#createJobModal">
                 <i class="fas fa-hammer me-1"></i> New Job
             </button>
             <a href="mailto:{{ client.email }}" class="btn btn-outline-dark"><i class="fas fa-envelope"></i> Email</a>
-            <a href="tel:{{ client.phone }}" class="btn btn-outline-dark"><i class="fas fa-phone"></i> Call</a>
+            
+            <a href="/client/delete/{{ client.id }}" class="btn btn-outline-danger ms-2" onclick="return confirm('Delete this client?')"><i class="fas fa-trash"></i></a>
         </div>
     </div>
 

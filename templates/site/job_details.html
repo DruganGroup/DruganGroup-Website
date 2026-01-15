@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Job #{{ job[1] }}</title>
+    <title>Job #{{ job.ref }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; padding-bottom: 80px; }
-        /* DYNAMIC BRAND COLOR */
         .header-bar { 
             background-color: {{ brand_color or '#333' }}; 
             color: white; 
@@ -35,11 +34,11 @@
                 <span class="fw-bold text-uppercase small opacity-50">Site App</span>
             {% endif %}
             
-            <span class="badge {{ 'bg-success' if job[2] == 'In Progress' else 'bg-warning text-dark' }} shadow-sm">
-                {{ job[2] }}
+            <span class="badge {{ 'bg-success' if job.status == 'In Progress' else 'bg-warning text-dark' }} shadow-sm">
+                {{ job.status }}
             </span> 
         </div>
-        <h4 class="m-0 fw-bold text-center">{{ job[1] }}</h4>
+        <h4 class="m-0 fw-bold text-center">{{ job.ref }}</h4>
     </div>
 
     <div class="container">
@@ -53,9 +52,16 @@
         <div class="card shadow-sm border-0 mb-3">
             <div class="card-body">
                 <h6 class="text-muted fw-bold text-uppercase small">Location</h6>
-                <h5 class="fw-bold mb-1">{{ job[7] }}</h5> 
+                <h5 class="fw-bold mb-1">{{ job.address }}</h5> 
+                
+                {% if job.gate_code %}
+                <div class="mt-2">
+                    <span class="badge bg-dark text-warning"><i class="fas fa-key me-1"></i> Gate: {{ job.gate_code }}</span>
+                </div>
+                {% endif %}
+
                 <div class="d-grid gap-2 mt-3">
-                    <a href="https://maps.google.com/?q={{ job[7] }}" target="_blank" class="btn btn-primary fw-bold">
+                    <a href="https://maps.google.com/?q={{ job.address }}" target="_blank" class="btn btn-primary fw-bold">
                         <i class="fas fa-map-marked-alt me-2"></i> Open in Maps
                     </a>
                 </div>
@@ -67,12 +73,14 @@
                 <h6 class="text-muted fw-bold text-uppercase small">Client Contact</h6>
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <div class="fw-bold fs-5">{{ job[5] }}</div>
-                        <div class="text-muted">{{ job[6] }}</div>
+                        <div class="fw-bold fs-5">{{ job.client_name }}</div>
+                        <div class="text-muted">{{ job.client_phone }}</div>
                     </div>
-                    <a href="tel:{{ job[6] }}" class="btn btn-success rounded-circle p-3">
+                    {% if job.client_phone %}
+                    <a href="tel:{{ job.client_phone }}" class="btn btn-success rounded-circle p-3">
                         <i class="fas fa-phone fa-lg"></i>
                     </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -81,7 +89,7 @@
             <div class="card-body">
                 <h6 class="text-muted fw-bold text-uppercase small mb-3">Work Order</h6>
                 <div class="alert alert-secondary border-0">
-                    <i class="fas fa-info-circle me-2"></i> <strong>Desc:</strong> {{ job[8] }}
+                    <i class="fas fa-info-circle me-2"></i> <strong>Desc:</strong> {{ job.description }}
                 </div>
             </div>
         </div>
@@ -111,8 +119,7 @@
         </div>
 
         <div class="mb-4">
-            
-            {% if job[2] == 'Completed' %}
+            {% if job.status == 'Completed' %}
                 <div class="alert alert-secondary text-center fw-bold">
                     <i class="fas fa-check-circle me-2"></i> Job Completed
                 </div>
@@ -124,7 +131,7 @@
                         <h6 class="fw-bold mb-2">YOU ARE CLOCKED IN</h6>
                         <p class="small text-white-50 mb-3">Time is being recorded.</p>
                         
-                        <form method="POST" action="/site/job/{{ job[0] }}/toggle-site-time">
+                        <form method="POST" action="/site/job/{{ job.id }}/toggle-site-time">
                             <input type="hidden" name="action" value="stop">
                             <button type="submit" class="btn btn-danger w-100 btn-lg fw-bold shadow border-2 border-white">
                                 <i class="fas fa-sign-out-alt me-2"></i> STOP YOUR SHIFT
@@ -139,7 +146,7 @@
                         <h6 class="fw-bold text-success mb-2">ARRIVED AT SITE?</h6>
                         <p class="small text-muted mb-3">Tap below to start YOUR shift.</p>
                         
-                        <form method="POST" action="/site/job/{{ job[0] }}/toggle-site-time">
+                        <form method="POST" action="/site/job/{{ job.id }}/toggle-site-time">
                             <input type="hidden" name="action" value="start">
                             <button type="submit" class="btn btn-success w-100 btn-lg fw-bold shadow">
                                 <i class="fas fa-stopwatch me-2"></i> START YOUR SHIFT
@@ -153,7 +160,7 @@
         <button class="btn btn-outline-dark action-btn" onclick="document.getElementById('photoInput').click();">
             <i class="fas fa-camera me-2"></i> Add Evidence Photo
         </button>
-        <form method="POST" action="/site/job/{{ job[0] }}/update" enctype="multipart/form-data" id="photoForm" style="display:none;">
+        <form method="POST" action="/site/job/{{ job.id }}/update" enctype="multipart/form-data" id="photoForm" style="display:none;">
             <input type="hidden" name="action" value="upload_photo">
             <input type="file" name="photo" id="photoInput" accept="image/*" capture="environment" onchange="document.getElementById('photoForm').submit();">
         </form>
@@ -193,7 +200,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4 pt-0">
-                    <form method="POST" action="/site/job/{{ job[0] }}/add-material">
+                    <form method="POST" action="/site/job/{{ job.id }}/add-material">
                         <div class="mb-3">
                             <label class="small fw-bold text-muted">Item Name / Description</label>
                             <input type="text" name="description" class="form-control form-control-lg" placeholder="e.g. 15mm Copper Elbow" required>
@@ -225,7 +232,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <form method="POST" action="/site/job/{{ job[0] }}/update">
+                    <form method="POST" action="/site/job/{{ job.id }}/update">
                         <input type="hidden" name="action" value="complete">
                         
                         <div class="mb-3">
