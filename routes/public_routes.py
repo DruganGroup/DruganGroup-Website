@@ -96,3 +96,11 @@ def maintenance():
 @public_bp.route('/management.html')
 def management():
     return render_template('public/management.html')
+    
+    # --- TEMPORARY PREVIEW ROUTE ---
+# Add this to routes/public_routes.py so you can see the design
+# before the real domain is connected.
+
+@public_bp.route('/preview-bb')
+def preview_software_site():
+    return render_template('publicbb/index.html')
