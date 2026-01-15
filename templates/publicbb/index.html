@@ -33,15 +33,78 @@
             
             <div class="bg-dark border border-secondary rounded-bottom-4 overflow-hidden shadow-lg text-start p-0" style="min-height: 500px; background: #0f172a;">
                 <div class="row g-0 h-100">
-                    <div class="col-2 border-end border-secondary p-3 d-none d-md-block" style="background: #1e293b; min-height: 500px;">
-                        <div class="mb-4 text-white fw-bold"><i class="fas fa-layer-group text-warning me-2"></i> BusinessBetter</div>
-                        <div class="d-grid gap-2">
-                            <div class="p-2 bg-primary bg-opacity-10 text-warning rounded"><i class="fas fa-home me-2"></i> Dashboard</div>
-                            <div class="p-2 text-muted"><i class="fas fa-calendar me-2"></i> Schedule</div>
-                            <div class="p-2 text-muted"><i class="fas fa-users me-2"></i> Crew</div>
-                            <div class="p-2 text-muted"><i class="fas fa-file-invoice me-2"></i> Invoices</div>
+                    <section class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold display-5">See it in action.</h2>
+            <p class="text-muted">Everything you need to run your business.</p>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="nav flex-column nav-pills me-3" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+                    
+                    <button class="nav-link active text-start p-4 mb-3 border rounded-3 shadow-sm" id="v-pills-home-tab" data-bs-toggle="pill" data-bs-target="#v-pills-home" type="button" role="tab" aria-selected="true">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-primary bg-opacity-10 p-3 rounded me-3 text-primary">
+                                <i class="fas fa-rocket fa-lg"></i>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-1">The Launcher</h5>
+                                <small class="text-muted">Your daily command center.</small>
+                            </div>
+                        </div>
+                    </button>
+
+                    <button class="nav-link text-start p-4 mb-3 border rounded-3 shadow-sm" id="v-pills-finance-tab" data-bs-toggle="pill" data-bs-target="#v-pills-finance" type="button" role="tab" aria-selected="false">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-success bg-opacity-10 p-3 rounded me-3 text-success">
+                                <i class="fas fa-file-invoice-dollar fa-lg"></i>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-1">Smart Finance</h5>
+                                <small class="text-muted">Quotes, Invoices & Profit.</small>
+                            </div>
+                        </div>
+                    </button>
+
+                    <button class="nav-link text-start p-4 border rounded-3 shadow-sm" id="v-pills-mobile-tab" data-bs-toggle="pill" data-bs-target="#v-pills-mobile" type="button" role="tab" aria-selected="false">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-warning bg-opacity-10 p-3 rounded me-3 text-warning">
+                                <i class="fas fa-mobile-alt fa-lg"></i>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-1">Site Companion</h5>
+                                <small class="text-muted">The view for your engineers.</small>
+                            </div>
+                        </div>
+                    </button>
+                    
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="tab-content" id="v-pills-tabContent">
+                    
+                    <div class="tab-pane fade show active" id="v-pills-home" role="tabpanel">
+                        <img src="{{ url_for('static', filename='images/dashboard-main.png') }}" class="img-fluid rounded-4 shadow-lg border border-secondary" alt="Main Dashboard">
+                    </div>
+
+                    <div class="tab-pane fade" id="v-pills-finance" role="tabpanel">
+                        <img src="{{ url_for('static', filename='images/finance-view.png') }}" class="img-fluid rounded-4 shadow-lg border border-secondary" alt="Finance Dashboard">
+                    </div>
+
+                    <div class="tab-pane fade" id="v-pills-mobile" role="tabpanel">
+                        <div class="text-center bg-dark rounded-4 p-5 border border-secondary">
+                            <img src="{{ url_for('static', filename='images/mobile-site.png') }}" class="rounded-4 shadow-lg border border-white" style="max-height: 500px;" alt="Mobile App View">
                         </div>
                     </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
                     <div class="col-md-10 col-12 p-4">
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <h5 class="fw-bold text-white m-0">Project Overview</h5>
