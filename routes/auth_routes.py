@@ -75,7 +75,15 @@ def login():
             conn.close()
             flash("❌ Invalid Credentials")
             
-    return render_template('public/login.html')
+    host = request.host.lower()
+    
+    # 1. If on Business Better -> Show the new Software Login
+    if 'businessbetter.co.uk' in host:
+        return render_template('publicbb/login.html')
+
+    # 2. If on Drugan Group -> Show your original Trade Login
+    else:
+        return render_template('public/login.html')
    
 @auth_bp.route('/launcher')
 def main_launcher():

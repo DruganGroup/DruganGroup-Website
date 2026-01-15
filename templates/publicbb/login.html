@@ -1,0 +1,56 @@
+{% extends "publicbb/base.html" %}
+
+{% block title %}Login | Business Better{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5 col-lg-4">
+            
+            <div class="text-center mb-4">
+                <i class="fas fa-layer-group text-primary fa-3x mb-3"></i>
+                <h3 class="fw-bold">Welcome Back</h3>
+                <p class="text-muted">Sign in to manage your business</p>
+            </div>
+
+            <div class="card border-0 shadow-lg rounded-4">
+                <div class="card-body p-4 p-md-5">
+                    
+                    {% with messages = get_flashed_messages() %}
+                        {% if messages %}
+                            <div class="alert alert-danger border-0 bg-danger bg-opacity-10 text-danger mb-4 rounded-3">
+                                <small><i class="fas fa-exclamation-circle me-1"></i> {{ messages[0] }}</small>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+
+                    <form action="/login" method="POST">
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Email Address</label>
+                            <input type="email" name="email" class="form-control form-control-lg bg-light border-0" placeholder="name@company.com" required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Password</label>
+                            <input type="password" name="password" class="form-control form-control-lg bg-light border-0" placeholder="••••••••" required>
+                        </div>
+
+                        <div class="d-grid mb-4">
+                            <button type="submit" class="btn btn-primary btn-lg fw-bold shadow-sm">Sign In</button>
+                        </div>
+
+                        <div class="text-center">
+                            <a href="#" class="text-decoration-none small text-muted">Forgot password?</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <p class="small text-muted">Don't have an account? <a href="/contact" class="fw-bold text-primary text-decoration-none">Contact Sales</a></p>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

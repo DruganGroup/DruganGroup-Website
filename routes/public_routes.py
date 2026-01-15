@@ -26,9 +26,7 @@ def home():
 def about():
     host = request.host.lower()
     
-    # Check domain again
     if DOMAIN_SOFTWARE in host:
-        # You need to create this file in templates/publicbb/about.html
         return render_template('publicbb/about.html')
     else:
         return render_template('public/about.html')
@@ -39,12 +37,31 @@ def contact():
     host = request.host.lower()
 
     if DOMAIN_SOFTWARE in host:
-        # You need to create templates/publicbb/contact.html eventually
-        # For now, we can reuse about or create a simple contact page
-        return render_template('publicbb/index.html') 
+        # Points to your new Business Better contact page
+        return render_template('publicbb/contact.html') 
     else:
+        # Points to Drugan Group contact page
         return render_template('public/contact.html')
 
+# --- NEW SOFTWARE ROUTES ---
+@public_bp.route('/features')
+def features():
+    host = request.host.lower()
+    if DOMAIN_SOFTWARE in host:
+        return render_template('publicbb/features.html')
+    else:
+        return render_template('public/index.html')
+
+@public_bp.route('/pricing')
+def pricing():
+    host = request.host.lower()
+    if DOMAIN_SOFTWARE in host:
+        # We will build this file next, after discussing the strategy
+        return render_template('publicbb/pricing.html')
+    else:
+        return render_template('public/index.html')
+
+# --- SHARED/TRADE ROUTES ---
 @public_bp.route('/services')
 @public_bp.route('/services.html')
 def services():
@@ -53,6 +70,7 @@ def services():
 @public_bp.route('/businessbetter')
 @public_bp.route('/businessbetter.html')
 def business_better():
+    # This remains the "About the software" page for your Trade site
     return render_template('public/businessbetter.html')
 
 @public_bp.route('/forensics')
@@ -63,10 +81,15 @@ def forensics():
 @public_bp.route('/login')
 @public_bp.route('/login.html')
 def login_page():
-    # This serves the static login page you created
-    return render_template('public/login.html')
+    host = request.host.lower()
 
-# --- SUB PAGES & SERVICES ---
+    # Check domain to ensure the right login design is shown
+    if DOMAIN_SOFTWARE in host:
+        return render_template('publicbb/login.html')
+    else:
+        return render_template('public/login.html')
+
+# --- SUB PAGES (DRUGAN GROUP) ---
 @public_bp.route('/construction')
 @public_bp.route('/construction.html')
 def construction():
@@ -96,11 +119,3 @@ def maintenance():
 @public_bp.route('/management.html')
 def management():
     return render_template('public/management.html')
-    
-    # --- TEMPORARY PREVIEW ROUTE ---
-# Add this to routes/public_routes.py so you can see the design
-# before the real domain is connected.
-
-@public_bp.route('/preview-bb')
-def preview_software_site():
-    return render_template('publicbb/index.html')
