@@ -1,4 +1,4 @@
-from flask import Blueprint, session, redirect, url_for, flash, send_file
+from flask import Blueprint, session, redirect, url_for, flash, send_file, current_app
 from db import get_db, get_site_config
 from services.pdf_generator import generate_pdf
 import os
@@ -127,9 +127,6 @@ def download_invoice_pdf(invoice_id):
     except Exception as e:
         return f"PDF Error: {e}", 500
 
-# =========================================================
-# 2. DOWNLOAD QUOTE PDF (With Correct Date Format)
-# =========================================================
 @pdf_bp.route('/office/quote/<int:quote_id>/download')
 def download_quote_pdf(quote_id):
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']:
@@ -159,23 +156,28 @@ def download_quote_pdf(quote_id):
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     comp_name = get_company_name(cur, comp_id)
+
+    config = get_site_config(comp_id)
+    if config.get('logo') and config['logo'].startswith('/'):
+        clean_path = config['logo'].lstrip('/')
+        local_path = os.path.join(current_app.root_path, clean_path)
+        if os.path.exists(local_path):
+            config['logo'] = local_path
+
     conn.close()
 
-    # 4. Tax & Date Formatting
-    total_val = float(quote[7])
+    total_val = float(quote[7]) if quote[7] else 0
     user_rate = get_tax_rate(settings)
     divisor = 1 + (user_rate / 100)
     subtotal_val = total_val / divisor
     tax_val = total_val - subtotal_val
-    
     country = settings.get('country_code', 'UK')
 
-    # 5. Context
     context = {
         'invoice': {
             'ref': quote[1], 
-            'date': format_date_local(quote[2], country),       # <--- FORMATTED
-            'due': format_date_local(quote[3], country),        # <--- FORMATTED (Expires)
+            'date': format_date_local(quote[2], country),
+            'due': format_date_local(quote[3], country),
             'client_name': quote[4], 
             'client_address': quote[5], 
             'client_email': quote[6],
@@ -198,7 +200,7 @@ def download_quote_pdf(quote_id):
         'items': items,
         'settings': settings,
         'smart_terms': get_smart_terms(settings),
-        'config': get_site_config(comp_id),
+        'config': config, # Passes the fixed config with the correct logo path
         'is_quote': True 
     }
     
