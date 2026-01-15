@@ -1,0 +1,83 @@
+{% extends "publicbb/base.html" %}
+
+{% block title %}Business Better | Home{% endblock %}
+
+{% block content %}
+<header class="py-5 bg-dark text-white position-relative overflow-hidden">
+    <div class="container py-5 text-center position-relative" style="z-index: 2;">
+        <span class="badge bg-primary bg-opacity-25 text-primary-emphasis border border-primary mb-3 px-3 py-2 rounded-pill">Now Live in the UK 🇬🇧</span>
+        <h1 class="display-3 fw-bold mb-4">Run Your Trade Business.<br><span class="text-primary">Better.</span></h1>
+        <p class="lead mb-5 text-white-50 mx-auto" style="max-width: 700px;">
+            Stop drowning in paperwork. Quote, invoice, schedule, and manage your team from one simple app.
+        </p>
+        <div class="d-flex justify-content-center gap-3">
+            <a href="/login" class="btn btn-primary btn-lg fw-bold px-5 py-3">Get Started</a>
+            <a href="/about" class="btn btn-outline-light btn-lg fw-bold px-5 py-3">Learn More</a>
+        </div>
+    </div>
+    
+    <div style="position: absolute; top: -50%; right: -20%; width: 800px; height: 800px; background: radial-gradient(circle, rgba(59,130,246,0.2) 0%, rgba(0,0,0,0) 70%); border-radius: 50%;"></div>
+</header>
+
+<section class="py-4 border-bottom bg-light">
+    <div class="container text-center">
+        <p class="small text-uppercase text-muted fw-bold letter-spacing-2 mb-3">Trusted by trades across the UK</p>
+        <div class="d-flex justify-content-center gap-5 opacity-50 flex-wrap">
+            <i class="fas fa-hammer fa-2x"></i>
+            <i class="fas fa-wrench fa-2x"></i>
+            <i class="fas fa-hard-hat fa-2x"></i>
+            <i class="fas fa-paint-roller fa-2x"></i>
+            <i class="fas fa-plug fa-2x"></i>
+        </div>
+    </div>
+</section>
+
+<section class="py-5">
+    <div class="container py-5">
+        <div class="row g-5 align-items-center">
+            <div class="col-lg-6">
+                <h2 class="fw-bold display-6 mb-4">Everything you need to get off the tools and into control.</h2>
+                
+                <div class="d-flex mb-4">
+                    <div class="bg-primary bg-opacity-10 p-3 rounded-circle text-primary me-3 h-100">
+                        <i class="fas fa-file-invoice-dollar fa-lg"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold">Smart Quoting & Invoicing</h5>
+                        <p class="text-muted">Create professional PDFs in seconds. Send them to clients and get notified when they open them.</p>
+                    </div>
+                </div>
+
+                <div class="d-flex mb-4">
+                    <div class="bg-primary bg-opacity-10 p-3 rounded-circle text-primary me-3 h-100">
+                        <i class="fas fa-user-friends fa-lg"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold">Client Portals</h5>
+                        <p class="text-muted">Give your customers a VIP login area to approve quotes and view job history.</p>
+                    </div>
+                </div>
+
+                <div class="d-flex">
+                    <div class="bg-primary bg-opacity-10 p-3 rounded-circle text-primary me-3 h-100">
+                        <i class="fas fa-truck fa-lg"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold">Fleet & Staff Management</h5>
+                        <p class="text-muted">Track van checks, staff hours, and job locations in real-time.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6">
+                <div class="p-4 bg-light rounded-4 border shadow-sm">
+                    <div class="bg-white rounded-3 shadow-sm p-4 text-center py-5">
+                        <i class="fas fa-laptop-code fa-4x text-muted mb-3"></i>
+                        <p class="fw-bold text-muted">Dashboard Preview</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

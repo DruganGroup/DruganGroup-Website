@@ -14,7 +14,7 @@
             line-height: 1.5;
         }
         
-        /* BRANDING VARIABLES (Injected by Python) */
+        /* BRANDING VARIABLES */
         :root { --brand-color: {{ config.get('color', '#333') }}; }
 
         /* HEADER */
@@ -77,7 +77,10 @@
     <div class="header">
         <div class="logo-container">
             {% if config.logo %}
-                <img src="{{ config.logo }}" alt="Company Logo">
+                {# --- THE FIX: Force Absolute Path for Server-Side PDF Gen --- #}
+                {# We clean the path of any existing 'static/' prefix and re-add the full server path #}
+                {% set logo_clean = config.logo.replace('/static/', '').replace('static/', '') %}
+                <img src="file:///opt/render/project/src/static/{{ logo_clean }}" alt="Company Logo">
             {% else %}
                 <h1>{{ company.name }}</h1>
             {% endif %}
@@ -141,7 +144,7 @@
         <div class="totals-box">
             <div class="total-row">
                 <span>Subtotal:</span>
-                <span>£{{ "%.2f"|format(invoice.total) }}</span> {# Assuming this is net #}
+                <span>£{{ "%.2f"|format(invoice.total) }}</span> 
             </div>
             
             {% if settings.get('vat_registered') == 'yes' %}
@@ -178,17 +181,17 @@
         </div>
 
         <div class="terms">
-    <strong>Terms & Conditions</strong><br>
-    {{ settings.get('payment_terms', 'Payment is due within 14 days.') }}
-    
-    <br><br>
-    
-    <span style="font-style: italic;">
-        {{ settings.get('invoice_footer', 'Thank you for your business.') }}
-    </span>
+            <strong>Terms & Conditions</strong><br>
+            {{ settings.get('payment_terms', 'Payment is due within 14 days.') }}
+            
+            <br><br>
+            
+            <span style="font-style: italic;">
+                {{ settings.get('invoice_footer', 'Thank you for your business.') }}
+            </span>
 
-    <br><br>
-    {% if is_quote %}
+            <br><br>
+            {% if is_quote %}
                 <div style="border-top:1px dashed #ccc; padding-top:10px; margin-top:10px;">
                     <strong>Client Signature:</strong><br><br><br>
                     __________________________<br>

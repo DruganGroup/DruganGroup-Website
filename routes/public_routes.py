@@ -1,19 +1,49 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, request
 
 # Create the Blueprint
 public_bp = Blueprint('public', __name__)
+
+# --- CONFIGURATION ---
+DOMAIN_SOFTWARE = 'businessbetter.co.uk'
 
 # --- MAIN PAGES ---
 @public_bp.route('/')
 @public_bp.route('/index')
 @public_bp.route('/index.html')
 def home():
-    return render_template('public/index.html')
+    host = request.host.lower()
+    
+    # 1. If on Business Better -> Show Software Site
+    if DOMAIN_SOFTWARE in host:
+        return render_template('publicbb/index.html')
+    
+    # 2. If on Drugan Group -> Show Trade Site
+    else:
+        return render_template('public/index.html')
 
 @public_bp.route('/about')
 @public_bp.route('/about.html')
 def about():
-    return render_template('public/about.html')
+    host = request.host.lower()
+    
+    # Check domain again
+    if DOMAIN_SOFTWARE in host:
+        # You need to create this file in templates/publicbb/about.html
+        return render_template('publicbb/about.html')
+    else:
+        return render_template('public/about.html')
+
+@public_bp.route('/contact')
+@public_bp.route('/contact.html')
+def contact():
+    host = request.host.lower()
+
+    if DOMAIN_SOFTWARE in host:
+        # You need to create templates/publicbb/contact.html eventually
+        # For now, we can reuse about or create a simple contact page
+        return render_template('publicbb/index.html') 
+    else:
+        return render_template('public/contact.html')
 
 @public_bp.route('/services')
 @public_bp.route('/services.html')
@@ -29,11 +59,6 @@ def business_better():
 @public_bp.route('/forensics.html')
 def forensics():
     return render_template('public/forensics.html')
-
-@public_bp.route('/contact')
-@public_bp.route('/contact.html')
-def contact():
-    return render_template('public/contact.html')
 
 @public_bp.route('/login')
 @public_bp.route('/login.html')

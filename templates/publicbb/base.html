@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Business Better | Trade Software{% endblock %}</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        /* GLOBAL SOFTWARE BRANDING */
+        :root { 
+            --bb-dark: #1e293b; 
+            --bb-primary: #3b82f6; 
+            --bb-light: #f8fafc;
+        }
+        
+        body { 
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            min-height: 100vh;
+        }
+
+        /* Navbar Styling */
+        .navbar { background: white; padding: 15px 0; }
+        .nav-link { font-weight: 500; color: #64748b; margin: 0 10px; }
+        .nav-link:hover { color: var(--bb-primary); }
+        .nav-link.active { color: var(--bb-primary); font-weight: 700; }
+        
+        /* Footer Styling */
+        footer { margin-top: auto; background-color: var(--bb-dark); color: white; padding: 60px 0 30px; }
+        footer a { color: #94a3b8; text-decoration: none; transition: 0.2s; }
+        footer a:hover { color: white; }
+
+        /* Buttons */
+        .btn-brand { background-color: var(--bb-primary); color: white; padding: 10px 25px; border-radius: 8px; font-weight: 600; border: none; }
+        .btn-brand:hover { background-color: #2563eb; color: white; }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold fs-4 text-dark" href="/">
+                <i class="fas fa-layer-group text-primary me-2"></i>Business Better
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/about">About Us</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/features">Features</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/contact">Contact</a></li>
+                    <li class="nav-item ms-3">
+                        <a href="/login" class="btn btn-brand">Customer Login</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <div style="height: 80px;"></div>
+
+    {% block content %}{% endblock %}
+
+    <footer>
+        <div class="container">
+            <div class="row g-4 mb-5">
+                <div class="col-lg-4">
+                    <h5 class="fw-bold text-white mb-3">Business Better</h5>
+                    <p class="text-white-50">The all-in-one operating system for modern trade businesses. Built by tradesmen, for tradesmen.</p>
+                </div>
+                <div class="col-lg-2 col-6">
+                    <h6 class="fw-bold text-white mb-3">Product</h6>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="/features">Features</a></li>
+                        <li class="mb-2"><a href="#">Pricing</a></li>
+                        <li class="mb-2"><a href="/login">Portal Login</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-2 col-6">
+                    <h6 class="fw-bold text-white mb-3">Company</h6>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="/about">About Us</a></li>
+                        <li class="mb-2"><a href="/contact">Contact</a></li>
+                        <li class="mb-2"><a href="#">Careers</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-4">
+                    <h6 class="fw-bold text-white mb-3">Subscribe to Updates</h6>
+                    <div class="input-group">
+                        <input type="text" class="form-control border-0" placeholder="Email address...">
+                        <button class="btn btn-primary">Join</button>
+                    </div>
+                </div>
+            </div>
+            <div class="border-top border-white border-opacity-10 pt-4 text-center">
+                <p class="small text-white-50 mb-0">&copy; 2024 Business Better Ltd. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
