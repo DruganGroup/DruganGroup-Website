@@ -534,14 +534,12 @@ def fleet_list():
                     if str(staff_id) != str(driver_val): 
                         cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (v_id, staff_id))
                 
-                # --- THIS IS THE FIX: Save the Dates & Settings ---
+                # Save Dates & Settings
                 daily = request.form.get('daily_cost')
-                # We catch the dates from the form here
                 mot = request.form.get('mot_expiry') or None
                 tax = request.form.get('tax_expiry') or None
                 ins = request.form.get('ins_expiry') or None
 
-                # We save to the columns that DEFINITELY exist in your DB now
                 if daily is not None:
                       cur.execute("""
                         UPDATE vehicles 
@@ -550,6 +548,14 @@ def fleet_list():
                         WHERE id=%s AND company_id=%s
                     """, (daily, request.form.get('tracker_url'), request.form.get('telematics_provider'), 
                           request.form.get('tracking_device_id'), mot, tax, ins, v_id, comp_id))
+
+                # --- FIX START: Define new_driver before using it ---
+                new_driver = "None"
+                if driver_val:
+                    cur.execute("SELECT name FROM staff WHERE id = %s", (driver_val,))
+                    row = cur.fetchone()
+                    if row: new_driver = row[0]
+                # --- FIX END ---
 
                 # 3. AUDIT LOG
                 changes = []
@@ -568,7 +574,7 @@ def fleet_list():
 
                 flash("✅ Crew & Settings Updated")
                 
-            # --- ACTION: ADD MAINTENANCE LOG (Kept exactly as your file) ---
+            # --- ACTION: ADD MAINTENANCE LOG ---
             elif action == 'add_log':
                 file_url = None
                 cost = request.form.get('cost')
@@ -612,7 +618,6 @@ def fleet_list():
             flash(f"Error: {e}")
 
     # --- FETCH DATA FOR DISPLAY ---
-    # FIX: Changed mot_due -> mot_expiry (and tax/insurance) to match DB
     cur.execute("""
         SELECT v.id, v.reg_plate, v.make_model, v.status, s.name, v.assigned_driver_id, 
                v.mot_expiry, v.tax_expiry, v.ins_expiry, v.tracker_url
@@ -637,9 +642,9 @@ def fleet_list():
         vehicles.append({
             'id': row[0], 'reg_number': row[1], 'make_model': row[2], 'status': row[3], 
             'driver_name': row[4], 'assigned_driver_id': row[5], 
-            'mot_expiry': parse_date(row[6]), # Mapped correctly
-            'tax_expiry': parse_date(row[7]), # Mapped correctly
-            'ins_expiry': parse_date(row[8]), # Mapped correctly
+            'mot_expiry': parse_date(row[6]), 
+            'tax_expiry': parse_date(row[7]), 
+            'ins_expiry': parse_date(row[8]), 
             'tracker_url': row[9], 
             'crew': crew, 'history': history
         })
