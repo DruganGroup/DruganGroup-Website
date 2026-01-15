@@ -66,27 +66,33 @@ def generate_pdf(template_name_ignored, context, output_filename):
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
     
-    # --- SMART LOGO LOGIC (The Fix) ---
+    # --- SMART LOGO LOGIC (FIXED) ---
     if config.get('logo'):
         raw_logo = config['logo']
         final_logo_path = None
 
-        # Case A: Path is already absolute and valid (e.g. /opt/render/...)
+        # 1. Check if it's already an absolute system path
         if os.path.exists(raw_logo):
             final_logo_path = raw_logo
         
-        # Case B: Path is 'file://' (e.g. file:///opt/render/...)
-        elif raw_logo.startswith('file://'):
-            clean = raw_logo.replace('file://', '')
-            if os.path.exists(clean):
-                final_logo_path = clean
-
-        # Case C: Path is relative (e.g. /static/uploads/...) - Try to resolve it
-        else:
+        # 2. Check if it is a Web Path (starts with /static)
+        # This converts "/static/uploads/logo.png" -> "/var/www/app/static/uploads/logo.png"
+        elif '/static/' in raw_logo:
             try:
-                # Remove leading slash for join to work
+                # Split the string to get everything after 'static/'
+                clean_path = raw_logo.split('/static/')[-1]
+                # Join it with the REAL static folder path on the server
+                possible_path = os.path.join(current_app.static_folder, clean_path)
+                
+                if os.path.exists(possible_path):
+                    final_logo_path = possible_path
+            except Exception as e:
+                print(f"Logo Path Error: {e}")
+
+        # 3. Fallback: Try relative path
+        if not final_logo_path:
+            try:
                 rel_path = raw_logo.lstrip('/')
-                # Try finding it in root folder
                 possible_path = os.path.join(current_app.root_path, rel_path)
                 if os.path.exists(possible_path):
                     final_logo_path = possible_path
