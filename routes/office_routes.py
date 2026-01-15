@@ -1164,9 +1164,12 @@ def universal_upload():
 @office_bp.route('/office/client/<int:client_id>/enable-portal', methods=['POST'])
 def enable_portal(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
-    comp_id = session.get('company_id'); conn = get_db(); cur = conn.cursor()
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
 
     try:
+        # 1. Fetch Client Details
         cur.execute("SELECT name, email FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
         client = cur.fetchone()
         
@@ -1175,21 +1178,60 @@ def enable_portal(client_id):
             return redirect(url_for('office.view_client', client_id=client_id))
 
         client_name, client_email = client
+
+        # 2. Generate Credentials
         raw_password = generate_secure_password()
         hashed_password = generate_password_hash(raw_password)
 
         cur.execute("UPDATE clients SET password_hash = %s WHERE id = %s", (hashed_password, client_id))
         
+        # 3. Get Company Settings for Email
         cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
         settings = {row[0]: row[1] for row in cur.fetchall()}
         
+        # --- SMART DOMAIN SWITCHER ------------------------------------
+        company_name = session.get('company_name', 'Business Better')
+        
+        # If the company name contains "Drugan", use your custom domain
+        if "Drugan" in company_name:
+            # We assume your site handles the /portal/login route
+            login_link = "https://drugangroup.co.uk/portal/login"
+        else:
+            # Everyone else goes to the SaaS login
+            login_link = "https://businessbetter.co.uk/login"
+        # --------------------------------------------------------------
+        
         if 'smtp_host' in settings:
-            login_url = url_for('portal.portal_login', company_id=comp_id, _external=True)
             msg = MIMEMultipart()
             msg['From'] = settings.get('smtp_email')
             msg['To'] = client_email
-            msg['Subject'] = "Your Client Portal Access"
-            body = f"<h3>Hello {client_name},</h3><p>An account has been created.</p>Login: {login_url}<br>User: {client_email}<br>Pass: {raw_password}"
+            msg['Subject'] = f"Welcome to {company_name} - Secure Portal"
+
+            # Professional HTML Email Body
+            body = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; color: #333;">
+                <h2>Welcome, {client_name}</h2>
+                <p><strong>{company_name}</strong> has created a secure portal for you.</p>
+                <p>You can use this portal to view quotes, pay invoices, and download compliance certificates safely.</p>
+                
+                <div style="margin: 25px 0;">
+                    <a href="{login_link}" style="background-color: #0d6efd; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                        Log In to Portal
+                    </a>
+                </div>
+                
+                <p style="color: #666; font-size: 14px;">Or copy this link: <a href="{login_link}">{login_link}</a></p>
+                
+                <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px;">
+                    <p style="margin: 0; font-weight: bold;">Your Login Details:</p>
+                    <p style="margin: 5px 0;">Email: {client_email}</p>
+                    <p style="margin: 5px 0;">Password: {raw_password}</p>
+                </div>
+            </div>
+            """
+            
             msg.attach(MIMEText(body, 'html'))
 
             server = smtplib.SMTP(settings['smtp_host'], int(settings['smtp_port']))
@@ -1197,13 +1239,19 @@ def enable_portal(client_id):
             server.login(settings['smtp_email'], settings['smtp_password'])
             server.send_message(msg)
             server.quit()
-            flash(f"✅ Access Granted! Password sent to {client_email}")
+            flash(f"✅ Access Granted! Welcome email sent to {client_email}")
         else:
             flash("⚠️ Password generated, but Email Failed (SMTP Settings missing).", "warning")
             
         conn.commit()
-    except Exception as e: conn.rollback(); flash(f"Error: {e}", "error")
-    finally: conn.close()
+    except Exception as e: 
+        conn.rollback()
+        flash(f"Error: {e}", "error")
+    finally: 
+        conn.close()
+    
+    # Redirect back to the client page
+    return redirect(url_for('office.view_client', client_id=client_id))
     
 @office_bp.route('/client/<int:client_id>/add_property', methods=['POST'])
 def add_property(client_id):
