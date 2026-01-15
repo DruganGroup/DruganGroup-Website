@@ -73,6 +73,25 @@
             border: 1px solid rgba(255,255,255,0.05);
             color: white;
         }
+		/* FIX FOR INPUT FIELDS (Make them readable) */
+        .form-control, .form-select {
+            background-color: rgba(255, 255, 255, 0.05) !important; /* Slightly lighter than background */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white !important; /* White Text */
+        }
+        
+        .form-control:focus, .form-select:focus {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+            border-color: var(--bb-gold);
+            color: white !important;
+            box-shadow: 0 0 0 0.25rem rgba(212, 175, 55, 0.25); /* Gold Glow */
+        }
+
+        /* Make the placeholder text (e.g. "name@email.com") visible but grey */
+        .form-control::placeholder {
+            color: #94a3b8 !important;
+            opacity: 1;
+        }
         
         /* Footer Styling */
         footer { margin-top: auto; background-color: #020617; border-top: 1px solid rgba(255,255,255,0.05); padding: 80px 0 40px; }
