@@ -32,7 +32,6 @@ def client_dashboard():
                            brand_color=config['color'], 
                            logo_url=config['logo'])
 
-# --- 2. OFFICE VIEW: ADD NEW CLIENT ---
 @client_bp.route('/clients/add', methods=['POST'])
 def add_client():
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Office']: 
@@ -40,13 +39,13 @@ def add_client():
     
     comp_id = session.get('company_id')
 
-    # --- CHECK LIMIT (INDENTED CORRECTLY) ---
+    # --- CHECK LIMIT ---
     allowed, msg = check_limit(comp_id, 'max_clients')
     if not allowed:
         flash(msg, "error")
         return redirect(url_for('client.client_dashboard'))
-    # ----------------------------------------
     
+    # 1. Get Form Data
     name = request.form.get('name')
     email = request.form.get('email')
     phone = request.form.get('phone')
@@ -55,36 +54,26 @@ def add_client():
     code = request.form.get('gate_code')
     notes = request.form.get('notes')
     
-    raw_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-    hashed_password = generate_password_hash(raw_password)
+    # NOTE: We do NOT generate a password here anymore.
     
     conn = get_db()
     cur = conn.cursor()
     try:
+        # 2. Insert Client (Silent - No Email)
         cur.execute("""
-            INSERT INTO clients (company_id, name, email, phone, billing_address, site_address, gate_code, notes, password_hash)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
-        """, (comp_id, name, email, phone, billing, site, code, notes, hashed_password))
+            INSERT INTO clients (company_id, name, email, phone, billing_address, site_address, gate_code, notes)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (comp_id, name, email, phone, billing, site, code, notes))
         
-        if email:
-            cur.execute("SELECT name FROM companies WHERE id = %s", (comp_id,))
-            company_name = cur.fetchone()[0]
-            subject = f"Welcome to the {company_name} Client Portal"
-            body = f"""
-            <h3>Welcome, {name}</h3>
-            <p>{company_name} has created your secure portal.</p>
-            <p><strong>Login:</strong> <a href='https://www.businessbetter.co.uk/portal/login'>Click Here</a></p>
-            <p><strong>Username:</strong> {email}<br><strong>Password:</strong> {raw_password}</p>
-            """
-            send_company_email(comp_id, email, subject, body)
-            
         conn.commit()
-        flash(f"✅ Client '{name}' added and invited.")
+        flash(f"✅ Client '{name}' saved successfully. (Portal not active yet)")
+
     except Exception as e:
         conn.rollback()
         flash(f"❌ Error: {e}")
     finally:
         conn.close()
+        
     return redirect(url_for('client.client_dashboard'))
 
 # --- 3. OFFICE VIEW: UPDATE CLIENT ---
