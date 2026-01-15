@@ -157,12 +157,8 @@ def download_quote_pdf(quote_id):
     settings = {row[0]: row[1] for row in cur.fetchall()}
     comp_name = get_company_name(cur, comp_id)
 
+    # 4. Get Config (NO EXTRA LOGIC NEEDED)
     config = get_site_config(comp_id)
-    if config.get('logo') and config['logo'].startswith('/'):
-        clean_path = config['logo'].lstrip('/')
-        local_path = os.path.join(current_app.root_path, clean_path)
-        if os.path.exists(local_path):
-            config['logo'] = local_path
 
     conn.close()
 
@@ -200,7 +196,7 @@ def download_quote_pdf(quote_id):
         'items': items,
         'settings': settings,
         'smart_terms': get_smart_terms(settings),
-        'config': config, # Passes the fixed config with the correct logo path
+        'config': config, 
         'is_quote': True 
     }
     
