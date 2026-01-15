@@ -1,83 +1,108 @@
 {% extends "publicbb/base.html" %}
 
-{% block title %}Business Better | Home{% endblock %}
+{% block title %}Business Better | The Trade OS{% endblock %}
 
 {% block content %}
-<header class="py-5 bg-dark text-white position-relative overflow-hidden">
-    <div class="container py-5 text-center position-relative" style="z-index: 2;">
-        <span class="badge bg-primary bg-opacity-25 text-primary-emphasis border border-primary mb-3 px-3 py-2 rounded-pill">Now Live in the UK 🇬🇧</span>
-        <h1 class="display-3 fw-bold mb-4">Run Your Trade Business.<br><span class="text-primary">Better.</span></h1>
-        <p class="lead mb-5 text-white-50 mx-auto" style="max-width: 700px;">
-            Stop drowning in paperwork. Quote, invoice, schedule, and manage your team from one simple app.
+<header class="position-relative overflow-hidden pt-5 pb-0">
+    <div style="position: absolute; top: -20%; left: 50%; transform: translateX(-50%); width: 800px; height: 800px; background: radial-gradient(circle, rgba(212, 175, 55, 0.15) 0%, rgba(0,0,0,0) 70%); border-radius: 50%; z-index: 0;"></div>
+
+    <div class="container text-center position-relative" style="z-index: 2;">
+        <div class="badge border border-secondary text-light px-3 py-2 mb-4 rounded-pill bg-white bg-opacity-10">
+            <i class="fas fa-check-circle text-warning me-2"></i> Live for 2026
+        </div>
+        <h1 class="display-3 fw-bold mb-4">
+            Construction Management.<br>
+            <span style="color: var(--bb-gold);">Done Better.</span>
+        </h1>
+        <p class="lead text-muted mx-auto mb-5" style="max-width: 600px;">
+            Stop drowning in paperwork. Connect your office to your site in real-time. Estimates, Scheduling, Safety, and Invoicing—all in one place.
         </p>
-        <div class="d-flex justify-content-center gap-3">
-            <a href="/login" class="btn btn-primary btn-lg fw-bold px-5 py-3">Get Started</a>
-            <a href="/about" class="btn btn-outline-light btn-lg fw-bold px-5 py-3">Learn More</a>
+        <div class="d-flex justify-content-center gap-3 mb-5">
+            <a href="/pricing" class="btn btn-primary shadow-lg">View Pricing</a>
+            <a href="/features" class="btn btn-outline-dark">How it Works</a>
         </div>
-    </div>
-    
-    <div style="position: absolute; top: -50%; right: -20%; width: 800px; height: 800px; background: radial-gradient(circle, rgba(59,130,246,0.2) 0%, rgba(0,0,0,0) 70%); border-radius: 50%;"></div>
-</header>
 
-<section class="py-4 border-bottom bg-light">
-    <div class="container text-center">
-        <p class="small text-uppercase text-muted fw-bold letter-spacing-2 mb-3">Trusted by trades across the UK</p>
-        <div class="d-flex justify-content-center gap-5 opacity-50 flex-wrap">
-            <i class="fas fa-hammer fa-2x"></i>
-            <i class="fas fa-wrench fa-2x"></i>
-            <i class="fas fa-hard-hat fa-2x"></i>
-            <i class="fas fa-paint-roller fa-2x"></i>
-            <i class="fas fa-plug fa-2x"></i>
-        </div>
-    </div>
-</section>
-
-<section class="py-5">
-    <div class="container py-5">
-        <div class="row g-5 align-items-center">
-            <div class="col-lg-6">
-                <h2 class="fw-bold display-6 mb-4">Everything you need to get off the tools and into control.</h2>
-                
-                <div class="d-flex mb-4">
-                    <div class="bg-primary bg-opacity-10 p-3 rounded-circle text-primary me-3 h-100">
-                        <i class="fas fa-file-invoice-dollar fa-lg"></i>
-                    </div>
-                    <div>
-                        <h5 class="fw-bold">Smart Quoting & Invoicing</h5>
-                        <p class="text-muted">Create professional PDFs in seconds. Send them to clients and get notified when they open them.</p>
-                    </div>
-                </div>
-
-                <div class="d-flex mb-4">
-                    <div class="bg-primary bg-opacity-10 p-3 rounded-circle text-primary me-3 h-100">
-                        <i class="fas fa-user-friends fa-lg"></i>
-                    </div>
-                    <div>
-                        <h5 class="fw-bold">Client Portals</h5>
-                        <p class="text-muted">Give your customers a VIP login area to approve quotes and view job history.</p>
-                    </div>
-                </div>
-
-                <div class="d-flex">
-                    <div class="bg-primary bg-opacity-10 p-3 rounded-circle text-primary me-3 h-100">
-                        <i class="fas fa-truck fa-lg"></i>
-                    </div>
-                    <div>
-                        <h5 class="fw-bold">Fleet & Staff Management</h5>
-                        <p class="text-muted">Track van checks, staff hours, and job locations in real-time.</p>
-                    </div>
+        <div class="mx-auto mt-5 position-relative" style="max-width: 1000px; perspective: 1000px;" data-aos="fade-up">
+            <div class="bg-dark rounded-top-4 border border-secondary border-bottom-0 shadow-lg" style="height: 30px; display: flex; align-items: center; padding: 0 15px; background: #1e293b;">
+                <div class="d-flex gap-2">
+                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
                 </div>
             </div>
             
-            <div class="col-lg-6">
-                <div class="p-4 bg-light rounded-4 border shadow-sm">
-                    <div class="bg-white rounded-3 shadow-sm p-4 text-center py-5">
-                        <i class="fas fa-laptop-code fa-4x text-muted mb-3"></i>
-                        <p class="fw-bold text-muted">Dashboard Preview</p>
+            <div class="bg-dark border border-secondary rounded-bottom-4 overflow-hidden shadow-lg text-start p-0" style="min-height: 500px; background: #0f172a;">
+                <div class="row g-0 h-100">
+                    <div class="col-2 border-end border-secondary p-3 d-none d-md-block" style="background: #1e293b; min-height: 500px;">
+                        <div class="mb-4 text-white fw-bold"><i class="fas fa-layer-group text-warning me-2"></i> TradeCore</div>
+                        <div class="d-grid gap-2">
+                            <div class="p-2 bg-primary bg-opacity-10 text-warning rounded"><i class="fas fa-home me-2"></i> Dashboard</div>
+                            <div class="p-2 text-muted"><i class="fas fa-calendar me-2"></i> Schedule</div>
+                            <div class="p-2 text-muted"><i class="fas fa-users me-2"></i> Crew</div>
+                            <div class="p-2 text-muted"><i class="fas fa-file-invoice me-2"></i> Invoices</div>
+                        </div>
+                    </div>
+                    <div class="col-md-10 col-12 p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="fw-bold text-white m-0">Project Overview</h5>
+                            <button class="btn btn-sm btn-primary">+ New Job</button>
+                        </div>
+                        <div class="row g-3 mb-4">
+                            <div class="col-4">
+                                <div class="p-3 rounded border border-secondary bg-opacity-10 bg-white">
+                                    <small class="text-muted">Revenue (Feb)</small>
+                                    <h4 class="fw-bold text-white m-0">£12,450</h4>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-3 rounded border border-secondary bg-opacity-10 bg-white">
+                                    <small class="text-muted">Active Jobs</small>
+                                    <h4 class="fw-bold text-warning m-0">8 Active</h4>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-3 rounded border border-secondary bg-opacity-10 bg-white">
+                                    <small class="text-muted">Pending Invoices</small>
+                                    <h4 class="fw-bold text-danger m-0">3 Overdue</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="rounded border border-secondary bg-opacity-10 bg-white overflow-hidden">
+                            <table class="table table-dark table-hover mb-0 small">
+                                <thead>
+                                    <tr>
+                                        <th class="text-muted fw-normal ps-4">Job Ref</th>
+                                        <th class="text-muted fw-normal">Client</th>
+                                        <th class="text-muted fw-normal">Status</th>
+                                        <th class="text-muted fw-normal">Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="ps-4">#JB-1024</td>
+                                        <td>Oakwood Estate Agents</td>
+                                        <td><span class="badge bg-success bg-opacity-25 text-success">Complete</span></td>
+                                        <td>£450.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ps-4">#JB-1025</td>
+                                        <td>Mr. John Smith</td>
+                                        <td><span class="badge bg-warning bg-opacity-25 text-warning">In Progress</span></td>
+                                        <td>£2,100.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ps-4">#JB-1026</td>
+                                        <td>Highfield Management</td>
+                                        <td><span class="badge bg-primary bg-opacity-25 text-primary">Scheduled</span></td>
+                                        <td>£85.00</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</section>
+</header>
 {% endblock %}
