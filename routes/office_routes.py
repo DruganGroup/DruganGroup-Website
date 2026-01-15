@@ -1603,17 +1603,14 @@ def office_fleet():
                            staff=staff,
                            today=datetime.now().date())
                            
-@office_bp.route('/office/client/delete/<int:client_id>')
+# CHANGE THE ROUTE LINE TO THIS (Remove '/office'):
+@office_bp.route('/client/delete/<int:client_id>') 
 def delete_client(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     conn = get_db()
     cur = conn.cursor()
     try:
-        # Optional: Clean up linked data if not handled by database CASCADE
-        # cur.execute("DELETE FROM quotes WHERE client_id = %s", (client_id,))
-        # cur.execute("DELETE FROM invoices WHERE client_id = %s", (client_id,))
-        
         cur.execute("DELETE FROM clients WHERE id = %s AND company_id = %s", (client_id, session.get('company_id')))
         conn.commit()
         flash("🗑️ Client deleted successfully.", "success")
@@ -1623,4 +1620,5 @@ def delete_client(client_id):
     finally:
         conn.close()
         
-    return redirect(url_for('office.office_dashboard'))
+    # Redirect to the client list, not the dashboard
+    return redirect('/clients')
