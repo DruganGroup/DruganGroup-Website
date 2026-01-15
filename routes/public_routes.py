@@ -43,15 +43,6 @@ def contact():
         # Points to Drugan Group contact page
         return render_template('public/contact.html')
 
-# --- NEW SOFTWARE ROUTES ---
-@public_bp.route('/features')
-def features():
-    host = request.host.lower()
-    if DOMAIN_SOFTWARE in host:
-        return render_template('publicbb/features.html')
-    else:
-        return render_template('public/index.html')
-
 @public_bp.route('/pricing')
 def pricing():
     host = request.host.lower()
@@ -60,7 +51,36 @@ def pricing():
     else:
         return render_template('public/index.html')
 
-# --- SHARED/TRADE ROUTES ---
+# --- FEATURES / SALES FUNNEL ROUTES ---
+
+# 1. The Gateway (Who are you?)
+@public_bp.route('/features')
+def features():
+    host = request.host.lower()
+    if DOMAIN_SOFTWARE in host:
+        return render_template('publicbb/features.html')
+    else:
+        return render_template('public/index.html')
+
+# 2. For Tradesmen (Winning contracts)
+@public_bp.route('/features/trade')
+def features_trade():
+    host = request.host.lower()
+    if DOMAIN_SOFTWARE in host:
+        return render_template('publicbb/features_trade.html')
+    else:
+        return render_template('public/index.html')
+
+# 3. For Estate Agents (Service Desk)
+@public_bp.route('/features/agents')
+def features_agents():
+    host = request.host.lower()
+    if DOMAIN_SOFTWARE in host:
+        return render_template('publicbb/features_agents.html')
+    else:
+        return render_template('public/index.html')
+
+# --- SHARED/TRADE ROUTES (Drugan Group) ---
 @public_bp.route('/services')
 @public_bp.route('/services.html')
 def services():
@@ -118,31 +138,3 @@ def maintenance():
 @public_bp.route('/management.html')
 def management():
     return render_template('public/management.html')
-    
-    
---- FEATURES GATEWAY ---
-@public_bp.route('/features')
-def features():
-    host = request.host.lower()
-    if DOMAIN_SOFTWARE in host:
-        return render_template('publicbb/features.html')
-    else:
-        return render_template('public/index.html')
-
-# --- NEW: FEATURES FOR TRADES ---
-@public_bp.route('/features/trade')
-def features_trade():
-    host = request.host.lower()
-    if DOMAIN_SOFTWARE in host:
-        return render_template('publicbb/features_trade.html')
-    else:
-        return render_template('public/index.html')
-
-# --- NEW: FEATURES FOR AGENTS ---
-@public_bp.route('/features/agents')
-def features_agents():
-    host = request.host.lower()
-    if DOMAIN_SOFTWARE in host:
-        return render_template('publicbb/features_agents.html')
-    else:
-        return render_template('public/index.html')
