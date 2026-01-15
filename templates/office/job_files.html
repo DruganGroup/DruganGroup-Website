@@ -6,13 +6,17 @@
 <div class="container-fluid p-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold m-0 text-dark">Job File Pack: {{ job[0] }}</h2> 
-            <p class="text-muted mb-0">
-                <i class="fas fa-map-marker-alt me-1"></i> {{ job[2] }} 
+            <div class="d-flex align-items-center gap-3">
+                <h2 class="fw-bold m-0">{{ job.client }} - {{ job.desc }}</h2>
+                {{ status_badge(job.status) }}
+            </div>
+            <div class="text-muted small mt-1">
+                <i class="fas fa-hashtag me-1"></i> {{ job.ref }} 
                 <span class="mx-2">|</span> 
-                {{ job[1] }}
-            </p>      
+                <i class="fas fa-map-marker-alt me-1"></i> {{ job.address }}
+            </div>
         </div>
+
         <div class="btn-group shadow-sm">
             {% if quote_id %}
                 <a href="/office/quote/{{ quote_id }}" class="btn btn-outline-dark fw-bold">
@@ -95,7 +99,7 @@
                             <p class="small text-muted mb-0 lh-sm">Receipts, Invoices<br>& Site Photos</p>
                         </div>
                         <form action="/office/upload-center" method="POST" enctype="multipart/form-data">
-                            <input type="hidden" name="job_ref" value="{{ job[0] }}">
+                            <input type="hidden" name="job_ref" value="{{ job.ref }}">
                             <input type="file" name="file" class="form-control form-control-sm mb-2" required>
                             <button type="submit" class="btn btn-primary w-100 btn-sm fw-bold">
                                 Upload File
@@ -107,7 +111,7 @@
                         <div class="alert alert-warning py-2 small mb-3">
                             <i class="fas fa-info-circle me-1"></i> Add Misc/Cash costs.
                         </div>
-                        <form action="/office/job/{{ job[0] }}/add-manual-cost" method="POST">
+                        <form action="/office/job/{{ job.id }}/add-manual-cost" method="POST">
                             <input type="hidden" name="action" value="manual_cost">
                             <div class="mb-2">
                                 <label class="small text-muted fw-bold">Description</label>
@@ -130,7 +134,8 @@
                         <div class="alert alert-info py-2 small mb-3">
                             <i class="fas fa-clock me-1"></i> Log staff hours.
                         </div>
-                        <form action="log-hours" method="POST"> 
+                        <form action="/office/log-hours" method="POST"> 
+                            <input type="hidden" name="job_id" value="{{ job.id }}">
                             <div class="mb-2">
                                 <label class="small text-muted fw-bold">Staff Member</label>
                                 <select name="staff_id" class="form-select form-select-sm" required>

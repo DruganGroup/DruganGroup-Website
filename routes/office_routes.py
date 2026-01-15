@@ -1179,57 +1179,54 @@ def enable_portal(client_id):
 
         client_name, client_email = client
 
-        # 2. Generate Password
+        # 2. Generate Credentials
         raw_password = generate_secure_password()
         hashed_password = generate_password_hash(raw_password)
         cur.execute("UPDATE clients SET password_hash = %s WHERE id = %s", (hashed_password, client_id))
         
-        # 3. Settings & Company Name
+        # 3. Fetch Company Name & Settings (THE FIX)
+        # We explicitly get the name saved in settings for THIS company ID
         cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
         settings = {row[0]: row[1] for row in cur.fetchall()}
         
-        company_name = session.get('company_name', 'Business Better')
+        # Fallback only if settings are empty, otherwise use the exact saved name
+        company_name = settings.get('company_name', 'Your Service Provider')
         
-        # --- DOMAIN SWITCHER & LINK FIX ---
-        # 1. Choose the Domain
+        # --- WHITE LABEL LINK LOGIC ---
+        # If the company name contains "Drugan", use your custom domain
+        # Everyone else (ACME, etc) uses the generic SaaS domain
         if "drugan" in company_name.lower():
             base_domain = "https://www.drugangroup.co.uk"
         else:
             base_domain = "https://www.businessbetter.co.uk"
             
-        # 2. Construct the Link (MUST include comp_id)
-        # This matches: @portal_bp.route('/portal/login/<int:company_id>')
         login_link = f"{base_domain}/portal/login/{comp_id}"
-        # ----------------------------------
+        # ------------------------------
 
         if 'smtp_host' in settings:
             msg = MIMEMultipart()
             msg['From'] = settings.get('smtp_email')
             msg['To'] = client_email
-            msg['Subject'] = f"Portal Invitation - {company_name}"
+            msg['Subject'] = f"{company_name} - Portal Invitation"
 
-            # HTML Email Body
             body = f"""
             <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
                 <h2 style="color: #333;">Welcome to the Portal</h2>
                 <p>Hello {client_name},</p>
                 <p><strong>{company_name}</strong> has invited you to their secure client portal.</p>
+                <p>You can use this portal to view quotes, pay invoices, and download certificates.</p>
                 
-                <p style="margin: 20px 0;">
-                    <a href="{login_link}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                        Access Portal
+                <p style="margin: 25px 0;">
+                    <a href="{login_link}" style="background-color: #0d6efd; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                        Open Client Portal
                     </a>
                 </p>
                 
-                <div style="background-color: #f9f9f9; padding: 15px; border-radius: 4px;">
-                    <strong>Your Login Details:</strong><br>
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; color: #555;">
+                    <strong>Login Details:</strong><br>
                     Email: {client_email}<br>
                     Password: {raw_password}
                 </div>
-                
-                <p style="font-size: 12px; color: #888; margin-top: 20px;">
-                    If the button doesn't work, copy this link: {login_link}
-                </p>
             </div>
             """
             
@@ -1242,7 +1239,7 @@ def enable_portal(client_id):
             server.quit()
             flash(f"✅ Invite sent to {client_email}")
         else:
-            flash("⚠️ Password set, but Email Failed (SMTP missing)", "warning")
+            flash("⚠️ Password generated, but Email Failed (SMTP Settings missing)", "warning")
             
         conn.commit()
     except Exception as e: 
@@ -1250,8 +1247,8 @@ def enable_portal(client_id):
     finally: 
         conn.close()
     
-    return redirect(f"/clients")
-    
+    return redirect(f"/client/{client_id}")
+   
 @office_bp.route('/client/<int:client_id>/add_property', methods=['POST'])
 def add_property(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -1369,112 +1366,88 @@ def quotes_dashboard():
                            recent_quotes=quotes, # Re-using the variable name to show list
                            brand_color=config['color'], logo_url=config['logo'])
                            
-# UPDATE THIS FUNCTION IN routes/office_routes.py
 @office_bp.route('/office/job/<int:job_id>/files')
 def job_dashboard(job_id):
-    # 1. Security Check (Kept your logic)
     if 'user_id' not in session: return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
-    # Assuming get_site_config is imported or available, if not remove this line
-    # config = get_site_config(comp_id) 
     conn = get_db(); cur = conn.cursor()
     
-    # 2. FETCH JOB DETAILS
-    # Added COALESCE to quote_total to prevent NoneType error if it's empty
+    # 1. FETCH JOB DETAILS (Fixed Columns)
     cur.execute("""
-        SELECT j.ref, j.description, j.site_address, j.status, j.quote_id, COALESCE(j.quote_total, 0)
+        SELECT 
+            j.ref, 
+            j.description, 
+            COALESCE(p.address_line1, j.site_address, 'No Address Logged'), 
+            j.status, 
+            j.quote_id, 
+            COALESCE(j.quote_total, 0),
+            c.name
         FROM jobs j 
+        LEFT JOIN clients c ON j.client_id = c.id
+        LEFT JOIN properties p ON j.property_id = p.id
         WHERE j.id = %s AND j.company_id = %s
     """, (job_id, comp_id))
-    job_row = cur.fetchone()
     
+    job_row = cur.fetchone()
     if not job_row: conn.close(); return "Job not found", 404
     
-    # Job Data Tuple
-    job = (job_row[0], job_row[1], job_row[2], job_row[3])
-    quote_id = job_row[4]
-    quote_total = float(job_row[5])
+    # Dictionary Mapping (Safe & Clean)
+    job = {
+        'id': job_id,
+        'ref': job_row[0],
+        'desc': job_row[1],
+        'address': job_row[2], # <-- This is the fixed address
+        'status': job_row[3],
+        'client': job_row[6] or "Unknown Client" # <-- This is the fixed client name
+    }
+    quote_id, quote_total = job_row[4], float(job_row[5])
 
-    # 3. CALCULATE FINANCIALS
-    
-    # Invoiced
+    # 2. FINANCIALS (Calculations)
     cur.execute("SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE job_id = %s AND status != 'Void'", (job_id,))
     total_billed = float(cur.fetchone()[0])
-    
-    # Expenses (Cash/Receipts)
     cur.execute("SELECT COALESCE(SUM(cost), 0) FROM job_expenses WHERE job_id = %s", (job_id,))
     expenses = float(cur.fetchone()[0])
-
-    # Materials (Stock/Site Added)
     cur.execute("SELECT COALESCE(SUM(quantity * unit_price), 0) FROM job_materials WHERE job_id = %s", (job_id,))
     materials_cost = float(cur.fetchone()[0])
-    
-    # Labour (THE FIX IS HERE: Changed 't.hours' to 't.total_hours')
-    cur.execute("""
-        SELECT COALESCE(SUM(t.total_hours * s.pay_rate), 0)
-        FROM staff_timesheets t
-        JOIN staff s ON t.staff_id = s.id
-        WHERE t.job_id = %s
-    """, (job_id,))
+    cur.execute("SELECT COALESCE(SUM(t.total_hours * s.pay_rate), 0) FROM staff_timesheets t JOIN staff s ON t.staff_id = s.id WHERE t.job_id = %s", (job_id,))
     labour = float(cur.fetchone()[0])
     
     total_cost = expenses + materials_cost + labour
     profit = quote_total - total_cost
     budget_remaining = quote_total - total_cost
 
-    # 4. FETCH FILES LIST
+    # 3. FILES LIST (Invoices, Expenses, Materials, Timesheets)
     files = []
     
-    # A. Invoices
+    # Invoices
     cur.execute("SELECT id, ref, total_amount, date_created FROM invoices WHERE job_id = %s ORDER BY date_created DESC", (job_id,))
-    for r in cur.fetchall():
-        # Added str() to date to prevent format crash
-        files.append(('Client Invoice', r[1], float(r[2]), str(r[3]), 'invoice', r[0]))
+    for r in cur.fetchall(): files.append(('Client Invoice', r[1], float(r[2]), str(r[3]), 'invoice', r[0]))
 
-    # B. Expenses
+    # Expenses
     cur.execute("SELECT description, cost, date, receipt_path, id FROM job_expenses WHERE job_id = %s ORDER BY date DESC", (job_id,))
-    for r in cur.fetchall():
-        path = r[3] if r[3] else 'No Link'
-        files.append(('Expense Receipt', r[0], float(r[1]), str(r[2]), path, r[4]))
+    for r in cur.fetchall(): files.append(('Expense Receipt', r[0], float(r[1]), str(r[2]), r[3] or 'No Link', r[4]))
         
-    # C. Materials
+    # Materials
     cur.execute("SELECT description, quantity, unit_price, date_added, id FROM job_materials WHERE job_id = %s ORDER BY date_added DESC", (job_id,))
-    for r in cur.fetchall():
-        desc = f"{r[1]}x {r[0]}" 
-        cost = float(r[1]) * float(r[2])
-        files.append(('Site Material', desc, cost, str(r[3]), 'Material', r[4]))
+    for r in cur.fetchall(): files.append(('Site Material', f"{r[1]}x {r[0]}", float(r[1])*float(r[2]), str(r[3]), 'Material', r[4]))
 
-    # D. Labor (THE FIX IS HERE TOO: Changed 't.hours' to 't.total_hours')
-    cur.execute("""
-        SELECT t.id, s.name, t.total_hours, s.pay_rate, t.date
-        FROM staff_timesheets t
-        JOIN staff s ON t.staff_id = s.id
-        WHERE t.job_id = %s
-        ORDER BY t.date DESC
-    """, (job_id,))
-    
-    for r in cur.fetchall():
-        t_id, name, hours, rate, date_val = r
-        # Safety check if hours is None
-        hours = float(hours) if hours else 0.0
-        cost = hours * float(rate)
-        
-        desc = f"Labor: {name} ({hours} hrs)" if hours > 0 else f"Labor: {name} (Active)"
-        files.append(('Timesheet', desc, cost, str(date_val), 'No Link', t_id))
+    # Timesheets (Fixed 'total_hours')
+    cur.execute("SELECT t.id, s.name, t.total_hours, s.pay_rate, t.date FROM staff_timesheets t JOIN staff s ON t.staff_id = s.id WHERE t.job_id = %s ORDER BY t.date DESC", (job_id,))
+    for r in cur.fetchall(): 
+        hours = float(r[2]) if r[2] else 0.0
+        cost = hours * float(r[3])
+        files.append(('Timesheet', f"Labor: {r[1]} ({hours} hrs)", cost, str(r[4]), 'No Link', r[0]))
 
-    # E. Staff List
     cur.execute("SELECT id, name FROM staff WHERE company_id = %s AND status='Active'", (comp_id,))
     staff = cur.fetchall()
-    
     conn.close()
     
-    # Render with your existing template
     return render_template('office/job_files.html', 
-                           job=job, quote_id=quote_id, quote_total=quote_total,
-                           total_billed=total_billed, total_cost=total_cost, profit=profit,
-                           budget_remaining=budget_remaining,
-                           files=files, staff=staff, today=date.today())
+                           job=job, # Passing the dictionary
+                           quote_id=quote_id, quote_total=quote_total, 
+                           total_billed=total_billed, total_cost=total_cost, profit=profit, 
+                           budget_remaining=budget_remaining, files=files, staff=staff, today=date.today())
                            
 @office_bp.route('/office/quote/delete/<int:quote_id>')
 def delete_quote(quote_id):

@@ -83,32 +83,41 @@ def site_dashboard():
     staff_id, staff_name, _ = get_staff_identity(session['user_id'], cur)
     
     # 2. CHECK STATUSES
-    is_at_work = False   # Day Clock
-    active_job = None    # Job Clock
+    is_at_work = False   
+    active_job = None    
     
     if staff_id:
-        # A. Check Day Clock (Attendance)
+        # Check Day Clock
         cur.execute("SELECT id FROM staff_attendance WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
         is_at_work = cur.fetchone() is not None
         
-        # B. Check Job Clock (Timesheets) - If active, get the Job Name
+        # Check Job Clock (Fixing the address here too)
         cur.execute("""
-            SELECT t.job_id, j.site_address 
+            SELECT t.job_id, COALESCE(p.address_line1, j.site_address, 'No Address') as addr
             FROM staff_timesheets t
             JOIN jobs j ON t.job_id = j.id
+            LEFT JOIN properties p ON j.property_id = p.id
             WHERE t.staff_id = %s AND t.clock_out IS NULL
         """, (staff_id,))
         row = cur.fetchone()
         if row:
             active_job = {'id': row[0], 'name': row[1]}
 
-    # 3. FETCH ASSIGNED JOBS
+    # 3. FETCH ASSIGNED JOBS (The Fix for the List)
     jobs = []
     if staff_id:
         cur.execute("""
-            SELECT j.id, j.ref, j.site_address, c.name, j.description, j.start_date, j.status 
+            SELECT 
+                j.id, 
+                j.ref, 
+                COALESCE(p.address_line1, j.site_address, 'No Address Logged') as address, 
+                c.name, 
+                j.description, 
+                j.start_date, 
+                j.status 
             FROM jobs j 
             LEFT JOIN clients c ON j.client_id = c.id 
+            LEFT JOIN properties p ON j.property_id = p.id
             WHERE j.engineer_id = %s 
             AND j.status != 'Completed'
             ORDER BY j.status ASC, j.start_date ASC
@@ -121,7 +130,7 @@ def site_dashboard():
                            is_at_work=is_at_work, 
                            active_job=active_job,
                            staff_name=staff_name)
-    
+                           
 # --- 2. CLOCK IN ---
 @site_bp.route('/site/clock-in', methods=['POST'])
 def clock_in():
