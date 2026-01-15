@@ -1,0 +1,102 @@
+{% extends "publicbb/base.html" %}
+
+{% block title %}Help Center | Business Better{% endblock %}
+
+{% block content %}
+<header class="bg-primary text-white py-5 text-center">
+    <div class="container py-4">
+        <h1 class="fw-bold display-5">Knowledge Base</h1>
+        <p class="lead opacity-75">Guides, FAQs, and Setup Instructions.</p>
+    </div>
+</header>
+
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                
+                <div class="input-group mb-5 shadow-sm">
+                    <span class="input-group-text bg-white border-0 ps-4"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" class="form-control border-0 py-3" placeholder="Search for help articles (e.g. 'SMTP' or 'Drivers')...">
+                    <button class="btn btn-dark px-4 fw-bold">Search</button>
+                </div>
+
+                <div class="accordion custom-accordion" id="helpAccordion">
+
+                    <h5 class="fw-bold text-muted mb-3 mt-5 text-uppercase small ls-1">System Setup</h5>
+                    
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faq-smtp">
+                                <i class="fas fa-envelope-open-text text-primary me-3"></i> How do I set up SMTP Email?
+                            </button>
+                        </h2>
+                        <div id="faq-smtp" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body text-muted bg-white">
+                                <p>By default, invoices come from <em>noreply@businessbetter.co.uk</em>. To send them from <strong>your</strong> email address:</p>
+                                <ol>
+                                    <li>Go to <strong>Settings</strong> > <strong>Email Configuration</strong>.</li>
+                                    <li>Toggle "Use Custom SMTP" to ON.</li>
+                                    <li>Enter your provider details (e.g., Gmail, Outlook, or Fasthosts).</li>
+                                    <li><strong>Host:</strong> <code>smtp.livemail.co.uk</code> (for Fasthosts) or <code>smtp.gmail.com</code>.</li>
+                                    <li><strong>Port:</strong> Usually <code>587</code> (TLS) or <code>465</code> (SSL).</li>
+                                    <li>Enter your email address and password.</li>
+                                    <li>Click <strong>"Test Connection"</strong>.</li>
+                                </ol>
+                                <div class="alert alert-warning small"><i class="fas fa-exclamation-triangle me-2"></i> <strong>Note:</strong> If using Gmail, you must generate an "App Password" in your Google Account settings first.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="fw-bold text-muted mb-3 mt-5 text-uppercase small ls-1">Fleet & Staff</h5>
+
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faq-vans">
+                                <i class="fas fa-truck text-primary me-3"></i> How do I add a new Van?
+                            </button>
+                        </h2>
+                        <div id="faq-vans" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body text-muted bg-white">
+                                <p>To track a vehicle's MOT, Tax, and Service history:</p>
+                                <ol>
+                                    <li>Navigate to the <strong>Fleet</strong> tab in your dashboard.</li>
+                                    <li>Click the blue <strong>+ Add Vehicle</strong> button.</li>
+                                    <li>Enter the <strong>Registration Number</strong> (VRM).</li>
+                                    <li>Our system will automatically pull the Make/Model from the DVLA database.</li>
+                                    <li>Assign a "Default Driver" if one person uses this van permanently.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faq-crew">
+                                <i class="fas fa-users-cog text-primary me-3"></i> How do I assign drivers and crew?
+                            </button>
+                        </h2>
+                        <div id="faq-crew" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body text-muted bg-white">
+                                <p><strong>Drivers:</strong> Are assigned to a vehicle in the Fleet tab.</p>
+                                <p><strong>Crew/Engineers:</strong> Are assigned to Jobs.</p>
+                                <ul>
+                                    <li>Go to <strong>Schedule</strong> and click on a Job.</li>
+                                    <li>In the "Assigned Staff" box, search for your engineer's name.</li>
+                                    <li><strong>Note:</strong> You must first invite them via <strong>Settings > Users > Invite New User</strong>.</li>
+                                </ul>
+                                <p>Once assigned, the job will instantly appear on their mobile app.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div> <div class="text-center mt-5">
+                    <p class="text-muted">Can't find what you need?</p>
+                    <a href="/contact" class="btn btn-outline-primary fw-bold">Contact Support Team</a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

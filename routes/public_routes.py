@@ -138,3 +138,12 @@ def maintenance():
 @public_bp.route('/management.html')
 def management():
     return render_template('public/management.html')
+    
+@public_bp.route('/help')
+def help_center():
+    host = request.host.lower()
+    if DOMAIN_SOFTWARE in host:
+        return render_template('publicbb/help.html')
+    else:
+        # If trade site users need help, maybe redirect to contact or a different page
+        return render_template('public/contact.html')
