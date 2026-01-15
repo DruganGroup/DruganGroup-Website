@@ -37,7 +37,7 @@ def contact():
     host = request.host.lower()
 
     if DOMAIN_SOFTWARE in host:
-        # Points to your new Business Better contact page
+        # Points to Business Better contact page
         return render_template('publicbb/contact.html') 
     else:
         # Points to Drugan Group contact page
@@ -56,7 +56,6 @@ def features():
 def pricing():
     host = request.host.lower()
     if DOMAIN_SOFTWARE in host:
-        # We will build this file next, after discussing the strategy
         return render_template('publicbb/pricing.html')
     else:
         return render_template('public/index.html')
@@ -119,3 +118,31 @@ def maintenance():
 @public_bp.route('/management.html')
 def management():
     return render_template('public/management.html')
+    
+    
+--- FEATURES GATEWAY ---
+@public_bp.route('/features')
+def features():
+    host = request.host.lower()
+    if DOMAIN_SOFTWARE in host:
+        return render_template('publicbb/features.html')
+    else:
+        return render_template('public/index.html')
+
+# --- NEW: FEATURES FOR TRADES ---
+@public_bp.route('/features/trade')
+def features_trade():
+    host = request.host.lower()
+    if DOMAIN_SOFTWARE in host:
+        return render_template('publicbb/features_trade.html')
+    else:
+        return render_template('public/index.html')
+
+# --- NEW: FEATURES FOR AGENTS ---
+@public_bp.route('/features/agents')
+def features_agents():
+    host = request.host.lower()
+    if DOMAIN_SOFTWARE in host:
+        return render_template('publicbb/features_agents.html')
+    else:
+        return render_template('public/index.html')

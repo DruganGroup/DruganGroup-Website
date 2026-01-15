@@ -1,0 +1,44 @@
+{% extends "publicbb/base.html" %}
+
+{% block title %}Property Management Software | Business Better{% endblock %}
+
+{% block content %}
+<header class="bg-dark text-white py-5">
+    <div class="container py-5 text-center">
+        <span class="text-warning fw-bold text-uppercase letter-spacing-2">Service Desk Module</span>
+        <h1 class="display-3 fw-bold mb-4 mt-2">Stop the phone ringing.</h1>
+        <p class="lead text-white-50 mx-auto mb-5" style="max-width: 600px;">
+            The complete maintenance automation platform for Estate Agents and Block Managers.
+        </p>
+        <a href="/contact" class="btn btn-warning btn-lg fw-bold px-5">Book a Agency Demo</a>
+    </div>
+</header>
+
+<section class="py-5">
+    <div class="container py-5">
+        <div class="row align-items-center mb-5">
+            <div class="col-lg-6">
+                <div class="p-4 border rounded-4 bg-light">
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="bg-white p-3 rounded shadow-sm"><i class="fas fa-user text-muted"></i></div>
+                        <div class="flex-grow-1 mx-3" style="height: 2px; background: #ddd;"></div>
+                        <div class="bg-primary text-white p-3 rounded shadow-sm"><i class="fas fa-laptop"></i></div>
+                        <div class="flex-grow-1 mx-3" style="height: 2px; background: #ddd;"></div>
+                        <div class="bg-white p-3 rounded shadow-sm"><i class="fas fa-tools text-muted"></i></div>
+                    </div>
+                    <p class="small text-muted text-center fst-italic">Tenant Reports -> You Approve -> Trade Fixes</p>
+                </div>
+            </div>
+            <div class="col-lg-6 ps-lg-5">
+                <h2 class="fw-bold mb-4">The "2 AM Boiler" Problem: Solved.</h2>
+                <p class="text-muted">You shouldn't be a call centre for leaky taps. With Business Better, your tenants get a login to report faults directly.</p>
+                <ul class="list-unstyled mt-4">
+                    <li class="mb-3 d-flex"><i class="fas fa-check-circle text-success mt-1 me-3"></i> <span><strong>Photo Evidence:</strong> Tenants must upload photos before reporting. No more vague "it's broken" calls.</span></li>
+                    <li class="mb-3 d-flex"><i class="fas fa-check-circle text-success mt-1 me-3"></i> <span><strong>One-Click Dispatch:</strong> You view the report, click "Approve", and it goes straight to your preferred contractor.</span></li>
+                    <li class="mb-3 d-flex"><i class="fas fa-check-circle text-success mt-1 me-3"></i> <span><strong>Full Audit Trail:</strong> Every action is time-stamped for landlord disputes.</span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
