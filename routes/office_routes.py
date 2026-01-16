@@ -1645,7 +1645,8 @@ def view_client(client_id):
                            vans_list=vans_list,
                            today=today)
                            
-@office_bp.route('office/client/delete/<int:client_id>') 
+# --- DELETE CLIENT ---
+@office_bp.route('/client/delete/<int:client_id>') 
 def delete_client(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
     
@@ -1661,8 +1662,78 @@ def delete_client(client_id):
     finally:
         conn.close()
         
-    # Redirect to the client list, not the dashboard
     return redirect('/clients')
+
+# --- VIEW CLIENT DETAILS ---
+@office_bp.route('/client/<int:client_id>')
+def view_client(client_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. Fetch Client Data
+    cur.execute("""
+        SELECT id, name, email, phone, billing_address, password_hash 
+        FROM clients 
+        WHERE id = %s AND company_id = %s
+    """, (client_id, comp_id))
+    row = cur.fetchone()
+    
+    if not row:
+        conn.close()
+        return "Client not found", 404
+        
+    client = {
+        'id': row[0], 'name': row[1], 'email': row[2], 
+        'phone': row[3], 'addr': row[4],
+        'has_portal': True if row[5] else False
+    }
+    
+    # 2. Fetch Properties
+    cur.execute("""
+        SELECT id, address_line1, postcode, tenant_name, tenant_phone, gas_expiry, eicr_expiry
+        FROM properties 
+        WHERE client_id = %s 
+        ORDER BY address_line1 ASC
+    """, (client_id,))
+    
+    props_raw = cur.fetchall()
+    properties = []
+    today = date.today()
+    
+    for p in props_raw:
+        # Compliance Checks
+        gas_stat = 'Valid'
+        if not p[5]: gas_stat = 'Missing'
+        elif p[5] < today: gas_stat = 'Expired'
+        
+        elec_stat = 'Valid'
+        if not p[6]: elec_stat = 'Missing'
+        elif p[6] < today: elec_stat = 'Expired'
+        
+        properties.append({
+            'id': p[0], 'addr': p[1], 'postcode': p[2],
+            'tenant': p[3], 'tenant_phone': p[4],
+            'compliance': {
+                'Gas': {'status': gas_stat, 'date': format_date(p[5])},
+                'EICR': {'status': elec_stat, 'date': format_date(p[6])},
+                'PAT': {'status': 'Missing', 'date': '-'}
+            }
+        })
+        
+    # 3. Fetch Vans
+    cur.execute("SELECT id, reg_plate, make_model FROM vehicles WHERE company_id = %s AND status='Active'", (comp_id,))
+    vans_list = [{'id': r[0], 'name': f"{r[1]} ({r[2]})"} for r in cur.fetchall()]
+    
+    conn.close()
+    
+    # Ensure this points to 'office/client_details.html'
+    return render_template('office/client_details.html', 
+                           client=client, 
+                           properties=properties,
+                           vans_list=vans_list,
+                           today=today)
 
 # --- NEW API: FETCH CLIENT PROPERTIES ---
 @office_bp.route('/api/client/<int:client_id>/properties')
