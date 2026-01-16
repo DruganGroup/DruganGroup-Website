@@ -1,5 +1,15 @@
 {% extends "office/office_base.html" %}
-
+{% macro status_badge(status) %}
+    {% set color = 'secondary' %}
+    {% if status in ['Completed', 'Paid', 'Accepted', 'Active'] %}
+        {% set color = 'success' %}
+    {% elif status in ['Pending', 'Sent', 'In Progress'] %}
+        {% set color = 'warning text-dark' %}
+    {% elif status in ['Cancelled', 'Rejected', 'Overdue'] %}
+        {% set color = 'danger' %}
+    {% endif %}
+    <span class="badge bg-{{ color }}">{{ status }}</span>
+{% endmacro %}
 {% block title %}Job Files | Business Better{% endblock %}
 
 {% block content %}
