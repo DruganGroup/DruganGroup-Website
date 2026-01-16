@@ -15,7 +15,7 @@ def job_files(job_id):
     cur = conn.cursor()
     comp_id = session.get('company_id')
     
-    # 2. Get Job Details (With correct Address logic)
+    # 2. Get Job Details (UPDATED: Now fetches Job Title from Quote)
     cur.execute("""
         SELECT 
             j.ref, 
@@ -26,10 +26,12 @@ def job_files(job_id):
             COALESCE(j.quote_total, 0),
             c.name,
             c.email,
-            c.phone
+            c.phone,
+            q.job_title   -- Fetching the Title from the linked Quote
         FROM jobs j 
         LEFT JOIN clients c ON j.client_id = c.id
         LEFT JOIN properties p ON j.property_id = p.id
+        LEFT JOIN quotes q ON j.quote_id = q.id
         WHERE j.id = %s AND j.company_id = %s
     """, (job_id, comp_id))
     
@@ -39,7 +41,10 @@ def job_files(job_id):
         conn.close()
         return "Job not found", 404
     
-    # Create the job dictionary for the template
+    # Create the job dictionary
+    # Logic: If we have a Quote Title, use it. If not, use "Job <Ref>"
+    display_title = job_row[9] if job_row[9] else f"Job {job_row[0]}"
+
     job = {
         'id': job_id,
         'ref': job_row[0],
@@ -48,7 +53,8 @@ def job_files(job_id):
         'status': job_row[3],
         'client': job_row[6] or "Unknown Client",
         'email': job_row[7],
-        'phone': job_row[8]
+        'phone': job_row[8],
+        'title': display_title 
     }
     quote_id, quote_total = job_row[4], float(job_row[5])
     
@@ -117,7 +123,7 @@ def job_files(job_id):
                            staff=staff_list,
                            today=date.today())
 
-# --- MANUAL COST ENTRY (For Labor/Misc) ---
+# --- MANUAL COST ENTRY ---
 @jobs_bp.route('/office/job/<job_ref>/add-manual-cost', methods=['POST'])
 def add_manual_cost(job_ref):
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -126,7 +132,6 @@ def add_manual_cost(job_ref):
     cur = conn.cursor()
     
     try:
-        # Resolve Job ID from Ref or ID
         if job_ref.isdigit():
             job_id = int(job_ref)
         else:
@@ -184,7 +189,7 @@ def delete_job_item(item_id, item_type):
         
     return redirect(request.referrer)
     
-# --- LOG TIMESHEET (Staff Hours) ---
+# --- LOG TIMESHEET ---
 @jobs_bp.route('/office/job/<int:job_id>/log-hours', methods=['POST'])
 def log_hours(job_id):
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -213,7 +218,7 @@ def log_hours(job_id):
         
     return redirect(f"/office/job/{job_id}/files")
     
-# --- CREATE MANUAL JOB (With Property ID) ---
+# --- CREATE MANUAL JOB ---
 @jobs_bp.route('/office/job/create', methods=['POST'])
 def create_job():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -230,15 +235,12 @@ def create_job():
         vehicle_id = request.form.get('vehicle_id') or None
         est_days = request.form.get('days') or 1
         
-        # Capture Property ID
         property_id = request.form.get('property_id') or None
 
-        # Generate Reference
         cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id = %s", (comp_id,))
         count = cur.fetchone()[0]
         ref = f"JOB-{1000 + count + 1}"
 
-        # Insert Job
         cur.execute("""
             INSERT INTO jobs (
                 company_id, client_id, property_id, engineer_id, vehicle_id, 
