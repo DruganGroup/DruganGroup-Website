@@ -711,28 +711,37 @@ def job_details(job_id):
     # 1. IDENTIFY STAFF
     staff_id, staff_name, _ = get_staff_identity(session['user_id'], cur)
     
-    # 2. GET JOB DETAILS (Explicitly)
-    # We select specific columns so we know exactly what we are getting
+    # 2. GET JOB DETAILS (Fixed Address Query)
+    # We now JOIN 'properties' so we can fetch the real address
     cur.execute("""
-        SELECT j.id, j.ref, j.status, c.name, c.phone, j.site_address, j.description, c.gate_code
+        SELECT j.id, j.ref, j.status, c.name, c.phone, 
+               COALESCE(p.address_line1, j.site_address, 'No Address Logged') as address,
+               p.postcode, 
+               j.description, c.gate_code
         FROM jobs j
         LEFT JOIN clients c ON j.client_id = c.id
+        LEFT JOIN properties p ON j.property_id = p.id
         WHERE j.id = %s
     """, (job_id,))
     row = cur.fetchone()
     
     if not row: conn.close(); return "Job not found", 404
 
-    # 3. CONVERT TO SAFE DICTIONARY (This fixes the "1234" address bug)
+    # 3. CONVERT TO SAFE DICTIONARY
+    # Format the address nicely to include postcode if available
+    addr_line = row[5]
+    postcode = row[6]
+    full_address = f"{addr_line}, {postcode}" if postcode else addr_line
+
     job = {
         'id': row[0],
         'ref': row[1],
         'status': row[2],
         'client_name': row[3] or "Unknown Client",
         'client_phone': row[4] or "No Phone",
-        'address': row[5] or "No Address Logged",
-        'description': row[6] or "No Description",
-        'gate_code': row[7] # Now we can show the gate code properly too!
+        'address': full_address, 
+        'description': row[7] or "No Description",
+        'gate_code': row[8]
     }
 
     # 4. CHECK IF CLOCKED IN
