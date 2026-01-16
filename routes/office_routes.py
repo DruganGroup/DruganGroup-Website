@@ -1594,20 +1594,6 @@ def delete_client(client_id):
         
     # Redirect to the client list, not the dashboard
     return redirect('/clients')
-    
-    # --- TEMPORARY DATABASE FIX ---
-# Paste this at the bottom of office_routes.py
-@office_bp.route('/office/fix-db-quotes')
-def fix_db_quotes():
-    conn = get_db(); cur = conn.cursor()
-    try:
-        cur.execute("ALTER TABLE quotes ADD COLUMN IF NOT EXISTS property_id INTEGER")
-        conn.commit()
-        return "✅ Success: Added 'property_id' column to Quotes table."
-    except Exception as e:
-        return f"Error: {e}"
-    finally:
-        conn.close()
 
 # --- NEW API: FETCH CLIENT PROPERTIES ---
 @office_bp.route('/api/client/<int:client_id>/properties')
