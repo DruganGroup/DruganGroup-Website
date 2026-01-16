@@ -330,7 +330,7 @@ def email_quote(quote_id):
         # 2. Check if it actually exists to avoid errors
         if os.path.exists(local_path):
             # 3. Use 'file://' protocol so wkhtmltopdf knows it's local
-            config['logo'] = local_path
+            config['logo'] = f"file://{local_path}"
 
     # 5. Date & Context
     country = settings.get('country_code', 'UK')
