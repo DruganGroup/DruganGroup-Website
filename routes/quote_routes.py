@@ -34,7 +34,7 @@ def get_site_config(comp_id):
     conn.close()
     return {
         'color': settings.get('brand_color', '#333333'),
-        'logo': settings.get('logo', '')
+        'logo': settings.get('logo_url', '')
     }
 
 # =========================================================
