@@ -295,9 +295,9 @@ def email_quote(quote_id):
     company_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
     
-    # 2. Fetch Quote
+    # 2. Fetch Quote (UPDATED QUERY: Now grabs c.billing_address)
     cur.execute("""
-        SELECT q.reference, c.name, c.email, q.job_title, q.job_description, q.date, q.total
+        SELECT q.reference, c.name, c.email, q.job_title, q.job_description, q.date, q.total, c.billing_address
         FROM quotes q JOIN clients c ON q.client_id = c.id
         WHERE q.id = %s AND q.company_id = %s
     """, (quote_id, company_id))
@@ -307,7 +307,8 @@ def email_quote(quote_id):
         conn.close(); flash("❌ Client has no email address.", "error")
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
 
-    ref, client_name, client_email, title, desc, q_date, total_val = q[0], q[1], q[2], q[3], q[4], q[5], float(q[6] or 0)
+    # Unpack variables (Added client_addr at the end)
+    ref, client_name, client_email, title, desc, q_date, total_val, client_addr = q[0], q[1], q[2], q[3], q[4], q[5], float(q[6] or 0), q[7]
 
     # 3. Settings
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
@@ -320,25 +321,13 @@ def email_quote(quote_id):
     cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
     items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
     
-    # 4. PREPARE CONFIG & FORCE LOCAL LOGO PATH (The Fix)
+    # 4. CONFIG & LOGO FIX
     config = get_site_config(company_id)
-    if config.get('logo') and config['logo'].startswith('/'):
-        # Get the real path on the hard drive
-        local_path = os.path.join(current_app.root_path, config['logo'].lstrip('/'))
-        
-        # Check if it actually exists
-        if os.path.exists(local_path):
-            # Use 'file://' so the PDF engine can find it
-            config['logo'] = f"file://{local_path}"
     
     if config.get('logo') and config['logo'].startswith('/'):
-        # 1. Get the real path on the hard drive (e.g. /opt/render/project/src/static/...)
-        # We strip the leading '/' so os.path.join attaches it correctly
+        # Ensure 'import os' and 'current_app' are imported at the top of the file!
         local_path = os.path.join(current_app.root_path, config['logo'].lstrip('/'))
-        
-        # 2. Check if it actually exists to avoid errors
         if os.path.exists(local_path):
-            # 3. Use 'file://' protocol so wkhtmltopdf knows it's local
             config['logo'] = f"file://{local_path}"
 
     # 5. Date & Context
@@ -355,11 +344,18 @@ def email_quote(quote_id):
             'total': total_val,
             'subtotal': total_val, 
             'tax': 0.0,
+            
+            # --- THE FIX FOR "NONE" ---
+            'client_name': client_name,      # Passed to PDF
+            'client_address': client_addr,   # Passed to PDF
+            'client_email': client_email,    # Passed to PDF
+            # --------------------------
+
             'currency_symbol': settings.get('currency_symbol', '£')
         }, 
         'items': items, 
         'settings': settings, 
-        'config': config,  # <--- Now contains the 'file://' path
+        'config': config, 
         'is_quote': True
     }
 
@@ -396,8 +392,8 @@ def email_quote(quote_id):
         flash(f"❌ Email failed: {e}", "error")
     
     conn.close()
-    return redirect(url_for('quote.view_quote', quote_id=quote_id))        
-   
+    return redirect(url_for('quote.view_quote', quote_id=quote_id))
+  
 @quote_bp.route('/office/quote/<int:quote_id>/convert')
 def convert_to_invoice(quote_id):
     if not check_access(): return redirect(url_for('auth.login'))
