@@ -47,8 +47,8 @@
     <select name="property_id" id="propertySelect" class="form-select">
         <option value="">-- Select Client First --</option>
     </select>
-    <div class="form-text small">Leave blank to use Billing Address.</div>
-</div>
+    <div class="form-text small">Select the specific property for this work.</div>
+</div>>
     <div class="card-header bg-secondary text-white fw-bold">
         <i class="fas fa-briefcase me-2"></i> Job Details
     </div>
@@ -245,37 +245,53 @@
 
     document.addEventListener('DOMContentLoaded', addRow);
 	
-	// ADD THIS TO YOUR EXISTING <SCRIPT> SECTION
-    
-    // Listen for Client Change
-    document.querySelector('select[name="client_id"]').addEventListener('change', function() {
-        const clientId = this.value;
+	<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const clientSelect = document.querySelector('select[name="client_id"]');
         const propSelect = document.getElementById('propertySelect');
-        
-        // Reset Dropdown
-        propSelect.innerHTML = '<option value="">Loading sites...</option>';
-        
-        // Fetch Properties from the API we just made
-        fetch(`/api/client/${clientId}/properties`)
-            .then(response => response.json())
-            .then(data => {
-                propSelect.innerHTML = '<option value="">-- Use Billing Address (Default) --</option>';
-                
-                if (data.length > 0) {
-                    data.forEach(prop => {
-                        const option = document.createElement('option');
-                        option.value = prop.id;
-                        option.text = prop.address; // e.g. "12 High St, SW1 1AA"
-                        propSelect.appendChild(option);
-                    });
-                } else {
-                    const option = document.createElement('option');
-                    option.text = "(No properties found for this client)";
-                    option.disabled = true;
-                    propSelect.appendChild(option);
-                }
-            })
-            .catch(err => console.error('Error fetching properties:', err));
+
+        function loadProperties(clientId) {
+            if (!clientId) return;
+            
+            // Show loading state
+            propSelect.innerHTML = '<option value="">Loading sites...</option>';
+            propSelect.disabled = true;
+
+            // Fetch from API
+            fetch(`/api/client/${clientId}/properties`)
+                .then(response => response.json())
+                .then(data => {
+                    propSelect.disabled = false;
+                    if (data.length > 0) {
+                        propSelect.innerHTML = '<option value="">-- Select Site Address --</option>';
+                        data.forEach(prop => {
+                            const option = document.createElement('option');
+                            option.value = prop.id;
+                            option.text = prop.address;
+                            propSelect.appendChild(option);
+                        });
+                    } else {
+                        propSelect.innerHTML = '<option value="">-- Use Billing Address (Default) --</option>';
+                    }
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    propSelect.innerHTML = '<option value="">Error loading sites</option>';
+                });
+        }
+
+        if (clientSelect) {
+            // 1. Listen for changes (User picks a new client)
+            clientSelect.addEventListener('change', function() {
+                loadProperties(this.value);
+            });
+
+            // 2. Check on Page Load (If client is pre-selected)
+            if (clientSelect.value) {
+                loadProperties(clientSelect.value);
+            }
+        }
     });
+</script>
 </script>
 {% endblock %}
