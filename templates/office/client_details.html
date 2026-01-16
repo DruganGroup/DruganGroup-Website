@@ -204,7 +204,15 @@
                 </div>
                 <div class="modal-body">
                     <input type="hidden" name="client_id" value="{{ client.id }}">
-                    
+                    <div class="mb-3">
+    <label class="form-label fw-bold">Site Address / Property</label>
+    <select name="property_id" class="form-select">
+        <option value="">-- Use Billing Address --</option>
+        {% for prop in properties %}
+            <option value="{{ prop.id }}">{{ prop.addr }}, {{ prop.postcode }}</option>
+        {% endfor %}
+    </select>
+</div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Job Description</label>
                         <textarea name="description" class="form-control" rows="3" required placeholder="e.g. Emergency Leak Repair in Kitchen"></textarea>

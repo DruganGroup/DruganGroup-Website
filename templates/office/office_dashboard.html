@@ -282,5 +282,37 @@
                 setTimeout(() => location.reload(), 1500);
             });
         }
+		// LISTENER FOR DASHBOARD NEW JOB MODAL
+document.addEventListener('DOMContentLoaded', function() {
+    // Find the Client dropdown in the modal
+    const dashClientSelect = document.querySelector('#createJobModal select[name="client_id"]');
+    const dashPropSelect = document.getElementById('dashJobPropertySelect');
+
+    if (dashClientSelect && dashPropSelect) {
+        dashClientSelect.addEventListener('change', function() {
+            const clientId = this.value;
+            dashPropSelect.innerHTML = '<option value="">Loading...</option>';
+            
+            if (!clientId) {
+                dashPropSelect.innerHTML = '<option value="">-- Select Client First --</option>';
+                return;
+            }
+
+            // Use the API we created earlier
+            fetch(`/api/client/${clientId}/properties`)
+                .then(res => res.json())
+                .then(data => {
+                    dashPropSelect.innerHTML = '<option value="">-- Use Billing Address --</option>';
+                    data.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.id;
+                        opt.text = p.address;
+                        dashPropSelect.appendChild(opt);
+                    });
+                })
+                .catch(err => console.error(err));
+        });
+    }
+});
     </script>
 {% endblock %}

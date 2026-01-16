@@ -178,7 +178,7 @@ def log_hours(job_id):
         
     return redirect(f"/office/job/{job_id}/files")
     
-# --- CREATE MANUAL JOB ---
+# --- CREATE MANUAL JOB (Updated for Property ID) ---
 @jobs_bp.route('/office/job/create', methods=['POST'])
 def create_job():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -188,6 +188,7 @@ def create_job():
     comp_id = session.get('company_id')
     
     try:
+        # 1. Capture Form Data
         client_id = request.form.get('client_id')
         description = request.form.get('description')
         engineer_id = request.form.get('engineer_id') or None
@@ -195,18 +196,24 @@ def create_job():
         vehicle_id = request.form.get('vehicle_id') or None
         est_days = request.form.get('days') or 1
         
+        # --- NEW: Capture Property ID ---
+        property_id = request.form.get('property_id') or None
+        # ----------------------------
+
+        # 2. Generate Reference
         cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id = %s", (comp_id,))
         count = cur.fetchone()[0]
         ref = f"JOB-{1000 + count + 1}"
 
+        # 3. Insert Job (Now including property_id)
         cur.execute("""
             INSERT INTO jobs (
-                company_id, client_id, engineer_id, vehicle_id, 
+                company_id, client_id, property_id, engineer_id, vehicle_id, 
                 ref, description, status, start_date, estimated_days
             )
-            VALUES (%s, %s, %s, %s, %s, %s, 'Pending', %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'Pending', %s, %s)
             RETURNING id
-        """, (comp_id, client_id, engineer_id, vehicle_id, ref, description, start_date, est_days))
+        """, (comp_id, client_id, property_id, engineer_id, vehicle_id, ref, description, start_date, est_days))
         
         new_job_id = cur.fetchone()[0]
         conn.commit()
