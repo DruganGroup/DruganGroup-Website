@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, session, redirect, url_for, flash, request
+from flask import Blueprint, render_template, session, redirect, url_for, flash, request, current_app
 from db import get_db
 from datetime import datetime
 import smtplib
+import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
@@ -34,7 +35,7 @@ def get_site_config(comp_id):
     conn.close()
     return {
         'color': settings.get('brand_color', '#333333'),
-        'logo': settings.get('logo_url', '')
+        'logo': settings.get('logo', '')
     }
 
 # =========================================================
@@ -321,6 +322,14 @@ def email_quote(quote_id):
     
     # 4. PREPARE CONFIG & FORCE LOCAL LOGO PATH (The Fix)
     config = get_site_config(company_id)
+    if config.get('logo') and config['logo'].startswith('/'):
+        # Get the real path on the hard drive
+        local_path = os.path.join(current_app.root_path, config['logo'].lstrip('/'))
+        
+        # Check if it actually exists
+        if os.path.exists(local_path):
+            # Use 'file://' so the PDF engine can find it
+            config['logo'] = f"file://{local_path}"
     
     if config.get('logo') and config['logo'].startswith('/'):
         # 1. Get the real path on the hard drive (e.g. /opt/render/project/src/static/...)
