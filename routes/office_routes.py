@@ -1645,7 +1645,7 @@ def view_client(client_id):
                            vans_list=vans_list,
                            today=today)
                            
-@office_bp.route('/client/delete/<int:client_id>') 
+@office_bp.route('office/client/delete/<int:client_id>') 
 def delete_client(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
     
