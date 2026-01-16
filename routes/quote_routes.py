@@ -34,7 +34,7 @@ def get_site_config(comp_id):
     conn.close()
     return {
         'color': settings.get('brand_color', '#333333'),
-        'logo': settings.get('logo_url', '')
+        'logo': settings.get('logo', '')
     }
 
 # =========================================================
@@ -330,7 +330,7 @@ def email_quote(quote_id):
         # 2. Check if it actually exists to avoid errors
         if os.path.exists(local_path):
             # 3. Use 'file://' protocol so wkhtmltopdf knows it's local
-            config['logo'] = f"file://{local_path}"
+            config['logo'] = local_path
 
     # 5. Date & Context
     country = settings.get('country_code', 'UK')
