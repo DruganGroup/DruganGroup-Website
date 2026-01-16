@@ -92,17 +92,24 @@ def new_quote():
             job_desc = request.form.get('job_description')
             est_days = request.form.get('estimated_days')
             pref_van = request.form.get('preferred_vehicle_id') or None
+            job_title = request.form.get('job_title')
+            job_desc = request.form.get('job_description')
+            est_days = request.form.get('estimated_days')
+            pref_van = request.form.get('preferred_vehicle_id') or None
+            
+            # NEW: Capture Property ID
+            property_id = request.form.get('property_id') or None
 
-            # Insert Quote Header
+            # Insert Quote Header (Now including property_id)
             cur.execute("""
                 INSERT INTO quotes (
-                    company_id, client_id, reference, date, expiry_date, status, total,
+                    company_id, client_id, property_id, reference, date, expiry_date, status, total,
                     job_title, job_description, estimated_days, preferred_vehicle_id
                 )
-                VALUES (%s, %s, %s, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'Draft', 0,
+                VALUES (%s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'Draft', 0,
                         %s, %s, %s, %s)
                 RETURNING id
-            """, (comp_id, client_id, ref, job_title, job_desc, est_days, pref_van))
+            """, (comp_id, client_id, property_id, ref, job_title, job_desc, est_days, pref_van))
             
             quote_id = cur.fetchone()[0]
 
@@ -233,9 +240,6 @@ def view_quote(quote_id):
                            brand_color=config['color'], 
                            logo_url=config['logo'])
                            
-# =========================================================
-# 3. CONVERT QUOTE TO JOB (Transfers Van/Time)
-# =========================================================
 @quote_bp.route('/office/quote/<int:quote_id>/book-job')
 def convert_to_job(quote_id):
     if not check_access(): return redirect(url_for('auth.login'))
@@ -244,18 +248,18 @@ def convert_to_job(quote_id):
     comp_id = session.get('company_id')
 
     try:
-        # Fetch Quote AND New Details (Van, Days, Title)
+        # 1. Fetch Quote Details (Now fetching property_id)
         cur.execute("""
-            SELECT client_id, reference, total, job_title, job_description, estimated_days, preferred_vehicle_id
+            SELECT client_id, property_id, reference, total, job_title, job_description, estimated_days, preferred_vehicle_id
             FROM quotes WHERE id = %s AND company_id = %s
         """, (quote_id, comp_id))
         quote = cur.fetchone()
         
         if not quote: return "Quote not found", 404
         
-        client_id, q_ref, total, title, q_desc, days, van_id = quote
+        client_id, prop_id, q_ref, total, title, q_desc, days, van_id = quote
 
-        # Determine Description
+        # 2. Determine Description
         desc = ""
         if title:
             desc = f"{title} - {q_desc}" if q_desc else title
@@ -266,17 +270,17 @@ def convert_to_job(quote_id):
 
         job_ref = q_ref.replace('Q-', 'JOB-')
         
-        # INSERT JOB (With Van & Days)
+        # 3. INSERT JOB (Uses prop_id from the Quote)
         cur.execute("""
-            INSERT INTO jobs (company_id, client_id, ref, description, status, quote_id, quote_total, vehicle_id, estimated_days)
-            VALUES (%s, %s, %s, %s, 'Accepted', %s, %s, %s, %s)
+            INSERT INTO jobs (company_id, client_id, property_id, ref, description, status, quote_id, quote_total, vehicle_id, estimated_days)
+            VALUES (%s, %s, %s, %s, %s, 'Accepted', %s, %s, %s, %s)
             RETURNING id
-        """, (comp_id, client_id, job_ref, desc, quote_id, total, van_id, days))
+        """, (comp_id, client_id, prop_id, job_ref, desc, quote_id, total, van_id, days))
         
         cur.execute("UPDATE quotes SET status = 'Accepted' WHERE id = %s", (quote_id,))
         
         conn.commit()
-        flash(f"✅ Job {job_ref} Created! Assigned to Schedule ({days} Days).", "success")
+        flash(f"✅ Job {job_ref} Created! Linked to correct Site Address.", "success")
         return redirect(url_for('office.office_calendar'))
 
     except Exception as e:

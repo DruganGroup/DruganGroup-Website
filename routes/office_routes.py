@@ -1594,3 +1594,29 @@ def delete_client(client_id):
         
     # Redirect to the client list, not the dashboard
     return redirect('/clients')
+    
+    # --- TEMPORARY DATABASE FIX ---
+# Paste this at the bottom of office_routes.py
+@office_bp.route('/office/fix-db-quotes')
+def fix_db_quotes():
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("ALTER TABLE quotes ADD COLUMN IF NOT EXISTS property_id INTEGER")
+        conn.commit()
+        return "✅ Success: Added 'property_id' column to Quotes table."
+    except Exception as e:
+        return f"Error: {e}"
+    finally:
+        conn.close()
+
+# --- NEW API: FETCH CLIENT PROPERTIES ---
+@office_bp.route('/api/client/<int:client_id>/properties')
+def get_client_properties_api(client_id):
+    if 'user_id' not in session: return jsonify([])
+    
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id, address_line1, postcode FROM properties WHERE client_id = %s", (client_id,))
+    props = [{'id': r[0], 'address': f"{r[1]}, {r[2]}"} for r in cur.fetchall()]
+    conn.close()
+    
+    return jsonify(props)
