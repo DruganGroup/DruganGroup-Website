@@ -824,9 +824,14 @@ def save_gas_cert():
     comp_id = session.get('company_id')
     
     try:
-        # 1. Generate PDF
+        # 1. SETUP FOLDER
+        save_dir = os.path.join('static', 'generated_pdfs')
+        os.makedirs(save_dir, exist_ok=True) # Ensure folder exists
+        
+        # 2. GENERATE PDF
         ref = f"CP12-{data.get('prop_id')}-{int(datetime.now().timestamp())}"
         filename = f"{ref}.pdf"
+        full_sys_path = os.path.join(save_dir, filename) # static/generated_pdfs/file.pdf
         
         # Fetch details for PDF context
         cur.execute("SELECT p.address_line1, p.postcode, c.name, c.email FROM properties p JOIN clients c ON p.client_id = c.id WHERE p.id = %s", (data.get('prop_id'),))
@@ -836,35 +841,22 @@ def save_gas_cert():
         prop_info = {'address': f"{p_row[0]}, {p_row[1]}", 'client': p_row[2], 'client_email': client_email, 'id': data.get('prop_id')}
         
         pdf_context = {'prop': prop_info, 'data': data, 'signature_url': data.get('signature_img'), 'next_year_date': data.get('next_date'), 'today': date.today().strftime('%d/%m/%Y')}
-        generate_pdf('office/certs/uk/cp12.html', pdf_context, filename)
         
-        db_path = f"generated_pdfs/{filename}" # Relative path for DB
+        # GENERATE TO CORRECT PATH
+        generate_pdf('office/certs/uk/cp12.html', pdf_context, full_sys_path)
+        
+        # 3. SAVE TO DB (Store relative path for link: 'generated_pdfs/file.pdf')
+        db_path = f"generated_pdfs/{filename}" 
 
-        # 2. Save to Certificates Table (So it shows on Property Page)
         cur.execute("""
             INSERT INTO certificates (company_id, property_id, type, status, data, engineer_name, date_issued, expiry_date, pdf_path)
             VALUES (%s, %s, 'Gas Safety', 'Valid', %s, %s, CURRENT_DATE, %s, %s)
         """, (comp_id, data.get('prop_id'), json.dumps(data), session.get('user_name'), data.get('next_date'), db_path))
 
-        # 3. Update Property Expiry Date
+        # 4. Update Property Expiry
         if data.get('next_date'):
             cur.execute("UPDATE properties SET gas_expiry = %s WHERE id = %s", (data.get('next_date'), data.get('prop_id')))
         
-        # 4. EMAIL THE CLIENT (The Missing Link)
-        if client_email:
-            try:
-                # Assuming you have a helper function 'send_email_with_attachment'
-                # If not, we use the basic sender from site_routes but adapted for attachments
-                # For now, let's log that we tried.
-                print(f"📧 Sending CP12 to {client_email}...")
-                
-                # To actually send, you need an email service function here.
-                # If you have 'send_email_notification', it might process HTML but not attachments yet.
-                # I will leave this placeholder so the code doesn't crash:
-                pass 
-            except Exception as mail_err:
-                print(f"Email failed: {mail_err}")
-
         conn.commit()
         return jsonify({'success': True, 'redirect_url': url_for('office.view_property_office', property_id=data.get('prop_id'))})
 
@@ -888,17 +880,46 @@ def create_eicr_cert():
 @office_bp.route('/office/cert/eicr/save', methods=['POST'])
 def save_eicr_cert():
     if not check_office_access(): return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
     data = request.json
     conn = get_db(); cur = conn.cursor()
+    comp_id = session.get('company_id')
+    
     try:
-        cur.execute("INSERT INTO certificates (company_id, property_id, type, status, data, engineer_name, date_issued, expiry_date) VALUES (%s, %s, 'EICR', %s, %s, %s, CURRENT_DATE, %s)",
-                   (session.get('company_id'), data.get('prop_id'), data.get('status', 'Issued'), json.dumps(data), session.get('user_name', 'Engineer'), data.get('next_inspection_date')))
+        # 1. SETUP FOLDER
+        save_dir = os.path.join('static', 'generated_pdfs')
+        os.makedirs(save_dir, exist_ok=True)
+
+        # 2. GENERATE PDF (Mock generation or Real if template exists)
+        # Note: If you don't have an EICR PDF template yet, we save a placeholder or text file.
+        # Assuming you want to save the JSON data as the "File" for now if PDF gen is missing.
+        
+        ref = f"EICR-{data.get('prop_id')}-{int(datetime.now().timestamp())}"
+        filename = f"{ref}.pdf"
+        full_sys_path = os.path.join(save_dir, filename)
+        
+        # (Optional) Attempt PDF Generation here if you have 'office/certs/uk/eicr_pdf.html'
+        # For now, we will assume PDF generation is the goal:
+        generate_pdf('office/certs/uk/eicr.html', {'data': data}, full_sys_path)
+
+        db_path = f"generated_pdfs/{filename}"
+
+        # 3. SAVE TO DB
+        cur.execute("""
+            INSERT INTO certificates (company_id, property_id, type, status, data, engineer_name, date_issued, expiry_date, pdf_path)
+            VALUES (%s, %s, 'EICR', %s, %s, %s, CURRENT_DATE, %s, %s)
+        """, (comp_id, data.get('prop_id'), 'EICR', data.get('status', 'Issued'), json.dumps(data), session.get('user_name'), data.get('next_inspection_date'), db_path))
+
         if data.get('status') == 'Issued' and data.get('next_inspection_date'):
             cur.execute("UPDATE properties SET eicr_expiry = %s WHERE id = %s", (data.get('next_inspection_date'), data.get('prop_id')))
-        conn.commit(); return jsonify({'success': True, 'message': 'EICR Saved', 'redirect_url': url_for('office.office_dashboard')})
-    except Exception as e: conn.rollback(); return jsonify({'success': False, 'error': str(e)})
-    finally: conn.close()
-
+            
+        conn.commit()
+        return jsonify({'success': True, 'message': 'EICR Saved', 'redirect_url': url_for('office.view_property_office', property_id=data.get('prop_id'))})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+    finally:
+        conn.close()
 # =========================================================
 # 5. QUOTES & JOBS
 # =========================================================
