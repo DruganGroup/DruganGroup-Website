@@ -1580,7 +1580,8 @@ def view_client(client_id):
                            client=client, 
                            properties=properties,
                            vans_list=vans_list,
-                           today=today)
+                           today=today,
+                           current_date=date.today())
 
 # --- NEW API: FETCH CLIENT PROPERTIES ---
 @office_bp.route('/api/client/<int:client_id>/properties')
@@ -1594,54 +1595,78 @@ def get_client_properties_api(client_id):
     
     return jsonify(props)
     
-    # ==========================================
-# TEMPORARY MIGRATION ROUTE (DELETE AFTER USE)
-# ==========================================
-@office_bp.route('/update-db-schema')
-def update_db_schema():
-    # Only allow logged in staff to run this
-    if 'user_id' not in session: return "Access Denied", 403
+# --- UPDATE PROPERTY (Office Side) ---
+@office_bp.route('/office/property/update', methods=['POST'])
+def office_update_property():
+    if not check_office_access(): return redirect(url_for('auth.login'))
     
     conn = get_db()
     cur = conn.cursor()
     
     try:
-        # 1. Add 'status' column if it doesn't exist
-        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'Active';")
+        prop_id = request.form.get('property_id')
+        client_id = request.form.get('client_id') # Needed for redirect
         
-        # 2. Add Compliance Columns
-        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS gas_expiry DATE;")
-        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS eicr_expiry DATE;")
-        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS pat_expiry DATE;")
-        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS epc_expiry DATE;")
-        
-        # 3. Set existing properties to 'Active' so they aren't hidden
-        cur.execute("UPDATE properties SET status = 'Active' WHERE status IS NULL;")
+        # 1. Update Basic Info
+        cur.execute("""
+            UPDATE properties 
+            SET address_line1 = %s, postcode = %s, 
+                tenant_name = %s, tenant_phone = %s, key_code = %s,
+                gas_expiry = %s, eicr_expiry = %s, pat_expiry = %s, epc_expiry = %s
+            WHERE id = %s
+        """, (
+            request.form.get('address'),
+            request.form.get('postcode'),
+            request.form.get('tenant_name'),
+            request.form.get('tenant_phone'),
+            request.form.get('key_code'),
+            request.form.get('gas_expiry') or None,   # Handle empty strings as NULL
+            request.form.get('eicr_expiry') or None,
+            request.form.get('pat_expiry') or None,
+            request.form.get('epc_expiry') or None,
+            prop_id
+        ))
         
         conn.commit()
-        return """
-        <div style="font-family: sans-serif; padding: 20px; text-align: center;">
-            <h1 style="color: green;">✅ Database Updated Successfully!</h1>
-            <p>The following columns were checked/added:</p>
-            <ul style="list-style: none;">
-                <li>+ status (Active/Archived)</li>
-                <li>+ gas_expiry</li>
-                <li>+ eicr_expiry</li>
-                <li>+ pat_expiry</li>
-                <li>+ epc_expiry</li>
-            </ul>
-            <p><strong>You can now delete this function from office_routes.py</strong></p>
-            <a href="/office-hub">Go Back to Office</a>
-        </div>
-        """
+        flash("✅ Property & Compliance Dates Updated", "success")
         
     except Exception as e:
         conn.rollback()
-        return f"""
-        <div style="font-family: sans-serif; padding: 20px; text-align: center;">
-            <h1 style="color: red;">❌ Error Updating Database</h1>
-            <p>{str(e)}</p>
-        </div>
-        """
+        flash(f"Error updating property: {e}", "error")
     finally:
         conn.close()
+        
+    return redirect(f"/office/client/{client_id}")
+
+# --- PRE-FILLED JOB BOOKING ---
+# Ensure your existing 'create_job' route looks like this to accept URL params
+@office_bp.route('/office/job/create', methods=['GET', 'POST'])
+def create_job():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    conn = get_db(); cur = conn.cursor()
+    comp_id = session.get('company_id')
+    
+    if request.method == 'GET':
+        # FETCH CLIENTS
+        cur.execute("SELECT id, name FROM clients WHERE company_id = %s ORDER BY name", (comp_id,))
+        clients = cur.fetchall()
+        
+        # FETCH ENGINEERS
+        cur.execute("SELECT id, name FROM users WHERE company_id = %s AND role != 'Office' ORDER BY name", (comp_id,))
+        engineers = cur.fetchall()
+        
+        # FETCH VEHICLES
+        cur.execute("SELECT id, registration FROM vehicles WHERE company_id = %s", (comp_id,))
+        vehicles = cur.fetchall()
+        
+        # CAPTURE URL PARAMETERS (The Magic Part)
+        # This allows us to link /office/job/create?client_id=5&desc=Gas+Check
+        pre_client = request.args.get('client_id')
+        pre_prop = request.args.get('property_id')
+        pre_desc = request.args.get('description', '')
+
+        conn.close()
+        return render_template('office/job_create.html', 
+                             clients=clients, engineers=engineers, vehicles=vehicles,
+                             pre_client=pre_client, pre_prop=pre_prop, pre_desc=pre_desc)
