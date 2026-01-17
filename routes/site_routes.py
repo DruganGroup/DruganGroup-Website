@@ -713,13 +713,13 @@ def job_details(job_id):
     # 1. IDENTIFY STAFF
     staff_id, staff_name, _ = get_staff_identity(session['user_id'], cur)
     
-    # 2. GET JOB DETAILS (Fixed Address Query)
-    # We now JOIN 'properties' so we can fetch the real address
+    # 2. GET JOB DETAILS (Fixed Address Query + Added Property ID)
     cur.execute("""
         SELECT j.id, j.ref, j.status, c.name, c.phone, 
                COALESCE(p.address_line1, j.site_address, 'No Address Logged') as address,
                p.postcode, 
-               j.description, c.gate_code
+               j.description, c.gate_code,
+               j.property_id  -- <--- ADDED THIS (Index 9)
         FROM jobs j
         LEFT JOIN clients c ON j.client_id = c.id
         LEFT JOIN properties p ON j.property_id = p.id
@@ -730,7 +730,6 @@ def job_details(job_id):
     if not row: conn.close(); return "Job not found", 404
 
     # 3. CONVERT TO SAFE DICTIONARY
-    # Format the address nicely to include postcode if available
     addr_line = row[5]
     postcode = row[6]
     full_address = f"{addr_line}, {postcode}" if postcode else addr_line
@@ -743,7 +742,8 @@ def job_details(job_id):
         'client_phone': row[4] or "No Phone",
         'address': full_address, 
         'description': row[7] or "No Description",
-        'gate_code': row[8]
+        'gate_code': row[8],
+        'property_id': row[9]  # <--- ADDED THIS so the button works
     }
 
     # 4. CHECK IF CLOCKED IN
@@ -870,3 +870,64 @@ def unify_database():
         conn.rollback(); return f"Error: {e}"
     finally:
         conn.close()
+        
+        # =========================================================
+# 9. CERTIFICATES (Site Access)
+# =========================================================
+
+@site_bp.route('/site/cert/cp12/create')
+def create_site_cp12():
+    if not check_site_access(): return redirect(url_for('auth.login'))
+    job_id = request.args.get('job_id')
+    prop_id = request.args.get('prop_id')
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    # Fetch Property Details
+    prop_data = {}
+    if prop_id and prop_id != 'None':
+        cur.execute("""
+            SELECT p.address_line1, p.postcode, c.name, c.email 
+            FROM properties p 
+            JOIN clients c ON p.client_id = c.id 
+            WHERE p.id = %s
+        """, (prop_id,))
+        row = cur.fetchone()
+        if row:
+            prop_data = {'id': prop_id, 'address': f"{row[0]}, {row[1]}", 'client': row[2], 'client_email': row[3]}
+    
+    conn.close()
+    
+    # We re-use the Office template
+    return render_template('office/certs/uk/cp12.html', 
+                           prop=prop_data, 
+                           job_id=job_id,
+                           today=date.today(), 
+                           next_year_date=date.today() + timedelta(days=365))
+
+@site_bp.route('/site/cert/eicr/create')
+def create_site_eicr():
+    if not check_site_access(): return redirect(url_for('auth.login'))
+    job_id = request.args.get('job_id')
+    prop_id = request.args.get('prop_id')
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    prop_data = {}
+    if prop_id and prop_id != 'None':
+        cur.execute("""
+            SELECT p.address_line1, p.city, p.postcode, c.name 
+            FROM properties p 
+            JOIN clients c ON p.client_id = c.id 
+            WHERE p.id = %s
+        """, (prop_id,))
+        row = cur.fetchone()
+        if row:
+            prop_data = {'id': prop_id, 'address': f"{row[0]}, {row[1]}", 'client': row[3]}
+
+    conn.close()
+
+    return render_template('office/certs/uk/eicr.html', 
+                           prop=prop_data, 
+                           job_id=job_id,
+                           next_five_years=date.today() + timedelta(days=365*5))
