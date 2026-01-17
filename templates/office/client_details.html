@@ -75,10 +75,10 @@
                                 <div class="me-3 text-secondary"><i class="fas fa-user-circle fa-2x"></i></div>
                                 <div>
                                     <div class="small fw-bold text-uppercase text-muted">Tenant</div>
-                                    <div class="fw-bold text-dark">{{ prop[3] or 'Vacant' }}</div>
+                                    <div class="fw-bold text-dark">{{ prop[4] or 'Vacant' }}</div>
                                 </div>
                                 <div class="ms-auto text-end">
-                                    <span class="badge bg-secondary ms-1">{{ prop[5] or 'No Code' }}</span>
+                                    <span class="badge bg-secondary ms-1">{{ prop[6] or 'No Code' }}</span>
                                 </div>
                             </div>
 
@@ -87,7 +87,7 @@
                                 
                                 <div class="col-4">
                                     <a href="/office/property/{{ prop[0] }}" class="text-decoration-none">
-                                        {% set date_val = prop[6] %}
+                                        {% set date_val = prop[7] %}
                                         {% set status = 'Missing' %}{% set color = 'secondary' %}{% set dstr = '-' %}
                                         {% if date_val %}
                                             {% set days = (date_val - current_date).days %}
@@ -106,7 +106,7 @@
 
                                 <div class="col-4">
                                     <a href="/office/property/{{ prop[0] }}" class="text-decoration-none">
-                                        {% set date_val = prop[7] %}
+                                        {% set date_val = prop[8] %}
                                         {% set status = 'Missing' %}{% set color = 'secondary' %}{% set dstr = '-' %}
                                         {% if date_val %}
                                             {% set days = (date_val - current_date).days %}
@@ -125,7 +125,7 @@
 
                                 <div class="col-4">
                                     <a href="/office/property/{{ prop[0] }}" class="text-decoration-none">
-                                        {% set date_val = prop[8] %}
+                                        {% set date_val = prop[9] %}
                                         {% set status = 'Missing' %}{% set color = 'secondary' %}{% set dstr = '-' %}
                                         {% if date_val %}
                                             {% set days = (date_val - current_date).days %}
@@ -156,13 +156,13 @@
                                     <input type="hidden" name="property_id" value="{{ prop[0] }}"><input type="hidden" name="client_id" value="{{ client.id }}">
                                     <div class="mb-2"><label class="small fw-bold">Address</label><input type="text" name="address" class="form-control" value="{{ prop[1] }}" required></div>
                                     <div class="mb-3"><label class="small fw-bold">Postcode</label><input type="text" name="postcode" class="form-control" value="{{ prop[2] }}" required></div>
-                                    <div class="row g-2 mb-3"><div class="col-6"><label class="small fw-bold">Tenant</label><input type="text" name="tenant_name" class="form-control" value="{{ prop[3] }}"></div><div class="col-6"><label class="small fw-bold">Key Code</label><input type="text" name="key_code" class="form-control" value="{{ prop[5] }}"></div></div>
+                                    <div class="row g-2 mb-3"><div class="col-6"><label class="small fw-bold">Tenant</label><input type="text" name="tenant_name" class="form-control" value="{{ prop[4] }}"></div><div class="col-6"><label class="small fw-bold">Key Code</label><input type="text" name="key_code" class="form-control" value="{{ prop[6] }}"></div></div>
                                     <h6 class="fw-bold text-danger border-top pt-3">Compliance</h6>
                                     <div class="row g-2">
-                                        <div class="col-6"><label class="small fw-bold">Gas</label><input type="date" name="gas_expiry" class="form-control" value="{{ prop[6] }}"></div>
-                                        <div class="col-6"><label class="small fw-bold">EICR</label><input type="date" name="eicr_expiry" class="form-control" value="{{ prop[7] }}"></div>
-                                        <div class="col-6"><label class="small fw-bold">PAT</label><input type="date" name="pat_expiry" class="form-control" value="{{ prop[8] }}"></div>
-                                        <div class="col-6"><label class="small fw-bold">EPC</label><input type="date" name="epc_expiry" class="form-control" value="{{ prop[9] }}"></div>
+                                        <div class="col-6"><label class="small fw-bold">Gas</label><input type="date" name="gas_expiry" class="form-control" value="{{ prop[7] }}"></div>
+                                        <div class="col-6"><label class="small fw-bold">EICR</label><input type="date" name="eicr_expiry" class="form-control" value="{{ prop[8] }}"></div>
+                                        <div class="col-6"><label class="small fw-bold">PAT</label><input type="date" name="pat_expiry" class="form-control" value="{{ prop[9] }}"></div>
+                                        <div class="col-6"><label class="small fw-bold">EPC</label><input type="date" name="epc_expiry" class="form-control" value="{{ prop[10] }}"></div>
                                     </div>
                                 </div>
                                 <div class="modal-footer"><button type="submit" class="btn btn-primary fw-bold">Save</button></div>
