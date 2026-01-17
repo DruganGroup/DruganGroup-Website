@@ -452,16 +452,21 @@ def update_job(job_id):
                 if file.filename != '':
                     os.makedirs(JOB_EVIDENCE_FOLDER, exist_ok=True)
                     filename = secure_filename(f"JOB_{job_id}_{int(datetime.now().timestamp())}_{file.filename}")
-                    db_path = f"uploads/job_evidence/{filename}"
+                    
+                    # --- THE FIX: ADD 'static/' TO THE DB PATH ---
+                    db_path = f"static/uploads/job_evidence/{filename}"
+                    # ---------------------------------------------
+                    
                     file.save(os.path.join(JOB_EVIDENCE_FOLDER, filename))
                     cur.execute("INSERT INTO job_evidence (job_id, filepath, uploaded_by) VALUES (%s, %s, %s)", (job_id, db_path, session['user_id']))
                     flash("📷 Photo Uploaded")
+                    
                     # --- AUDIT LOG ---
-            cur.execute("""
-                INSERT INTO audit_logs (company_id, action, target, details, admin_email)
-                VALUES (%s, 'JOB_COMPLETED', %s, %s, %s)
-            """, (comp_id, f"Job #{job_id}", f"Job completed by {user_name}. Invoice generated.", user_name))
-        conn.commit()
+                    cur.execute("""
+                        INSERT INTO audit_logs (company_id, action, target, details, admin_email)
+                        VALUES (%s, 'PHOTO_UPLOAD', %s, %s, %s)
+                    """, (comp_id, f"Job #{job_id}", "Site Photo Added", user_name))
+            conn.commit()
     except Exception as e: conn.rollback(); flash(f"Error: {e}")
     finally: conn.close()
     if action == 'complete': return redirect(url_for('site.site_dashboard'))

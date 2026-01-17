@@ -13,53 +13,113 @@
         </button>
     </div>
 
-    {% if active_jobs %}
-    <div class="card p-4 mb-4 text-white" style="background: linear-gradient(45deg, var(--brand-color), #222);">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h4 class="fw-bold mb-1">Work in Progress</h4>
-                <p class="mb-0 opacity-75">We have {{ active_jobs|length }} active job(s) at your properties.</p>
-            </div>
-            <i class="fas fa-tools fa-3x opacity-25"></i>
-        </div>
-    </div>
-    {% endif %}
-
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white py-3 border-0">
-            <h5 class="m-0 fw-bold"><i class="fas fa-clipboard-list me-2 text-brand"></i>Recent Support Requests</h5>
+            <h5 class="m-0 fw-bold text-dark"><i class="fas fa-calendar-alt me-2 text-brand"></i>Upcoming & Active Work</h5>
         </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light small text-uppercase text-muted">
                     <tr>
                         <th class="ps-4">Date</th>
-                        <th>Property</th>
-                        <th>Issue</th>
+                        <th>Reference</th>
+                        <th>Description</th>
                         <th>Status</th>
                         <th class="text-end pe-4">Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for r in recent_requests %}
+                    {% for job in active_jobs %}
                     <tr>
-                        <td class="ps-4 small text-muted">{{ r[4].strftime('%d/%m') }}</td>
-                        <td class="fw-bold">{{ r[1] }}</td>
-                        <td class="text-muted small text-truncate" style="max-width: 150px;">{{ r[2] }}</td>
+                        <td class="ps-4 fw-bold text-dark">
+                            {% if job[3] %}
+                                {{ job[3].strftime('%d %b %Y') }}
+                            {% else %}
+                                <span class="text-muted fst-italic">Pending Date</span>
+                            {% endif %}
+                        </td>
+                        <td class="small text-muted">{{ job[1] }}</td>
                         <td>
-                            {% if r[3] == 'Pending' %}<span class="badge bg-warning text-dark">Pending</span>
-                            {% elif r[3] == 'Completed' %}<span class="badge bg-success">Completed</span>
-                            {% else %}<span class="badge bg-secondary">{{ r[3] }}</span>{% endif %}
+                            <div class="fw-bold">{{ job[2] }}</div>
+                            <div class="small text-muted"><i class="fas fa-map-marker-alt me-1"></i>{{ job[5] }}</div>
+                        </td>
+                        <td>
+                            {% if job[4] == 'In Progress' %}
+                                <span class="badge bg-primary">Active Now</span>
+                            {% elif job[4] == 'Scheduled' %}
+                                <span class="badge bg-info text-dark">Scheduled</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ job[4] }}</span>
+                            {% endif %}
                         </td>
                         <td class="text-end pe-4">
-                            <a href="/portal/request/{{ r[0] }}" class="btn btn-sm btn-outline-secondary">View</a>
+                            <a href="/portal/job/{{ job[0] }}" class="btn btn-sm btn-outline-primary fw-bold">View Job</a>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="5" class="text-center py-4 text-muted">No recent issues reported.</td></tr>
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">
+                            <i class="fas fa-calendar-check fa-3x mb-3 opacity-25"></i>
+                            <p class="mb-0">No active or scheduled jobs at the moment.</p>
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white py-3 border-0">
+                    <h5 class="m-0 fw-bold"><i class="fas fa-clipboard-list me-2 text-brand"></i>Recent Requests</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light small text-uppercase text-muted">
+                            <tr>
+                                <th class="ps-4">Date</th>
+                                <th>Property</th>
+                                <th>Issue</th>
+                                <th class="text-end pe-4">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in recent_requests %}
+                            <tr>
+                                <td class="ps-4 small text-muted">{{ r[4].strftime('%d/%m') }}</td>
+                                <td class="fw-bold">{{ r[1] }}</td>
+                                <td class="text-muted small text-truncate" style="max-width: 150px;">{{ r[2] }}</td>
+                                <td class="text-end pe-4">
+                                    <span class="badge {{ 'bg-success' if r[3] == 'Completed' else 'bg-warning text-dark' }}">{{ r[3] }}</span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-center py-4 text-muted">No recent issues reported.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100 text-white" style="background: linear-gradient(135deg, var(--brand-color), #333);">
+                <div class="card-body p-4 d-flex flex-column justify-content-center">
+                    <h5 class="fw-bold mb-4">Action Required</h5>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span><i class="fas fa-file-contract me-2"></i> Pending Quotes</span>
+                        <span class="badge bg-white text-dark fs-6">{{ open_quotes_count }}</span>
+                    </div>
+                    {% if open_quotes_count > 0 %}
+                    <a href="/portal/quotes" class="btn btn-light fw-bold w-100 mt-2">Review Quotes</a>
+                    {% else %}
+                    <p class="small opacity-75 mt-2 mb-0">You are all caught up!</p>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 
@@ -78,9 +138,9 @@
                 <div class="mt-auto border-top pt-2 d-flex justify-content-between align-items-center">
                     <a href="/portal/property/{{ p[0] }}" class="text-decoration-none">
                         {% if p[4] > 0 %}
-                            <small class="text-danger fw-bold"><i class="fas fa-exclamation-triangle me-1"></i> Attention Needed</small>
+                            <small class="text-danger fw-bold"><i class="fas fa-exclamation-triangle me-1"></i> {{ p[4] }} Open Issues</small>
                         {% else %}
-                            <small class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> Compliance OK</small>
+                            <small class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> No Issues</small>
                         {% endif %}
                     </a>
                     <a href="/portal/property/{{ p[0] }}" class="btn btn-sm btn-link text-decoration-none p-0">Details</a>
