@@ -174,14 +174,15 @@ def office_dashboard():
                            leads_count=leads_count,
                            jobs_scheduled=jobs_scheduled,
                            jobs_active=jobs_active,
-                           invoices_to_review=invoices_to_review, # <--- Updated Variable
+                           invoices_to_review=invoices_to_review, 
                            recent_quotes=recent_quotes,
                            accepted_quotes=accepted_quotes,
-                           draft_invoices=draft_invoices,         # <--- Updated List
+                           draft_invoices=draft_invoices,        
                            live_ops=live_ops,
                            pending_requests=pending_requests,
                            brand_color=config['color'], 
                            logo_url=config['logo'])
+
 # =========================================================
 # CALENDAR & SCHEDULING (Updated for Crew Assignment)
 # =========================================================
@@ -1169,7 +1170,7 @@ def view_client(client_id):
     conn = get_db()
     cur = conn.cursor()
     
-    # 1. Fetch Client Details
+    # 1. Fetch Client Basic Info
     cur.execute("SELECT id, name, email, phone, address FROM clients WHERE id = %s", (client_id,))
     client_row = cur.fetchone()
     
@@ -1177,7 +1178,7 @@ def view_client(client_id):
         conn.close()
         return "Client not found", 404
         
-    # Create a dictionary so we can use client.id, client.name in HTML
+    # Convert to dictionary for easy use in template
     client = {
         'id': client_row[0], 
         'name': client_row[1], 
@@ -1186,9 +1187,10 @@ def view_client(client_id):
         'address': client_row[4]
     }
 
-    # 2. Fetch Properties (CRITICAL: ID MUST BE FIRST)
-    # 0=id, 1=address, 2=postcode, 3=type, 4=tenant_name, 5=tenant_phone, 6=key_code
-    # 7=gas_expiry, 8=eicr_expiry, 9=pat_expiry, 10=epc_expiry
+    # 2. Fetch Properties (STRICT COLUMN ORDER)
+    # This matches the {{ prop[X] }} indices in your template exactly.
+    # 0=ID, 1=Address, 2=Postcode, 3=Type, 4=TenantName, 5=TenantPhone, 6=KeyCode
+    # 7=GasDate, 8=EICRDate, 9=PATDate, 10=EPCDate
     cur.execute("""
         SELECT 
             id, address_line1, postcode, type, 
@@ -1206,7 +1208,7 @@ def view_client(client_id):
 
     conn.close()
     
-    # 4. Pass 'current_date' for the Traffic Light logic
+    # 4. Return to Template (Passing current_date for traffic lights)
     return render_template('office/client_details.html', 
                            client=client, 
                            properties=properties,
@@ -1353,109 +1355,10 @@ def delete_quote(quote_id):
         
     return redirect(url_for('office.office_dashboard'))
     
-    # --- OFFICE: FLEET MANAGER ---
-@office_bp.route('/office/fleet', methods=['GET', 'POST'])
-def office_fleet():
-    if 'user_id' not in session: return redirect(url_for('auth.login'))
-    
-    # Check if user has access (Office or Admin/SuperAdmin)
-    if session.get('role') not in ['Office', 'Admin', 'SuperAdmin', 'Manager']:
-        return redirect(url_for('office.office_dashboard'))
+# --- OFFICE: FLEET MANAGER ---
+# NOTE: Removed 'office_fleet' because it was a duplicate of 'fleet_list'. 
+# All logic is consolidated in 'fleet_list' above.
 
-    comp_id = session.get('company_id')
-    conn = get_db(); cur = conn.cursor()
-
-    # --- HANDLE POST (Assign Driver/Crew or Add Log) ---
-    if request.method == 'POST':
-        action = request.form.get('action')
-        
-        try:
-            if action == 'assign_crew':
-                veh_id = request.form.get('vehicle_id')
-                driver_id = request.form.get('driver_id')
-                
-                # If "None" is selected, convert to None type for DB
-                if driver_id == 'None': driver_id = None
-
-                # Update Driver
-                cur.execute("UPDATE vehicles SET assigned_driver_id = %s WHERE id = %s AND company_id = %s", 
-                           (driver_id, veh_id, comp_id))
-                
-                # Update Crew
-                crew_ids = request.form.getlist('crew_ids')
-                cur.execute("DELETE FROM vehicle_crew WHERE vehicle_id = %s", (veh_id,))
-                for staff_id in crew_ids:
-                    cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (veh_id, staff_id))
-                
-                flash("✅ Crew and Driver updated.")
-
-            elif action == 'add_log':
-                # (Keep your existing Log/Receipt logic here if you have it)
-                # This part likely handles the receipt upload in your current file
-                pass 
-
-            conn.commit()
-        except Exception as e:
-            conn.rollback()
-            flash(f"Error: {e}")
-
-    # --- GET REQUEST: FETCH DATA ---
-    # UPDATED QUERY: Now selects mot_expiry and tax_expiry
-    cur.execute("""
-        SELECT v.id, v.reg_plate, v.make_model, v.status, 
-               v.assigned_driver_id, s.name as driver_name,
-               v.mot_expiry, v.tax_expiry
-        FROM vehicles v
-        LEFT JOIN staff s ON v.assigned_driver_id = s.id
-        WHERE v.company_id = %s
-        ORDER BY v.reg_plate
-    """, (comp_id,))
-    
-    vehicles_raw = cur.fetchall()
-    vehicles = []
-    
-    for r in vehicles_raw:
-        v_id = r[0]
-        
-        # Fetch Crew
-        cur.execute("""
-            SELECT s.id, s.name 
-            FROM vehicle_crew vc
-            JOIN staff s ON vc.staff_id = s.id
-            WHERE vc.vehicle_id = %s
-        """, (v_id,))
-        crew = [{'id': c[0], 'name': c[1]} for c in cur.fetchall()]
-
-        # Fetch History/Logs (for the receipts tab)
-        # Assuming you have a maintenance_logs table logic here
-        # (I am keeping this minimal to prevent crashing, add your logs query if needed)
-        history = [] 
-
-        vehicles.append({
-            'id': v_id,
-            'reg_number': r[1],      # Maps reg_plate -> reg_number
-            'make_model': r[2],
-            'status': r[3],
-            'assigned_driver_id': r[4],
-            'driver_name': r[5],
-            'mot_expiry': r[6],      # NOW EXISTS
-            'tax_expiry': r[7],      # NOW EXISTS
-            'crew': crew,
-            'history': history
-        })
-
-    # Fetch Staff for dropdowns
-    cur.execute("SELECT id, name FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
-    staff = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
-    
-    conn.close()
-
-    # We pass 'today' so your date_check macro works
-    return render_template('office/fleet_management.html', 
-                           vehicles=vehicles, 
-                           staff=staff,
-                           today=datetime.now().date())
-                           
 # --- DELETE CLIENT ---
 @office_bp.route('/client/delete/<int:client_id>') 
 def delete_client(client_id):
@@ -1475,79 +1378,7 @@ def delete_client(client_id):
         
     return redirect('/clients')
 
-# --- VIEW CLIENT DETAILS ---
-@office_bp.route('/client/<int:client_id>')
-def view_client(client_id):
-    if not check_office_access(): return redirect(url_for('auth.login'))
-    
-    comp_id = session.get('company_id')
-    conn = get_db(); cur = conn.cursor()
-    
-    # 1. Fetch Client Data
-    cur.execute("""
-        SELECT id, name, email, phone, billing_address, password_hash 
-        FROM clients 
-        WHERE id = %s AND company_id = %s
-    """, (client_id, comp_id))
-    row = cur.fetchone()
-    
-    if not row:
-        conn.close()
-        return "Client not found", 404
-        
-    client = {
-        'id': row[0], 'name': row[1], 'email': row[2], 
-        'phone': row[3], 'addr': row[4],
-        'has_portal': True if row[5] else False
-    }
-    
-    # 2. Fetch Properties
-    cur.execute("""
-        SELECT id, address_line1, postcode, tenant_name, tenant_phone, gas_expiry, eicr_expiry
-        FROM properties 
-        WHERE client_id = %s 
-        ORDER BY address_line1 ASC
-    """, (client_id,))
-    
-    props_raw = cur.fetchall()
-    properties = []
-    today = date.today()
-    
-    for p in props_raw:
-        # Compliance Checks
-        gas_stat = 'Valid'
-        if not p[5]: gas_stat = 'Missing'
-        elif p[5] < today: gas_stat = 'Expired'
-        
-        elec_stat = 'Valid'
-        if not p[6]: elec_stat = 'Missing'
-        elif p[6] < today: elec_stat = 'Expired'
-        
-        properties.append({
-            'id': p[0], 'addr': p[1], 'postcode': p[2],
-            'tenant': p[3], 'tenant_phone': p[4],
-            'compliance': {
-                'Gas': {'status': gas_stat, 'date': format_date(p[5])},
-                'EICR': {'status': elec_stat, 'date': format_date(p[6])},
-                'PAT': {'status': 'Missing', 'date': '-'}
-            }
-        })
-        
-    # 3. Fetch Vans
-    cur.execute("SELECT id, reg_plate, make_model FROM vehicles WHERE company_id = %s AND status='Active'", (comp_id,))
-    vans_list = [{'id': r[0], 'name': f"{r[1]} ({r[2]})"} for r in cur.fetchall()]
-    
-    conn.close()
-    
-    # Ensure this points to 'office/client_details.html'
-    return render_template('office/client_details.html', 
-                           client=client, 
-                           properties=properties,
-                           vans_list=vans_list,
-                           today=today,
-                           current_date=date.today())
-
-# --- NEW API: FETCH CLIENT PROPERTIES ---
+# --- API: FETCH CLIENT PROPERTIES ---
 @office_bp.route('/api/client/<int:client_id>/properties')
 def get_client_properties_api(client_id):
     if 'user_id' not in session: return jsonify([])
@@ -1635,7 +1466,7 @@ def create_job():
                              clients=clients, engineers=engineers, vehicles=vehicles,
                              pre_client=pre_client, pre_prop=pre_prop, pre_desc=pre_desc)
                              
-                             # --- VIEW SINGLE PROPERTY (OFFICE SIDE) ---
+# --- VIEW SINGLE PROPERTY (OFFICE SIDE) ---
 @office_bp.route('/office/property/<int:property_id>')
 def view_property_office(property_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
