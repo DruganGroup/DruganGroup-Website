@@ -1593,3 +1593,55 @@ def get_client_properties_api(client_id):
     conn.close()
     
     return jsonify(props)
+    
+    # ==========================================
+# TEMPORARY MIGRATION ROUTE (DELETE AFTER USE)
+# ==========================================
+@office_bp.route('/update-db-schema')
+def update_db_schema():
+    # Only allow logged in staff to run this
+    if 'user_id' not in session: return "Access Denied", 403
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Add 'status' column if it doesn't exist
+        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'Active';")
+        
+        # 2. Add Compliance Columns
+        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS gas_expiry DATE;")
+        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS eicr_expiry DATE;")
+        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS pat_expiry DATE;")
+        cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS epc_expiry DATE;")
+        
+        # 3. Set existing properties to 'Active' so they aren't hidden
+        cur.execute("UPDATE properties SET status = 'Active' WHERE status IS NULL;")
+        
+        conn.commit()
+        return """
+        <div style="font-family: sans-serif; padding: 20px; text-align: center;">
+            <h1 style="color: green;">✅ Database Updated Successfully!</h1>
+            <p>The following columns were checked/added:</p>
+            <ul style="list-style: none;">
+                <li>+ status (Active/Archived)</li>
+                <li>+ gas_expiry</li>
+                <li>+ eicr_expiry</li>
+                <li>+ pat_expiry</li>
+                <li>+ epc_expiry</li>
+            </ul>
+            <p><strong>You can now delete this function from office_routes.py</strong></p>
+            <a href="/office-hub">Go Back to Office</a>
+        </div>
+        """
+        
+    except Exception as e:
+        conn.rollback()
+        return f"""
+        <div style="font-family: sans-serif; padding: 20px; text-align: center;">
+            <h1 style="color: red;">❌ Error Updating Database</h1>
+            <p>{str(e)}</p>
+        </div>
+        """
+    finally:
+        conn.close()
