@@ -3,6 +3,7 @@ from db import get_db, get_site_config
 from werkzeug.security import check_password_hash, generate_password_hash
 from services.enforcement import check_limit
 from werkzeug.utils import secure_filename
+from datetime import datetime  # <--- Added for date fixing
 
 portal_bp = Blueprint('portal', __name__)
 
@@ -15,6 +16,21 @@ def check_portal_access():
 def get_login_url():
     comp_id = session.get('portal_company_id', 1)
     return url_for('portal.portal_login', company_id=comp_id)
+
+# --- HELPER: FIX DATE STRINGS ---
+# This converts database strings "2025-01-01" into real Date Objects
+def parse_date_obj(d):
+    if isinstance(d, str):
+        try:
+            # Try parsing YYYY-MM-DD
+            return datetime.strptime(d, '%Y-%m-%d')
+        except ValueError:
+            try:
+                # Try parsing with time YYYY-MM-DD HH:MM:SS
+                return datetime.strptime(d, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                return d # Return original if we can't fix it
+    return d
 
 # --- 1. LOGIN PAGE ---
 @portal_bp.route('/portal/login/<int:company_id>', methods=['GET'])
@@ -66,8 +82,7 @@ def portal_home():
     res = cur.fetchone()
     client_name = res[0] if res else "Client"
 
-    # 2. UPCOMING WORK (Live Schedule)
-    # We fetch real details now, not just IDs
+    # 2. UPCOMING WORK (With Date Fix)
     cur.execute("""
         SELECT j.id, j.ref, j.description, j.start_date, j.status, p.address_line1
         FROM jobs j
@@ -76,7 +91,15 @@ def portal_home():
         AND j.status IN ('Scheduled', 'In Progress', 'Pending')
         ORDER BY j.start_date ASC NULLS LAST
     """, (client_id,))
-    active_jobs = cur.fetchall()
+    
+    raw_jobs = cur.fetchall()
+    active_jobs = []
+    
+    # Process the dates manually to prevent crashes
+    for j in raw_jobs:
+        job = list(j) # Convert tuple to list to allow editing
+        job[3] = parse_date_obj(job[3]) # Fix Start Date
+        active_jobs.append(job)
     
     # 3. Open Quotes Count
     cur.execute("SELECT COUNT(*) FROM quotes WHERE client_id = %s AND status IN ('Draft', 'Sent')", (client_id,))
@@ -91,7 +114,7 @@ def portal_home():
     """, (client_id,))
     properties = cur.fetchall()
 
-    # 5. Recent Requests
+    # 5. Recent Requests (With Date Fix)
     cur.execute("""
         SELECT sr.id, p.address_line1, sr.issue_description, sr.status, sr.created_at, sr.severity
         FROM service_requests sr
@@ -99,7 +122,13 @@ def portal_home():
         WHERE sr.client_id = %s
         ORDER BY sr.created_at DESC LIMIT 5
     """, (client_id,))
-    recent_requests = cur.fetchall()
+    
+    raw_requests = cur.fetchall()
+    recent_requests = []
+    for r in raw_requests:
+        req = list(r)
+        req[4] = parse_date_obj(req[4]) # Fix Created At Date
+        recent_requests.append(req)
     
     conn.close()
     
@@ -107,7 +136,7 @@ def portal_home():
                          company_name=config.get('name'), 
                          client_name=client_name,
                          properties=properties,
-                         active_jobs=active_jobs, # Now contains full data
+                         active_jobs=active_jobs,
                          open_quotes_count=open_quotes,
                          recent_requests=recent_requests,
                          brand_color=config.get('color'),
@@ -124,7 +153,7 @@ def portal_job_view(job_id):
     
     conn = get_db(); cur = conn.cursor()
     
-    # 1. Fetch Job (SECURITY: Must belong to Client)
+    # 1. Fetch Job details with Date Fix
     cur.execute("""
         SELECT j.id, j.ref, j.status, j.description, j.start_date, j.end_date, 
                p.address_line1, p.postcode
@@ -132,21 +161,30 @@ def portal_job_view(job_id):
         LEFT JOIN properties p ON j.property_id = p.id
         WHERE j.id = %s AND j.client_id = %s
     """, (job_id, client_id))
-    job = cur.fetchone()
+    job_row = cur.fetchone()
     
-    if not job:
+    if not job_row:
         conn.close(); return "Job not found or access denied", 404
 
-    # 2. Fetch PHOTOS ONLY (Exclude Receipts/Expenses)
-    # This query strictly looks at 'job_evidence' which is for site photos.
-    # It does NOT look at 'job_expenses' or 'maintenance_logs'.
+    # Convert dates safely
+    job = list(job_row)
+    job[4] = parse_date_obj(job[4]) # Start Date
+    job[5] = parse_date_obj(job[5]) # End Date
+
+    # 2. Fetch PHOTOS ONLY (With Date Fix)
     cur.execute("""
         SELECT filepath, uploaded_at 
         FROM job_evidence 
         WHERE job_id = %s 
         ORDER BY uploaded_at DESC
     """, (job_id,))
-    photos = cur.fetchall()
+    
+    raw_photos = cur.fetchall()
+    photos = []
+    for p in raw_photos:
+        photo = list(p)
+        photo[1] = parse_date_obj(photo[1]) # Upload Date
+        photos.append(photo)
     
     conn.close()
     
@@ -315,7 +353,14 @@ def request_detail(request_id):
         FROM service_requests sr JOIN properties p ON sr.property_id = p.id
         WHERE sr.id = %s AND sr.client_id = %s
     """, (request_id, client_id))
-    req = cur.fetchone()
+    
+    raw_req = cur.fetchone()
+    
+    if raw_req:
+        req = list(raw_req)
+        req[3] = parse_date_obj(req[3]) # Fix Created At Date
+    else:
+        req = None
     
     completion = None
     if req and req[2] == 'Completed':
@@ -324,7 +369,10 @@ def request_detail(request_id):
             FROM jobs j LEFT JOIN users u ON j.engineer_id = u.id 
             WHERE j.property_id = %s AND j.status = 'Completed' ORDER BY j.end_date DESC LIMIT 1
         """, (req[7],))
-        completion = cur.fetchone()
+        raw_completion = cur.fetchone()
+        if raw_completion:
+            completion = list(raw_completion)
+            completion[1] = parse_date_obj(completion[1]) # Fix Completion Date
     
     conn.close()
     return render_template('portal/portal_request_view.html', req=req, completion=completion, company_name=config.get('name'), brand_color=config.get('color'), logo_url=config.get('logo'))
