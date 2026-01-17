@@ -23,7 +23,7 @@ except ImportError:
     universal_sort_document = None
 
 office_bp = Blueprint('office', __name__)
-ALLOWED_OFFICE_ROLES = ['Admin', 'SuperAdmin', 'Office']
+ALLOWED_OFFICE_ROLES = ['Admin', 'SuperAdmin', 'Office', 'Manager']
 UPLOAD_FOLDER = 'static/uploads/receipts'
 
 # --- HELPER FUNCTIONS ---
@@ -85,7 +85,7 @@ def office_dashboard():
     cur.execute("SELECT COUNT(*) FROM clients WHERE company_id = %s AND status = 'Lead'", (company_id,))
     leads_count = cur.fetchone()[0]
 
-    # 3. JOBS & INVOICE STATS (Updated Logic)
+    # 3. JOBS & INVOICE STATS
     cur.execute("""
         SELECT 
             COUNT(*) FILTER (WHERE status = 'Scheduled'),
@@ -97,12 +97,10 @@ def office_dashboard():
     jobs_scheduled = job_stats[0]
     jobs_active = job_stats[1]
 
-    # --- NEW: Count Draft Invoices instead of Completed Jobs ---
     cur.execute("SELECT COUNT(*) FROM invoices WHERE company_id = %s AND status = 'Draft'", (company_id,))
     invoices_to_review = cur.fetchone()[0]
 
     # 4. FETCH LISTS
-    
     # RECENT QUOTES
     cur.execute("""
         SELECT q.id, c.name, q.reference, q.date, q.total, q.status 
@@ -125,7 +123,7 @@ def office_dashboard():
     """, (company_id,))
     accepted_quotes = [{'id': r[0], 'client': r[1], 'ref': r[2], 'total': r[3]} for r in cur.fetchall()]
     
-    # --- NEW: DRAFT INVOICES LIST (To Review & Send) ---
+    # DRAFT INVOICES
     cur.execute("""
         SELECT i.id, i.reference, c.name, i.total, j.description 
         FROM invoices i 
@@ -136,7 +134,6 @@ def office_dashboard():
         ORDER BY i.date DESC
     """, (company_id,))
     
-    # We pass this as 'draft_invoices' instead of 'completed_jobs'
     draft_invoices = [{
         'id': r[0], 
         'ref': r[1], 
@@ -184,7 +181,7 @@ def office_dashboard():
                            logo_url=config['logo'])
 
 # =========================================================
-# CALENDAR & SCHEDULING (Updated for Crew Assignment)
+# CALENDAR & SCHEDULING
 # =========================================================
 
 @office_bp.route('/office/calendar')
@@ -194,7 +191,7 @@ def office_calendar():
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
 
-    # 1. GET UNSCHEDULED JOBS (Now fetching the Pre-Assigned Vehicle from the Quote)
+    # 1. GET UNSCHEDULED JOBS
     cur.execute("""
         SELECT j.id, j.ref, c.name, j.description, COALESCE(p.postcode, 'No Postcode'), j.vehicle_id 
         FROM jobs j 
@@ -207,11 +204,10 @@ def office_calendar():
     for r in cur.fetchall():
         unscheduled.append({
             'id': r[0], 'ref': r[1], 'client': r[2], 'desc': r[3], 'postcode': r[4], 
-            'pre_vehicle_id': r[5] # <--- This carries the van choice from the quote
+            'pre_vehicle_id': r[5]
         })
 
-    # 2. GET ACTIVE VANS (With Assigned Driver & Crew Gang)
-    # We build a dictionary of vans so the frontend knows exactly who belongs to which van
+    # 2. GET ACTIVE VANS
     cur.execute("""
         SELECT v.id, v.reg_plate, v.make_model, v.assigned_driver_id
         FROM vehicles v 
@@ -224,16 +220,13 @@ def office_calendar():
     
     for v in fleet_rows:
         v_id, reg, model, driver_id = v
-        
-        # Fetch the Crew (Gang) assigned to this vehicle
         cur.execute("SELECT staff_id FROM vehicle_crew WHERE vehicle_id = %s", (v_id,))
         crew_ids = [row[0] for row in cur.fetchall()]
-        
         fleet.append({
             'id': v_id, 
             'name': f"{reg} ({model})", 
-            'driver_id': driver_id,  # The default Lead
-            'crew_ids': crew_ids     # The default Gang
+            'driver_id': driver_id,
+            'crew_ids': crew_ids
         })
 
     # 3. GET ALL ACTIVE STAFF
@@ -245,11 +238,7 @@ def office_calendar():
     settings = {row[0]: row[1] for row in cur.fetchall()}
     conn.close()
     
-    return render_template('office/calendar.html', 
-                           unscheduled_jobs=unscheduled, 
-                           fleet=fleet, 
-                           staff=staff, 
-                           settings=settings)
+    return render_template('office/calendar.html', unscheduled_jobs=unscheduled, fleet=fleet, staff=staff, settings=settings)
                            
 @office_bp.route('/office/calendar/schedule-job', methods=['POST'])
 def schedule_job():
@@ -259,31 +248,21 @@ def schedule_job():
     job_id = data.get('job_id')
     date_str = data.get('date')
     vehicle_id = data.get('vehicle_id')
-    lead_id = data.get('lead_id')   # The Driver / Lead Engineer
-    crew_ids = data.get('crew_ids', []) # List of Crew IDs
+    lead_id = data.get('lead_id')
+    crew_ids = data.get('crew_ids', [])
     comp_id = session.get('company_id')
 
     conn = get_db(); cur = conn.cursor()
     try:
-        # 1. UPDATE THE JOB
-        # We explicitly link the Lead Engineer (so it shows in their app)
         cur.execute("""
             UPDATE jobs 
             SET start_date = %s, engineer_id = %s, vehicle_id = %s, status = 'Scheduled' 
             WHERE id = %s AND company_id = %s
         """, (date_str, lead_id, vehicle_id, job_id, comp_id))
         
-        # 2. UPDATE THE VEHICLE (Sync the Van to this Job)
-        # We set the Van's driver to the Lead Engineer chosen for this job
         cur.execute("UPDATE vehicles SET assigned_driver_id = %s WHERE id = %s", (lead_id, vehicle_id))
-        
-        # 3. UPDATE THE CREW (Sync the Crew to the Van)
-        # This ensures that when the Lead clicks "Start Shift", these crew members are clocked in
-        
-        # A. Clear old crew for this van
         cur.execute("DELETE FROM vehicle_crew WHERE vehicle_id = %s", (vehicle_id,))
         
-        # B. Add new crew members (excluding the lead, to avoid duplicates)
         for staff_id in crew_ids:
             if str(staff_id) != str(lead_id): 
                 cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (vehicle_id, staff_id))
@@ -306,7 +285,6 @@ def get_calendar_data():
     events = []
     
     try:
-        # Fetch Scheduled Jobs
         cur.execute("""
             SELECT j.id, j.ref, j.start_date, c.name, j.status, p.address_line1 
             FROM jobs j 
@@ -316,15 +294,13 @@ def get_calendar_data():
         """, (comp_id,))
         
         for j in cur.fetchall():
-            # Green for Completed, Blue for Scheduled
             color = '#198754' if j[4] == 'Completed' else '#0d6efd'
-            
             events.append({
                 'id': j[0],
-                'title': f"{j[1]} - {j[3]}", # Shows: "JOB-101 - Client Name"
+                'title': f"{j[1]} - {j[3]}", 
                 'start': str(j[2]),
                 'color': color,
-                'url': f"/office/job/{j[0]}/files", # Clicking opens the job pack
+                'url': f"/office/job/{j[0]}/files",
                 'allDay': True,
                 'extendedProps': {'address': j[5]}
             })
@@ -342,9 +318,6 @@ def reschedule_job():
     data = request.json
     conn = get_db(); cur = conn.cursor()
     try:
-        # THE FIX: We add ", status = 'Scheduled'" to the query.
-        # This ensures that dragging a job from the sidebar (or moving it) 
-        # instantly marks it as Scheduled in the database.
         cur.execute("""
             UPDATE jobs 
             SET start_date = %s, status = 'Scheduled' 
@@ -370,7 +343,6 @@ def staff_list():
     conn = get_db()
     cur = conn.cursor()
     
-    # Auto-migration for license path (just in case)
     try: 
         cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS license_path TEXT")
         conn.commit()
@@ -380,7 +352,6 @@ def staff_list():
     if request.method == 'POST':
         action = request.form.get('action')
         
-        # --- 1. ADD NEW STAFF ---
         if action == 'add_staff':
             allowed, msg = check_limit(comp_id, 'max_users')
             if not allowed:
@@ -392,7 +363,6 @@ def staff_list():
             phone = request.form.get('phone')
             role = request.form.get('role')
             
-            # File Upload Logic
             file_path = None
             if 'license_file' in request.files:
                 f = request.files['license_file']
@@ -404,7 +374,6 @@ def staff_list():
                     file_path = f"uploads/licenses/{filename}"
 
             try:
-                # A. Insert Staff
                 cur.execute("""
                     INSERT INTO staff (company_id, name, email, phone, position, status, license_path) 
                     VALUES (%s, %s, %s, %s, %s, 'Active', %s) 
@@ -412,7 +381,6 @@ def staff_list():
                 """, (comp_id, name, email, phone, role, file_path))
                 staff_id = cur.fetchone()[0]
 
-                # B. Create Login User
                 raw_password = generate_secure_password()
                 hashed_pw = generate_password_hash(raw_password)
                 login_email = email if email else f"staff{staff_id}_{comp_id}@businessbetter.co.uk"
@@ -422,14 +390,12 @@ def staff_list():
                     VALUES (%s, %s, %s, %s, %s)
                 """, (comp_id, name, login_email, hashed_pw, 'Staff'))
                 
-                # C. AUDIT LOG (Inside the same transaction)
                 admin_name = session.get('user_name', 'Admin')
                 cur.execute("""
                     INSERT INTO audit_logs (company_id, action, target, details, admin_email, created_at)
                     VALUES (%s, 'STAFF_ADDED', %s, %s, %s, CURRENT_TIMESTAMP)
                 """, (comp_id, name, f"New Staff Member ({role}) created", admin_name))
 
-                # D. SAVE ALL
                 conn.commit()
                 flash(f"✅ Staff Added & Login Created! Password: {raw_password}")
 
@@ -437,7 +403,6 @@ def staff_list():
                 conn.rollback()
                 flash(f"Error adding staff: {e}", "error")
 
-        # --- 2. EDIT STAFF ---
         elif action == 'edit_staff':
             sid = request.form.get('staff_id')
             name = request.form.get('name')
@@ -446,7 +411,6 @@ def staff_list():
             role = request.form.get('role')
             status = request.form.get('status')
             
-            # File Upload Logic (Edit Mode)
             file_path = None
             if 'license_file' in request.files:
                 f = request.files['license_file']
@@ -456,7 +420,6 @@ def staff_list():
                     file_path = f"uploads/licenses/{filename}"
 
             try:
-                # A. Update Staff Record
                 if file_path:
                     cur.execute("""
                         UPDATE staff SET name=%s, email=%s, phone=%s, position=%s, status=%s, license_path=%s 
@@ -468,16 +431,13 @@ def staff_list():
                         WHERE id=%s AND company_id=%s
                     """, (name, email, phone, role, status, sid, comp_id))
                 
-                # B. Update User Login Name (Keep them synced)
                 cur.execute("UPDATE users SET name=%s WHERE email=%s AND company_id=%s", (name, email, comp_id))
                 
-                # C. AUDIT LOG (Edit)
                 cur.execute("""
                     INSERT INTO audit_logs (company_id, action, target, details, admin_email, created_at)
                     VALUES (%s, 'STAFF_UPDATE', %s, 'Profile updated', %s, CURRENT_TIMESTAMP)
                 """, (comp_id, name, session.get('user_name', 'Admin')))
 
-                # D. SAVE ALL
                 conn.commit()
                 flash("✅ Staff Profile Updated")
 
@@ -485,7 +445,6 @@ def staff_list():
                 conn.rollback()
                 flash(f"Error updating staff: {e}", "error")
 
-    # --- FETCH LIST ---
     cur.execute("SELECT id, name, email, phone, position AS role, status, license_path FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
     cols = [desc[0] for desc in cur.description]
     staff = [dict(zip(cols, row)) for row in cur.fetchall()]
@@ -502,23 +461,18 @@ def fleet_list():
     conn = get_db()
     cur = conn.cursor()
     
-    # Ensure helper table exists
     cur.execute("CREATE TABLE IF NOT EXISTS vehicle_crew (vehicle_id INTEGER, staff_id INTEGER, PRIMARY KEY(vehicle_id, staff_id))")
     conn.commit()
     
     if request.method == 'POST':
         action = request.form.get('action')
         try:
-            # --- ACTION: ASSIGN CREW ---
             if action == 'assign_crew':
                 v_id = request.form.get('vehicle_id')
                 driver_id = request.form.get('driver_id')
                 crew_ids = request.form.getlist('crew_ids')
-                
-                # Handle Driver ID (convert 'None' string to DB NULL)
                 driver_val = driver_id if driver_id and driver_id != 'None' else None
 
-                # 1. GET OLD STATE (For Audit)
                 cur.execute("SELECT s.name FROM vehicles v LEFT JOIN staff s ON v.assigned_driver_id = s.id WHERE v.id = %s", (v_id,))
                 res = cur.fetchone()
                 old_driver = res[0] if res else "None"
@@ -526,16 +480,13 @@ def fleet_list():
                 cur.execute("SELECT s.name FROM vehicle_crew vc JOIN staff s ON vc.staff_id = s.id WHERE vc.vehicle_id = %s", (v_id,))
                 old_crew = [r[0] for r in cur.fetchall()]
 
-                # 2. PERFORM UPDATES (Driver & Crew)
                 cur.execute("UPDATE vehicles SET assigned_driver_id = %s WHERE id = %s AND company_id = %s", (driver_val, v_id, comp_id))
                 
-                # Reset Crew
                 cur.execute("DELETE FROM vehicle_crew WHERE vehicle_id = %s", (v_id,))
                 for staff_id in crew_ids:
                     if str(staff_id) != str(driver_val): 
                         cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (v_id, staff_id))
                 
-                # Save Dates & Settings
                 daily = request.form.get('daily_cost')
                 mot = request.form.get('mot_expiry') or None
                 tax = request.form.get('tax_expiry') or None
@@ -550,15 +501,12 @@ def fleet_list():
                     """, (daily, request.form.get('tracker_url'), request.form.get('telematics_provider'), 
                           request.form.get('tracking_device_id'), mot, tax, ins, v_id, comp_id))
 
-                # --- FIX START: Define new_driver before using it ---
                 new_driver = "None"
                 if driver_val:
                     cur.execute("SELECT name FROM staff WHERE id = %s", (driver_val,))
                     row = cur.fetchone()
                     if row: new_driver = row[0]
-                # --- FIX END ---
 
-                # 3. AUDIT LOG
                 changes = []
                 if old_driver != new_driver: changes.append(f"Driver: {old_driver} -> {new_driver}")
                 if len(old_crew) != len(crew_ids): changes.append("Crew list updated")
@@ -575,7 +523,6 @@ def fleet_list():
 
                 flash("✅ Crew & Settings Updated")
                 
-            # --- ACTION: ADD MAINTENANCE LOG ---
             elif action == 'add_log':
                 file_url = None
                 cost = request.form.get('cost')
@@ -618,7 +565,6 @@ def fleet_list():
             conn.rollback()
             flash(f"Error: {e}")
 
-    # --- FETCH DATA FOR DISPLAY ---
     cur.execute("""
         SELECT v.id, v.reg_plate, v.make_model, v.status, s.name, v.assigned_driver_id, 
                v.mot_expiry, v.tax_expiry, v.ins_expiry, v.tracker_url
@@ -1170,7 +1116,7 @@ def view_client(client_id):
     conn = get_db()
     cur = conn.cursor()
     
-    # 1. Fetch Client Basic Info
+    # 1. Fetch Client Details (Using address fallback for robustness)
     cur.execute("SELECT id, name, email, phone, address FROM clients WHERE id = %s", (client_id,))
     client_row = cur.fetchone()
     
@@ -1178,7 +1124,6 @@ def view_client(client_id):
         conn.close()
         return "Client not found", 404
         
-    # Convert to dictionary for easy use in template
     client = {
         'id': client_row[0], 
         'name': client_row[1], 
@@ -1187,8 +1132,7 @@ def view_client(client_id):
         'address': client_row[4]
     }
 
-    # 2. Fetch Properties (STRICT COLUMN ORDER)
-    # This matches the {{ prop[X] }} indices in your template exactly.
+    # 2. Fetch Properties (ID is FIRST at index 0)
     # 0=ID, 1=Address, 2=Postcode, 3=Type, 4=TenantName, 5=TenantPhone, 6=KeyCode
     # 7=GasDate, 8=EICRDate, 9=PATDate, 10=EPCDate
     cur.execute("""
@@ -1214,50 +1158,96 @@ def view_client(client_id):
                            properties=properties,
                            invoices=invoices,
                            current_date=date.today())
-   
-@office_bp.route('/client/<int:client_id>/add_property', methods=['POST'])
-def add_property(client_id):
+
+# --- ADD PROPERTY (Correct Route matching URL) ---
+@office_bp.route('/office/client/<int:client_id>/add-property', methods=['POST'])
+def add_property_to_client(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
     
-    # Get form data
-    addr1 = request.form.get('address_line1')
-    addr2 = request.form.get('address_line2')
-    city = request.form.get('city')
-    postcode = request.form.get('postcode')
-    
-    tenant = request.form.get('tenant_name')
-    t_phone = request.form.get('tenant_phone')
-    comp_id = session.get('company_id')
-
     conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("""
-            INSERT INTO properties (company_id, client_id, address_line1, address_line2, city, postcode, tenant, tenant_phone)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (comp_id, client_id, addr1, addr2, city, postcode, tenant, t_phone))
-        conn.commit()
-        flash("✅ Property Added Successfully")
-    except Exception as e:
-        conn.rollback(); flash(f"Error: {e}")
-    finally:
-        conn.close()
+            INSERT INTO properties (company_id, client_id, address_line1, postcode, tenant_name, tenant_phone, key_code, gas_expiry, eicr_expiry, pat_expiry, epc_expiry, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')
+        """, (session['company_id'], client_id, request.form.get('address'), request.form.get('postcode'), 
+              request.form.get('tenant_name'), request.form.get('tenant_phone'), request.form.get('key_code'),
+              request.form.get('gas_expiry') or None, request.form.get('eicr_expiry') or None, 
+              request.form.get('pat_expiry') or None, request.form.get('epc_expiry') or None))
+        conn.commit(); flash("✅ Property Added", "success")
+    except Exception as e: conn.rollback(); flash(f"Error: {e}", "error")
+    finally: conn.close()
+    return redirect(f"/office/client/{client_id}")
 
-    return redirect(url_for('office.view_client', client_id=client_id))
+@office_bp.route('/office/property/update', methods=['POST'])
+def office_update_property():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("""
+            UPDATE properties SET address_line1=%s, postcode=%s, tenant_name=%s, tenant_phone=%s, key_code=%s,
+                                  gas_expiry=%s, eicr_expiry=%s, pat_expiry=%s, epc_expiry=%s
+            WHERE id=%s
+        """, (request.form.get('address'), request.form.get('postcode'), request.form.get('tenant_name'), request.form.get('tenant_phone'),
+              request.form.get('key_code'), request.form.get('gas_expiry') or None, request.form.get('eicr_expiry') or None,
+              request.form.get('pat_expiry') or None, request.form.get('epc_expiry') or None, request.form.get('property_id')))
+        conn.commit(); flash("✅ Property Updated", "success")
+    except Exception as e: conn.rollback(); flash(f"Error: {e}", "error")
+    finally: conn.close()
+    return redirect(f"/office/client/{request.form.get('client_id')}")
+
+# --- VIEW SINGLE PROPERTY (The Page that was 404ing) ---
+@office_bp.route('/office/property/<int:property_id>')
+def view_property_office(property_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    
+    cur.execute("""
+        SELECT p.id, p.address_line1, p.postcode, p.tenant_name, p.tenant_phone, p.key_code,
+               p.gas_expiry, p.eicr_expiry, p.pat_expiry, p.epc_expiry, c.name, c.id
+        FROM properties p JOIN clients c ON p.client_id = c.id WHERE p.id = %s
+    """, (property_id,))
+    prop = cur.fetchone()
+    if not prop: return "Property not found", 404
+    
+    cur.execute("SELECT id, ref, status, description, start_date FROM jobs WHERE property_id = %s ORDER BY start_date DESC", (property_id,))
+    jobs = cur.fetchall()
+    conn.close()
+    return render_template('office/property_view.html', prop=prop, jobs=jobs, today=date.today())
+
+@office_bp.route('/client/delete/<int:client_id>') 
+def delete_client(client_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM clients WHERE id = %s AND company_id = %s", (client_id, session.get('company_id')))
+        conn.commit(); flash("🗑️ Client deleted", "success")
+    except: conn.rollback(); flash("Error deleting client", "error")
+    finally: conn.close()
+    return redirect('/clients')
+
+# --- API: FETCH CLIENT PROPERTIES ---
+@office_bp.route('/api/client/<int:client_id>/properties')
+def get_client_properties_api(client_id):
+    if 'user_id' not in session: return jsonify([])
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id, address_line1, postcode FROM properties WHERE client_id = %s", (client_id,))
+    props = [{'id': r[0], 'address': f"{r[1]}, {r[2]}"} for r in cur.fetchall()]
+    conn.close()
+    return jsonify(props)
 
 @office_bp.route('/office/upgrade-certs-db')
 def upgrade_certs_db():
     if 'user_id' not in session: return "Not logged in"
     conn = get_db(); cur = conn.cursor()
     try:
-        # Create a dedicated table for storing detailed Certificate Data (Drafts & Finals)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS certificates (
                 id SERIAL PRIMARY KEY,
                 company_id INTEGER,
                 property_id INTEGER,
-                type VARCHAR(20), -- 'EICR', 'CP12', 'PAT'
-                status VARCHAR(20), -- 'Draft', 'Issued'
-                data JSONB, -- Stores the complex circuit/test data
+                type VARCHAR(20),
+                status VARCHAR(20),
+                data JSONB,
                 engineer_name VARCHAR(100),
                 date_issued DATE,
                 expiry_date DATE,
@@ -1273,17 +1263,13 @@ def upgrade_certs_db():
     finally:
         conn.close()
 
-# --- NEW EICR ROUTE (Unindented) ---
 @office_bp.route('/office/cert/eicr/create')
 def create_eicr_cert():
     if not check_office_access(): return redirect(url_for('auth.login'))
-    
     prop_id = request.args.get('prop_id')
     comp_id = session.get('company_id')
     
     conn = get_db(); cur = conn.cursor()
-    
-    # Get Property Data
     cur.execute("""
         SELECT p.address_line1, p.city, p.postcode, c.name 
         FROM properties p 
@@ -1295,208 +1281,86 @@ def create_eicr_cert():
     
     prop_data = {}
     if data:
-        # Re-using the smart address joiner logic
         parts = [data[0], data[1], data[2]]
         full_addr = ", ".join([p for p in parts if p])
         prop_data = {'id': prop_id, 'address': full_addr, 'client': data[3]}
         
     return render_template('office/certs/uk/eicr.html', prop=prop_data, next_five_years=(date.today() + timedelta(days=365*5)))
-    
+
 @office_bp.route('/office/quotes')
 def quotes_dashboard():
     if not check_office_access(): return redirect(url_for('auth.login'))
-    
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
-    config = get_site_config(comp_id)
-    
-    # Fetch All Quotes
-    cur.execute("""
-        SELECT q.id, q.reference, c.name, q.date, q.total, q.status, q.job_title
-        FROM quotes q
-        LEFT JOIN clients c ON q.client_id = c.id
-        WHERE q.company_id = %s
-        ORDER BY q.id DESC
-    """, (comp_id,))
-    
-    quotes = [{
-        'id': r[0], 'ref': r[1], 'client': r[2], 
-        'date': format_date(r[3]), 'total': r[4], 
-        'status': r[5], 'title': r[6]
-    } for r in cur.fetchall()]
-    
+    cur.execute("SELECT q.id, q.reference, c.name, q.date, q.total, q.status FROM quotes q LEFT JOIN clients c ON q.client_id = c.id WHERE q.company_id = %s ORDER BY q.id DESC", (comp_id,))
+    quotes = [{'id': r[0], 'ref': r[1], 'client': r[2], 'date': format_date(r[3]), 'total': r[4], 'status': r[5]} for r in cur.fetchall()]
     conn.close()
-    # Note: Ensure you have a 'quotes_dashboard.html' or redirect to a generic list
-    # For now, we will render the same view but you might want to create a specific template later
-    return render_template('office/office_dashboard.html', 
-                           recent_quotes=quotes, # Re-using the variable name to show list
-                           brand_color=config['color'], logo_url=config['logo'])
-                           
+    return render_template('office/office_dashboard.html', recent_quotes=quotes, brand_color='#333', logo_url='')
+
+@office_bp.route('/office/quote/save', methods=['POST'])
+def save_quote():
+    if not check_office_access(): return jsonify({'status': 'error'}), 403
+    data = request.json
+    conn = get_db(); cur = conn.cursor()
+    try:
+        quote_id = data.get('quote_id')
+        if not quote_id:
+            cur.execute("INSERT INTO quotes (company_id, client_id, reference, date, status, vehicle_id) VALUES (%s, %s, 'Q-NEW', CURRENT_DATE, 'Draft', %s) RETURNING id", 
+                       (session['company_id'], data['client_id'], data['vehicle_id']))
+            quote_id = cur.fetchone()[0]
+        else:
+            cur.execute("UPDATE quotes SET client_id=%s, vehicle_id=%s WHERE id=%s", (data['client_id'], data['vehicle_id'], quote_id))
+        
+        cur.execute("DELETE FROM quote_items WHERE quote_id = %s", (quote_id,))
+        total = 0
+        for item in data.get('items', []):
+            if not item.get('description'): continue
+            t = float(item['quantity']) * float(item['unit_price'])
+            total += t
+            cur.execute("INSERT INTO quote_items (quote_id, description, quantity, unit_price, total) VALUES (%s, %s, %s, %s, %s)", (quote_id, item['description'], item['quantity'], item['unit_price'], t))
+        
+        # Add Van Cost
+        if data.get('vehicle_id'):
+            cur.execute("SELECT (daily_cost + COALESCE((SELECT pay_rate FROM staff WHERE id=assigned_driver_id),0)), reg_plate FROM vehicles WHERE id=%s", (data['vehicle_id'],))
+            row = cur.fetchone()
+            if row:
+                cur.execute("INSERT INTO quote_items (quote_id, description, quantity, unit_price, total) VALUES (%s, %s, 1, %s, %s)", (quote_id, f"Logistics: {row[1]}", float(row[0]), float(row[0])))
+                total += float(row[0])
+
+        cur.execute("UPDATE quotes SET total = %s WHERE id = %s", (total, quote_id))
+        conn.commit(); return jsonify({'status': 'success', 'quote_id': quote_id})
+    except Exception as e: conn.rollback(); return jsonify({'status': 'error', 'message': str(e)})
+    finally: conn.close()
+
 @office_bp.route('/office/quote/delete/<int:quote_id>')
 def delete_quote(quote_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
-    
-    conn = get_db()
-    cur = conn.cursor()
-    try:
-        # 1. Delete Items first (Foreign Key cleanup)
-        cur.execute("DELETE FROM quote_items WHERE quote_id = %s", (quote_id,))
-        
-        # 2. Delete the Quote Header
-        cur.execute("DELETE FROM quotes WHERE id = %s AND company_id = %s", (quote_id, session.get('company_id')))
-        
-        conn.commit()
-        flash("🗑️ Quote deleted successfully.", "success")
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error deleting quote: {e}", "error")
-    finally:
-        conn.close()
-        
-    return redirect(url_for('office.office_dashboard'))
-    
-# --- OFFICE: FLEET MANAGER ---
-# NOTE: Removed 'office_fleet' because it was a duplicate of 'fleet_list'. 
-# All logic is consolidated in 'fleet_list' above.
-
-# --- DELETE CLIENT ---
-@office_bp.route('/client/delete/<int:client_id>') 
-def delete_client(client_id):
-    if not check_office_access(): return redirect(url_for('auth.login'))
-    
-    conn = get_db()
-    cur = conn.cursor()
-    try:
-        cur.execute("DELETE FROM clients WHERE id = %s AND company_id = %s", (client_id, session.get('company_id')))
-        conn.commit()
-        flash("🗑️ Client deleted successfully.", "success")
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error deleting client: {e}", "error")
-    finally:
-        conn.close()
-        
-    return redirect('/clients')
-
-# --- API: FETCH CLIENT PROPERTIES ---
-@office_bp.route('/api/client/<int:client_id>/properties')
-def get_client_properties_api(client_id):
-    if 'user_id' not in session: return jsonify([])
-    
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT id, address_line1, postcode FROM properties WHERE client_id = %s", (client_id,))
-    props = [{'id': r[0], 'address': f"{r[1]}, {r[2]}"} for r in cur.fetchall()]
-    conn.close()
-    
-    return jsonify(props)
-    
-# --- UPDATE PROPERTY (Office Side) ---
-@office_bp.route('/office/property/update', methods=['POST'])
-def office_update_property():
-    if not check_office_access(): return redirect(url_for('auth.login'))
-    
-    conn = get_db()
-    cur = conn.cursor()
-    
     try:
-        prop_id = request.form.get('property_id')
-        client_id = request.form.get('client_id') # Needed for redirect
-        
-        # 1. Update Basic Info
-        cur.execute("""
-            UPDATE properties 
-            SET address_line1 = %s, postcode = %s, 
-                tenant_name = %s, tenant_phone = %s, key_code = %s,
-                gas_expiry = %s, eicr_expiry = %s, pat_expiry = %s, epc_expiry = %s
-            WHERE id = %s
-        """, (
-            request.form.get('address'),
-            request.form.get('postcode'),
-            request.form.get('tenant_name'),
-            request.form.get('tenant_phone'),
-            request.form.get('key_code'),
-            request.form.get('gas_expiry') or None,   # Handle empty strings as NULL
-            request.form.get('eicr_expiry') or None,
-            request.form.get('pat_expiry') or None,
-            request.form.get('epc_expiry') or None,
-            prop_id
-        ))
-        
-        conn.commit()
-        flash("✅ Property & Compliance Dates Updated", "success")
-        
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error updating property: {e}", "error")
-    finally:
-        conn.close()
-        
-    return redirect(f"/office/client/{client_id}")
+        cur.execute("DELETE FROM quote_items WHERE quote_id = %s", (quote_id,))
+        cur.execute("DELETE FROM quotes WHERE id = %s", (quote_id,))
+        conn.commit(); flash("Deleted", "success")
+    except: conn.rollback()
+    finally: conn.close()
+    return redirect('/office-hub')
 
-# --- PRE-FILLED JOB BOOKING ---
-# Ensure your existing 'create_job' route looks like this to accept URL params
 @office_bp.route('/office/job/create', methods=['GET', 'POST'])
 def create_job():
     if not check_office_access(): return redirect(url_for('auth.login'))
-    
     conn = get_db(); cur = conn.cursor()
     comp_id = session.get('company_id')
     
     if request.method == 'GET':
-        # FETCH CLIENTS
         cur.execute("SELECT id, name FROM clients WHERE company_id = %s ORDER BY name", (comp_id,))
         clients = cur.fetchall()
-        
-        # FETCH ENGINEERS
-        cur.execute("SELECT id, name FROM users WHERE company_id = %s AND role != 'Office' ORDER BY name", (comp_id,))
+        cur.execute("SELECT id, name FROM users WHERE company_id = %s AND role != 'Office'", (comp_id,))
         engineers = cur.fetchall()
-        
-        # FETCH VEHICLES
         cur.execute("SELECT id, registration FROM vehicles WHERE company_id = %s", (comp_id,))
         vehicles = cur.fetchall()
-        
-        # CAPTURE URL PARAMETERS (The Magic Part)
-        # This allows us to link /office/job/create?client_id=5&desc=Gas+Check
-        pre_client = request.args.get('client_id')
-        pre_prop = request.args.get('property_id')
-        pre_desc = request.args.get('description', '')
-
         conn.close()
-        return render_template('office/job_create.html', 
-                             clients=clients, engineers=engineers, vehicles=vehicles,
-                             pre_client=pre_client, pre_prop=pre_prop, pre_desc=pre_desc)
-                             
-# --- VIEW SINGLE PROPERTY (OFFICE SIDE) ---
-@office_bp.route('/office/property/<int:property_id>')
-def view_property_office(property_id):
-    if not check_office_access(): return redirect(url_for('auth.login'))
+        return render_template('office/job_create.html', clients=clients, engineers=engineers, vehicles=vehicles,
+                             pre_client=request.args.get('client_id'), pre_prop=request.args.get('property_id'), pre_desc=request.args.get('description', ''))
     
-    conn = get_db()
-    cur = conn.cursor()
-    
-    # 1. Fetch Property Details
-    cur.execute("""
-        SELECT p.id, p.address_line1, p.postcode, p.tenant_name, p.tenant_phone, p.key_code,
-               p.gas_expiry, p.eicr_expiry, p.pat_expiry, p.epc_expiry,
-               c.name, c.id
-        FROM properties p
-        JOIN clients c ON p.client_id = c.id
-        WHERE p.id = %s
-    """, (property_id,))
-    prop = cur.fetchone()
-    
-    if not prop: return "Property not found", 404
-    
-    # 2. Fetch Job History for this Property
-    cur.execute("""
-        SELECT id, ref, status, description, start_date, 
-               (SELECT COUNT(*) FROM job_evidence WHERE job_id = jobs.id) as photo_count
-        FROM jobs 
-        WHERE property_id = %s 
-        ORDER BY start_date DESC
-    """, (property_id,))
-    jobs = cur.fetchall()
-    
+    # POST logic handles in your existing file logic or generic insert
     conn.close()
-    
-    return render_template('office/property_view.html', prop=prop, jobs=jobs, today=date.today())
+    return "Job Create Logic Post"
