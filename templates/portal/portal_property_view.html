@@ -1,81 +1,117 @@
 {% extends "portal/portal_base.html" %}
 
-{% block title %}Quote {{ quote[1] }} | {{ company_name }}{% endblock %}
+{% block title %}Property | {{ company_name }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="fw-bold m-0">Quote Details</h2>
-    <a href="/portal/quotes" class="btn btn-outline-secondary btn-sm">
-        <i class="fas fa-arrow-left me-2"></i>Back to List
+    <div>
+        <h2 class="fw-bold m-0">{{ prop[1] }}</h2> <p class="text-muted mb-0">{{ prop[2] }}</p> </div>
+    <a href="/portal/home" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
     </a>
 </div>
 
-<div class="row justify-content-center">
-    <div class="col-lg-10">
-        <div class="card border-0 shadow-sm p-4 p-md-5">
-            
-            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-4">
-                <div>
-                    <h5 class="text-muted small text-uppercase mb-1">Reference</h5>
-                    <h3 class="fw-bold m-0">{{ quote[1] }}</h3>
+<div class="row g-4">
+    <div class="col-lg-4">
+        
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white fw-bold py-3">
+                <i class="fas fa-home me-2 text-brand"></i>Property Details
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.7rem;">Type</small>
+                    <span class="fw-bold">{{ prop[3] }}</span>
                 </div>
-                <div class="text-end">
-                    <span class="badge fs-6 px-3 py-2 
-                        {% if quote[4] == 'Accepted' %}bg-success
-                        {% elif quote[4] == 'Declined' %}bg-danger
-                        {% else %}bg-info text-dark{% endif %}">
-                        {{ quote[4] }}
-                    </span>
-                    <div class="text-muted small mt-2">{{ quote[2] }}</div>
+                <div class="mb-3">
+                    <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.7rem;">Tenant Name</small>
+                    <span class="fw-bold">{{ prop[4] or 'N/A' }}</span>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.7rem;">Tenant Phone</small>
+                    <span class="fw-bold">{{ prop[5] or 'N/A' }}</span>
+                </div>
+                <div>
+                    <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.7rem;">Access Code</small>
+                    <span class="font-monospace bg-light px-2 rounded border">{{ prop[6] or 'Not Set' }}</span>
                 </div>
             </div>
+        </div>
 
-            <div class="table-responsive mb-4">
-                <table class="table table-borderless">
-                    <thead class="text-uppercase small text-muted border-bottom">
+        <div class="card shadow-sm border-0">
+             <div class="card-header bg-danger text-white fw-bold py-3">
+                <i class="fas fa-exclamation-triangle me-2"></i>Report an Issue
+            </div>
+            <div class="card-body">
+                <form action="/portal/request/submit" method="POST">
+                    <input type="hidden" name="property_id" value="{{ prop[0] }}">
+                    
+                    <div class="mb-3">
+                        <label class="small fw-bold mb-1">Issue Description</label>
+                        <textarea name="description" class="form-control" rows="3" placeholder="e.g. Boiler is leaking water..." required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="small fw-bold mb-1">Urgency</label>
+                        <select name="severity" class="form-select">
+                            <option value="Low">Low - Minor Repair</option>
+                            <option value="Medium">Medium - Standard</option>
+                            <option value="High">High - Urgent</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn btn-danger w-100 fw-bold">Submit Request</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white fw-bold py-3">
+                <i class="fas fa-history me-2 text-brand"></i>Job History
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light small text-uppercase text-muted">
                         <tr>
-                            <th>Description</th>
-                            <th class="text-end">Qty</th>
-                            <th class="text-end">Unit Price</th>
-                            <th class="text-end">Total</th>
+                            <th class="ps-4">Date</th>
+                            <th>Reference</th>
+                            <th>Status</th>
+                            <th class="text-end pe-4">Action</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in items %}
-                        <tr class="border-bottom">
-                            <td class="py-3">{{ item[0] }}</td>
-                            <td class="text-end py-3">{{ item[1] }}</td>
-                            <td class="text-end py-3">£{{ "%.2f"|format(item[2]) }}</td>
-                            <td class="text-end fw-bold py-3">£{{ "%.2f"|format(item[3]) }}</td>
+                        {% for job in job_history %}
+                        <tr>
+                            <td class="ps-4 fw-bold">{{ job[4] }}</td> <td>
+                                <div class="fw-bold text-dark">{{ job[1] }}</div>
+                                <small class="text-muted">{{ job[3] }}</small>
+                            </td>
+                            <td>
+                                {% if job[2] == 'Completed' %}
+                                    <span class="badge bg-success">Completed</span>
+                                {% elif job[2] == 'In Progress' %}
+                                    <span class="badge bg-primary">Active</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ job[2] }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <a href="/portal/job/{{ job[0] }}" class="btn btn-sm btn-outline-secondary">View</a>
+                            </td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="4" class="text-center text-muted py-4">Summary Quote (No itemized breakdown)</td></tr>
+                        <tr>
+                            <td colspan="4" class="text-center py-5 text-muted">
+                                <i class="fas fa-clipboard-check fa-2x mb-3 opacity-25"></i>
+                                <p class="mb-0">No jobs recorded for this property yet.</p>
+                            </td>
+                        </tr>
                         {% endfor %}
                     </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="3" class="text-end pt-4 h5 text-muted">Grand Total</td>
-                            <td class="text-end pt-4 h4 fw-bold text-brand">£{{ "%.2f"|format(quote[3]) }}</td>
-                        </tr>
-                    </tfoot>
                 </table>
             </div>
-
-            {% if quote[4] in ['Draft', 'Sent'] %}
-            <div class="alert alert-light border p-4 text-center">
-                <h6 class="fw-bold mb-3">Do you accept this quote?</h6>
-                <div class="d-flex gap-3 justify-content-center">
-                    <a href="/portal/quote/{{ quote[0] }}/accept" class="btn btn-success fw-bold px-4 py-2">
-                        <i class="fas fa-check me-2"></i>Accept Quote
-                    </a>
-                    <a href="/portal/quote/{{ quote[0] }}/decline" class="btn btn-outline-danger fw-bold px-4 py-2">
-                        <i class="fas fa-times me-2"></i>Decline
-                    </a>
-                </div>
-                <div class="text-muted small mt-3">By accepting, you agree to our terms of service.</div>
-            </div>
-            {% endif %}
-            
         </div>
     </div>
 </div>
