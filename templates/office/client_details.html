@@ -143,6 +143,25 @@
                                     </a>
                                 </div>
 
+                                <div class="col-4">
+                                    <a href="/office/property/{{ prop[0] }}" class="text-decoration-none">
+                                        {% set date_val = prop[10] %}
+                                        {% set status = 'Missing' %}{% set color = 'secondary' %}{% set dstr = '-' %}
+                                        {% if date_val %}
+                                            {% set days = (date_val - current_date).days %}
+                                            {% set dstr = date_val.strftime('%d/%m/%y') %}
+                                            {% if days < 0 %}{% set status = 'EXPIRED' %}{% set color = 'danger' %}
+                                            {% elif days < 3650 %}{% set status = 'Valid' %}{% set color = 'success' %}
+                                            {% else %}{% set status = 'Check' %}{% set color = 'warning' %}{% endif %}
+                                        {% endif %}
+                                        <div class="border rounded p-2 text-center h-100 bg-white border-bottom border-4 border-{{ color }}">
+                                            <div class="small fw-bold text-muted mb-1" style="font-size: 0.7rem;">EPC</div>
+                                            <span class="badge bg-{{ color }} w-100 mb-1" style="font-size: 0.65rem;">{{ status }}</span>
+                                            <div class="small fw-bold text-dark" style="font-size: 0.7rem;">{{ dstr }}</div>
+                                        </div>
+                                    </a>
+                                </div>
+
                             </div>
                         </div>
                     </div>
