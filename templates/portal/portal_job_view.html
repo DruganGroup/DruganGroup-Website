@@ -34,14 +34,14 @@
                     <div class="col-md-6">
                         <small class="text-muted text-uppercase fw-bold">Start Date</small>
                         <div class="fw-bold mt-1">
-                            {{ job[4].strftime('%d %B %Y') if job[4] else 'TBC' }}
+                            {{ job[4] or 'TBC' }}
                         </div>
                     </div>
                     {% if job[5] %}
                     <div class="col-md-6">
                         <small class="text-muted text-uppercase fw-bold">Completion Date</small>
                         <div class="fw-bold mt-1 text-success">
-                            {{ job[5].strftime('%d %B %Y') }}
+                            {{ job[5] }}
                         </div>
                     </div>
                     {% endif %}
@@ -61,7 +61,7 @@
                             <a href="/{{ p[0] }}" target="_blank" class="d-block border rounded overflow-hidden shadow-sm" style="height: 150px;">
                                 <img src="/{{ p[0] }}" class="w-100 h-100 object-fit-cover hover-zoom" alt="Site Photo">
                             </a>
-                            <div class="small text-muted mt-1">{{ p[1].strftime('%d %b %H:%M') }}</div>
+                            <div class="small text-muted mt-1">{{ p[1] }}</div>
                         </div>
                         {% endfor %}
                     </div>
