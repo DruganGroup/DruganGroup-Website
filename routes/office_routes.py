@@ -1161,93 +1161,57 @@ def universal_upload():
     finally:
         conn.close()
 
-@office_bp.route('/office/client/<int:client_id>/enable-portal', methods=['POST'])
-def enable_portal(client_id):
+# --- VIEW SINGLE CLIENT (OFFICE SIDE) ---
+@office_bp.route('/office/client/<int:client_id>')
+def view_client(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
     
-    comp_id = session.get('company_id')
-    conn = get_db(); cur = conn.cursor()
-
-    try:
-        # 1. Fetch Client
-        cur.execute("SELECT name, email FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
-        client = cur.fetchone()
-        
-        if not client or not client[1]: 
-            flash("❌ Client needs email.", "error")
-            return redirect(url_for('office.view_client', client_id=client_id))
-
-        client_name, client_email = client
-
-        # 2. Generate Credentials
-        raw_password = generate_secure_password()
-        hashed_password = generate_password_hash(raw_password)
-        cur.execute("UPDATE clients SET password_hash = %s WHERE id = %s", (hashed_password, client_id))
-        
-        # 3. Fetch Company Name & Settings (THE FIX)
-        # We explicitly get the name saved in settings for THIS company ID
-        cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
-        settings = {row[0]: row[1] for row in cur.fetchall()}
-        
-        # Fallback only if settings are empty, otherwise use the exact saved name
-        company_name = settings.get('company_name', 'Your Service Provider')
-        
-        # --- WHITE LABEL LINK LOGIC ---
-        # If the company name contains "Drugan", use your custom domain
-        # Everyone else (ACME, etc) uses the generic SaaS domain
-        if "drugan" in company_name.lower():
-            base_domain = "https://www.drugangroup.co.uk"
-        else:
-            base_domain = "https://www.businessbetter.co.uk"
-            
-        login_link = f"{base_domain}/portal/login/{comp_id}"
-        # ------------------------------
-
-        if 'smtp_host' in settings:
-            msg = MIMEMultipart()
-            msg['From'] = settings.get('smtp_email')
-            msg['To'] = client_email
-            msg['Subject'] = f"{company_name} - Portal Invitation"
-
-            body = f"""
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-                <h2 style="color: #333;">Welcome to the Portal</h2>
-                <p>Hello {client_name},</p>
-                <p><strong>{company_name}</strong> has invited you to their secure client portal.</p>
-                <p>You can use this portal to view quotes, pay invoices, and download certificates.</p>
-                
-                <p style="margin: 25px 0;">
-                    <a href="{login_link}" style="background-color: #0d6efd; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                        Open Client Portal
-                    </a>
-                </p>
-                
-                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; color: #555;">
-                    <strong>Login Details:</strong><br>
-                    Email: {client_email}<br>
-                    Password: {raw_password}
-                </div>
-            </div>
-            """
-            
-            msg.attach(MIMEText(body, 'html'))
-
-            server = smtplib.SMTP(settings['smtp_host'], int(settings['smtp_port']))
-            server.starttls()
-            server.login(settings['smtp_email'], settings['smtp_password'])
-            server.send_message(msg)
-            server.quit()
-            flash(f"✅ Invite sent to {client_email}")
-        else:
-            flash("⚠️ Password generated, but Email Failed (SMTP Settings missing)", "warning")
-            
-        conn.commit()
-    except Exception as e: 
-        conn.rollback(); flash(f"Error: {e}", "error")
-    finally: 
-        conn.close()
+    conn = get_db()
+    cur = conn.cursor()
     
-    return redirect(f"/client/{client_id}")
+    # 1. Fetch Client Details
+    cur.execute("SELECT id, name, email, phone, address FROM clients WHERE id = %s", (client_id,))
+    client_row = cur.fetchone()
+    
+    if not client_row:
+        conn.close()
+        return "Client not found", 404
+        
+    # Create a dictionary so we can use client.id, client.name in HTML
+    client = {
+        'id': client_row[0], 
+        'name': client_row[1], 
+        'email': client_row[2], 
+        'phone': client_row[3], 
+        'address': client_row[4]
+    }
+
+    # 2. Fetch Properties (CRITICAL: ID MUST BE FIRST)
+    # 0=id, 1=address, 2=postcode, 3=type, 4=tenant_name, 5=tenant_phone, 6=key_code
+    # 7=gas_expiry, 8=eicr_expiry, 9=pat_expiry, 10=epc_expiry
+    cur.execute("""
+        SELECT 
+            id, address_line1, postcode, type, 
+            tenant_name, tenant_phone, key_code,
+            gas_expiry, eicr_expiry, pat_expiry, epc_expiry
+        FROM properties 
+        WHERE client_id = %s AND status != 'Archived'
+        ORDER BY address_line1 ASC
+    """, (client_id,))
+    properties = cur.fetchall()
+    
+    # 3. Fetch Invoices
+    cur.execute("SELECT id, reference, total_amount, status, date_created FROM invoices WHERE client_id = %s ORDER BY date_created DESC", (client_id,))
+    invoices = cur.fetchall()
+
+    conn.close()
+    
+    # 4. Pass 'current_date' for the Traffic Light logic
+    return render_template('office/client_details.html', 
+                           client=client, 
+                           properties=properties,
+                           invoices=invoices,
+                           current_date=date.today())
    
 @office_bp.route('/client/<int:client_id>/add_property', methods=['POST'])
 def add_property(client_id):
