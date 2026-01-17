@@ -96,7 +96,13 @@ def job_files(job_id):
         hours = float(r[2]) if r[2] else 0.0
         cost = hours * float(r[3])
         files.append(('Timesheet', f"Labor: {r[1]} ({hours} hrs)", cost, str(r[4]), 'No Link', r[0]))
-
+        
+    # RAMS (Risk Assessments)
+    cur.execute("SELECT id, pdf_path, created_at FROM job_rams WHERE job_id = %s ORDER BY created_at DESC", (job_id,))
+    for r in cur.fetchall():
+        # Label, Description, Cost, Date, Link, ID
+        files.append(('RAMS', 'Risk Assessment & Method Statement', 0.0, str(r[2]), r[1], r[0]))
+        
     # Photos
     cur.execute("SELECT id, filepath, uploaded_at::DATE FROM job_evidence WHERE job_id = %s ORDER BY uploaded_at DESC", (job_id,))
     for r in cur.fetchall():

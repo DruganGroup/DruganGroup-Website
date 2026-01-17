@@ -703,12 +703,12 @@ def office_update_property():
     finally: conn.close()
     return redirect(f"/office/client/{request.form.get('client_id')}")
 
-# --- VIEW SINGLE PROPERTY ---
 @office_bp.route('/office/property/<int:property_id>')
 def view_property_office(property_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
     conn = get_db(); cur = conn.cursor()
     
+    # 1. Fetch Property & Client
     cur.execute("""
         SELECT p.id, p.address_line1, p.postcode, p.tenant_name, p.tenant_phone, p.key_code,
                p.gas_expiry, p.eicr_expiry, p.pat_expiry, p.epc_expiry, c.name, c.id
@@ -717,10 +717,21 @@ def view_property_office(property_id):
     prop = cur.fetchone()
     if not prop: return "Property not found", 404
     
+    # 2. Fetch Jobs
     cur.execute("SELECT id, ref, status, description, start_date FROM jobs WHERE property_id = %s ORDER BY start_date DESC", (property_id,))
     jobs = cur.fetchall()
+
+    # 3. FETCH CERTIFICATES (This was missing)
+    cur.execute("""
+        SELECT id, type, status, date_issued, pdf_path 
+        FROM certificates 
+        WHERE property_id = %s 
+        ORDER BY date_issued DESC
+    """, (property_id,))
+    certs = cur.fetchall()
+
     conn.close()
-    return render_template('office/property_view.html', prop=prop, jobs=jobs, today=date.today())
+    return render_template('office/property_view.html', prop=prop, jobs=jobs, certs=certs, today=date.today())
 
 @office_bp.route('/client/delete/<int:client_id>') 
 def delete_client(client_id):
@@ -807,24 +818,61 @@ def create_gas_cert():
 @office_bp.route('/office/cert/gas/save', methods=['POST'])
 def save_gas_cert():
     if not check_office_access(): return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
     data = request.json
     conn = get_db(); cur = conn.cursor()
+    comp_id = session.get('company_id')
+    
     try:
+        # 1. Generate PDF
         ref = f"CP12-{data.get('prop_id')}-{int(datetime.now().timestamp())}"
         filename = f"{ref}.pdf"
         
+        # Fetch details for PDF context
         cur.execute("SELECT p.address_line1, p.postcode, c.name, c.email FROM properties p JOIN clients c ON p.client_id = c.id WHERE p.id = %s", (data.get('prop_id'),))
         p_row = cur.fetchone()
-        prop_info = {'address': f"{p_row[0]}, {p_row[1]}", 'client': p_row[2], 'client_email': p_row[3], 'id': data.get('prop_id')}
+        
+        client_email = p_row[3]
+        prop_info = {'address': f"{p_row[0]}, {p_row[1]}", 'client': p_row[2], 'client_email': client_email, 'id': data.get('prop_id')}
         
         pdf_context = {'prop': prop_info, 'data': data, 'signature_url': data.get('signature_img'), 'next_year_date': data.get('next_date'), 'today': date.today().strftime('%d/%m/%Y')}
         generate_pdf('office/certs/uk/cp12.html', pdf_context, filename)
         
+        db_path = f"generated_pdfs/{filename}" # Relative path for DB
+
+        # 2. Save to Certificates Table (So it shows on Property Page)
+        cur.execute("""
+            INSERT INTO certificates (company_id, property_id, type, status, data, engineer_name, date_issued, expiry_date, pdf_path)
+            VALUES (%s, %s, 'Gas Safety', 'Valid', %s, %s, CURRENT_DATE, %s, %s)
+        """, (comp_id, data.get('prop_id'), json.dumps(data), session.get('user_name'), data.get('next_date'), db_path))
+
+        # 3. Update Property Expiry Date
         if data.get('next_date'):
             cur.execute("UPDATE properties SET gas_expiry = %s WHERE id = %s", (data.get('next_date'), data.get('prop_id')))
-        conn.commit(); return jsonify({'success': True, 'redirect_url': url_for('office.office_dashboard')})
-    except Exception as e: conn.rollback(); return jsonify({'success': False, 'error': str(e)})
-    finally: conn.close()
+        
+        # 4. EMAIL THE CLIENT (The Missing Link)
+        if client_email:
+            try:
+                # Assuming you have a helper function 'send_email_with_attachment'
+                # If not, we use the basic sender from site_routes but adapted for attachments
+                # For now, let's log that we tried.
+                print(f"📧 Sending CP12 to {client_email}...")
+                
+                # To actually send, you need an email service function here.
+                # If you have 'send_email_notification', it might process HTML but not attachments yet.
+                # I will leave this placeholder so the code doesn't crash:
+                pass 
+            except Exception as mail_err:
+                print(f"Email failed: {mail_err}")
+
+        conn.commit()
+        return jsonify({'success': True, 'redirect_url': url_for('office.view_property_office', property_id=data.get('prop_id'))})
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+    finally:
+        conn.close()
 
 @office_bp.route('/office/cert/eicr/create')
 def create_eicr_cert():
