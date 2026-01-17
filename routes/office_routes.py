@@ -912,50 +912,56 @@ def delete_quote(quote_id):
     finally: conn.close()
     return redirect('/office-hub')
 
-@office_bp.route('/office/job/create')
+@office_bp.route('/office/job/create', methods=['POST'])
 def create_job():
     if not check_office_access(): return redirect(url_for('auth.login'))
     
-    # 1. Get IDs safely
-    client_id = request.args.get('client_id')
-    property_id = request.args.get('property_id')
-    
-    if not client_id or not property_id:
-        flash("Missing Client or Property ID", "danger")
-        return redirect(url_for('office.dashboard'))
-
     conn = get_db()
     cur = conn.cursor()
+    comp_id = session.get('company_id')
+    
+    try:
+        client_id = request.form.get('client_id')
+        description = request.form.get('description')
+        start_date = request.form.get('start_date') or None  # FIX 1: Default to None (Unscheduled)
+        vehicle_id = request.form.get('vehicle_id') or None
+        est_days = request.form.get('days') or 1
+        property_id = request.form.get('property_id') or None
 
-    # 2. Fetch Client (Standard Tuple)
-    cur.execute("SELECT id, name, email, phone FROM clients WHERE id = %s", (client_id,))
-    client = cur.fetchone()
+        # FIX 2: LOGIC LINK - If Van is selected, finding the Driver
+        engineer_id = None
+        if vehicle_id:
+            cur.execute("SELECT assigned_driver_id FROM vehicles WHERE id = %s", (vehicle_id,))
+            row = cur.fetchone()
+            if row and row[0]:
+                engineer_id = row[0]
 
-    # 3. Fetch Property (Standard Tuple)
-    cur.execute("SELECT id, address_line1, postcode FROM properties WHERE id = %s", (property_id,))
-    prop = cur.fetchone()
+        # Generate Reference
+        cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id = %s", (comp_id,))
+        count = cur.fetchone()[0]
+        ref = f"JOB-{1000 + count + 1}"
 
-    # 4. Fetch Vehicles (CRITICAL FIX: SELECT * to capture data without guessing column names)
-    # This ensures we get the data needed for pricing/gangs without crashing on "column not found"
-    cur.execute("SELECT * FROM vehicles WHERE status = 'Active' OR status IS NULL")
-    vehicles = cur.fetchall()
+        cur.execute("""
+            INSERT INTO jobs (
+                company_id, client_id, property_id, engineer_id, vehicle_id, 
+                ref, description, status, start_date, estimated_days
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'Pending', %s, %s)
+            RETURNING id
+        """, (comp_id, client_id, property_id, engineer_id, vehicle_id, ref, description, start_date, est_days))
+        
+        new_job_id = cur.fetchone()[0]
+        conn.commit()
+        
+        flash(f"✅ Job {ref} Created Successfully", "success")
+        return redirect(f"/office/job/{new_job_id}/files")
 
-    conn.close()
-
-    if not client or not prop:
-        flash("Client or Property not found", "danger")
-        return redirect(url_for('office.dashboard'))
-
-    # 5. Prepare Data safely for the template
-    # We map these manually to ensure the Hybrid HTML works
-    client_data = {'id': client[0], 'name': client[1], 'email': client[2]}
-    prop_data = {'id': prop[0], 'address_line1': prop[1], 'postcode': prop[2]}
-
-    # Pass 'vehicles' through to the template so your pricing logic can use it
-    return render_template('office/job/create_job.html', 
-                           client=client_data, 
-                           property=prop_data, 
-                           vehicles=vehicles)
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error creating job: {e}", "error")
+        return redirect(request.referrer or '/clients')
+    finally:
+        conn.close()
                            
 @office_bp.route('/office/upload-center', methods=['POST'])
 def universal_upload():
