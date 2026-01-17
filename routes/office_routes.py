@@ -622,34 +622,32 @@ def fleet_list():
 # =========================================================
 # 4. CLIENTS & PROPERTIES (FIXED: ID Order & Duplicates Removed)
 # =========================================================
-
 @office_bp.route('/office/client/<int:client_id>')
 def view_client(client_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     conn = get_db(); cur = conn.cursor()
     
-    # 1. Fetch Client Details
+    # 1. Fetch Client
     cur.execute("SELECT id, name, email, phone, address FROM clients WHERE id = %s", (client_id,))
-    client_row = cur.fetchone()
+    c_row = cur.fetchone()
     
-    if not client_row: 
+    if not c_row: 
         conn.close()
         return "Client not found", 404
         
     client = {
-        'id': client_row[0], 
-        'name': client_row[1], 
-        'email': client_row[2], 
-        'phone': client_row[3], 
-        'address': client_row[4]
+        'id': c_row[0], 'name': c_row[1], 'email': c_row[2], 'phone': c_row[3], 'address': c_row[4]
     }
 
-    # 2. Fetch Properties (ID FIRST)
+    # 2. Fetch Properties (Explicit Column Order for Template Sync)
+    # INDEX MAP:
+    # 0: id, 1: address, 2: postcode, 3: tenant_name, 4: key_code
+    # 5: gas, 6: eicr, 7: pat, 8: epc
     cur.execute("""
         SELECT 
-            id, address_line1, postcode, type, 
-            tenant_name, tenant_phone, key_code,
+            id, address_line1, postcode, 
+            tenant_name, key_code,
             gas_expiry, eicr_expiry, pat_expiry, epc_expiry
         FROM properties 
         WHERE client_id = %s AND status != 'Archived'
