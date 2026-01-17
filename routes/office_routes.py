@@ -824,16 +824,18 @@ def save_gas_cert():
     comp_id = session.get('company_id')
     
     try:
-        # 1. SETUP FOLDER
-        save_dir = os.path.join('static', 'generated_pdfs')
-        os.makedirs(save_dir, exist_ok=True) # Ensure folder exists
+        # 1. SETUP ABSOLUTE PATH (The Fix)
+        # This gets the root folder of your project on the server
+        root_path = os.getcwd() 
+        save_dir = os.path.join(root_path, 'static', 'generated_pdfs')
+        os.makedirs(save_dir, exist_ok=True) # Creates .../static/generated_pdfs/ if missing
         
         # 2. GENERATE PDF
         ref = f"CP12-{data.get('prop_id')}-{int(datetime.now().timestamp())}"
         filename = f"{ref}.pdf"
-        full_sys_path = os.path.join(save_dir, filename) # static/generated_pdfs/file.pdf
+        full_sys_path = os.path.join(save_dir, filename) # This is now an Absolute Path
         
-        # Fetch details for PDF context
+        # Fetch details
         cur.execute("SELECT p.address_line1, p.postcode, c.name, c.email FROM properties p JOIN clients c ON p.client_id = c.id WHERE p.id = %s", (data.get('prop_id'),))
         p_row = cur.fetchone()
         
@@ -842,10 +844,10 @@ def save_gas_cert():
         
         pdf_context = {'prop': prop_info, 'data': data, 'signature_url': data.get('signature_img'), 'next_year_date': data.get('next_date'), 'today': date.today().strftime('%d/%m/%Y')}
         
-        # GENERATE TO CORRECT PATH
+        # Pass the FULL path. Most PDF generators respect absolute paths and won't prepend their default.
         generate_pdf('office/certs/uk/cp12.html', pdf_context, full_sys_path)
         
-        # 3. SAVE TO DB (Store relative path for link: 'generated_pdfs/file.pdf')
+        # 3. SAVE TO DB (We store the relative path for the browser link)
         db_path = f"generated_pdfs/{filename}" 
 
         cur.execute("""
@@ -853,7 +855,6 @@ def save_gas_cert():
             VALUES (%s, %s, 'Gas Safety', 'Valid', %s, %s, CURRENT_DATE, %s, %s)
         """, (comp_id, data.get('prop_id'), json.dumps(data), session.get('user_name'), data.get('next_date'), db_path))
 
-        # 4. Update Property Expiry
         if data.get('next_date'):
             cur.execute("UPDATE properties SET gas_expiry = %s WHERE id = %s", (data.get('next_date'), data.get('prop_id')))
         
@@ -862,6 +863,8 @@ def save_gas_cert():
 
     except Exception as e:
         conn.rollback()
+        # Print error to logs so you can see it in Render dashboard
+        print(f"PDF ERROR: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
     finally:
         conn.close()
@@ -886,20 +889,17 @@ def save_eicr_cert():
     comp_id = session.get('company_id')
     
     try:
-        # 1. SETUP FOLDER
-        save_dir = os.path.join('static', 'generated_pdfs')
+        # 1. SETUP ABSOLUTE PATH
+        root_path = os.getcwd()
+        save_dir = os.path.join(root_path, 'static', 'generated_pdfs')
         os.makedirs(save_dir, exist_ok=True)
 
-        # 2. GENERATE PDF (Mock generation or Real if template exists)
-        # Note: If you don't have an EICR PDF template yet, we save a placeholder or text file.
-        # Assuming you want to save the JSON data as the "File" for now if PDF gen is missing.
-        
+        # 2. FILE PATHS
         ref = f"EICR-{data.get('prop_id')}-{int(datetime.now().timestamp())}"
         filename = f"{ref}.pdf"
         full_sys_path = os.path.join(save_dir, filename)
         
-        # (Optional) Attempt PDF Generation here if you have 'office/certs/uk/eicr_pdf.html'
-        # For now, we will assume PDF generation is the goal:
+        # Generate (Passing absolute path)
         generate_pdf('office/certs/uk/eicr.html', {'data': data}, full_sys_path)
 
         db_path = f"generated_pdfs/{filename}"
@@ -917,9 +917,11 @@ def save_eicr_cert():
         return jsonify({'success': True, 'message': 'EICR Saved', 'redirect_url': url_for('office.view_property_office', property_id=data.get('prop_id'))})
     except Exception as e:
         conn.rollback()
+        print(f"PDF ERROR: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
     finally:
         conn.close()
+
 # =========================================================
 # 5. QUOTES & JOBS
 # =========================================================
