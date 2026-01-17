@@ -3,7 +3,7 @@ from db import get_db, get_site_config
 from werkzeug.security import check_password_hash, generate_password_hash
 from services.enforcement import check_limit
 from werkzeug.utils import secure_filename
-from datetime import datetime  # <--- Added for date fixing
+from datetime import datetime
 
 portal_bp = Blueprint('portal', __name__)
 
@@ -17,20 +17,32 @@ def get_login_url():
     comp_id = session.get('portal_company_id', 1)
     return url_for('portal.portal_login', company_id=comp_id)
 
-# --- HELPER: FIX DATE STRINGS ---
-# This converts database strings "2025-01-01" into real Date Objects
-def parse_date_obj(d):
-    if isinstance(d, str):
-        try:
-            # Try parsing YYYY-MM-DD
-            return datetime.strptime(d, '%Y-%m-%d')
-        except ValueError:
-            try:
-                # Try parsing with time YYYY-MM-DD HH:MM:SS
-                return datetime.strptime(d, '%Y-%m-%d %H:%M:%S')
-            except ValueError:
-                return d # Return original if we can't fix it
-    return d
+# --- HELPER: SMART DATE FORMATTER ---
+# 1. Parses the DB string into a Date Object
+# 2. Checks Company Country Setting
+# 3. Returns a clean String (e.g. "17/01/2025" or "01/17/2025")
+def format_date_by_country(date_val, comp_id):
+    if not date_val: return "TBC"
+    
+    # 1. Parse DB String -> Date Object
+    dt_obj = None
+    if isinstance(date_val, str):
+        try: dt_obj = datetime.strptime(date_val, '%Y-%m-%d')
+        except: 
+            try: dt_obj = datetime.strptime(date_val, '%Y-%m-%d %H:%M:%S')
+            except: return date_val # Give up, return original string
+    else:
+        dt_obj = date_val
+        
+    # 2. Get Country Setting
+    config = get_site_config(comp_id)
+    country = config.get('country', 'United Kingdom')
+    
+    # 3. Format based on Country
+    if country == 'United States':
+        return dt_obj.strftime('%m/%d/%Y') # US: MM/DD/YYYY
+    else:
+        return dt_obj.strftime('%d/%m/%Y') # UK/ROW: DD/MM/YYYY
 
 # --- 1. LOGIN PAGE ---
 @portal_bp.route('/portal/login/<int:company_id>', methods=['GET'])
@@ -82,7 +94,7 @@ def portal_home():
     res = cur.fetchone()
     client_name = res[0] if res else "Client"
 
-    # 2. UPCOMING WORK (With Date Fix)
+    # 2. UPCOMING WORK (Formatted)
     cur.execute("""
         SELECT j.id, j.ref, j.description, j.start_date, j.status, p.address_line1
         FROM jobs j
@@ -95,10 +107,10 @@ def portal_home():
     raw_jobs = cur.fetchall()
     active_jobs = []
     
-    # Process the dates manually to prevent crashes
     for j in raw_jobs:
-        job = list(j) # Convert tuple to list to allow editing
-        job[3] = parse_date_obj(job[3]) # Fix Start Date
+        job = list(j)
+        # Apply Country Formatting HERE
+        job[3] = format_date_by_country(job[3], comp_id)
         active_jobs.append(job)
     
     # 3. Open Quotes Count
@@ -114,7 +126,7 @@ def portal_home():
     """, (client_id,))
     properties = cur.fetchall()
 
-    # 5. Recent Requests (With Date Fix)
+    # 5. Recent Requests (Formatted)
     cur.execute("""
         SELECT sr.id, p.address_line1, sr.issue_description, sr.status, sr.created_at, sr.severity
         FROM service_requests sr
@@ -127,7 +139,8 @@ def portal_home():
     recent_requests = []
     for r in raw_requests:
         req = list(r)
-        req[4] = parse_date_obj(req[4]) # Fix Created At Date
+        # Format Date
+        req[4] = format_date_by_country(req[4], comp_id)
         recent_requests.append(req)
     
     conn.close()
@@ -142,7 +155,7 @@ def portal_home():
                          brand_color=config.get('color'),
                          logo_url=config.get('logo'))
 
-# --- 4. VIEW JOB (Photos Only - No Finance) ---
+# --- 4. VIEW JOB (Photos Only) ---
 @portal_bp.route('/portal/job/<int:job_id>')
 def portal_job_view(job_id):
     if not check_portal_access(): return redirect(get_login_url())
@@ -153,7 +166,6 @@ def portal_job_view(job_id):
     
     conn = get_db(); cur = conn.cursor()
     
-    # 1. Fetch Job details with Date Fix
     cur.execute("""
         SELECT j.id, j.ref, j.status, j.description, j.start_date, j.end_date, 
                p.address_line1, p.postcode
@@ -166,12 +178,12 @@ def portal_job_view(job_id):
     if not job_row:
         conn.close(); return "Job not found or access denied", 404
 
-    # Convert dates safely
+    # Apply Formatting
     job = list(job_row)
-    job[4] = parse_date_obj(job[4]) # Start Date
-    job[5] = parse_date_obj(job[5]) # End Date
+    job[4] = format_date_by_country(job[4], comp_id) # Start
+    job[5] = format_date_by_country(job[5], comp_id) # End
 
-    # 2. Fetch PHOTOS ONLY (With Date Fix)
+    # Photos (Formatted)
     cur.execute("""
         SELECT filepath, uploaded_at 
         FROM job_evidence 
@@ -183,7 +195,10 @@ def portal_job_view(job_id):
     photos = []
     for p in raw_photos:
         photo = list(p)
-        photo[1] = parse_date_obj(photo[1]) # Upload Date
+        # Format Upload Date (include time manually if needed, or just date)
+        # For photos, date is usually enough, or DD/MM/YYYY HH:MM
+        # We'll use the country formatter for consistency
+        photo[1] = format_date_by_country(photo[1], comp_id)
         photos.append(photo)
     
     conn.close()
@@ -209,7 +224,15 @@ def portal_quotes():
         SELECT id, reference, date, total, status 
         FROM quotes WHERE client_id = %s ORDER BY date DESC
     """, (client_id,))
-    quotes = cur.fetchall()
+    
+    # Format Quote Dates
+    raw_quotes = cur.fetchall()
+    quotes = []
+    for q in raw_quotes:
+        qt = list(q)
+        qt[2] = format_date_by_country(qt[2], comp_id)
+        quotes.append(qt)
+        
     conn.close()
     
     return render_template('portal/portal_quotes.html',
@@ -228,9 +251,12 @@ def quote_detail(quote_id):
     
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT id, reference, date, total, status FROM quotes WHERE id = %s AND client_id = %s", (quote_id, client_id))
-    quote = cur.fetchone()
     
-    if not quote: conn.close(); return "Quote not found", 404
+    raw_quote = cur.fetchone()
+    if not raw_quote: conn.close(); return "Quote not found", 404
+    
+    quote = list(raw_quote)
+    quote[2] = format_date_by_country(quote[2], comp_id) # Format Date
 
     try:
         cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
@@ -256,7 +282,6 @@ def quote_action(quote_id, action):
     
     conn = get_db(); cur = conn.cursor()
     try:
-        # Security: Ensure Quote belongs to Client
         cur.execute("UPDATE quotes SET status = %s WHERE id = %s AND client_id = %s", (new_status, quote_id, client_id))
         conn.commit()
         
@@ -306,14 +331,19 @@ def property_detail(property_id):
     
     conn = get_db(); cur = conn.cursor()
     
-    # Verify Access
     cur.execute("SELECT id, address_line1, postcode, type, tenant_name, tenant_phone, key_code FROM properties WHERE id = %s AND client_id = %s", (property_id, client_id))
     prop = cur.fetchone()
     if not prop: conn.close(); return redirect('/portal/home')
 
-    # Fetch History
     cur.execute("SELECT id, ref, status, description, start_date FROM jobs WHERE property_id = %s ORDER BY start_date DESC", (property_id,))
-    job_history = cur.fetchall()
+    raw_history = cur.fetchall()
+    
+    job_history = []
+    for h in raw_history:
+        job = list(h)
+        job[4] = format_date_by_country(job[4], comp_id) # Format Date
+        job_history.append(job)
+        
     conn.close()
     
     return render_template('portal/portal_property_view.html',
@@ -355,12 +385,10 @@ def request_detail(request_id):
     """, (request_id, client_id))
     
     raw_req = cur.fetchone()
-    
     if raw_req:
         req = list(raw_req)
-        req[3] = parse_date_obj(req[3]) # Fix Created At Date
-    else:
-        req = None
+        req[3] = format_date_by_country(req[3], comp_id) # Format Created Date
+    else: req = None
     
     completion = None
     if req and req[2] == 'Completed':
@@ -369,15 +397,15 @@ def request_detail(request_id):
             FROM jobs j LEFT JOIN users u ON j.engineer_id = u.id 
             WHERE j.property_id = %s AND j.status = 'Completed' ORDER BY j.end_date DESC LIMIT 1
         """, (req[7],))
-        raw_completion = cur.fetchone()
-        if raw_completion:
-            completion = list(raw_completion)
-            completion[1] = parse_date_obj(completion[1]) # Fix Completion Date
+        raw_comp = cur.fetchone()
+        if raw_comp:
+            completion = list(raw_comp)
+            completion[1] = format_date_by_country(completion[1], comp_id) # Format Completion Date
     
     conn.close()
     return render_template('portal/portal_request_view.html', req=req, completion=completion, company_name=config.get('name'), brand_color=config.get('color'), logo_url=config.get('logo'))
 
-# --- 9. INVOICES & PROFILE ---
+# --- 9. INVOICES (Already formatted by DB usually, but consistent here) ---
 @portal_bp.route('/portal/invoices')
 def portal_invoices():
     if not check_portal_access(): return redirect(get_login_url())
@@ -387,7 +415,14 @@ def portal_invoices():
     
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT id, reference, date, total, status FROM invoices WHERE client_id = %s ORDER BY date DESC", (client_id,))
-    invoices = cur.fetchall()
+    
+    raw_inv = cur.fetchall()
+    invoices = []
+    for i in raw_inv:
+        inv = list(i)
+        inv[2] = format_date_by_country(inv[2], comp_id)
+        invoices.append(inv)
+        
     conn.close()
     
     return render_template('portal/portal_invoices.html', client_name=session.get('portal_client_name'), company_name=config.get('name'), logo_url=config.get('logo'), brand_color=config.get('color'), invoices=invoices)
@@ -414,7 +449,6 @@ def portal_profile():
     conn.close()
     return render_template('portal/portal_profile.html', client=client, company_name=config.get('name'), brand_color=config.get('color'), logo_url=config.get('logo'))
 
-# --- 10. LOGOUT ---
 @portal_bp.route('/portal/logout')
 def portal_logout():
     comp_id = session.get('portal_company_id', 1)

@@ -33,7 +33,7 @@
                     <tr>
                         <td class="ps-4 fw-bold text-dark">
                             {% if job[3] %}
-                                {{ job[3].strftime('%d %b %Y') }}
+                                {{ job[3] }}
                             {% else %}
                                 <span class="text-muted fst-italic">Pending Date</span>
                             {% endif %}
@@ -88,7 +88,7 @@
                         <tbody>
                             {% for r in recent_requests %}
                             <tr>
-                                <td class="ps-4 small text-muted">{{ r[4].strftime('%d/%m') }}</td>
+                                <td class="ps-4 small text-muted">{{ r[4] }}</td>
                                 <td class="fw-bold">{{ r[1] }}</td>
                                 <td class="text-muted small text-truncate" style="max-width: 150px;">{{ r[2] }}</td>
                                 <td class="text-end pe-4">
