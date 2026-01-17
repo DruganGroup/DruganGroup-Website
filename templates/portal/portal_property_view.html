@@ -5,24 +5,46 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2 class="fw-bold m-0">{{ prop[1] }}</h2> <p class="text-muted mb-0">{{ prop[2] }}</p> </div>
-    <a href="/portal/home" class="btn btn-outline-secondary btn-sm">
-        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
-    </a>
+        <h2 class="fw-bold m-0">{{ prop[1] }}</h2>
+        <p class="text-muted mb-0">{{ prop[2] }}</p>
+    </div>
+    <div class="d-flex gap-2">
+        <form action="/portal/property/archive/{{ prop[0] }}" method="POST" onsubmit="return confirm('Archive this property? It will be hidden from your dashboard but history is kept.');">
+            <button class="btn btn-outline-secondary btn-sm fw-bold">
+                <i class="fas fa-archive me-1"></i> Archive
+            </button>
+        </form>
+        <a href="/portal/home" class="btn btn-outline-secondary btn-sm fw-bold">
+            <i class="fas fa-arrow-left me-1"></i> Back
+        </a>
+    </div>
 </div>
+
+{% if compliance %}
+<div class="row g-3 mb-4">
+    {% for type, data in compliance.items() %}
+    <div class="col-6 col-md-3">
+        <div class="card h-100 border-0 shadow-sm border-start border-4 border-{{ data.class }}">
+            <div class="card-body py-3">
+                <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">{{ type }}</small>
+                <div class="d-flex justify-content-between align-items-end mt-1">
+                    <h6 class="fw-bold m-0">{{ data.date }}</h6>
+                    <span class="badge bg-{{ data.class }} text-white" style="font-size: 0.65rem;">{{ data.label }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
 
 <div class="row g-4">
     <div class="col-lg-4">
-        
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-white fw-bold py-3">
                 <i class="fas fa-home me-2 text-brand"></i>Property Details
             </div>
             <div class="card-body">
-                <div class="mb-3">
-                    <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.7rem;">Type</small>
-                    <span class="fw-bold">{{ prop[3] }}</span>
-                </div>
                 <div class="mb-3">
                     <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.7rem;">Tenant Name</small>
                     <span class="fw-bold">{{ prop[4] or 'N/A' }}</span>
@@ -45,12 +67,10 @@
             <div class="card-body">
                 <form action="/portal/request/submit" method="POST">
                     <input type="hidden" name="property_id" value="{{ prop[0] }}">
-                    
                     <div class="mb-3">
                         <label class="small fw-bold mb-1">Issue Description</label>
-                        <textarea name="description" class="form-control" rows="3" placeholder="e.g. Boiler is leaking water..." required></textarea>
+                        <textarea name="description" class="form-control" rows="3" placeholder="Describe the fault..." required></textarea>
                     </div>
-                    
                     <div class="mb-3">
                         <label class="small fw-bold mb-1">Urgency</label>
                         <select name="severity" class="form-select">
@@ -59,7 +79,6 @@
                             <option value="High">High - Urgent</option>
                         </select>
                     </div>
-                    
                     <button class="btn btn-danger w-100 fw-bold">Submit Request</button>
                 </form>
             </div>
@@ -84,18 +103,15 @@
                     <tbody>
                         {% for job in job_history %}
                         <tr>
-                            <td class="ps-4 fw-bold">{{ job[4] }}</td> <td>
+                            <td class="ps-4 fw-bold">{{ job[4] }}</td>
+                            <td>
                                 <div class="fw-bold text-dark">{{ job[1] }}</div>
                                 <small class="text-muted">{{ job[3] }}</small>
                             </td>
                             <td>
-                                {% if job[2] == 'Completed' %}
-                                    <span class="badge bg-success">Completed</span>
-                                {% elif job[2] == 'In Progress' %}
-                                    <span class="badge bg-primary">Active</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">{{ job[2] }}</span>
-                                {% endif %}
+                                {% if job[2] == 'Completed' %} <span class="badge bg-success">Completed</span>
+                                {% elif job[2] == 'In Progress' %} <span class="badge bg-primary">Active</span>
+                                {% else %} <span class="badge bg-secondary">{{ job[2] }}</span> {% endif %}
                             </td>
                             <td class="text-end pe-4">
                                 <a href="/portal/job/{{ job[0] }}" class="btn btn-sm btn-outline-secondary">View</a>
@@ -105,7 +121,7 @@
                         <tr>
                             <td colspan="4" class="text-center py-5 text-muted">
                                 <i class="fas fa-clipboard-check fa-2x mb-3 opacity-25"></i>
-                                <p class="mb-0">No jobs recorded for this property yet.</p>
+                                <p class="mb-0">No history found.</p>
                             </td>
                         </tr>
                         {% endfor %}
