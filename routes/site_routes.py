@@ -660,8 +660,6 @@ def setup_site_db():
         return f"<h1>Error</h1><p>{e}</p>"
     finally:
         conn.close()
-        
-# UPDATE THIS FUNCTION IN routes/site_routes.py
 
 @site_bp.route('/site/job/<int:job_id>/toggle-site-time', methods=['POST'])
 def toggle_site_time(job_id):
@@ -688,12 +686,11 @@ def toggle_site_time(job_id):
                 flash(f"✅ Clocked IN: {staff_name}", "success")
 
         elif action == 'stop':
-            # Clock out ONLY this person (Using CURRENT_TIMESTAMP for math)
-            # We calculate hours by subtracting the stored timestamp from NOW
+            # FIX IS HERE: Changed 'hours' to 'total_hours'
             cur.execute("""
                 UPDATE staff_timesheets 
                 SET clock_out = CURRENT_TIMESTAMP, 
-                    hours = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - clock_in))/3600 
+                    total_hours = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - clock_in))/3600 
                 WHERE staff_id = %s AND job_id = %s AND clock_out IS NULL
             """, (staff_id, job_id))
             flash(f"🛑 Clocked OUT: {staff_name}", "success")
@@ -705,7 +702,7 @@ def toggle_site_time(job_id):
     finally:
         conn.close()
         
-    return redirect(url_for('site.job_details', job_id=job_id))
+    return redirect(url_for('site.job_details', job_id=job_id))        
 
 @site_bp.route('/site/job/<int:job_id>')
 def job_details(job_id):
