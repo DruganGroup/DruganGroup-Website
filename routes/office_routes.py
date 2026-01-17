@@ -912,24 +912,51 @@ def delete_quote(quote_id):
     finally: conn.close()
     return redirect('/office-hub')
 
-@office_bp.route('/office/job/create', methods=['GET', 'POST'])
+@office_bp.route('/office/job/create')
 def create_job():
     if not check_office_access(): return redirect(url_for('auth.login'))
-    conn = get_db(); cur = conn.cursor()
-    comp_id = session.get('company_id')
-    if request.method == 'GET':
-        cur.execute("SELECT id, name FROM clients WHERE company_id = %s ORDER BY name", (comp_id,))
-        clients = cur.fetchall()
-        cur.execute("SELECT id, name FROM users WHERE company_id = %s AND role != 'Office'", (comp_id,))
-        engineers = cur.fetchall()
-        cur.execute("SELECT id, registration FROM vehicles WHERE company_id = %s", (comp_id,))
-        vehicles = cur.fetchall()
-        conn.close()
-        return render_template('office/job_create.html', clients=clients, engineers=engineers, vehicles=vehicles,
-                             pre_client=request.args.get('client_id'), pre_prop=request.args.get('property_id'), pre_desc=request.args.get('description', ''))
-    conn.close()
-    return "Job Create Logic Post"
+    
+    # 1. Get IDs safely
+    client_id = request.args.get('client_id')
+    property_id = request.args.get('property_id')
+    
+    if not client_id or not property_id:
+        flash("Missing Client or Property ID", "danger")
+        return redirect(url_for('office.dashboard'))
 
+    conn = get_db()
+    cur = conn.cursor()
+
+    # 2. Fetch Client (Standard Tuple)
+    cur.execute("SELECT id, name, email, phone FROM clients WHERE id = %s", (client_id,))
+    client = cur.fetchone()
+
+    # 3. Fetch Property (Standard Tuple)
+    cur.execute("SELECT id, address_line1, postcode FROM properties WHERE id = %s", (property_id,))
+    prop = cur.fetchone()
+
+    # 4. Fetch Vehicles (CRITICAL FIX: SELECT * to capture data without guessing column names)
+    # This ensures we get the data needed for pricing/gangs without crashing on "column not found"
+    cur.execute("SELECT * FROM vehicles WHERE status = 'Active' OR status IS NULL")
+    vehicles = cur.fetchall()
+
+    conn.close()
+
+    if not client or not prop:
+        flash("Client or Property not found", "danger")
+        return redirect(url_for('office.dashboard'))
+
+    # 5. Prepare Data safely for the template
+    # We map these manually to ensure the Hybrid HTML works
+    client_data = {'id': client[0], 'name': client[1], 'email': client[2]}
+    prop_data = {'id': prop[0], 'address_line1': prop[1], 'postcode': prop[2]}
+
+    # Pass 'vehicles' through to the template so your pricing logic can use it
+    return render_template('office/job/create_job.html', 
+                           client=client_data, 
+                           property=prop_data, 
+                           vehicles=vehicles)
+                           
 @office_bp.route('/office/upload-center', methods=['POST'])
 def universal_upload():
     if not check_office_access(): return jsonify({'error': 'Unauthorized'}), 403
