@@ -824,17 +824,11 @@ def save_gas_cert():
     comp_id = session.get('company_id')
     
     try:
-        # 1. SETUP ABSOLUTE PATH (The Fix)
-        # This gets the root folder of your project on the server
-        root_path = os.getcwd() 
-        save_dir = os.path.join(root_path, 'static', 'generated_pdfs')
-        os.makedirs(save_dir, exist_ok=True) # Creates .../static/generated_pdfs/ if missing
-        
-        # 2. GENERATE PDF
+        # 1. SETUP FILENAME (Let the system decide the folder)
         ref = f"CP12-{data.get('prop_id')}-{int(datetime.now().timestamp())}"
         filename = f"{ref}.pdf"
-        full_sys_path = os.path.join(save_dir, filename) # This is now an Absolute Path
         
+        # 2. GENERATE PDF
         # Fetch details
         cur.execute("SELECT p.address_line1, p.postcode, c.name, c.email FROM properties p JOIN clients c ON p.client_id = c.id WHERE p.id = %s", (data.get('prop_id'),))
         p_row = cur.fetchone()
@@ -844,11 +838,12 @@ def save_gas_cert():
         
         pdf_context = {'prop': prop_info, 'data': data, 'signature_url': data.get('signature_img'), 'next_year_date': data.get('next_date'), 'today': date.today().strftime('%d/%m/%Y')}
         
-        # Pass the FULL path. Most PDF generators respect absolute paths and won't prepend their default.
-        generate_pdf('office/certs/uk/cp12.html', pdf_context, full_sys_path)
+        # FIX: Pass ONLY the filename. The generator will put it in static/uploads/documents/
+        generate_pdf('office/certs/uk/cp12.html', pdf_context, filename)
         
-        # 3. SAVE TO DB (We store the relative path for the browser link)
-        db_path = f"generated_pdfs/{filename}" 
+        # 3. SAVE TO DB
+        # FIX: The link must point to where the generator puts it by default
+        db_path = f"uploads/documents/{filename}" 
 
         cur.execute("""
             INSERT INTO certificates (company_id, property_id, type, status, data, engineer_name, date_issued, expiry_date, pdf_path)
@@ -863,7 +858,6 @@ def save_gas_cert():
 
     except Exception as e:
         conn.rollback()
-        # Print error to logs so you can see it in Render dashboard
         print(f"PDF ERROR: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
     finally:
@@ -889,22 +883,16 @@ def save_eicr_cert():
     comp_id = session.get('company_id')
     
     try:
-        # 1. SETUP ABSOLUTE PATH
-        root_path = os.getcwd()
-        save_dir = os.path.join(root_path, 'static', 'generated_pdfs')
-        os.makedirs(save_dir, exist_ok=True)
-
-        # 2. FILE PATHS
+        # 1. SETUP FILENAME
         ref = f"EICR-{data.get('prop_id')}-{int(datetime.now().timestamp())}"
         filename = f"{ref}.pdf"
-        full_sys_path = os.path.join(save_dir, filename)
         
-        # Generate (Passing absolute path)
-        generate_pdf('office/certs/uk/eicr.html', {'data': data}, full_sys_path)
+        # 2. GENERATE (Pass only filename)
+        generate_pdf('office/certs/uk/eicr.html', {'data': data}, filename)
 
-        db_path = f"generated_pdfs/{filename}"
+        # 3. SAVE TO DB (Point to default folder)
+        db_path = f"uploads/documents/{filename}"
 
-        # 3. SAVE TO DB
         cur.execute("""
             INSERT INTO certificates (company_id, property_id, type, status, data, engineer_name, date_issued, expiry_date, pdf_path)
             VALUES (%s, %s, 'EICR', %s, %s, %s, CURRENT_DATE, %s, %s)
