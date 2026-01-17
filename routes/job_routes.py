@@ -219,8 +219,8 @@ def log_hours(job_id):
     return redirect(f"/office/job/{job_id}/files")
     
 # --- CREATE MANUAL JOB ---
-@jobs_bp.route('/office/job/create', methods=['POST'])
-def create_job():
+@jobs_bp.route('/office/job/save', methods=['POST'])
+def save_job_action():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
     
     conn = get_db()

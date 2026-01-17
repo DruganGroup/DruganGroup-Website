@@ -1134,3 +1134,45 @@ def save_rams(job_id):
         return redirect(f"/office/job/{job_id}/rams/create")
     finally:
         conn.close()
+        
+@office_bp.route('/office/job/create')
+def create_job_view():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    # 1. Get IDs safely
+    client_id = request.args.get('client_id')
+    property_id = request.args.get('property_id')
+    
+    if not client_id or not property_id:
+        flash("Missing Client or Property ID", "danger")
+        return redirect(url_for('office.dashboard'))
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    # 2. Fetch Client
+    cur.execute("SELECT id, name, email, phone FROM clients WHERE id = %s", (client_id,))
+    client = cur.fetchone()
+
+    # 3. Fetch Property
+    cur.execute("SELECT id, address_line1, postcode FROM properties WHERE id = %s", (property_id,))
+    prop = cur.fetchone()
+
+    # 4. Fetch Vehicles
+    cur.execute("SELECT * FROM vehicles WHERE status = 'Active' OR status IS NULL")
+    vehicles = cur.fetchall()
+
+    conn.close()
+
+    if not client or not prop:
+        flash("Client or Property not found", "danger")
+        return redirect(url_for('office.dashboard'))
+
+    # 5. Prepare Data
+    client_data = {'id': client[0], 'name': client[1], 'email': client[2]}
+    prop_data = {'id': prop[0], 'address_line1': prop[1], 'postcode': prop[2]}
+
+    return render_template('office/job/create_job.html', 
+                           client=client_data, 
+                           property=prop_data, 
+                           vehicles=vehicles)
