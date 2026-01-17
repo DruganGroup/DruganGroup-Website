@@ -218,7 +218,6 @@ def log_hours(job_id):
         
     return redirect(f"/office/job/{job_id}/files")
     
-# --- CREATE MANUAL JOB ---
 @jobs_bp.route('/office/job/save', methods=['POST'])
 def save_job_action():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -228,19 +227,35 @@ def save_job_action():
     comp_id = session.get('company_id')
     
     try:
+        # 1. Capture Form Data
         client_id = request.form.get('client_id')
         description = request.form.get('description')
-        engineer_id = request.form.get('engineer_id') or None
-        start_date = request.form.get('start_date') or date.today()
+        property_id = request.form.get('property_id') or None
         vehicle_id = request.form.get('vehicle_id') or None
         est_days = request.form.get('days') or 1
         
-        property_id = request.form.get('property_id') or None
+        # FIX 1: DATE LOGIC
+        # If the form is empty, we force it to None (NULL). 
+        # This ensures it lands in "Unscheduled Jobs" instead of "Today".
+        start_date = request.form.get('start_date') or None 
 
+        # FIX 2: DRIVER LOOKUP
+        # We have the Van ID, but the Site App needs the Engineer ID.
+        # We query the vehicle registry to find the assigned driver.
+        engineer_id = None
+        if vehicle_id:
+            cur.execute("SELECT assigned_driver_id FROM vehicles WHERE id = %s", (vehicle_id,))
+            row = cur.fetchone()
+            if row and row[0]:
+                engineer_id = row[0]  # Found him!
+
+        # 3. Generate Reference
         cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id = %s", (comp_id,))
         count = cur.fetchone()[0]
         ref = f"JOB-{1000 + count + 1}"
 
+        # 4. Insert the Job
+        # We explicitly save the 'engineer_id' we just found.
         cur.execute("""
             INSERT INTO jobs (
                 company_id, client_id, property_id, engineer_id, vehicle_id, 
@@ -259,6 +274,6 @@ def save_job_action():
     except Exception as e:
         conn.rollback()
         flash(f"Error creating job: {e}", "error")
-        return redirect(request.referrer or '/clients')
+        return redirect(request.referrer or '/office-hub')
     finally:
         conn.close()
