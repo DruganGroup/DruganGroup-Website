@@ -960,3 +960,146 @@ def upgrade_certs_db():
         return "✅ SUCCESS"
     except Exception as e: conn.rollback(); return f"Error: {e}"
     finally: conn.close()
+    
+    # =========================================================
+# 6. RAMS & COMPLIANCE (Auto-Gen & Setup)
+# =========================================================
+
+# --- 🛠️ STEP 1: RUN THIS URL ONCE TO CREATE THE TABLE ---
+# Visit: https://your-app-url.com/office/setup/rams-db
+@office_bp.route('/office/setup/rams-db')
+def setup_rams_db():
+    if not check_office_access(): return "Unauthorized", 403
+    
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS job_rams (
+                id SERIAL PRIMARY KEY,
+                job_id INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
+                company_id INTEGER,
+                hazards JSONB,
+                ppe JSONB,
+                method_statement TEXT,
+                risk_level VARCHAR(20),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                pdf_path TEXT
+            );
+        """)
+        conn.commit()
+        return "✅ RAMS Database Table Created Successfully! You can now generate RAMS."
+    except Exception as e:
+        conn.rollback()
+        return f"❌ Error creating table: {e}"
+    finally:
+        conn.close()
+
+# --- RAMS CREATION ROUTE ---
+@office_bp.route('/office/job/<int:job_id>/rams/create')
+def create_rams(job_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    # Fetch Job Details
+    cur.execute("""
+        SELECT j.description, j.ref, c.name, p.address_line1 
+        FROM jobs j
+        JOIN clients c ON j.client_id = c.id
+        LEFT JOIN properties p ON j.property_id = p.id
+        WHERE j.id = %s
+    """, (job_id,))
+    job = cur.fetchone()
+    conn.close()
+
+    if not job: return "Job not found", 404
+
+    desc = job[0].lower() if job[0] else ""
+    
+    # --- SMART AUTO-GEN LOGIC ---
+    detected_hazards = ['Slips, Trips & Falls'] 
+    detected_ppe = ['Safety Boots', 'Hi-Vis Vest']
+
+    if any(x in desc for x in ['roof', 'gutter', 'ladder', 'height', 'ceiling']):
+        detected_hazards.append('Working at Height')
+        detected_ppe.append('Hard Hat')
+        
+    if any(x in desc for x in ['wire', 'socket', 'fuse', 'electric', 'light']):
+        detected_hazards.append('Electricity')
+        detected_ppe.append('Insulated Gloves')
+        
+    if any(x in desc for x in ['drill', 'hammer', 'break', 'demolish']):
+        detected_hazards.append('Dust & Fumes')
+        detected_hazards.append('Noise')
+        detected_ppe.extend(['Dust Mask', 'Ear Defenders'])
+        
+    if any(x in desc for x in ['pipe', 'leak', 'water', 'plumb']):
+        detected_hazards.append('Water Pressure')
+
+    default_method = (
+        f"1. Arrive at site ({job[3]}) and report to client ({job[2]}).\n"
+        "2. Cordon off work area and display warning signs.\n"
+        "3. Inspect tools and equipment before use.\n"
+        f"4. Carry out works: {job[0]}.\n"
+        "5. Clean up area, remove waste, and handover to client."
+    )
+
+    context = {
+        'job_id': job_id,
+        'ref': job[1],
+        'client': job[2],
+        'address': job[3],
+        'hazards': detected_hazards,
+        'ppe': list(set(detected_ppe)),
+        'method': default_method
+    }
+
+    return render_template('office/rams/create_rams.html', data=context)
+
+# --- SAVE RAMS ROUTE ---
+@office_bp.route('/office/job/<int:job_id>/rams/save', methods=['POST'])
+def save_rams(job_id):
+    if not check_office_access(): return jsonify({'error': 'Unauthorized'}), 403
+    
+    data = request.form
+    hazards = request.form.getlist('hazards')
+    ppe = request.form.getlist('ppe')
+    method = data.get('method_statement')
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    try:
+        # Generate PDF Name
+        pdf_filename = f"RAMS_{data['ref']}_{int(datetime.now().timestamp())}.pdf"
+        
+        pdf_context = {
+            'ref': data['ref'],
+            'date': date.today().strftime('%d/%m/%Y'),
+            'client': data['client'],
+            'address': data['address'],
+            'hazards': hazards,
+            'ppe': ppe,
+            'method': method,
+            'assessor': session.get('user_name', 'Office Admin')
+        }
+        
+        # Ensure you have the PDF template file ready
+        generate_pdf('office/rams/rams_pdf_template.html', pdf_context, pdf_filename)
+        
+        # Save to DB
+        cur.execute("""
+            INSERT INTO job_rams (job_id, company_id, hazards, ppe, method_statement, pdf_path)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (job_id, session['company_id'], json.dumps(hazards), json.dumps(ppe), method, f"generated_pdfs/{pdf_filename}"))
+        
+        conn.commit()
+        flash("✅ RAMS Generated & Saved", "success")
+        return redirect(f"/office/job/{job_id}/files")
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error generating RAMS: {e}", "error")
+        return redirect(f"/office/job/{job_id}/rams/create")
+    finally:
+        conn.close()
