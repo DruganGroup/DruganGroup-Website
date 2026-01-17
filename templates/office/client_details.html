@@ -43,14 +43,16 @@
         </button>
     </div>
 
-    <div class="row g-3">
-        <div class="row g-4 mt-2">
+    <div class="row g-4 mt-2">
     {% for prop in properties %}
     <div class="col-lg-6">
-        <div class="card h-100 shadow-sm border-0">
+        <div class="card h-100 shadow-sm border-0 hover-shadow transition">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-start">
                 <div>
-                    <h5 class="fw-bold m-0 text-dark">{{ prop[1] }}</h5> <span class="text-muted small"><i class="fas fa-map-marker-alt me-1"></i>{{ prop[2] }}</span>
+                    <a href="/office/property/{{ prop[0] }}" class="text-decoration-none">
+                        <h5 class="fw-bold m-0 text-dark">{{ prop[1] }}</h5> 
+                    </a>
+                    <span class="text-muted small"><i class="fas fa-map-marker-alt me-1"></i>{{ prop[2] }}</span>
                 </div>
                 
                 <div class="dropdown">
@@ -58,19 +60,19 @@
                         Manage
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow">
-                        <li><h6 class="dropdown-header">Book Compliance Job</h6></li>
-                        <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ prop[0] }}&description=Gas Safety Check"><i class="fas fa-burn text-warning me-2"></i>Book Gas Safety (CP12)</a></li>
-                        <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ prop[0] }}&description=EICR Inspection"><i class="fas fa-bolt text-warning me-2"></i>Book EICR</a></li>
-                        <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ prop[0] }}&description=PAT Testing"><i class="fas fa-plug text-warning me-2"></i>Book PAT Test</a></li>
+                        <li><h6 class="dropdown-header">Actions</h6></li>
+                        <li><a class="dropdown-item" href="/office/property/{{ prop[0] }}"><i class="fas fa-eye me-2 text-secondary"></i>View History</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item fw-bold text-primary" href="#" data-bs-toggle="modal" data-bs-target="#editPropModal{{ prop[0] }}">
-                            <i class="fas fa-edit me-2"></i>Edit Details & Dates
-                        </a></li>
+                        <li><h6 class="dropdown-header">Book Compliance</h6></li>
+                        <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ prop[0] }}&description=Gas Safety Check"><i class="fas fa-burn text-warning me-2"></i>Book Gas Safety</a></li>
+                        <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ prop[0] }}&description=EICR Inspection"><i class="fas fa-bolt text-warning me-2"></i>Book EICR</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-primary fw-bold" href="#" data-bs-toggle="modal" data-bs-target="#editPropModal{{ prop[0] }}"><i class="fas fa-edit me-2"></i>Edit Dates</a></li>
                     </ul>
                 </div>
             </div>
 
-            <div class="card-body">
+            <div class="card-body position-relative">
                 <div class="d-flex align-items-center mb-3 p-2 rounded bg-light">
                     <div class="me-3 text-secondary"><i class="fas fa-user-circle fa-2x"></i></div>
                     <div>
@@ -78,10 +80,7 @@
                         <div class="fw-bold text-dark">{{ prop[4] or 'Vacant' }}</div>
                     </div>
                     <div class="ms-auto text-end">
-                        {% if prop[5] %}
-                        <a href="tel:{{ prop[5] }}" class="btn btn-sm btn-outline-success"><i class="fas fa-phone"></i></a>
-                        {% endif %}
-                        <span class="badge bg-secondary ms-1">{{ prop[6] or 'No Key Code' }}</span>
+                        <span class="badge bg-secondary ms-1">{{ prop[6] or 'No Code' }}</span>
                     </div>
                 </div>
 
@@ -90,36 +89,34 @@
                     {% macro compliance_badge(label, date_val) %}
                         {% set status = 'Missing' %}
                         {% set color = 'secondary' %}
-                        {% set date_str = '-' %}
+                        {% set dstr = '-' %}
                         
                         {% if date_val %}
-                            {% set days_left = (date_val - current_date).days %}
-                            {% set date_str = date_val.strftime('%d/%m/%y') %}
-                            
-                            {% if days_left < 0 %}
-                                {% set status = 'EXPIRED' %}
-                                {% set color = 'danger' %}
-                            {% elif days_left < 30 %}
-                                {% set status = 'Expiring' %}
-                                {% set color = 'warning text-dark' %}
+                            {% set days = (date_val - current_date).days %}
+                            {% set dstr = date_val.strftime('%d/%m/%y') %}
+                            {% if days < 0 %}
+                                {% set status = 'EXPIRED' %}{% set color = 'danger' %}
+                            {% elif days < 30 %}
+                                {% set status = 'Expiring' %}{% set color = 'warning text-dark' %}
                             {% else %}
-                                {% set status = 'Valid' %}
-                                {% set color = 'success' %}
+                                {% set status = 'Valid' %}{% set color = 'success' %}
                             {% endif %}
                         {% endif %}
 
                         <div class="col-4">
-                            <div class="border rounded p-2 text-center h-100 bg-white border-bottom border-4 border-{{ color }}">
-                                <div class="small fw-bold text-muted mb-1" style="font-size: 0.7rem;">{{ label }}</div>
-                                <span class="badge bg-{{ color }} w-100 mb-1" style="font-size: 0.65rem;">{{ status }}</span>
-                                <div class="small fw-bold text-dark" style="font-size: 0.7rem;">{{ date_str }}</div>
-                            </div>
+                            <a href="/office/property/{{ prop[0] }}" class="text-decoration-none">
+                                <div class="border rounded p-2 text-center h-100 bg-white border-bottom border-4 border-{{ color }}">
+                                    <div class="small fw-bold text-muted mb-1" style="font-size: 0.7rem;">{{ label }}</div>
+                                    <span class="badge bg-{{ color }} w-100 mb-1" style="font-size: 0.65rem;">{{ status }}</span>
+                                    <div class="small fw-bold text-dark" style="font-size: 0.7rem;">{{ dstr }}</div>
+                                </div>
+                            </a>
                         </div>
                     {% endmacro %}
 
-                    {{ compliance_badge('GAS (CP12)', prop[7]) }}   
-                    {{ compliance_badge('EICR', prop[8]) }}  
-                    {{ compliance_badge('PAT', prop[9]) }}   
+                    {{ compliance_badge('GAS', prop[7]) }}
+                    {{ compliance_badge('EICR', prop[8]) }}
+                    {{ compliance_badge('PAT', prop[9]) }}
                 </div>
             </div>
         </div>
@@ -128,59 +125,62 @@
     <div class="modal fade" id="editPropModal{{ prop[0] }}" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fw-bold">Edit Property</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
                 <form action="/office/property/update" method="POST">
+                    <div class="modal-header bg-dark text-white"><h5 class="modal-title fw-bold">Edit Property</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
                     <div class="modal-body">
-                        <input type="hidden" name="property_id" value="{{ prop[0] }}">
-                        <input type="hidden" name="client_id" value="{{ client.id }}">
-
-                        <h6 class="fw-bold text-primary mb-3">Location & Access</h6>
-                        <div class="mb-2">
-                            <label class="small fw-bold">Address</label>
-                            <input type="text" name="address" class="form-control" value="{{ prop[1] }}" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="small fw-bold">Postcode</label>
-                            <input type="text" name="postcode" class="form-control" value="{{ prop[2] }}" required>
-                        </div>
-                        <div class="row g-2 mb-4">
-                            <div class="col-6">
-                                <label class="small fw-bold">Tenant Name</label>
-                                <input type="text" name="tenant_name" class="form-control" value="{{ prop[4] }}">
-                            </div>
-                            <div class="col-6">
-                                <label class="small fw-bold">Key Safe Code</label>
-                                <input type="text" name="key_code" class="form-control" value="{{ prop[6] }}">
-                            </div>
-                        </div>
-
-                        <h6 class="fw-bold text-danger mb-3 border-top pt-3">Compliance Dates (Expiry)</h6>
+                        <input type="hidden" name="property_id" value="{{ prop[0] }}"><input type="hidden" name="client_id" value="{{ client.id }}">
+                        <div class="mb-2"><label class="small fw-bold">Address</label><input type="text" name="address" class="form-control" value="{{ prop[1] }}" required></div>
+                        <div class="mb-3"><label class="small fw-bold">Postcode</label><input type="text" name="postcode" class="form-control" value="{{ prop[2] }}" required></div>
+                        <div class="row g-2 mb-3"><div class="col-6"><label class="small fw-bold">Tenant</label><input type="text" name="tenant_name" class="form-control" value="{{ prop[4] }}"></div><div class="col-6"><label class="small fw-bold">Key Code</label><input type="text" name="key_code" class="form-control" value="{{ prop[6] }}"></div></div>
+                        <h6 class="fw-bold text-danger border-top pt-3">Compliance</h6>
                         <div class="row g-2">
-                            <div class="col-6">
-                                <label class="small fw-bold">Gas Safety Expiry</label>
-                                <input type="date" name="gas_expiry" class="form-control" value="{{ prop[7] }}">
-                            </div>
-                            <div class="col-6">
-                                <label class="small fw-bold">EICR Expiry</label>
-                                <input type="date" name="eicr_expiry" class="form-control" value="{{ prop[8] }}">
-                            </div>
-                            <div class="col-6">
-                                <label class="small fw-bold">PAT Expiry</label>
-                                <input type="date" name="pat_expiry" class="form-control" value="{{ prop[9] }}">
-                            </div>
+                            <div class="col-6"><label class="small fw-bold">Gas</label><input type="date" name="gas_expiry" class="form-control" value="{{ prop[7] }}"></div>
+                            <div class="col-6"><label class="small fw-bold">EICR</label><input type="date" name="eicr_expiry" class="form-control" value="{{ prop[8] }}"></div>
+                            <div class="col-6"><label class="small fw-bold">PAT</label><input type="date" name="pat_expiry" class="form-control" value="{{ prop[9] }}"></div>
+                            <div class="col-6"><label class="small fw-bold">EPC</label><input type="date" name="epc_expiry" class="form-control" value="{{ prop[10] }}"></div>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
-                    </div>
+                    <div class="modal-footer"><button type="submit" class="btn btn-primary fw-bold">Save</button></div>
                 </form>
             </div>
         </div>
     </div>
     {% endfor %}
+</div>
+
+
+<div class="modal fade" id="addPropertyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-plus-circle me-2"></i>Add Property</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/office/client/{{ client.id }}/add-property" method="POST">
+                <div class="modal-body">
+                    <h6 class="fw-bold text-success mb-3">Location</h6>
+                    <div class="mb-2"><input type="text" name="address" class="form-control" placeholder="Address Line 1" required></div>
+                    <div class="mb-3"><input type="text" name="postcode" class="form-control" placeholder="Postcode" required></div>
+                    <div class="row g-2 mb-4">
+                        <div class="col-6"><input type="text" name="tenant_name" class="form-control" placeholder="Tenant Name"></div>
+                        <div class="col-6"><input type="text" name="tenant_phone" class="form-control" placeholder="Tenant Phone"></div>
+                        <div class="col-12 mt-2"><input type="text" name="key_code" class="form-control" placeholder="Key Safe Code"></div>
+                    </div>
+                    <h6 class="fw-bold text-danger border-top pt-3">Compliance Dates</h6>
+                    <div class="row g-2">
+                        <div class="col-6"><label class="small fw-bold">Gas</label><input type="date" name="gas_expiry" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold">EICR</label><input type="date" name="eicr_expiry" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold">PAT</label><input type="date" name="pat_expiry" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold">EPC</label><input type="date" name="epc_expiry" class="form-control"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success fw-bold">Add Property</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
     <div class="modal fade" id="addPropertyModal" tabindex="-1">

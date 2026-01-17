@@ -1670,3 +1670,38 @@ def create_job():
         return render_template('office/job_create.html', 
                              clients=clients, engineers=engineers, vehicles=vehicles,
                              pre_client=pre_client, pre_prop=pre_prop, pre_desc=pre_desc)
+                             
+                             # --- VIEW SINGLE PROPERTY (OFFICE SIDE) ---
+@office_bp.route('/office/property/<int:property_id>')
+def view_property_office(property_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # 1. Fetch Property Details
+    cur.execute("""
+        SELECT p.id, p.address_line1, p.postcode, p.tenant_name, p.tenant_phone, p.key_code,
+               p.gas_expiry, p.eicr_expiry, p.pat_expiry, p.epc_expiry,
+               c.name, c.id
+        FROM properties p
+        JOIN clients c ON p.client_id = c.id
+        WHERE p.id = %s
+    """, (property_id,))
+    prop = cur.fetchone()
+    
+    if not prop: return "Property not found", 404
+    
+    # 2. Fetch Job History for this Property
+    cur.execute("""
+        SELECT id, ref, status, description, start_date, 
+               (SELECT COUNT(*) FROM job_evidence WHERE job_id = jobs.id) as photo_count
+        FROM jobs 
+        WHERE property_id = %s 
+        ORDER BY start_date DESC
+    """, (property_id,))
+    jobs = cur.fetchall()
+    
+    conn.close()
+    
+    return render_template('office/property_view.html', prop=prop, jobs=jobs, today=date.today())
