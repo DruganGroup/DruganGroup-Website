@@ -77,6 +77,17 @@
                                 <th class="text-end pe-3">Action</th>
                             </tr>
                         </thead>
+						<td class="text-end pe-3">
+    <div class="btn-group">
+        <a href="/office/job/{{ job[0] }}/files" class="btn btn-sm btn-outline-secondary" title="View Job Files">
+            <i class="fas fa-folder-open"></i>
+        </a>
+        
+        <a href="/office/job/{{ job[0] }}/rams/create" class="btn btn-sm btn-warning text-dark fw-bold" title="Generate RAMS">
+            <i class="fas fa-clipboard-check"></i> RAMS
+        </a>
+    </div>
+</td>
                         <tbody>
                             {% for job in jobs %}
                             <tr>
@@ -86,17 +97,8 @@
                                 <td>
                                     <span class="badge {{ 'bg-success' if job[2] == 'Completed' else 'bg-primary' }}">{{ job[2] }}</span>
                                 </td>
-                                
                                 <td class="text-end pe-3">
-                                    <div class="btn-group">
-                                        <a href="/office/job/{{ job[0] }}/files" class="btn btn-sm btn-outline-secondary" title="View Job Files">
-                                            <i class="fas fa-folder-open"></i>
-                                        </a>
-                                        
-                                        <a href="/office/job/{{ job[0] }}/rams/create" class="btn btn-sm btn-warning text-dark fw-bold" title="Generate RAMS">
-                                            <i class="fas fa-clipboard-check"></i> RAMS
-                                        </a>
-                                    </div>
+                                    <a href="/office/job/{{ job[0] }}/files" class="btn btn-sm btn-outline-secondary">View</a>
                                 </td>
                             </tr>
                             {% else %}
