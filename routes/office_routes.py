@@ -1176,3 +1176,37 @@ def create_job_view():
                            client=client_data, 
                            property=prop_data, 
                            vehicles=vehicles)
+                           
+                           # --- DANGER: SYSTEM RESET TOOL ---
+@office_bp.route('/office/admin/system-reset')
+def system_reset():
+    if session.get('role') != 'SuperAdmin': return "Unauthorized", 403
+    
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # 1. Clear Child Tables (Items, Logs, Files)
+        cur.execute("DELETE FROM invoice_items")
+        cur.execute("DELETE FROM quote_items")
+        cur.execute("DELETE FROM job_expenses")
+        cur.execute("DELETE FROM job_materials")
+        cur.execute("DELETE FROM job_evidence")
+        cur.execute("DELETE FROM job_rams")
+        cur.execute("DELETE FROM staff_timesheets")
+        
+        # 2. Clear Main Transaction Tables
+        cur.execute("DELETE FROM invoices")
+        cur.execute("DELETE FROM jobs")
+        cur.execute("DELETE FROM quotes")
+        
+        # 3. Reset Sequences (Optional, makes IDs start at 1 again)
+        # cur.execute("ALTER SEQUENCE jobs_id_seq RESTART WITH 1")
+        # cur.execute("ALTER SEQUENCE invoices_id_seq RESTART WITH 1")
+        
+        conn.commit()
+        return "<h1>✅ System Wiped Clean.</h1><p>Jobs, Quotes, and Invoices deleted. <a href='/office-hub'>Back to Dashboard</a></p>"
+    except Exception as e:
+        conn.rollback()
+        return f"Error resetting: {e}"
+    finally:
+        conn.close()
