@@ -42,15 +42,26 @@
         <div class="tab-pane fade show active" id="props">
             <div class="row g-4">
                 {% for prop in properties %}
+                {# HYBRID DATA EXTRACTION - Works for both Lists and Dictionaries #}
+                {% set p_id = prop.id if prop.id is defined else prop[0] %}
+                {% set p_addr = prop.address_line1 if prop.address_line1 is defined else prop[1] %}
+                {% set p_post = prop.postcode if prop.postcode is defined else prop[2] %}
+                {% set p_tenant = prop.tenant_name if prop.tenant_name is defined else prop[4] %}
+                {% set p_key = prop.key_code if prop.key_code is defined else prop[6] %}
+                {% set p_gas = prop.gas_expiry if prop.gas_expiry is defined else prop[7] %}
+                {% set p_eicr = prop.eicr_expiry if prop.eicr_expiry is defined else prop[8] %}
+                {% set p_pat = prop.pat_expiry if prop.pat_expiry is defined else prop[9] %}
+                {% set p_epc = prop.epc_expiry if prop.epc_expiry is defined else prop[10] %}
+
                 <div class="col-lg-6">
                     <div class="card h-100 shadow-sm border-0 hover-shadow transition">
                         
                         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-start">
                             <div>
-                                <a href="/office/property/{{ prop[0] }}" class="text-decoration-none">
-                                    <h5 class="fw-bold m-0 text-dark">{{ prop[1] }}</h5> 
+                                <a href="/office/property/{{ p_id }}" class="text-decoration-none">
+                                    <h5 class="fw-bold m-0 text-dark">{{ p_addr }}</h5> 
                                 </a>
-                                <span class="text-muted small"><i class="fas fa-map-marker-alt me-1"></i>{{ prop[2] }}</span>
+                                <span class="text-muted small"><i class="fas fa-map-marker-alt me-1"></i>{{ p_post }}</span>
                             </div>
                             
                             <div class="dropdown">
@@ -59,13 +70,13 @@
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow">
                                     <li><h6 class="dropdown-header">Actions</h6></li>
-                                    <li><a class="dropdown-item" href="/office/property/{{ prop[0] }}"><i class="fas fa-eye me-2 text-secondary"></i>View History</a></li>
+                                    <li><a class="dropdown-item" href="/office/property/{{ p_id }}"><i class="fas fa-eye me-2 text-secondary"></i>View History</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><h6 class="dropdown-header">Book Compliance</h6></li>
-                                    <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ prop[0] }}&description=Gas Safety Check"><i class="fas fa-burn text-warning me-2"></i>Book Gas Safety</a></li>
-                                    <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ prop[0] }}&description=EICR Inspection"><i class="fas fa-bolt text-warning me-2"></i>Book EICR</a></li>
+                                    <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ p_id }}&description=Gas Safety Check"><i class="fas fa-burn text-warning me-2"></i>Book Gas Safety</a></li>
+                                    <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ p_id }}&description=EICR Inspection"><i class="fas fa-bolt text-warning me-2"></i>Book EICR</a></li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item text-primary fw-bold" href="#" data-bs-toggle="modal" data-bs-target="#editPropModal{{ prop[0] }}"><i class="fas fa-edit me-2"></i>Edit Dates</a></li>
+                                    <li><a class="dropdown-item text-primary fw-bold" href="#" data-bs-toggle="modal" data-bs-target="#editPropModal{{ p_id }}"><i class="fas fa-edit me-2"></i>Edit Dates</a></li>
                                 </ul>
                             </div>
                         </div>
@@ -76,113 +87,74 @@
                                 <div class="me-3 text-secondary"><i class="fas fa-user-circle fa-2x"></i></div>
                                 <div>
                                     <div class="small fw-bold text-uppercase text-muted">Tenant</div>
-                                    <div class="fw-bold text-dark">{{ prop[4] or 'Vacant' }}</div>
+                                    <div class="fw-bold text-dark">{{ p_tenant or 'Vacant' }}</div>
                                 </div>
                                 <div class="ms-auto text-end">
-                                    <span class="badge bg-secondary ms-1">{{ prop[6] or 'No Code' }}</span>
+                                    <span class="badge bg-secondary ms-1">{{ p_key or 'No Code' }}</span>
                                 </div>
                             </div>
 
                             <h6 class="small fw-bold text-muted text-uppercase mb-2">Compliance Status</h6>
                             <div class="row g-2">
                                 
-                                <div class="col-4">
-                                    <a href="/office/property/{{ prop[0] }}" class="text-decoration-none">
-                                        {% set date_val = prop[7] %}
-                                        {% set status = 'Missing' %}{% set color = 'secondary' %}{% set dstr = '-' %}
-                                        {% if date_val %}
-                                            {% set days = (date_val - current_date).days %}
-                                            {% set dstr = date_val.strftime('%d/%m/%y') %}
-                                            {% if days < 0 %}{% set status = 'EXPIRED' %}{% set color = 'danger' %}
-                                            {% elif days < 30 %}{% set status = 'Expiring' %}{% set color = 'warning text-dark' %}
-                                            {% else %}{% set status = 'Valid' %}{% set color = 'success' %}{% endif %}
+                                {# MACRO DEFINITION #}
+                                {% macro compliance_badge(label, date_val, prop_id) %}
+                                    {% set status = 'Missing' %}
+                                    {% set color = 'secondary' %}
+                                    {% set dstr = '-' %}
+                                    
+                                    {% if date_val %}
+                                        {% set days = (date_val - current_date).days %}
+                                        {% set dstr = date_val.strftime('%d/%m/%y') %}
+                                        {% if days < 0 %}
+                                            {% set status = 'EXPIRED' %}{% set color = 'danger' %}
+                                        {% elif days < 30 %}
+                                            {% set status = 'Expiring' %}{% set color = 'warning text-dark' %}
+                                        {% else %}
+                                            {% set status = 'Valid' %}{% set color = 'success' %}
                                         {% endif %}
-                                        <div class="border rounded p-2 text-center h-100 bg-white border-bottom border-4 border-{{ color }}">
-                                            <div class="small fw-bold text-muted mb-1" style="font-size: 0.7rem;">GAS</div>
-                                            <span class="badge bg-{{ color }} w-100 mb-1" style="font-size: 0.65rem;">{{ status }}</span>
-                                            <div class="small fw-bold text-dark" style="font-size: 0.7rem;">{{ dstr }}</div>
-                                        </div>
-                                    </a>
-                                </div>
+                                    {% endif %}
 
-                                <div class="col-4">
-                                    <a href="/office/property/{{ prop[0] }}" class="text-decoration-none">
-                                        {% set date_val = prop[8] %}
-                                        {% set status = 'Missing' %}{% set color = 'secondary' %}{% set dstr = '-' %}
-                                        {% if date_val %}
-                                            {% set days = (date_val - current_date).days %}
-                                            {% set dstr = date_val.strftime('%d/%m/%y') %}
-                                            {% if days < 0 %}{% set status = 'EXPIRED' %}{% set color = 'danger' %}
-                                            {% elif days < 30 %}{% set status = 'Expiring' %}{% set color = 'warning text-dark' %}
-                                            {% else %}{% set status = 'Valid' %}{% set color = 'success' %}{% endif %}
-                                        {% endif %}
-                                        <div class="border rounded p-2 text-center h-100 bg-white border-bottom border-4 border-{{ color }}">
-                                            <div class="small fw-bold text-muted mb-1" style="font-size: 0.7rem;">EICR</div>
-                                            <span class="badge bg-{{ color }} w-100 mb-1" style="font-size: 0.65rem;">{{ status }}</span>
-                                            <div class="small fw-bold text-dark" style="font-size: 0.7rem;">{{ dstr }}</div>
-                                        </div>
-                                    </a>
-                                </div>
+                                    <div class="col-4">
+                                        <a href="/office/property/{{ prop_id }}" class="text-decoration-none">
+                                            <div class="border rounded p-2 text-center h-100 bg-white border-bottom border-4 border-{{ color }}">
+                                                <div class="small fw-bold text-muted mb-1" style="font-size: 0.7rem;">{{ label }}</div>
+                                                <span class="badge bg-{{ color }} w-100 mb-1" style="font-size: 0.65rem;">{{ status }}</span>
+                                                <div class="small fw-bold text-dark" style="font-size: 0.7rem;">{{ dstr }}</div>
+                                            </div>
+                                        </a>
+                                    </div>
+                                {% endmacro %}
 
-                                <div class="col-4">
-                                    <a href="/office/property/{{ prop[0] }}" class="text-decoration-none">
-                                        {% set date_val = prop[9] %}
-                                        {% set status = 'Missing' %}{% set color = 'secondary' %}{% set dstr = '-' %}
-                                        {% if date_val %}
-                                            {% set days = (date_val - current_date).days %}
-                                            {% set dstr = date_val.strftime('%d/%m/%y') %}
-                                            {% if days < 0 %}{% set status = 'EXPIRED' %}{% set color = 'danger' %}
-                                            {% elif days < 30 %}{% set status = 'Expiring' %}{% set color = 'warning text-dark' %}
-                                            {% else %}{% set status = 'Valid' %}{% set color = 'success' %}{% endif %}
-                                        {% endif %}
-                                        <div class="border rounded p-2 text-center h-100 bg-white border-bottom border-4 border-{{ color }}">
-                                            <div class="small fw-bold text-muted mb-1" style="font-size: 0.7rem;">PAT</div>
-                                            <span class="badge bg-{{ color }} w-100 mb-1" style="font-size: 0.65rem;">{{ status }}</span>
-                                            <div class="small fw-bold text-dark" style="font-size: 0.7rem;">{{ dstr }}</div>
-                                        </div>
-                                    </a>
-                                </div>
-
-                                <div class="col-4">
-                                    <a href="/office/property/{{ prop[0] }}" class="text-decoration-none">
-                                        {% set date_val = prop[10] %}
-                                        {% set status = 'Missing' %}{% set color = 'secondary' %}{% set dstr = '-' %}
-                                        {% if date_val %}
-                                            {% set days = (date_val - current_date).days %}
-                                            {% set dstr = date_val.strftime('%d/%m/%y') %}
-                                            {% if days < 0 %}{% set status = 'EXPIRED' %}{% set color = 'danger' %}
-                                            {% elif days < 3650 %}{% set status = 'Valid' %}{% set color = 'success' %}
-                                            {% else %}{% set status = 'Check' %}{% set color = 'warning' %}{% endif %}
-                                        {% endif %}
-                                        <div class="border rounded p-2 text-center h-100 bg-white border-bottom border-4 border-{{ color }}">
-                                            <div class="small fw-bold text-muted mb-1" style="font-size: 0.7rem;">EPC</div>
-                                            <span class="badge bg-{{ color }} w-100 mb-1" style="font-size: 0.65rem;">{{ status }}</span>
-                                            <div class="small fw-bold text-dark" style="font-size: 0.7rem;">{{ dstr }}</div>
-                                        </div>
-                                    </a>
-                                </div>
-
+                                {{ compliance_badge('GAS', p_gas, p_id) }}
+                                {{ compliance_badge('EICR', p_eicr, p_id) }}
+                                {{ compliance_badge('PAT', p_pat, p_id) }}
+                                {{ compliance_badge('EPC', p_epc, p_id) }}
+                                
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="modal fade" id="editPropModal{{ prop[0] }}" tabindex="-1">
+                <div class="modal fade" id="editPropModal{{ p_id }}" tabindex="-1">
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <form action="/office/property/update" method="POST">
                                 <div class="modal-header bg-dark text-white"><h5 class="modal-title fw-bold">Edit Property</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
                                 <div class="modal-body">
-                                    <input type="hidden" name="property_id" value="{{ prop[0] }}"><input type="hidden" name="client_id" value="{{ client.id }}">
-                                    <div class="mb-2"><label class="small fw-bold">Address</label><input type="text" name="address" class="form-control" value="{{ prop[1] }}" required></div>
-                                    <div class="mb-3"><label class="small fw-bold">Postcode</label><input type="text" name="postcode" class="form-control" value="{{ prop[2] }}" required></div>
-                                    <div class="row g-2 mb-3"><div class="col-6"><label class="small fw-bold">Tenant</label><input type="text" name="tenant_name" class="form-control" value="{{ prop[4] }}"></div><div class="col-6"><label class="small fw-bold">Key Code</label><input type="text" name="key_code" class="form-control" value="{{ prop[6] }}"></div></div>
+                                    <input type="hidden" name="property_id" value="{{ p_id }}"><input type="hidden" name="client_id" value="{{ client.id }}">
+                                    <div class="mb-2"><label class="small fw-bold">Address</label><input type="text" name="address" class="form-control" value="{{ p_addr }}" required></div>
+                                    <div class="mb-3"><label class="small fw-bold">Postcode</label><input type="text" name="postcode" class="form-control" value="{{ p_post }}" required></div>
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6"><label class="small fw-bold">Tenant</label><input type="text" name="tenant_name" class="form-control" value="{{ p_tenant }}"></div>
+                                        <div class="col-6"><label class="small fw-bold">Key Code</label><input type="text" name="key_code" class="form-control" value="{{ p_key }}"></div>
+                                    </div>
                                     <h6 class="fw-bold text-danger border-top pt-3">Compliance</h6>
                                     <div class="row g-2">
-                                        <div class="col-6"><label class="small fw-bold">Gas</label><input type="date" name="gas_expiry" class="form-control" value="{{ prop[7] }}"></div>
-                                        <div class="col-6"><label class="small fw-bold">EICR</label><input type="date" name="eicr_expiry" class="form-control" value="{{ prop[8] }}"></div>
-                                        <div class="col-6"><label class="small fw-bold">PAT</label><input type="date" name="pat_expiry" class="form-control" value="{{ prop[9] }}"></div>
-                                        <div class="col-6"><label class="small fw-bold">EPC</label><input type="date" name="epc_expiry" class="form-control" value="{{ prop[10] }}"></div>
+                                        <div class="col-6"><label class="small fw-bold">Gas</label><input type="date" name="gas_expiry" class="form-control" value="{{ p_gas }}"></div>
+                                        <div class="col-6"><label class="small fw-bold">EICR</label><input type="date" name="eicr_expiry" class="form-control" value="{{ p_eicr }}"></div>
+                                        <div class="col-6"><label class="small fw-bold">PAT</label><input type="date" name="pat_expiry" class="form-control" value="{{ p_pat }}"></div>
+                                        <div class="col-6"><label class="small fw-bold">EPC</label><input type="date" name="epc_expiry" class="form-control" value="{{ p_epc }}"></div>
                                     </div>
                                 </div>
                                 <div class="modal-footer"><button type="submit" class="btn btn-primary fw-bold">Save</button></div>
