@@ -83,7 +83,8 @@
 
                             <h6 class="small fw-bold text-muted text-uppercase mb-2">Compliance Status</h6>
                             <div class="row g-2">
-                                {% macro compliance_badge(label, date_val) %}
+                                {# FIXED: Added prop_id argument to macro definition #}
+                                {% macro compliance_badge(label, date_val, prop_id) %}
                                     {% set status = 'Missing' %}
                                     {% set color = 'secondary' %}
                                     {% set dstr = '-' %}
@@ -101,7 +102,8 @@
                                     {% endif %}
 
                                     <div class="col-4">
-                                        <a href="/office/property/{{ prop[0] }}" class="text-decoration-none">
+                                        {# FIXED: Used prop_id variable instead of prop[0] #}
+                                        <a href="/office/property/{{ prop_id }}" class="text-decoration-none">
                                             <div class="border rounded p-2 text-center h-100 bg-white border-bottom border-4 border-{{ color }}">
                                                 <div class="small fw-bold text-muted mb-1" style="font-size: 0.7rem;">{{ label }}</div>
                                                 <span class="badge bg-{{ color }} w-100 mb-1" style="font-size: 0.65rem;">{{ status }}</span>
@@ -111,9 +113,10 @@
                                     </div>
                                 {% endmacro %}
 
-                                {{ compliance_badge('GAS', prop[7]) }}
-                                {{ compliance_badge('EICR', prop[8]) }}
-                                {{ compliance_badge('PAT', prop[9]) }}
+                                {# FIXED: Passed prop[0] into macro calls #}
+                                {{ compliance_badge('GAS', prop[7], prop[0]) }}
+                                {{ compliance_badge('EICR', prop[8], prop[0]) }}
+                                {{ compliance_badge('PAT', prop[9], prop[0]) }}
                             </div>
                         </div>
                     </div>
