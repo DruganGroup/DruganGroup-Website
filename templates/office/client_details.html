@@ -47,10 +47,10 @@
                         
                         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-start">
                             <div>
-                                <a href="/office/property/{{ prop.id }}" class="text-decoration-none">
-                                    <h5 class="fw-bold m-0 text-dark">{{ prop.address_line1 }}</h5> 
+                                <a href="/office/property/{{ prop[0] }}" class="text-decoration-none">
+                                    <h5 class="fw-bold m-0 text-dark">{{ prop[1] }}</h5> 
                                 </a>
-                                <span class="text-muted small"><i class="fas fa-map-marker-alt me-1"></i>{{ prop.postcode }}</span>
+                                <span class="text-muted small"><i class="fas fa-map-marker-alt me-1"></i>{{ prop[2] }}</span>
                             </div>
                             
                             <div class="dropdown">
@@ -59,13 +59,13 @@
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow">
                                     <li><h6 class="dropdown-header">Actions</h6></li>
-                                    <li><a class="dropdown-item" href="/office/property/{{ prop.id }}"><i class="fas fa-eye me-2 text-secondary"></i>View History</a></li>
+                                    <li><a class="dropdown-item" href="/office/property/{{ prop[0] }}"><i class="fas fa-eye me-2 text-secondary"></i>View History</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><h6 class="dropdown-header">Book Compliance</h6></li>
-                                    <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ prop.id }}&description=Gas Safety Check"><i class="fas fa-burn text-warning me-2"></i>Book Gas Safety</a></li>
-                                    <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ prop.id }}&description=EICR Inspection"><i class="fas fa-bolt text-warning me-2"></i>Book EICR</a></li>
+                                    <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ prop[0] }}&description=Gas Safety Check"><i class="fas fa-burn text-warning me-2"></i>Book Gas Safety</a></li>
+                                    <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ prop[0] }}&description=EICR Inspection"><i class="fas fa-bolt text-warning me-2"></i>Book EICR</a></li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item text-primary fw-bold" href="#" data-bs-toggle="modal" data-bs-target="#editPropModal{{ prop.id }}"><i class="fas fa-edit me-2"></i>Edit Dates</a></li>
+                                    <li><a class="dropdown-item text-primary fw-bold" href="#" data-bs-toggle="modal" data-bs-target="#editPropModal{{ prop[0] }}"><i class="fas fa-edit me-2"></i>Edit Dates</a></li>
                                 </ul>
                             </div>
                         </div>
@@ -75,10 +75,10 @@
                                 <div class="me-3 text-secondary"><i class="fas fa-user-circle fa-2x"></i></div>
                                 <div>
                                     <div class="small fw-bold text-uppercase text-muted">Tenant</div>
-                                    <div class="fw-bold text-dark">{{ prop.tenant_name or 'Vacant' }}</div>
+                                    <div class="fw-bold text-dark">{{ prop[3] or 'Vacant' }}</div>
                                 </div>
                                 <div class="ms-auto text-end">
-                                    <span class="badge bg-secondary ms-1">{{ prop.key_code or 'No Code' }}</span>
+                                    <span class="badge bg-secondary ms-1">{{ prop[5] or 'No Code' }}</span>
                                 </div>
                             </div>
 
@@ -86,8 +86,8 @@
                             <div class="row g-2">
                                 
                                 <div class="col-4">
-                                    <a href="/office/property/{{ prop.id }}" class="text-decoration-none">
-                                        {% set date_val = prop.gas_expiry %}
+                                    <a href="/office/property/{{ prop[0] }}" class="text-decoration-none">
+                                        {% set date_val = prop[6] %}
                                         {% set status = 'Missing' %}{% set color = 'secondary' %}{% set dstr = '-' %}
                                         {% if date_val %}
                                             {% set days = (date_val - current_date).days %}
@@ -105,8 +105,8 @@
                                 </div>
 
                                 <div class="col-4">
-                                    <a href="/office/property/{{ prop.id }}" class="text-decoration-none">
-                                        {% set date_val = prop.eicr_expiry %}
+                                    <a href="/office/property/{{ prop[0] }}" class="text-decoration-none">
+                                        {% set date_val = prop[7] %}
                                         {% set status = 'Missing' %}{% set color = 'secondary' %}{% set dstr = '-' %}
                                         {% if date_val %}
                                             {% set days = (date_val - current_date).days %}
@@ -124,8 +124,8 @@
                                 </div>
 
                                 <div class="col-4">
-                                    <a href="/office/property/{{ prop.id }}" class="text-decoration-none">
-                                        {% set date_val = prop.pat_expiry %}
+                                    <a href="/office/property/{{ prop[0] }}" class="text-decoration-none">
+                                        {% set date_val = prop[8] %}
                                         {% set status = 'Missing' %}{% set color = 'secondary' %}{% set dstr = '-' %}
                                         {% if date_val %}
                                             {% set days = (date_val - current_date).days %}
@@ -147,22 +147,22 @@
                     </div>
                 </div>
 
-                <div class="modal fade" id="editPropModal{{ prop.id }}" tabindex="-1">
+                <div class="modal fade" id="editPropModal{{ prop[0] }}" tabindex="-1">
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <form action="/office/property/update" method="POST">
                                 <div class="modal-header bg-dark text-white"><h5 class="modal-title fw-bold">Edit Property</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
                                 <div class="modal-body">
-                                    <input type="hidden" name="property_id" value="{{ prop.id }}"><input type="hidden" name="client_id" value="{{ client.id }}">
-                                    <div class="mb-2"><label class="small fw-bold">Address</label><input type="text" name="address" class="form-control" value="{{ prop.address_line1 }}" required></div>
-                                    <div class="mb-3"><label class="small fw-bold">Postcode</label><input type="text" name="postcode" class="form-control" value="{{ prop.postcode }}" required></div>
-                                    <div class="row g-2 mb-3"><div class="col-6"><label class="small fw-bold">Tenant</label><input type="text" name="tenant_name" class="form-control" value="{{ prop.tenant_name }}"></div><div class="col-6"><label class="small fw-bold">Key Code</label><input type="text" name="key_code" class="form-control" value="{{ prop.key_code }}"></div></div>
+                                    <input type="hidden" name="property_id" value="{{ prop[0] }}"><input type="hidden" name="client_id" value="{{ client.id }}">
+                                    <div class="mb-2"><label class="small fw-bold">Address</label><input type="text" name="address" class="form-control" value="{{ prop[1] }}" required></div>
+                                    <div class="mb-3"><label class="small fw-bold">Postcode</label><input type="text" name="postcode" class="form-control" value="{{ prop[2] }}" required></div>
+                                    <div class="row g-2 mb-3"><div class="col-6"><label class="small fw-bold">Tenant</label><input type="text" name="tenant_name" class="form-control" value="{{ prop[3] }}"></div><div class="col-6"><label class="small fw-bold">Key Code</label><input type="text" name="key_code" class="form-control" value="{{ prop[5] }}"></div></div>
                                     <h6 class="fw-bold text-danger border-top pt-3">Compliance</h6>
                                     <div class="row g-2">
-                                        <div class="col-6"><label class="small fw-bold">Gas</label><input type="date" name="gas_expiry" class="form-control" value="{{ prop.gas_expiry }}"></div>
-                                        <div class="col-6"><label class="small fw-bold">EICR</label><input type="date" name="eicr_expiry" class="form-control" value="{{ prop.eicr_expiry }}"></div>
-                                        <div class="col-6"><label class="small fw-bold">PAT</label><input type="date" name="pat_expiry" class="form-control" value="{{ prop.pat_expiry }}"></div>
-                                        <div class="col-6"><label class="small fw-bold">EPC</label><input type="date" name="epc_expiry" class="form-control" value="{{ prop.epc_expiry }}"></div>
+                                        <div class="col-6"><label class="small fw-bold">Gas</label><input type="date" name="gas_expiry" class="form-control" value="{{ prop[6] }}"></div>
+                                        <div class="col-6"><label class="small fw-bold">EICR</label><input type="date" name="eicr_expiry" class="form-control" value="{{ prop[7] }}"></div>
+                                        <div class="col-6"><label class="small fw-bold">PAT</label><input type="date" name="pat_expiry" class="form-control" value="{{ prop[8] }}"></div>
+                                        <div class="col-6"><label class="small fw-bold">EPC</label><input type="date" name="epc_expiry" class="form-control" value="{{ prop[9] }}"></div>
                                     </div>
                                 </div>
                                 <div class="modal-footer"><button type="submit" class="btn btn-primary fw-bold">Save</button></div>
