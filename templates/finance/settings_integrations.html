@@ -1,0 +1,75 @@
+{% extends "finance/settings_layout.html" %}
+
+{% block settings_content %}
+<form method="POST">
+    <div class="row g-4">
+        <div class="col-md-8">
+            <div class="card p-4 h-100 shadow-sm border-0">
+                <h5 class="fw-bold text-secondary mb-4"><i class="fas fa-satellite-dish me-2"></i>Fleet Telematics API</h5>
+                
+                <div class="alert alert-info small">
+                    <i class="fas fa-info-circle me-1"></i> 
+                    Enter your API credentials below to enable live map tracking.
+                </div>
+
+                <div class="mb-4 border-bottom pb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-bold m-0">Samsara API Token</label>
+                        {% if settings.get('samsara_api_key') %}
+                            <span class="badge bg-success"><i class="fas fa-check"></i> Connected</span>
+                        {% endif %}
+                    </div>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light"><i class="fas fa-key"></i></span>
+                        <input type="password" name="samsara_api_key" class="form-control" 
+                               value="{{ settings.get('samsara_api_key', '') }}" 
+                               placeholder="e.g. samsara_api_...">
+                    </div>
+                    <div class="form-text small">Found in Samsara Dashboard > Settings > API Tokens.</div>
+                </div>
+
+                <div class="mb-4 border-bottom pb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-bold m-0">Geotab Credentials</label>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <input type="text" name="geotab_user" class="form-control mb-2" 
+                                   value="{{ settings.get('geotab_user', '') }}" placeholder="Username">
+                        </div>
+                        <div class="col-md-6">
+                            <input type="text" name="geotab_database" class="form-control mb-2" 
+                                   value="{{ settings.get('geotab_database', '') }}" placeholder="Database Name">
+                        </div>
+                        <div class="col-12">
+                            <input type="password" name="geotab_password" class="form-control" 
+                                   value="{{ settings.get('geotab_password', '') }}" placeholder="Password / API Key">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-end">
+                    <button type="submit" class="btn btn-primary fw-bold px-4">
+                        <i class="fas fa-save me-2"></i> Save Keys
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card p-4 h-100 bg-light border-0">
+                <h6 class="fw-bold text-secondary mb-3">How it works</h6>
+                <p class="small text-muted">
+                    Your API keys are encrypted and stored securely. We only use them to fetch:
+                </p>
+                <ul class="small text-muted mb-0">
+                    <li>Live Vehicle Location</li>
+                    <li>Speed & Odometer</li>
+                    <li>Fuel Levels</li>
+                    <li>Fault Codes</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

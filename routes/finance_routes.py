@@ -16,7 +16,6 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from services.pdf_generator import generate_pdf
 from flask import send_file
-# Safe import for telematics
 try:
     from telematics_engine import get_tracker_data
 except ImportError:
@@ -124,10 +123,9 @@ def delete_staff(id):
     conn.commit(); conn.close()
     return redirect(url_for('finance.finance_hr'))
 
-# --- FINANCE: FLEET MANAGER ---
 @finance_bp.route('/finance/fleet', methods=['GET', 'POST'])
 def finance_fleet():
-    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']: 
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']: 
         return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
@@ -142,39 +140,40 @@ def finance_fleet():
                 model = request.form.get('make_model')
                 daily = request.form.get('daily_cost') or 0.00
                 tracker = request.form.get('tracker_url')
+                driver = request.form.get('driver_id') or None # <--- Added Driver
                 
-                mot = request.form.get('mot_expiry') or None
-                tax = request.form.get('tax_expiry') or None
-                ins = request.form.get('ins_expiry') or None
-
                 cur.execute("""
-                    INSERT INTO vehicles (company_id, reg_plate, make_model, daily_cost, tracker_url, status, mot_expiry, tax_expiry, ins_expiry)
-                    VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s, %s)
-                """, (comp_id, reg, model, daily, tracker, mot, tax, ins))
+                    INSERT INTO vehicles (company_id, reg_plate, make_model, daily_cost, tracker_url, assigned_driver_id, status)
+                    VALUES (%s, %s, %s, %s, %s, %s, 'Active')
+                """, (comp_id, reg, model, daily, tracker, driver))
                 flash("✅ Vehicle added successfully.")
 
-            elif action == 'assign_crew':
+            elif action == 'assign_crew': # Or 'update_vehicle'
                 veh_id = request.form.get('vehicle_id')
                 daily = request.form.get('daily_cost')
+                tracker_url = request.form.get('tracker_url')
+                driver_id = request.form.get('driver_id') or None 
                 
                 mot = request.form.get('mot_expiry') or None
                 tax = request.form.get('tax_expiry') or None
                 ins = request.form.get('ins_expiry') or None
-                tracker_url = request.form.get('tracker_url')
 
+                # 1. Update Vehicle Details
                 cur.execute("""
                     UPDATE vehicles 
-                    SET daily_cost = %s, mot_expiry = %s, tax_expiry = %s, ins_expiry = %s,
-                        tracker_url = %s
+                    SET daily_cost = %s, tracker_url = %s, assigned_driver_id = %s,
+                        mot_expiry = %s, tax_expiry = %s, ins_expiry = %s
                     WHERE id = %s AND company_id = %s
-                """, (daily, mot, tax, ins, tracker_url, veh_id, comp_id))
+                """, (daily, tracker_url, driver_id, mot, tax, ins, veh_id, comp_id))
 
+                # 2. Update Crew
                 crew_ids = request.form.getlist('crew_ids')
                 cur.execute("DELETE FROM vehicle_crew WHERE vehicle_id = %s", (veh_id,))
                 for staff_id in crew_ids:
-                    cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (veh_id, staff_id))
+                    if str(staff_id) != str(driver_id):
+                        cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (veh_id, staff_id))
                 
-                flash("✅ Vehicle updated successfully.")
+                flash("✅ Vehicle & Crew updated.")
 
             conn.commit()
             
@@ -182,7 +181,15 @@ def finance_fleet():
             conn.rollback()
             flash(f"Error: {e}")
 
-    # --- GET REQUEST ---
+    # --- GET REQUEST (DISPLAY DATA) ---
+    
+    # [PART B START]: Fetch the Company's API Key
+    # We need this key to unlock the Telematics Engine
+    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'samsara_api_key'", (comp_id,))
+    row = cur.fetchone()
+    company_api_key = row[0] if row else None
+    # [PART B END]
+
     cur.execute("""
         SELECT v.id, v.reg_plate, v.make_model, v.daily_cost, v.status, 
                v.assigned_driver_id, s.name as driver_name, 
@@ -197,10 +204,16 @@ def finance_fleet():
     vehicles_raw = cur.fetchall()
     vehicles = []
     
+    # Fetch All Staff (For Dropdowns)
+    cur.execute("SELECT id, name FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
+    all_staff = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
+    
     for r in vehicles_raw:
         v_id = r[0]
         daily_cost = r[3] or 0.0
+        tracker_url = r[7]
 
+        # 1. Calculate Crew Costs
         cur.execute("""
             SELECT s.name, s.pay_rate, s.pay_model 
             FROM vehicle_crew vc
@@ -220,6 +233,12 @@ def finance_fleet():
             
         total_daily_run = float(daily_cost) + float(total_wages)
 
+        # [PART B LOGIC]: Call the Engine using the Company Key
+        telematics_data = None
+        if tracker_url:
+            # We pass the key we found earlier + the specific van's URL
+            telematics_data = get_tracker_data(tracker_url, api_key=company_api_key)
+
         vehicles.append({
             'id': v_id,
             'reg_number': r[1],
@@ -228,21 +247,21 @@ def finance_fleet():
             'status': r[4],
             'assigned_driver_id': r[5],
             'driver_name': r[6],
-            'tracker_url': r[7],
-            'mot_expiry': r[8],
-            'tax_expiry': r[9],
-            'ins_expiry': r[10],
+            'tracker_url': tracker_url,
+            'mot_expiry': r[8], 'tax_expiry': r[9], 'ins_expiry': r[10],
             'crew': crew_list,
-            'total_gang_cost': total_daily_run
+            'total_gang_cost': total_daily_run,
+            'telematics': telematics_data # <--- This sends the map data to HTML
         })
 
     conn.close()
     
     return render_template('finance/finance_fleet.html', 
                            vehicles=vehicles, 
+                           all_staff=all_staff, 
                            today=datetime.now().date(),
                            date_fmt='%d/%m/%Y')
-                           
+                          
 @finance_bp.route('/finance/fleet/delete/<int:id>')
 def delete_vehicle(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -874,3 +893,30 @@ def finance_dashboard():
                            chart_expense=chart_expense,
                            brand_color=config['color'],
                            logo_url=config['logo'])
+                           
+                           @finance_bp.route('/finance/settings/integrations', methods=['GET', 'POST'])
+def settings_integrations():
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+
+    if request.method == 'POST':
+        # Save Keys to Settings Table
+        keys = ['samsara_api_key', 'geotab_user', 'geotab_database', 'geotab_password']
+        for k in keys:
+            val = request.form.get(k)
+            # Upsert (Update if exists, Insert if not)
+            cur.execute("""
+                INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s)
+                ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+            """, (comp_id, k, val))
+        conn.commit()
+        flash("✅ Integration Keys Saved")
+
+    # Load Settings
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    conn.close()
+
+    return render_template('finance/settings_integrations.html', settings=settings, active_tab='integrations')
