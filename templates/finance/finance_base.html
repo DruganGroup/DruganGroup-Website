@@ -126,8 +126,11 @@
         <a href="/finance/materials" class="{% if 'materials' in request.path %}active{% endif %}">
             <i class="fas fa-cubes me-3"></i> Material Library
         </a>
-        <a href="/finance/hr" class="{% if 'hr' in request.path %}active{% endif %}">
-            <i class="fas fa-users me-3"></i> Payroll & HR
+        <a href="/finance/hr" class="{% if 'hr' in request.path and 'payroll' not in request.path %}active{% endif %}">
+            <i class="fas fa-users me-3"></i> HR Management
+        </a>
+        <a href="/finance/payroll" class="{% if 'payroll' in request.path %}active{% endif %}">
+            <i class="fas fa-file-invoice-dollar me-3"></i> Run Payroll
         </a>
 
         <div class="sidebar-heading">System</div>

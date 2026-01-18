@@ -1,5 +1,4 @@
 {% extends "finance/finance_base.html" %}
-{% from "components/_macros.html" import status_badge, date_check %}
 
 {% block title %}Fleet Manager | Business Better{% endblock %}
 
@@ -11,10 +10,9 @@
     }
     .vehicle-card:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
     .crew-checkbox { transform: scale(1.2); cursor: pointer; }
-    .crew-box { position: relative; } 
     /* Map Styles */
-    #fleetMap { height: 600px; width: 100%; border-radius: 15px; border: 1px solid #ddd; }
-    .mini-map { height: 200px; width: 100%; background: #eee; border-radius: 8px; }
+    #fleetMap { height: 650px; width: 100%; border-radius: 12px; border: 1px solid #ddd; }
+    .mini-map { height: 250px; width: 100%; background: #eee; border-radius: 8px; border: 1px solid #ddd;}
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -24,24 +22,21 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold m-0">Fleet Command</h2>
-            <p class="text-muted mb-0">Track vehicle costs, location, and crew</p>
+            <p class="text-muted mb-0">Live tracking, costs, and crew logistics</p>
         </div>
-        
-        <div class="d-flex gap-2">
-            <button class="btn btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#addVehicleModal">
-                <i class="fas fa-plus me-2"></i>New Vehicle
-            </button>
-        </div>
+        <button class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addVehicleModal">
+            <i class="fas fa-plus me-2"></i>New Vehicle
+        </button>
     </div>
 
     <ul class="nav nav-tabs mb-4" id="fleetTabs" role="tablist">
         <li class="nav-item">
-            <button class="nav-link active fw-bold" id="list-tab" data-bs-toggle="tab" data-bs-target="#listView" type="button">
+            <button class="nav-link active fw-bold px-4" id="list-tab" data-bs-toggle="tab" data-bs-target="#listView" type="button">
                 <i class="fas fa-th-large me-2"></i>Vehicle List
             </button>
         </li>
         <li class="nav-item">
-            <button class="nav-link fw-bold" id="map-tab" data-bs-toggle="tab" data-bs-target="#mapView" type="button" onclick="initFleetMap()">
+            <button class="nav-link fw-bold px-4" id="map-tab" data-bs-toggle="tab" data-bs-target="#mapView" type="button" onclick="initFleetMap()">
                 <i class="fas fa-map-marked-alt me-2"></i>Live Map
             </button>
         </li>
@@ -51,164 +46,151 @@
         <div class="tab-pane fade show active" id="listView">
             <div class="row g-4">
                 {% for v in vehicles %}
-                
-                {# --- Date Logic Macro --- #}
-                {% macro check_date(d) %}
-                    {% if d %}
-                        {% set days = (d - today).days %}
-                        {% if days <= 14 %}text-danger fw-bold{% elif days <= 30 %}text-warning fw-bold{% else %}text-success{% endif %}
-                    {% else %}text-muted{% endif %}
-                {% endmacro %}
-
                 <div class="col-xl-6">
                     <div class="card p-3 shadow-sm vehicle-card border-0 h-100" data-bs-toggle="modal" data-bs-target="#detailModal{{ v.id }}">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <h4 class="fw-bold mb-0">{{ v.reg_number }}</h4>
-                                <span class="text-muted small">{{ v.make_model }}</span>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <h4 class="fw-bold m-0">{{ v.reg_number }}</h4>
+                                    <span class="badge bg-secondary">{{ v.make_model }}</span>
+                                    {% if v.telematics %}
+                                        <span class="badge bg-success"><i class="fas fa-wifi"></i> Live</span>
+                                    {% endif %}
+                                </div>
+                                <div class="small text-muted mb-2">
+                                    {% if v.driver_name %}
+                                        <i class="fas fa-steering-wheel text-primary me-1"></i> {{ v.driver_name }}
+                                    {% else %}
+                                        <span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i> No Driver</span>
+                                    {% endif %}
+                                </div>
                             </div>
-                            <div class="d-flex flex-column align-items-end gap-1">
-                                <span class="badge {{ 'bg-success' if v.status == 'Active' else 'bg-danger' }}">{{ v.status }}</span>
-                                
-                                {# --- Live Telematics Badge --- #}
-                                {% if v.telematics %}
-                                    <span class="badge bg-info text-dark border d-flex align-items-center gap-1">
-                                        <i class="fas fa-satellite-dish"></i> 
-                                        {{ v.telematics.speed }} mph
-                                        {% if v.telematics.fuel_level < 20 %}
-                                            <i class="fas fa-gas-pump text-danger blink"></i>
-                                        {% endif %}
-                                    </span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <div class="d-flex gap-3 mt-3 mb-3 small fw-bold">
-                            <span class="{{ check_date(v.mot_expiry) }}">
-                                MOT: {{ v.mot_expiry.strftime(date_fmt) if v.mot_expiry else 'N/A' }}
-                            </span>
-                            <span class="{{ check_date(v.tax_expiry) }}">
-                                TAX: {{ v.tax_expiry.strftime(date_fmt) if v.tax_expiry else 'N/A' }}
-                            </span>
-                        </div>
-
-                        <div class="bg-light p-2 rounded d-flex align-items-center justify-content-between mt-auto">
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="bg-white p-1 rounded-circle border"><i class="fas fa-user-circle fa-lg text-secondary"></i></div>
-                                <div class="small fw-bold text-dark">{{ v.driver_name or 'Unassigned' }}</div>
-                            </div>
-                            <div class="small text-muted fw-bold">
-                                <i class="fas fa-users me-1"></i> {{ v.crew|length }} Crew
+                            <div class="text-end">
+                                <h4 class="fw-bold text-success m-0">£{{ "%.2f"|format(v.total_gang_cost) }}</h4>
+                                <small class="text-muted">Daily Run Cost</small>
                             </div>
                         </div>
                         
-                        <div class="mt-2 text-end text-success fw-bold small">
-                            Daily Run: £{{ "%.2f"|format(v.total_gang_cost) }}
+                        <div class="mt-3 d-flex gap-1 flex-wrap">
+                            {% for c in v.crew %}
+                                <span class="badge bg-light text-dark border"><i class="fas fa-hard-hat me-1"></i> {{ c.name }}</span>
+                            {% endfor %}
                         </div>
-                    </div> 
+                    </div>
                 </div>
 
                 <div class="modal fade" id="detailModal{{ v.id }}" tabindex="-1">
-                    <div class="modal-dialog modal-lg">
+                    <div class="modal-dialog modal-xl">
                         <div class="modal-content">
-                            <div class="modal-header bg-dark text-white">
-                                <div>
-                                    <h5 class="modal-title fw-bold">{{ v.reg_number }}</h5>
-                                    <div class="small opacity-75">Gang & Cost Management</div>
-                                </div>
-                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                            </div>
-                            
-                            <form method="POST">
+                            <form method="POST" action="/finance/fleet">
                                 <input type="hidden" name="action" value="assign_crew">
                                 <input type="hidden" name="vehicle_id" value="{{ v.id }}">
                                 
-                                <div class="modal-body p-0">
-                                    <div class="bg-light p-3 border-bottom d-flex justify-content-between align-items-center">
-                                        <div class="small fw-bold text-uppercase text-muted">Total Daily Run Cost</div>
-                                        <div class="fs-4 fw-bold text-success">£{{ "%.2f"|format(v.total_gang_cost) }}</div>
+                                <div class="modal-header bg-dark text-white">
+                                    <div>
+                                        <h5 class="modal-title fw-bold">{{ v.reg_number }} <span class="fw-light ms-2">| {{ v.make_model }}</span></h5>
                                     </div>
-
-                                    <div class="p-3 border-bottom bg-white">
-                                        <div class="row align-items-center mb-2">
-                                            <div class="col-7">
-                                                <label class="small fw-bold text-muted">Van Daily Cost (£)</label>
-                                                <div class="small text-muted fst-italic" style="font-size: 0.75rem;">Lease/Fuel/Ins (Excl. Wages)</div>
-                                            </div>
-                                            <div class="col-5">
-                                                <input type="number" step="0.01" name="daily_cost" class="form-control fw-bold text-end" value="{{ v.daily_cost }}">
-                                            </div>
-                                        </div>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                
+                                <div class="modal-body bg-light">
+                                    <div class="row g-4">
                                         
-                                        <div class="row g-2 mt-2">
-                                            <div class="col-md-4"><label class="small fw-bold">MOT</label><input type="date" name="mot_expiry" class="form-control form-control-sm" value="{{ v.mot_expiry }}"></div>
-                                            <div class="col-md-4"><label class="small fw-bold">Tax</label><input type="date" name="tax_expiry" class="form-control form-control-sm" value="{{ v.tax_expiry }}"></div>
-                                            <div class="col-md-4"><label class="small fw-bold">Ins</label><input type="date" name="ins_expiry" class="form-control form-control-sm" value="{{ v.ins_expiry }}"></div>
-                                        </div>
-                                    </div>
-
-                                    <div class="px-3 py-3 border-bottom">
-                                        <details class="border rounded p-2 bg-white">
-                                            <summary class="small fw-bold text-muted cursor-pointer">
-                                                <i class="fas fa-satellite-dish me-1"></i> Tracker Configuration
-                                            </summary>
-                                            <div class="mt-3">
-                                                <div class="mb-2">
-                                                    <label class="small fw-bold">Tracker URL (Link)</label>
-                                                    <input type="text" name="tracker_url" class="form-control form-control-sm" value="{{ v.tracker_url or '' }}" placeholder="Paste Samsara or Geotab Link here">
-                                                </div>
-                                            </div>
-                                        </details>
-                                    </div>
-
-                                    {% if v.telematics and v.telematics.lat %}
-                                    <div class="p-3 border-bottom">
-                                        <label class="small fw-bold text-muted mb-2">Live Location</label>
-                                        <div id="mini-map-{{ v.id }}" class="mini-map"></div>
-                                        <div class="small text-muted mt-1">
-                                            <i class="fas fa-map-marker-alt text-danger"></i> 
-                                            Speed: {{ v.telematics.speed }} mph | Status: {{ v.telematics.status }}
-                                        </div>
-                                    </div>
-                                    {% endif %}
-
-                                    <div class="p-3 bg-light">
-                                        <h6 class="fw-bold mb-3 border-bottom pb-2">Crew Assignment</h6>
-                                        
-                                        <div class="mb-3">
-                                            <label class="small fw-bold text-muted mb-1">Designated Driver</label>
-                                            <select name="driver_id" class="form-select fw-bold shadow-sm">
-                                                <option value="None">-- Select Driver --</option>
-                                                {% for s in all_staff %}
-                                                    <option value="{{ s.id }}" {% if s.id == v.assigned_driver_id %}selected{% endif %}>
-                                                        {{ s.name }}
-                                                    </option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-
-                                        <label class="small fw-bold text-muted mb-2">Passengers / Crew</label>
-                                        <div class="row g-2">
-                                            {% for s in all_staff %}
-                                                <div class="col-md-6">
-                                                    <div class="form-check p-2 border rounded bg-white position-relative crew-box">
-                                                        <input class="form-check-input crew-checkbox me-2" type="checkbox" name="crew_ids" value="{{ s.id }}" id="crew_{{ v.id }}_{{ s.id }}"
-                                                            {% for member in v.crew %}
-                                                                {% if member.name == s.name %}checked{% endif %}
-                                                            {% endfor %}
-                                                        >
-                                                        <label class="form-check-label w-100 d-flex justify-content-between stretched-link" for="crew_{{ v.id }}_{{ s.id }}">
-                                                            <span class="fw-bold small">{{ s.name }}</span>
-                                                        </label>
+                                        <div class="col-lg-5">
+                                            <div class="card border-0 shadow-sm mb-3">
+                                                <div class="card-body">
+                                                    <h6 class="fw-bold text-muted border-bottom pb-2 mb-3">Vehicle Economics</h6>
+                                                    <div class="row g-3">
+                                                        <div class="col-6">
+                                                            <label class="small fw-bold">Daily Van Cost (£)</label>
+                                                            <input type="number" step="0.01" name="daily_cost" value="{{ v.daily_cost }}" class="form-control fw-bold">
+                                                            <div class="form-text small">Lease, Fuel, Ins.</div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <label class="small fw-bold text-success">Total Gang Cost</label>
+                                                            <div class="fs-4 fw-bold text-success">£{{ "%.2f"|format(v.total_gang_cost) }}</div>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            {% endfor %}
+                                            </div>
+
+                                            <div class="card border-0 shadow-sm mb-3">
+                                                <div class="card-body">
+                                                    <h6 class="fw-bold text-muted border-bottom pb-2 mb-3">Primary Driver</h6>
+                                                    <select name="driver_id" class="form-select form-select-lg fw-bold mb-2">
+                                                        <option value="">-- No Driver --</option>
+                                                        {% for s in all_staff %}
+                                                            <option value="{{ s.id }}" {% if s.id == v.assigned_driver_id %}selected{% endif %}>
+                                                                {{ s.name }}
+                                                            </option>
+                                                        {% endfor %}
+                                                    </select>
+                                                    <div class="small text-muted"><i class="fas fa-info-circle me-1"></i> Selecting a driver adds their daily wage to the vehicle cost.</div>
+                                                </div>
+                                            </div>
+
+                                            <div class="card border-0 shadow-sm">
+                                                <div class="card-body">
+                                                    <h6 class="fw-bold text-muted border-bottom pb-2 mb-3">Compliance & API</h6>
+                                                    <div class="row g-2 mb-3">
+                                                        <div class="col-4"><label class="small fw-bold">MOT</label><input type="date" name="mot_expiry" value="{{ v.mot_expiry }}" class="form-control form-control-sm"></div>
+                                                        <div class="col-4"><label class="small fw-bold">Tax</label><input type="date" name="tax_expiry" value="{{ v.tax_expiry }}" class="form-control form-control-sm"></div>
+                                                        <div class="col-4"><label class="small fw-bold">Ins</label><input type="date" name="ins_expiry" value="{{ v.ins_expiry }}" class="form-control form-control-sm"></div>
+                                                    </div>
+                                                    <label class="small fw-bold">Tracker / API Link</label>
+                                                    <input type="text" name="tracker_url" value="{{ v.tracker_url or '' }}" class="form-control form-control-sm" placeholder="https://api.samsara.com/...">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-lg-7">
+                                            
+                                            <div class="card border-0 shadow-sm mb-3 overflow-hidden">
+                                                <div class="card-header bg-white fw-bold"><i class="fas fa-satellite-dish me-2"></i>Live Location</div>
+                                                {% if v.telematics and v.telematics.lat %}
+                                                    <div id="mini-map-{{ v.id }}" class="mini-map"></div>
+                                                    <div class="p-2 bg-white small d-flex justify-content-between">
+                                                        <span><i class="fas fa-tachometer-alt me-1"></i> {{ v.telematics.speed }} mph</span>
+                                                        <span><i class="fas fa-gas-pump me-1"></i> {{ v.telematics.fuel_level }}% Fuel</span>
+                                                        <span class="text-success fw-bold">{{ v.telematics.status }}</span>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="p-5 text-center text-muted bg-light">
+                                                        <i class="fas fa-map-marker-alt fa-2x mb-2 opacity-50"></i>
+                                                        <p>No GPS signal. Check Tracker URL.</p>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+
+                                            <div class="card border-0 shadow-sm">
+                                                <div class="card-header bg-white fw-bold"><i class="fas fa-users me-2"></i>Assigned Crew (Passengers)</div>
+                                                <div class="card-body" style="max-height: 250px; overflow-y: auto;">
+                                                    <div class="row g-2">
+                                                        {% for staff in all_staff %}
+                                                            <div class="col-md-6">
+                                                                <div class="form-check bg-light p-2 border rounded">
+                                                                    <input class="form-check-input crew-checkbox" type="checkbox" name="crew_ids" value="{{ staff.id }}" id="s{{ v.id }}{{ staff.id }}"
+                                                                    {% if staff.name in v.crew|map(attribute='name')|list %}checked{% endif %}
+                                                                    {% if staff.id == v.assigned_driver_id %}disabled{% endif %}>
+                                                                    
+                                                                    <label class="form-check-label fw-bold ms-2 w-100" for="s{{ v.id }}{{ staff.id }}">
+                                                                        {{ staff.name }}
+                                                                        {% if staff.id == v.assigned_driver_id %}
+                                                                            <span class="badge bg-dark float-end">Driver</span>
+                                                                        {% endif %}
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                            </div>
+
                                         </div>
                                     </div>
                                 </div>
                                 <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                    <button type="submit" class="btn btn-primary fw-bold">Save All Changes</button>
+                                    <button type="submit" class="btn btn-primary fw-bold px-4">Save Configuration</button>
                                 </div>
                             </form>
                         </div>
@@ -226,47 +208,36 @@
     </div>
 
     <div class="modal fade" id="addVehicleModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <form method="POST" class="modal-content">
-                <input type="hidden" name="action" value="add_vehicle">
-                <div class="modal-header">
-                    <h5 class="modal-title fw-bold">Register New Vehicle</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="small fw-bold">Reg Plate</label>
-                            <input type="text" name="reg_number" class="form-control" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="small fw-bold">Model</label>
-                            <input type="text" name="make_model" class="form-control">
-                        </div>
-                        <div class="col-md-12">
-                            <label class="small fw-bold">Daily Cost (£)</label>
-                            <input type="number" step="0.01" name="daily_cost" class="form-control" placeholder="25.00" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="small fw-bold">Default Driver</label>
-                            <select name="driver_id" class="form-select">
-                                <option value="">-- Select --</option>
-                                {% for s in all_staff %}
-                                    <option value="{{ s.id }}">{{ s.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-12"><hr class="my-1"></div>
-                        <div class="col-12">
-                            <label class="small fw-bold">Tracker URL (API Link)</label>
-                            <input type="text" name="tracker_url" class="form-control" placeholder="https://api.samsara...">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="/finance/fleet">
+                    <input type="hidden" name="action" value="add_vehicle">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold">Add New Vehicle</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-6"><label class="fw-bold">Reg Plate</label><input type="text" name="reg_number" class="form-control" required></div>
+                            <div class="col-6"><label class="fw-bold">Make/Model</label><input type="text" name="make_model" class="form-control" required></div>
+                            <div class="col-6"><label class="fw-bold">Daily Cost (£)</label><input type="number" step="0.01" name="daily_cost" class="form-control"></div>
+                            <div class="col-6">
+                                <label class="fw-bold">Default Driver</label>
+                                <select name="driver_id" class="form-select">
+                                    <option value="">-- Select --</option>
+                                    {% for s in all_staff %}
+                                        <option value="{{ s.id }}">{{ s.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-12"><label class="fw-bold">Tracker URL</label><input type="text" name="tracker_url" class="form-control"></div>
                         </div>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary w-100">Save Vehicle</button>
-                </div>
-            </form>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary fw-bold">Add Vehicle</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -274,40 +245,27 @@
     var mapInitialized = false;
     var globalMap;
 
-    // 1. INIT GLOBAL MAP (Tab 2)
+    // 1. GLOBAL MAP INIT
     function initFleetMap() {
         if (mapInitialized) {
             setTimeout(() => { globalMap.invalidateSize(); }, 200);
             return; 
         }
 
-        globalMap = L.map('fleetMap').setView([54.5, -3.0], 6); // UK Center
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(globalMap);
+        globalMap = L.map('fleetMap').setView([54.5, -3.0], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(globalMap);
 
-        // Plot All Vehicles on Global Map
         {% for v in vehicles %}
             {% if v.telematics and v.telematics.lat %}
-                var lat = {{ v.telematics.lat }};
-                var lon = {{ v.telematics.lon }};
-                var reg = "{{ v.reg_number }}";
-                var speed = "{{ v.telematics.speed }}";
-
-                L.marker([lat, lon]).addTo(globalMap)
-                    .bindPopup(`
-                        <div class='text-center'>
-                            <h6 class='fw-bold mb-1'>${reg}</h6>
-                            <div class='badge bg-primary mt-1'>${speed} mph</div>
-                        </div>
-                    `);
+                L.marker([{{ v.telematics.lat }}, {{ v.telematics.lon }}]).addTo(globalMap)
+                    .bindPopup("<b>{{ v.reg_number }}</b><br>{{ v.driver_name or 'No Driver' }}");
             {% endif %}
         {% endfor %}
 
         mapInitialized = true;
     }
 
-    // 2. INIT INDIVIDUAL MAPS (In Modals)
+    // 2. MODAL MINI-MAP INIT
     document.addEventListener('DOMContentLoaded', function() {
         {% for v in vehicles %}
             {% if v.telematics and v.telematics.lat %}
@@ -315,19 +273,16 @@
                 var mapId = 'mini-map-{{ v.id }}';
                 var lat = {{ v.telematics.lat }};
                 var lon = {{ v.telematics.lon }};
-                var reg = "{{ v.reg_number }}";
-
-                var modalElement = document.getElementById(modalId);
-                modalElement.addEventListener('shown.bs.modal', function () {
-                    if (!this.miniMapInstance) {
-                        var map = L.map(mapId).setView([lat, lon], 14);
+                
+                var el = document.getElementById(modalId);
+                el.addEventListener('shown.bs.modal', function () {
+                    if (!this.miniMap) {
+                        var map = L.map(mapId).setView([lat, lon], 13);
                         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(map);
-                        L.marker([lat, lon]).addTo(map).bindPopup('<b>' + reg + '</b>').openPopup();
-                        this.miniMapInstance = map; 
+                        L.marker([lat, lon]).addTo(map);
+                        this.miniMap = map;
                     }
-                    setTimeout(function() {
-                        if(modalElement.miniMapInstance) modalElement.miniMapInstance.invalidateSize();
-                    }, 100);
+                    setTimeout(() => { if(this.miniMap) this.miniMap.invalidateSize(); }, 100);
                 });
             {% endif %}
         {% endfor %}

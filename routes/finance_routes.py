@@ -6,6 +6,7 @@ import secrets
 import string
 import os
 import csv
+from services.tax_engine import TaxEngine
 from io import TextIOWrapper
 from datetime import datetime, date, timedelta
 from db import get_db, get_site_config, allowed_file, UPLOAD_FOLDER
@@ -920,3 +921,87 @@ def settings_integrations():
     conn.close()
 
     return render_template('finance/settings_integrations.html', settings=settings, active_tab='integrations')
+    
+@finance_bp.route('/finance/payroll')
+def finance_payroll():
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    
+    # 1. Fetch Config
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    
+    country = settings.get('country_code', 'UK') # Defaults to UK if not set
+    currency = settings.get('currency_symbol', '£')
+    brand_color = settings.get('brand_color', '#333')
+    logo = settings.get('logo')
+
+    # 2. Date Range (Current Week)
+    today = date.today()
+    start_of_week = today - timedelta(days=today.weekday()) 
+    end_of_week = start_of_week + timedelta(days=6)         
+    
+    # 3. Fetch Data
+    cur.execute("""
+        SELECT 
+            s.id, s.name, s.position, s.employment_type, s.pay_rate, s.pay_model,
+            COALESCE(SUM(t.total_hours), 0) as total_hours,
+            COUNT(DISTINCT t.date) as days_worked
+        FROM staff s
+        LEFT JOIN staff_timesheets t ON s.id = t.staff_id 
+            AND t.date >= %s AND t.date <= %s
+        WHERE s.company_id = %s
+        GROUP BY s.id
+        ORDER BY s.name ASC
+    """, (start_of_week, end_of_week, comp_id))
+    
+    payroll = []
+    totals = {'gross': 0, 'tax': 0, 'net': 0}
+    
+    for r in cur.fetchall():
+        hours = float(r[6])
+        days = int(r[7])
+        rate = float(r[4] or 0)
+        model = r[5]
+        role_type = r[3]
+        
+        # A. Gross Pay
+        gross = 0
+        if model == 'Hour': gross = hours * rate
+        elif model == 'Day': gross = days * rate
+        elif model == 'Year': gross = (rate / 52)
+        
+        # B. Tax Calculation (Using Service)
+        tax = 0.0
+        social = 0.0
+        
+        if role_type != 'Sub-Contractor':
+            # HERE IS THE MAGIC LINE
+            tax, social = TaxEngine.calculate(gross, country)
+            
+        deductions = tax + social
+        net = gross - deductions
+        
+        payroll.append({
+            'id': r[0], 'name': r[1], 'role': r[2], 'type': role_type,
+            'hours': hours, 'days': days, 'rate': rate, 'model': model,
+            'gross': gross, 'tax': tax, 'social': social, 'net': net
+        })
+        
+        totals['gross'] += gross
+        totals['tax'] += deductions
+        totals['net'] += net
+
+    conn.close()
+    
+    return render_template('finance/finance_payroll.html', 
+                           payroll=payroll,
+                           totals=totals,
+                           week_start=start_of_week,
+                           week_end=end_of_week,
+                           settings=settings,
+                           currency=currency,
+                           brand_color=brand_color,
+                           logo_url=logo)
