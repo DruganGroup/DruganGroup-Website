@@ -28,7 +28,7 @@ def hr_dashboard():
     conn.close()
     return render_template('finance/finance_hr.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# --- 2. STAFF PROFILE ---
+# --- 2. STAFF PROFILE (FIXED DATA MAPPING) ---
 @hr_bp.route('/hr/staff/<int:staff_id>')
 def staff_profile(staff_id):
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -52,13 +52,40 @@ def staff_profile(staff_id):
     colnames = [desc[0] for desc in cur.description]
     staff = dict(zip(colnames, staff_raw))
     
-    # Get History
+    # 1. FIX JOBS (Map keys to match HTML: start_date, site_address)
     cur.execute("SELECT id, ref, status, start_date, site_address FROM jobs WHERE engineer_id = %s ORDER BY start_date DESC LIMIT 5", (staff_id,))
-    jobs = [{'id': r[0], 'title': r[1], 'status': r[2], 'date': r[3], 'site': r[4]} for r in cur.fetchall()]
+    jobs = []
+    for r in cur.fetchall():
+        jobs.append({
+            'id': r[0],
+            'title': r[1],
+            'status': r[2],
+            'start_date': r[3],     # Matches {{ j.start_date }}
+            'site_address': r[4]    # Matches {{ j.site_address }}
+        })
 
-    cur.execute("SELECT date, clock_in, clock_out, total_hours FROM staff_timesheets WHERE staff_id = %s ORDER BY date DESC LIMIT 5", (staff_id,))
-    timesheets = [{'date': r[0], 'in': r[1], 'out': r[2], 'hours': r[3]} for r in cur.fetchall()]
+    # 2. FIX TIMESHEETS (Query staff_attendance, Map keys to: clock_in, clock_out)
+    cur.execute("""
+        SELECT date, clock_in, clock_out, total_hours 
+        FROM staff_attendance 
+        WHERE staff_id = %s 
+        ORDER BY date DESC LIMIT 5
+    """, (staff_id,))
     
+    timesheets = []
+    for r in cur.fetchall():
+        # Format times nicely (HH:MM)
+        c_in = r[1].strftime('%H:%M') if r[1] else '-'
+        c_out = r[2].strftime('%H:%M') if r[2] else '-'
+        
+        timesheets.append({
+            'date': r[0],
+            'clock_in': c_in,       # Matches {{ t.clock_in }}
+            'clock_out': c_out,     # Matches {{ t.clock_out }}
+            'total_hours': r[3]     # Matches {{ t.total_hours }}
+        })
+    
+    # 3. Vehicle Checks
     cur.execute("SELECT date, type, description, cost FROM maintenance_logs WHERE description LIKE %s ORDER BY date DESC LIMIT 5", (f"%{staff['name']}%",))
     checks = [{'date': r[0], 'passed': 'Check' in r[1], 'notes': r[2], 'reg_number': 'Van Check'} for r in cur.fetchall()]
 
@@ -78,7 +105,7 @@ def save_staff():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
-    staff_id = request.form.get('staff_id') # If empty, it's a NEW add
+    staff_id = request.form.get('staff_id') 
     
     # Check Limits for New Staff
     if not staff_id:
@@ -145,7 +172,6 @@ def save_staff():
             
             cur.execute(sql, tuple(params))
             
-            # Sync User Login Name
             cur.execute("UPDATE users SET name=%s WHERE email=%s AND company_id=%s", (name, email, comp_id))
             flash("✅ Staff record updated.")
             
@@ -156,7 +182,6 @@ def save_staff():
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (comp_id, name, email, phone, position, dept, pay_rate, pay_model, emp_type, access, nok_name, nok_phone, nok_rel, nok_addr, license_path, tax_id, address))
             
-            # Auto-Create Login if Access Granted
             if access != "None" and email:
                 cur.execute("SELECT id FROM users WHERE email=%s", (email,))
                 if not cur.fetchone():
@@ -188,7 +213,6 @@ def delete_staff(id):
     conn = get_db()
     cur = conn.cursor()
     try:
-        # Get Email to delete login too
         cur.execute("SELECT email FROM staff WHERE id = %s", (id,))
         row = cur.fetchone()
         
