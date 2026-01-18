@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, session, redirect, url_for, request, flash
+from flask import Blueprint, render_template, session, redirect, url_for, request, flash, jsonify
 from db import get_db, get_site_config
 from services.enforcement import check_limit
 from email_service import send_company_email
@@ -34,335 +34,59 @@ def client_dashboard():
 
 @client_bp.route('/clients/add', methods=['POST'])
 def add_client():
-    if session.get('role') not in ['Admin', 'SuperAdmin', 'Office']: 
-        return redirect(url_for('auth.login'))
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Office']: return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
-
-    # --- CHECK LIMIT ---
     allowed, msg = check_limit(comp_id, 'max_clients')
     if not allowed:
         flash(msg, "error")
         return redirect(url_for('client.client_dashboard'))
-    
-    # 1. Get Form Data
+
     name = request.form.get('name')
     email = request.form.get('email')
     phone = request.form.get('phone')
-    billing = request.form.get('billing_address')
-    site = request.form.get('site_address') or billing
-    code = request.form.get('gate_code')
-    notes = request.form.get('notes')
+    addr = request.form.get('address')
     
-    # NOTE: We do NOT generate a password here anymore.
-    
-    conn = get_db()
-    cur = conn.cursor()
+    conn = get_db(); cur = conn.cursor()
     try:
-        # 2. Insert Client (Silent - No Email)
         cur.execute("""
-            INSERT INTO clients (company_id, name, email, phone, billing_address, site_address, gate_code, notes)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (comp_id, name, email, phone, billing, site, code, notes))
+            INSERT INTO clients (company_id, name, email, phone, site_address, billing_address, status)
+            VALUES (%s, %s, %s, %s, %s, %s, 'Active')
+            RETURNING id
+        """, (comp_id, name, email, phone, addr, addr))
+        new_id = cur.fetchone()[0]
+        
+        # Auto-create first property (Site Address)
+        cur.execute("""
+            INSERT INTO properties (company_id, client_id, address_line1)
+            VALUES (%s, %s, %s)
+        """, (comp_id, new_id, addr))
         
         conn.commit()
-        flash(f"✅ Client '{name}' saved successfully. (Portal not active yet)")
-
+        flash("✅ Client Added")
     except Exception as e:
-        conn.rollback()
-        flash(f"❌ Error: {e}")
+        conn.rollback(); flash(f"Error: {e}", "error")
     finally:
         conn.close()
         
     return redirect(url_for('client.client_dashboard'))
 
-# --- 3. OFFICE VIEW: UPDATE CLIENT ---
-@client_bp.route('/clients/update', methods=['POST'])
-def update_client():
-    if session.get('role') not in ['Admin', 'SuperAdmin', 'Office']: 
-        return redirect(url_for('auth.login'))
-    
-    client_id = request.form.get('client_id')
-    name = request.form.get('name')
-    email = request.form.get('email')
-    phone = request.form.get('phone')
-    billing = request.form.get('billing_address')
-    site = request.form.get('site_address')
-    code = request.form.get('gate_code')
-    notes = request.form.get('notes')
-    status = request.form.get('status')
+# --- API: GET PROPERTIES FOR DROPDOWN (FIXED) ---
+@client_bp.route('/api/client/<int:client_id>/properties')
+def get_client_properties(client_id):
+    if 'user_id' not in session: return jsonify([])
     
     conn = get_db()
     cur = conn.cursor()
-    try:
-        cur.execute("""
-            UPDATE clients SET name=%s, email=%s, phone=%s, billing_address=%s, 
-            site_address=%s, gate_code=%s, notes=%s, status=%s
-            WHERE id=%s AND company_id=%s
-        """, (name, email, phone, billing, site, code, notes, status, client_id, session.get('company_id')))
-        conn.commit()
-        flash("✅ Client details updated")
-    except Exception as e:
-        conn.rollback()
-        flash(f"❌ Error: {e}")
-    finally:
-        conn.close()
-    return redirect(url_for('client.client_dashboard'))
-
-# --- 4. OFFICE VIEW: DELETE CLIENT ---
-@client_bp.route('/clients/delete/<int:id>')
-def delete_client(id):
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("DELETE FROM clients WHERE id=%s AND company_id=%s", (id, session.get('company_id')))
-    conn.commit(); conn.close()
-    return redirect(url_for('client.client_dashboard'))
-
-@client_bp.route('/client/<int:client_id>')
-def view_client(client_id):
-    if session.get('role') not in ['Admin', 'Office', 'Manager', 'SuperAdmin']: 
-        return redirect(url_for('auth.login'))
     
-    conn = get_db(); cur = conn.cursor()
-    comp_id = session['company_id']
-    
-    # 1. FETCH CLIENT (Explicit Columns - Fixes "None" and "1234" issue)
     cur.execute("""
-        SELECT id, name, email, phone, billing_address, site_address, password_hash 
-        FROM clients 
-        WHERE id = %s AND company_id = %s
-    """, (client_id, comp_id))
+        SELECT id, address_line1, postcode 
+        FROM properties 
+        WHERE client_id = %s AND company_id = %s
+        ORDER BY address_line1 ASC
+    """, (client_id, session.get('company_id')))
     
-    row = cur.fetchone()
-    if not row: conn.close(); return "Client not found", 404
-        
-    # Map the data explicitly so it can't mix up
-    client_data = {
-        'id': row[0],
-        'name': row[1] or "Unknown Name",
-        'email': row[2],
-        'phone': row[3],
-        'addr': row[4] or row[5] or "No Address on File",
-        'has_portal': True if row[6] else False  # Checks if password exists
-    }
-
-    # 2. FETCH PROPERTIES
-    cur.execute("""
-        SELECT id, address_line1, postcode, tenant_name, 
-               gas_safety_due, eicr_due, pat_test_due, fire_risk_due, epc_expiry, tenant_phone
-        FROM properties WHERE client_id = %s ORDER BY id DESC
-    """, (client_id,))
-    
-    raw_props = cur.fetchall()
-    properties = []
-    today = date.today()
-
-    def get_status(d):
-        if not d: return 'Missing'
-        if d < today: return 'Expired'
-        if (d - today).days <= 30: return 'Due'
-        return 'Valid'
-
-    for p in raw_props:
-        properties.append({
-            'id': p[0], 'addr': p[1], 'postcode': p[2], 'tenant': p[3], 'tenant_phone': p[9],
-            'compliance': {
-                'Gas': {'date': p[4], 'status': get_status(p[4])},
-                'EICR': {'date': p[5], 'status': get_status(p[5])},
-                'PAT': {'date': p[6], 'status': get_status(p[6])},
-                'Fire': {'date': p[7], 'status': get_status(p[7])},
-                'EPC': {'date': p[8], 'status': get_status(p[8])}
-            }
-        })
-
-    # 3. FETCH VANS
-    cur.execute("SELECT id, reg_plate FROM vehicles WHERE company_id = %s ORDER BY reg_plate", (comp_id,))
-    rows = cur.fetchall()
-    vans_list = [{'id': r[0], 'name': r[1]} for r in rows]
-    if not vans_list: vans_list.append({'id': '', 'name': 'No Vehicles Found'})
-
+    props = [{'id': r[0], 'address': f"{r[1]} {r[2] or ''}"} for r in cur.fetchall()]
     conn.close()
     
-    return render_template('office/client_details.html', 
-                           client=client_data, 
-                           properties=properties, 
-                           vans_list=vans_list,
-                           today=today)
-                           
-# --- 6. OFFICE VIEW: ADD PROPERTY (WITH COMPLIANCE DATES) ---
-@client_bp.route('/client/<int:client_id>/add-property', methods=['POST'])
-def add_property(client_id):
-    if session.get('role') not in ['Admin', 'Office', 'Manager', 'SuperAdmin']: return "Access Denied"
-    
-    # --- CHECK LIMIT (INDENTED CORRECTLY) ---
-    allowed, msg = check_limit(session['company_id'], 'max_properties')
-    if not allowed:
-        flash(msg, "error")
-        return redirect(url_for('client.view_client', client_id=client_id))
-    # ----------------------------------------
-    
-    conn = get_db()
-    cur = conn.cursor()
-    try:
-        address1 = request.form.get('address_line1')
-        postcode = request.form.get('postcode')
-        gas_due = request.form.get('gas_safety_due') or None
-        eicr_due = request.form.get('eicr_due') or None
-        pat_due = request.form.get('pat_test_due') or None
-        fire_due = request.form.get('fire_risk_due') or None
-        epc_due = request.form.get('epc_expiry') or None
-
-        cur.execute("""
-            INSERT INTO properties 
-            (company_id, client_id, address_line1, postcode, 
-             gas_safety_due, eicr_due, pat_test_due, fire_risk_due, epc_expiry)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
-            session['company_id'], client_id, address1, postcode,
-            gas_due, eicr_due, pat_due, fire_due, epc_due
-        ))
-        conn.commit()
-        flash("✅ Property & Compliance Dates Saved")
-    except Exception as e:
-        conn.rollback()
-        flash(f"❌ Error: {e}")
-    finally:
-        conn.close()
-        
-    return redirect(url_for('client.view_client', client_id=client_id))
-
-# --- 7. PORTAL: CLIENT ADDS THEIR OWN PROPERTY ---
-@client_bp.route('/portal/add-property', methods=['POST'])
-def portal_add_property():
-    if 'client_id' not in session: return redirect(url_for('auth.client_portal_login'))
-    
-    client_id, comp_id = session.get('client_id'), session.get('company_id')
-    
-    # --- CHECK LIMIT (SECURITY FIX) ---
-    # Even though it's the client adding it, it belongs to the company's quota.
-    allowed, msg = check_limit(comp_id, 'max_properties')
-    if not allowed:
-        flash("❌ Cannot add property: The management company has reached their property limit.", "error")
-        return redirect(url_for('client.client_portal_home'))
-    # ----------------------------------
-
-    address = request.form.get('address')
-    tenant = request.form.get('tenant_name')
-    phone = request.form.get('tenant_phone')
-    access = request.form.get('access_info')
-    
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO properties (client_id, company_id, address_line1, tenant_name, tenant_phone, access_info) 
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, (client_id, comp_id, address, tenant, phone, access))
-    conn.commit(); conn.close()
-    flash("✅ Property added to your dashboard.")
-    return redirect(url_for('client.client_portal_home'))
-
-# --- 8. PORTAL: CLIENT RAISES SERVICE REQUEST ---
-@client_bp.route('/portal/raise-issue', methods=['POST'])
-def raise_issue():
-    if 'client_id' not in session: return redirect(url_for('auth.client_portal_login'))
-    
-    client_id, comp_id = session.get('client_id'), session.get('company_id')
-    prop_id = request.form.get('property_id')
-    desc = request.form.get('description')
-    sev = request.form.get('severity')
-    
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO service_requests (property_id, client_id, company_id, issue_description, severity) 
-        VALUES (%s, %s, %s, %s, %s)
-    """, (prop_id, client_id, comp_id, desc, sev))
-    conn.commit(); conn.close()
-    flash("🚨 Issue reported to the office.")
-    return redirect(url_for('client.client_portal_home'))
-
-# --- 9. PORTAL: CLIENT HOME DASHBOARD ---
-@client_bp.route('/portal/home')
-def client_portal_home():
-    if 'client_id' not in session: return redirect(url_for('auth.client_portal_login'))
-    
-    comp_id, client_id = session.get('company_id'), session.get('client_id')
-    config = get_site_config(comp_id)
-    
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT id, client_id, company_id, address_line1, tenant_name, tenant_phone, access_info FROM properties WHERE client_id = %s", (client_id,))
-    properties = cur.fetchall()
-    
-    cur.execute("""
-        SELECT r.id, p.address_line1, r.property_id, r.client_id, r.issue_description, r.severity, r.status, r.created_at 
-        FROM service_requests r 
-        JOIN properties p ON r.property_id = p.id 
-        WHERE r.client_id = %s ORDER BY r.created_at DESC
-    """, (client_id,))
-    requests = cur.fetchall()
-    conn.close()
-    
-    return render_template('clients/portal_home.html', 
-                           client_name=session.get('client_name'), 
-                           properties=properties, 
-                           requests=requests, 
-                           brand_color=config['color'], 
-                           logo_url=config['logo'])
-
-# --- 10. DATABASE REPAIR TOOL (ENHANCED) ---
-@client_bp.route('/clients/fix-schema')
-def fix_client_schema():
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
-    conn = get_db(); cur = conn.cursor()
-    try:
-        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT;")
-        cur.execute("""CREATE TABLE IF NOT EXISTS properties (
-            id SERIAL PRIMARY KEY, 
-            client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
-            company_id INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);""")
-
-        cur.execute("""
-            DO $$ 
-            BEGIN 
-                IF EXISTS (SELECT 1 FROM information_schema.columns 
-                           WHERE table_name='properties' AND column_name='address') THEN
-                    ALTER TABLE properties RENAME COLUMN address TO address_line1;
-                END IF;
-            END $$;
-        """)
-
-        columns_to_add = [
-            ("address_line1", "TEXT"),
-            ("postcode", "TEXT"),
-            ("tenant_name", "TEXT"),
-            ("tenant_phone", "TEXT"),
-            ("access_info", "TEXT"),
-            ("gas_safety_due", "DATE"),
-            ("eicr_due", "DATE"),
-            ("pat_test_due", "DATE"),
-            ("fire_risk_due", "DATE"),
-            ("epc_expiry", "DATE")
-        ]
-
-        for col_name, col_type in columns_to_add:
-            try:
-                cur.execute(f"ALTER TABLE properties ADD COLUMN IF NOT EXISTS {col_name} {col_type};")
-            except Exception as e:
-                print(f"Skipping {col_name}: {e}")
-
-        cur.execute("""CREATE TABLE IF NOT EXISTS service_requests (
-            id SERIAL PRIMARY KEY, 
-            property_id INTEGER REFERENCES properties(id) ON DELETE CASCADE,
-            client_id INTEGER, 
-            company_id INTEGER, 
-            issue_description TEXT, 
-            severity TEXT, 
-            status TEXT DEFAULT 'Pending', 
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);""")
-            
-        conn.commit()
-        return "✅ Database Refurbished: 'address' renamed to 'address_line1' and compliance dates ready."
-    except Exception as e: 
-        conn.rollback()
-        return f"❌ Migration Error: {e}"
-    finally: 
-        conn.close()
+    return jsonify(props)
