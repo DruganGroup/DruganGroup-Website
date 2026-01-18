@@ -7,7 +7,6 @@ auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    # If already logged in, send them to the launcher
     if 'user_id' in session:
         return redirect(url_for('auth.main_launcher'))
 
@@ -18,113 +17,78 @@ def login():
         conn = get_db()
         cur = conn.cursor()
         
-        # 1. FETCH USER (Your custom Email Search Logic)
+        # 1. FETCH USER
+        # We explicitly select the email to save it to the session later
         cur.execute("""
-            SELECT u.id, u.name, u.password_hash, u.role, u.company_id, s.id, s.name 
+            SELECT u.id, u.name, u.password_hash, u.role, u.company_id, u.email 
             FROM users u 
-            LEFT JOIN staff s ON LOWER(TRIM(u.email)) = LOWER(TRIM(s.email)) 
             WHERE LOWER(TRIM(u.email)) = LOWER(TRIM(%s))
         """, (email,))
         
         user = cur.fetchone()
         
         if user and check_password_hash(user[2], password):
-            user_id = user[0]
-            name = user[1]
-            role = user[3]
-            comp_id = user[4]
-            staff_id = user[5]
-            real_name = user[6]
-
-            # --- AUTO-CREATE STAFF IF MISSING ---
-            if not staff_id and role != 'SuperAdmin': 
-                try:
-                    cur.execute("""
-                        INSERT INTO staff (company_id, name, email, phone, position, status, pay_rate)
-                        VALUES (%s, %s, %s, '0000000000', 'Director', 'Active', 0.00)
-                        RETURNING id, name
-                    """, (comp_id, name, email))
-                    
-                    new_staff = cur.fetchone()
-                    staff_id = new_staff[0]
-                    real_name = new_staff[1]
-                    conn.commit()
-                except Exception as e:
-                    conn.rollback()
-                    print(f"Auto-Staff Error: {e}")
-            # ---------------------------------------------
-
-            # Set Session Data
-            session['user_id'] = user_id
-            session['username'] = name
-            session['user_email'] = email 
-            session['role'] = role
-            session['company_id'] = comp_id
-            session['user_name'] = real_name if real_name else name
+            # 2. SAVE SESSION DATA (The Fix)
+            session['user_id'] = user[0]
+            session['user_name'] = user[1]
+            session['role'] = user[3]
+            session['company_id'] = user[4]
+            session['user_email'] = user[5] # <--- CRITICAL: Now we are sure this exists
             
-            # SPECIAL HANDLE: SuperAdmin goes straight to dashboard
-            if role == 'SuperAdmin':
-                session['company_name'] = "HQ"
-                session['logged_in'] = True
-                conn.close()
-                return redirect(url_for('admin.super_admin_dashboard'))
-
+            # 3. LOG AUDIT
+            ip = request.remote_addr
+            cur.execute("INSERT INTO audit_logs (company_id, admin_email, action, target, ip_address) VALUES (%s, %s, 'LOGIN', 'System', %s)", (user[4], user[5], ip))
+            conn.commit()
             conn.close()
+            
             return redirect(url_for('auth.main_launcher'))
         else:
+            flash("❌ Invalid credentials", "error")
             conn.close()
-            flash("❌ Invalid Credentials")
-            
-    host = request.host.lower()
-    
-    # 1. If on Business Better -> Show the new Software Login
-    if 'businessbetter.co.uk' in host:
-        return render_template('publicbb/login.html')
 
-    # 2. If on Drugan Group -> Show your original Trade Login
-    else:
-        return render_template('public/login.html')
-   
+    return render_template('publicbb/login.html')
+
 @auth_bp.route('/launcher')
 def main_launcher():
-    # 1. Security Check
-    if 'user_id' not in session: 
-        return redirect(url_for('auth.login'))
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
     
-    # 2. REDIRECT SUPER ADMIN (User ID 1)
-    if session.get('user_id') == 1:
-        session['user_name'] = "Master Admin"
-        session['company_name'] = "Business Better HQ"
-        return redirect(url_for('admin.super_admin_dashboard'))
+    conn = get_db(); cur = conn.cursor()
+    user_id = session.get('user_id')
 
-    # 3. FETCH USER PROFILE DATA
-    conn = get_db()
-    cur = conn.cursor()
+    # 1. CHECK CLOCK STATUS (Robust Method)
+    # We find the Staff ID by linking the User ID directly
+    is_at_work = False
     
-    # --- UPDATED QUERY: Pulls the new NOK columns ---
     cur.execute("""
-        SELECT phone, address, nok_name, nok_phone, nok_relationship, nok_address 
-        FROM staff 
-        WHERE email = %s AND company_id = %s
-    """, (session.get('user_email'), session.get('company_id')))
+        SELECT s.id 
+        FROM staff s 
+        JOIN users u ON LOWER(s.email) = LOWER(u.email) AND s.company_id = u.company_id
+        WHERE u.id = %s
+    """, (user_id,))
+    staff_row = cur.fetchone()
     
-    row = cur.fetchone()
+    if staff_row:
+        staff_id = staff_row[0]
+        cur.execute("SELECT id FROM staff_attendance WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
+        if cur.fetchone(): 
+            is_at_work = True
+
+    # 2. FETCH PROFILE
+    cur.execute("SELECT * FROM staff WHERE id = %s", (staff_row[0] if staff_row else 0,))
+    profile_data = cur.fetchone()
+    
+    # Safely convert to dictionary
+    my_profile = {}
+    if profile_data:
+        cols = [desc[0] for desc in cur.description]
+        my_profile = dict(zip(cols, profile_data))
+
     conn.close()
     
-    # Create a safe dictionary
-    my_profile = {
-        'phone': row[0] if row else '',
-        'address': row[1] if row else '',
-        'nok_name': row[2] if row else '',
-        'nok_phone': row[3] if row else '',
-        'nok_relationship': row[4] if row else '',
-        'nok_address': row[5] if row else ''
-    }
-
-    # 4. RENDER TEMPLATE
     return render_template('main_launcher.html', 
                            role=session.get('role'), 
-                           my_profile=my_profile)
+                           my_profile=my_profile,
+                           is_at_work=is_at_work)
 
 @auth_bp.route('/auth/update-profile', methods=['POST'])
 def update_profile():

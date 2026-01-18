@@ -782,45 +782,59 @@ def job_details(job_id):
                            user_is_clocked_in=user_is_clocked_in, 
                            logo_url=logo_url,
                            brand_color=brand_color)
-                           
+
 @site_bp.route('/site/toggle-day-clock', methods=['POST'])
 def toggle_day_clock():
-    if not check_site_access(): return redirect(url_for('auth.login'))
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
     
     conn = get_db(); cur = conn.cursor()
-    staff_id, _, _ = get_staff_identity(session['user_id'], cur)
-    action = request.form.get('action')
+    user_id = session.get('user_id')
     
     try:
+        # 1. ROBUST LOOKUP: Find Staff ID using User ID
+        cur.execute("""
+            SELECT s.id 
+            FROM staff s 
+            JOIN users u ON LOWER(s.email) = LOWER(u.email) AND s.company_id = u.company_id
+            WHERE u.id = %s
+        """, (user_id,))
+        staff_row = cur.fetchone()
+        
+        if not staff_row:
+            flash("❌ Error: Could not link your Login to a Staff Profile.", "error")
+            return redirect('/launcher') # Force back to launcher
+            
+        staff_id = staff_row[0]
+        action = request.form.get('action')
+
         if action == 'start':
-            # Start Day
+            # Prevent double clock-in
             cur.execute("SELECT id FROM staff_attendance WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
             if not cur.fetchone():
-                cur.execute("""
-                    INSERT INTO staff_attendance (company_id, staff_id, date, clock_in)
-                    VALUES (%s, %s, CURRENT_DATE, CURRENT_TIMESTAMP)
-                """, (session['company_id'], staff_id))
-                flash("☀️ Good Morning! You are clocked in for PAYROLL.", "success")
+                cur.execute("INSERT INTO staff_attendance (staff_id, date, clock_in) VALUES (%s, CURRENT_DATE, CURRENT_TIMESTAMP)", (staff_id,))
+                flash("✅ Clocked In", "success")
 
         elif action == 'stop':
-            # End Day
             cur.execute("""
                 UPDATE staff_attendance 
-                SET clock_out = CURRENT_TIMESTAMP, 
-                    total_hours = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - clock_in))/3600 
+                SET clock_out = CURRENT_TIMESTAMP,
+                    total_hours = ROUND(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - clock_in))::numeric / 3600, 2)
                 WHERE staff_id = %s AND clock_out IS NULL
             """, (staff_id,))
-            flash("🌙 Shift Ended. See you tomorrow!", "success")
-            
+            flash("👋 Clocked Out", "success")
+
         conn.commit()
+
     except Exception as e:
         conn.rollback()
-        flash(f"Error: {e}", "error")
+        flash(f"System Error: {e}", "error")
     finally:
         conn.close()
-        
-    return redirect(url_for('site.site_dashboard'))
-    
+
+    # 2. FORCE REDIRECT TO LAUNCHER
+    # We do not want to go to the site dashboard anymore.
+    return redirect('/launcher')
+   
 @site_bp.route('/site/unify-database')
 def unify_database():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return "Unauthorized"
