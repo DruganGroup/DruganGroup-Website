@@ -38,6 +38,10 @@ class ClassicPDF(BasePDF):
         self.set_line_width(1)
         self.line(10, 35, 200, 35) 
 
+class MinimalPDF(BasePDF):
+    def header(self):
+        self.ln(15)
+
 # --- HELPER: SAVE BASE64 IMAGE ---
 def save_base64_image(data_str):
     if not data_str or 'base64,' not in data_str: return None
@@ -106,7 +110,6 @@ def generate_cp12(context, file_path):
     pdf.set_text_color(0)
     pdf.set_font('Helvetica', '', 8)
     
-    # We map the flat data to a row
     row_data = [
         data.get('loc', ''),
         data.get('type', ''),
@@ -157,7 +160,7 @@ def generate_cp12(context, file_path):
     sig_file = save_base64_image(data.get('signature_img'))
     if sig_file:
         pdf.image(sig_file, x=pdf.get_x(), y=pdf.get_y(), w=50)
-        os.unlink(sig_file) # Clean up temp file
+        os.unlink(sig_file) 
     
     pdf.ln(25)
     pdf.cell(0, 6, f"Next Inspection Due: {context.get('next_year_date')}", ln=True)
@@ -178,7 +181,7 @@ def generate_eicr(context, file_path):
     
     # Header
     pdf.set_font('Helvetica', 'B', 20)
-    pdf.set_text_color(0, 86, 179) # Blue header
+    pdf.set_text_color(0, 86, 179) 
     pdf.cell(0, 10, "EICR - Electrical Condition Report", ln=True, align='L')
     pdf.ln(5)
     
@@ -268,7 +271,6 @@ def generate_pdf(template_name, context, output_filename):
     save_dir = os.path.join(current_app.static_folder, 'uploads', 'documents')
     os.makedirs(save_dir, exist_ok=True)
     
-    # If absolute path provided (via office_routes fix), use it. Else use default.
     if os.path.isabs(output_filename):
         file_path = output_filename
     else:
@@ -281,7 +283,7 @@ def generate_pdf(template_name, context, output_filename):
     if 'eicr' in str(template_name).lower():
         return generate_eicr(context, file_path)
 
-    # 3. FALLBACK: STANDARD INVOICE/QUOTE LOGIC (Your existing code)
+    # 3. FALLBACK: STANDARD INVOICE/QUOTE LOGIC
     invoice = context.get('invoice', {})
     items = context.get('items', [])
     settings = context.get('settings', {})
@@ -317,6 +319,14 @@ def generate_pdf(template_name, context, output_filename):
                 if os.path.exists(possible_path): final_logo_path = possible_path
             except: pass
         
+        # Try relative fallback
+        if not final_logo_path:
+            try:
+                rel_path = raw_logo.lstrip('/')
+                possible_path = os.path.join(current_app.root_path, rel_path)
+                if os.path.exists(possible_path): final_logo_path = possible_path
+            except: pass
+
         if final_logo_path:
             try: pdf.image(final_logo_path, 10, 10 if selected_theme=='Minimal' else 25, 40 if selected_theme=='Minimal' else 50)
             except: pass
@@ -360,14 +370,37 @@ def generate_pdf(template_name, context, output_filename):
     pdf.set_font('Helvetica', '', 10)
     pdf.set_text_color(50)
     company_address = settings.get('company_address', 'Registered Office')
-    pdf.multi_cell(90, 5, f"{company.get('name')}\n{company_address}\n{settings.get('company_email', '')}")
+    tax_info = f"\nTax ID: {settings.get('tax_id')}" if settings.get('tax_id') else ""
+    pdf.multi_cell(90, 5, f"{company.get('name')}\n{company_address}\n{settings.get('company_email', '')}{tax_info}")
     
     pdf.ln(10)
+
+    # --- JOB CONTEXT BLOCK (RESTORED) ---
+    if invoice.get('job_title'):
+        pdf.set_font('Helvetica', 'B', 11)
+        pdf.set_text_color(*pdf.brand_color)
+        pdf.cell(0, 6, f"PROJECT: {invoice.get('job_title')}", ln=True)
+        
+        if invoice.get('job_description'):
+            pdf.set_font('Helvetica', 'I', 9)
+            pdf.set_text_color(80)
+            pdf.multi_cell(0, 5, f"{invoice.get('job_description')}")
+        
+        if not context.get('is_quote'):
+            pdf.ln(2)
+            pdf.set_font('Helvetica', 'B', 9)
+            pdf.set_text_color(50)
+            pdf.cell(0, 5, f"Job Completed: {invoice.get('date')}", ln=True)
+            
+        pdf.ln(5) 
+
+    pdf.ln(5)
 
     # --- TABLE ---
     pdf.set_font('Helvetica', 'B', 10)
     pdf.set_fill_color(*pdf.brand_color) 
     pdf.set_text_color(255) 
+    
     pdf.cell(100, 10, "  Description", 0, 0, 'L', True)
     pdf.cell(25, 10, "Qty", 0, 0, 'C', True)
     pdf.cell(30, 10, "Price", 0, 0, 'R', True)
@@ -379,6 +412,20 @@ def generate_pdf(template_name, context, output_filename):
     pdf.set_fill_color(245, 245, 245)
 
     for item in items:
+        # Page break check
+        if pdf.get_y() > 250:
+            pdf.add_page()
+            # Reprint Header
+            pdf.set_font('Helvetica', 'B', 10)
+            pdf.set_fill_color(*pdf.brand_color) 
+            pdf.set_text_color(255) 
+            pdf.cell(100, 10, "  Description", 0, 0, 'L', True)
+            pdf.cell(25, 10, "Qty", 0, 0, 'C', True)
+            pdf.cell(30, 10, "Price", 0, 0, 'R', True)
+            pdf.cell(35, 10, "Total  ", 0, 1, 'R', True)
+            pdf.set_font('Helvetica', '', 10)
+            pdf.set_text_color(50)
+
         pdf.cell(100, 10, f"  {item.get('desc')}", 0, 0, 'L', fill)
         pdf.cell(25, 10, str(item.get('qty')), 0, 0, 'C', fill)
         pdf.cell(30, 10, f"{cur_sym}{item.get('price'):.2f}", 0, 0, 'R', fill)
@@ -387,16 +434,44 @@ def generate_pdf(template_name, context, output_filename):
 
     # --- TOTALS ---
     subtotal = sum(Decimal(str(item.get('total', 0))) for item in items)
+    
     vat_enabled = settings.get('vat_registered') == 'yes'
     tax_rate = Decimal('0.20') if vat_enabled else Decimal('0.00')
     tax_amount = subtotal * tax_rate
     grand_total = subtotal + tax_amount
 
     pdf.ln(5)
+    pdf.set_draw_color(*pdf.brand_color)
+    pdf.line(135, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(2)
+
+    if vat_enabled:
+        pdf.set_font('Helvetica', '', 10)
+        pdf.cell(155, 6, "Subtotal:", 0, 0, 'R')
+        pdf.cell(35, 6, f"{cur_sym}{subtotal:.2f}  ", 0, 1, 'R')
+        pdf.cell(155, 6, "Tax:", 0, 0, 'R')
+        pdf.cell(35, 6, f"{cur_sym}{tax_amount:.2f}  ", 0, 1, 'R')
+        pdf.set_draw_color(200, 200, 200)
+        pdf.line(160, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(1)
+
     pdf.set_font('Helvetica', 'B', 12)
     pdf.set_text_color(*pdf.brand_color) 
     pdf.cell(155, 10, "Grand Total:", 0, 0, 'R')
     pdf.cell(35, 10, f"{cur_sym}{grand_total:.2f}  ", 0, 1, 'R')
     
+    # --- FOOTER ---
+    pdf.set_y(-60)
+    pdf.set_text_color(50)
+    pdf.set_font('Helvetica', 'B', 10)
+    pdf.cell(0, 10, "Terms & Payment Details", ln=True)
+    pdf.set_font('Helvetica', '', 9)
+    
+    terms = settings.get('payment_terms', 'Payment is due within 30 days.')
+    bank = f"\nBank: {settings.get('bank_name')} | Sort: {settings.get('sort_code')} | Acc: {settings.get('account_number')}" if settings.get('bank_name') else ""
+    
+    pdf.multi_cell(0, 5, terms + bank)
+
+    # --- SAVE ---
     pdf.output(file_path)
     return file_path

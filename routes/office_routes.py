@@ -815,54 +815,6 @@ def create_gas_cert():
     prop_data = {'id': prop_id, 'address': f"{row[0]}, {row[1]}", 'client': row[2], 'client_email': row[3]} if row else {}
     return render_template('office/certs/uk/cp12.html', prop=prop_data, today=date.today(), next_year_date=date.today() + timedelta(days=365))
 
-@office_bp.route('/office/cert/gas/save', methods=['POST'])
-def save_gas_cert():
-    if not check_office_access(): return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
-    data = request.json
-    conn = get_db(); cur = conn.cursor()
-    comp_id = session.get('company_id')
-    
-    try:
-        # 1. SETUP FILENAME (Let the system decide the folder)
-        ref = f"CP12-{data.get('prop_id')}-{int(datetime.now().timestamp())}"
-        filename = f"{ref}.pdf"
-        
-        # 2. GENERATE PDF
-        # Fetch details
-        cur.execute("SELECT p.address_line1, p.postcode, c.name, c.email FROM properties p JOIN clients c ON p.client_id = c.id WHERE p.id = %s", (data.get('prop_id'),))
-        p_row = cur.fetchone()
-        
-        client_email = p_row[3]
-        prop_info = {'address': f"{p_row[0]}, {p_row[1]}", 'client': p_row[2], 'client_email': client_email, 'id': data.get('prop_id')}
-        
-        pdf_context = {'prop': prop_info, 'data': data, 'signature_url': data.get('signature_img'), 'next_year_date': data.get('next_date'), 'today': date.today().strftime('%d/%m/%Y')}
-        
-        # FIX: Pass ONLY the filename. The generator will put it in static/uploads/documents/
-        generate_pdf('office/certs/uk/cp12.html', pdf_context, filename)
-        
-        # 3. SAVE TO DB
-        # FIX: The link must point to where the generator puts it by default
-        db_path = f"uploads/documents/{filename}" 
-
-        cur.execute("""
-            INSERT INTO certificates (company_id, property_id, type, status, data, engineer_name, date_issued, expiry_date, pdf_path)
-            VALUES (%s, %s, 'Gas Safety', 'Valid', %s, %s, CURRENT_DATE, %s, %s)
-        """, (comp_id, data.get('prop_id'), json.dumps(data), session.get('user_name'), data.get('next_date'), db_path))
-
-        if data.get('next_date'):
-            cur.execute("UPDATE properties SET gas_expiry = %s WHERE id = %s", (data.get('next_date'), data.get('prop_id')))
-        
-        conn.commit()
-        return jsonify({'success': True, 'redirect_url': url_for('office.view_property_office', property_id=data.get('prop_id'))})
-
-    except Exception as e:
-        conn.rollback()
-        print(f"PDF ERROR: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)})
-    finally:
-        conn.close()
-
 @office_bp.route('/office/cert/eicr/create')
 def create_eicr_cert():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -873,42 +825,6 @@ def create_eicr_cert():
     conn.close()
     prop_data = {'id': prop_id, 'address': f"{row[0]}, {row[1]}", 'client': row[3]} if row else {}
     return render_template('office/certs/uk/eicr.html', prop=prop_data, next_five_years=date.today() + timedelta(days=365*5))
-
-@office_bp.route('/office/cert/eicr/save', methods=['POST'])
-def save_eicr_cert():
-    if not check_office_access(): return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
-    data = request.json
-    conn = get_db(); cur = conn.cursor()
-    comp_id = session.get('company_id')
-    
-    try:
-        # 1. SETUP FILENAME
-        ref = f"EICR-{data.get('prop_id')}-{int(datetime.now().timestamp())}"
-        filename = f"{ref}.pdf"
-        
-        # 2. GENERATE (Pass only filename)
-        generate_pdf('office/certs/uk/eicr.html', {'data': data}, filename)
-
-        # 3. SAVE TO DB (Point to default folder)
-        db_path = f"uploads/documents/{filename}"
-
-        cur.execute("""
-            INSERT INTO certificates (company_id, property_id, type, status, data, engineer_name, date_issued, expiry_date, pdf_path)
-            VALUES (%s, %s, 'EICR', %s, %s, %s, CURRENT_DATE, %s, %s)
-        """, (comp_id, data.get('prop_id'), 'EICR', data.get('status', 'Issued'), json.dumps(data), session.get('user_name'), data.get('next_inspection_date'), db_path))
-
-        if data.get('status') == 'Issued' and data.get('next_inspection_date'):
-            cur.execute("UPDATE properties SET eicr_expiry = %s WHERE id = %s", (data.get('next_inspection_date'), data.get('prop_id')))
-            
-        conn.commit()
-        return jsonify({'success': True, 'message': 'EICR Saved', 'redirect_url': url_for('office.view_property_office', property_id=data.get('prop_id'))})
-    except Exception as e:
-        conn.rollback()
-        print(f"PDF ERROR: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)})
-    finally:
-        conn.close()
 
 # =========================================================
 # 5. QUOTES & JOBS

@@ -1,4 +1,4 @@
-	{% extends "finance/finance_base.html" %}
+{% extends "finance/finance_base.html" %}
 
 	{% block title %}HR & Staff | Business Better{% endblock %}
 
@@ -45,12 +45,12 @@
 							{% endif %}
 						</td>
 						<td>
-    {% if s.driving_license %}
-        <span class="text-success small"><i class="fas fa-check-circle"></i> On File</span>
-    {% else %}
-        <span class="text-muted small opacity-50"><i class="fas fa-times-circle"></i> Missing</span>
-    {% endif %}
-</td>
+                            {% if s.driving_license %}
+                                <span class="text-success small"><i class="fas fa-check-circle"></i> On File</span>
+                            {% else %}
+                                <span class="text-muted small opacity-50"><i class="fas fa-times-circle"></i> Missing</span>
+                            {% endif %}
+                        </td>
 						<td class="small">
 							{% if s.email %}<div><i class="fas fa-envelope me-2 text-muted"></i>{{ s.email }}</div>{% endif %}
 							{% if s.phone %}<div><i class="fas fa-phone me-2 text-muted"></i>{{ s.phone }}</div>{% endif %}
@@ -67,14 +67,13 @@
 								onclick="fillEditStaff(this)">
 								<i class="fas fa-edit"></i>
 							</button>
-							
-							<a href="/finance/hr/delete/{{ s.id }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure? This will remove the staff member and revoke their login access.');">
+							<a href="/hr/delete/{{ s.id }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure? This will remove the staff member and revoke their login access.');">
 								<i class="fas fa-trash"></i>
 							</a>
 						</td>
 					</tr>
 					{% else %}
-					<tr><td colspan="6" class="text-center py-5 text-muted">No staff found. Click "New Employee" to start.</td></tr>
+					<tr><td colspan="7" class="text-center py-5 text-muted">No staff found. Click "New Employee" to start.</td></tr>
 					{% endfor %}
 				</tbody>
 			</table>
@@ -83,7 +82,7 @@
 		<div class="modal fade" id="staffModal" tabindex="-1">
 			<div class="modal-dialog modal-lg">
 				<div class="modal-content">
-					<form method="POST" action="/finance/hr/add" id="staffForm" enctype="multipart/form-data">
+                    <form method="POST" action="/hr/add" id="staffForm" enctype="multipart/form-data">
 						<div class="modal-header">
 							<h5 class="modal-title fw-bold" id="modalTitle">New Employee Record</h5>
 							<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -98,11 +97,12 @@
 								<div class="col-md-6"><label class="small fw-bold">Email</label><input type="email" name="email" id="edit_email" class="form-control"></div>
 								<div class="col-md-6"><label class="small fw-bold">Phone</label><input type="text" name="phone" id="edit_phone" class="form-control"></div>
 								<div class="col-12"><label class="small fw-bold">Address</label><input type="text" name="address" id="edit_addr" class="form-control"></div>
-								<div class="col-12 mt-3 bg-warning bg-opacity-10 p-3 rounded border border-warning">
-    <label class="fw-bold text-dark mb-2"><i class="fas fa-id-card me-2"></i>Driving License / ID Compliance</label>
-    <input type="file" name="driving_license" class="form-control">
-    <div class="form-text small">Upload a photo of the front of the driving license for insurance compliance.</div>
-</div>
+								
+                                <div class="col-12 mt-3 bg-warning bg-opacity-10 p-3 rounded border border-warning">
+                                    <label class="fw-bold text-dark mb-2"><i class="fas fa-id-card me-2"></i>Driving License / ID Compliance</label>
+                                    <input type="file" name="driving_license" class="form-control">
+                                    <div class="form-text small">Upload a photo of the front of the driving license for insurance compliance.</div>
+                                </div>
 								
 								<div class="col-12"><hr></div>
 								
@@ -167,17 +167,17 @@
 
 	{% block scripts %}
 	<script>
-		// FIX: Clears the form for "New Employee" so it doesn't show old edit data
 		function resetAddStaff() {
 			document.getElementById('staffForm').reset();
-			document.getElementById('staffForm').action = "/finance/hr/add";
+			// UPDATED ACTION
+			document.getElementById('staffForm').action = "/hr/add";
 			document.getElementById('edit_id').value = ""; 
 			document.getElementById('modalTitle').innerText = "New Employee Record";
 		}
 
 		function fillEditStaff(btn) {
-			// Switch form action to update
-			document.getElementById('staffForm').action = "/finance/hr/update";
+			// UPDATED ACTION
+			document.getElementById('staffForm').action = "/hr/update";
 			document.getElementById('modalTitle').innerText = "Edit Employee";
 			
 			document.getElementById('edit_id').value = btn.getAttribute('data-id');
@@ -188,12 +188,9 @@
 			document.getElementById('edit_addr').value = btn.getAttribute('data-addr');
 			document.getElementById('edit_type').value = btn.getAttribute('data-type');
 			document.getElementById('edit_dept').value = btn.getAttribute('data-dept');
-			
-			// These now align with the new input names
 			document.getElementById('edit_rate').value = btn.getAttribute('data-rate');
 			document.getElementById('edit_model').value = btn.getAttribute('data-model');
 			
-			// Handle Access Level
 			let access = btn.getAttribute('data-access');
 			document.getElementById('edit_access').value = (access && access !== 'None') ? access : 'None';
 		}
