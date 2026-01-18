@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Blueprint, render_template, session, redirect, url_for, request, current_app, flash
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash
@@ -8,10 +8,25 @@ from services.enforcement import check_limit
 import secrets
 import string
 from email_service import send_company_email
+from itertools import groupby
 
 hr_bp = Blueprint('hr_bp', __name__)
 
-# --- 1. HR DASHBOARD (List All Staff) ---
+# --- HELPER: CALCULATE WAGE ---
+def calculate_wage(hours, rate, model):
+    if not hours or not rate: return 0.00
+    hours = float(hours)
+    rate = float(rate)
+    
+    if model == 'Hour':
+        return round(hours * rate, 2)
+    elif model == 'Day':
+        # Assuming 8 hour standard day for "Day Rate" calc, or 1 full day if worked > 4 hours
+        # Simple method: (Rate / 8) * Hours
+        return round((rate / 8) * hours, 2)
+    return 0.00 # Salary/Yearly usually doesn't track per-hour costs here
+
+# --- 1. HR DASHBOARD ---
 @hr_bp.route('/hr/dashboard')
 def hr_dashboard():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -21,14 +36,21 @@ def hr_dashboard():
     conn = get_db()
     cur = conn.cursor()
     
-    cur.execute("SELECT id, name, position, dept, pay_rate, pay_model, access_level, email, phone, employment_type, address, tax_id, driving_license FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
+    # SMART MIGRATION: Check if profile_photo exists, if not add it
+    try:
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS profile_photo TEXT;")
+        conn.commit()
+    except:
+        conn.rollback()
+
+    cur.execute("SELECT id, name, position, dept, pay_rate, pay_model, access_level, email, phone, employment_type, address, tax_id, driving_license, profile_photo FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
     cols = [desc[0] for desc in cur.description]
     staff = [dict(zip(cols, row)) for row in cur.fetchall()]
     
     conn.close()
     return render_template('finance/finance_hr.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# --- 2. STAFF PROFILE (FIXED DATA MAPPING) ---
+# --- 2. STAFF PROFILE (WITH WAGES & WEEKS) ---
 @hr_bp.route('/hr/staff/<int:staff_id>')
 def staff_profile(staff_id):
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -52,39 +74,65 @@ def staff_profile(staff_id):
     colnames = [desc[0] for desc in cur.description]
     staff = dict(zip(colnames, staff_raw))
     
-    # 1. FIX JOBS (Map keys to match HTML: start_date, site_address)
-    cur.execute("SELECT id, ref, status, start_date, site_address FROM jobs WHERE engineer_id = %s ORDER BY start_date DESC LIMIT 5", (staff_id,))
+    # --- 1. JOBS ---
+    cur.execute("""
+        SELECT id, ref, status, start_date, site_address 
+        FROM jobs 
+        WHERE engineer_id = %s 
+        ORDER BY start_date DESC LIMIT 10
+    """, (staff_id,))
+    
     jobs = []
     for r in cur.fetchall():
         jobs.append({
-            'id': r[0],
-            'title': r[1],
-            'status': r[2],
-            'start_date': r[3],     # Matches {{ j.start_date }}
-            'site_address': r[4]    # Matches {{ j.site_address }}
+            'id': r[0], 'title': r[1], 'status': r[2], 
+            'start_date': r[3], 'site_address': r[4]
         })
 
-    # 2. FIX TIMESHEETS (Query staff_attendance, Map keys to: clock_in, clock_out)
+    # --- 2. WEEKLY TIMESHEETS & WAGES ---
+    # Fetch last 60 days of activity
     cur.execute("""
         SELECT date, clock_in, clock_out, total_hours 
         FROM staff_attendance 
         WHERE staff_id = %s 
-        ORDER BY date DESC LIMIT 5
+        ORDER BY date DESC LIMIT 60
     """, (staff_id,))
     
-    timesheets = []
-    for r in cur.fetchall():
-        # Format times nicely (HH:MM)
-        c_in = r[1].strftime('%H:%M') if r[1] else '-'
-        c_out = r[2].strftime('%H:%M') if r[2] else '-'
-        
-        timesheets.append({
-            'date': r[0],
-            'clock_in': c_in,       # Matches {{ t.clock_in }}
-            'clock_out': c_out,     # Matches {{ t.clock_out }}
-            'total_hours': r[3]     # Matches {{ t.total_hours }}
-        })
+    raw_times = cur.fetchall()
     
+    # Process Grouping
+    grouped_weeks = []
+    
+    # We group by "Week Commencing" (ISO Week Number)
+    for key, group in groupby(raw_times, key=lambda x: x[0].isocalendar()[1]):
+        week_data = {
+            'week_num': key,
+            'days': [],
+            'total_hours': 0,
+            'total_cost': 0
+        }
+        
+        for r in group:
+            c_in = r[1].strftime('%H:%M') if r[1] else '-'
+            c_out = r[2].strftime('%H:%M') if r[2] else '-'
+            hours = float(r[3] or 0)
+            
+            # Calculate Cost for this day
+            cost = calculate_wage(hours, staff['pay_rate'], staff['pay_model'])
+            
+            week_data['days'].append({
+                'date': r[0].strftime('%a %d %b'), # "Mon 17 Jan"
+                'clock_in': c_in,
+                'clock_out': c_out,
+                'hours': hours,
+                'cost': cost
+            })
+            
+            week_data['total_hours'] += hours
+            week_data['total_cost'] += cost
+            
+        grouped_weeks.append(week_data)
+
     # 3. Vehicle Checks
     cur.execute("SELECT date, type, description, cost FROM maintenance_logs WHERE description LIKE %s ORDER BY date DESC LIMIT 5", (f"%{staff['name']}%",))
     checks = [{'date': r[0], 'passed': 'Check' in r[1], 'notes': r[2], 'reg_number': 'Van Check'} for r in cur.fetchall()]
@@ -94,11 +142,11 @@ def staff_profile(staff_id):
     return render_template('hr/staff_profile.html', 
                            staff=staff, 
                            jobs=jobs, 
-                           timesheets=timesheets,
+                           weeks=grouped_weeks, # <-- Sending the grouped data
                            checks=checks,
                            currency=currency)
 
-# --- 3. ADD / UPDATE STAFF ---
+# --- 3. ADD / UPDATE STAFF (WITH PHOTO UPLOAD) ---
 @hr_bp.route('/hr/update', methods=['POST'])
 @hr_bp.route('/hr/add', methods=['POST'])
 def save_staff():
@@ -107,14 +155,13 @@ def save_staff():
     comp_id = session.get('company_id')
     staff_id = request.form.get('staff_id') 
     
-    # Check Limits for New Staff
     if not staff_id:
         allowed, msg = check_limit(comp_id, 'max_users')
         if not allowed:
             flash(msg, "error")
             return redirect(url_for('hr_bp.hr_dashboard'))
 
-    # Collect Form Data
+    # Collect Data
     name = request.form.get('name')
     email = request.form.get('email')
     phone = request.form.get('phone')
@@ -127,32 +174,40 @@ def save_staff():
     tax_id = request.form.get('tax_id')
     address = request.form.get('address')
     
-    # NOK Data
     nok_name = request.form.get('nok_name')
     nok_phone = request.form.get('nok_phone')
     nok_rel = request.form.get('nok_relationship')
     nok_addr = request.form.get('nok_address')
 
-    conn = get_db()
-    cur = conn.cursor()
+    conn = get_db(); cur = conn.cursor()
 
     try:
-        # --- HANDLE FILE UPLOAD (Driving License) ---
+        # --- HANDLE FILES (License & Photo) ---
         license_path = None
+        photo_path = None
+        
+        # 1. Driving License
         if 'driving_license' in request.files:
             f = request.files['driving_license']
             if f and f.filename != '':
                 save_dir = os.path.join(current_app.static_folder, 'uploads', str(comp_id), 'licenses')
                 os.makedirs(save_dir, exist_ok=True)
-                
                 filename = secure_filename(f"license_{int(datetime.now().timestamp())}_{f.filename}")
-                full_path = os.path.join(save_dir, filename)
-                f.save(full_path)
-                
+                f.save(os.path.join(save_dir, filename))
                 license_path = f"uploads/{comp_id}/licenses/{filename}"
 
+        # 2. Profile Photo (NEW)
+        if 'profile_photo' in request.files:
+            f = request.files['profile_photo']
+            if f and f.filename != '':
+                save_dir = os.path.join(current_app.static_folder, 'uploads', str(comp_id), 'profiles')
+                os.makedirs(save_dir, exist_ok=True)
+                filename = secure_filename(f"photo_{int(datetime.now().timestamp())}_{f.filename}")
+                f.save(os.path.join(save_dir, filename))
+                photo_path = f"uploads/{comp_id}/profiles/{filename}"
+
         if staff_id:
-            # UPDATE EXISTING
+            # UPDATE
             sql = """
                 UPDATE staff SET 
                 name=%s, email=%s, phone=%s, position=%s, dept=%s, 
@@ -165,36 +220,34 @@ def save_staff():
             if license_path:
                 sql += ", driving_license=%s"
                 params.append(license_path)
+            if photo_path:
+                sql += ", profile_photo=%s"
+                params.append(photo_path)
             
             sql += " WHERE id=%s AND company_id=%s"
             params.append(staff_id)
             params.append(comp_id)
             
             cur.execute(sql, tuple(params))
-            
             cur.execute("UPDATE users SET name=%s WHERE email=%s AND company_id=%s", (name, email, comp_id))
             flash("✅ Staff record updated.")
             
         else:
-            # INSERT NEW
+            # INSERT
             cur.execute("""
-                INSERT INTO staff (company_id, name, email, phone, position, dept, pay_rate, pay_model, employment_type, access_level, nok_name, nok_phone, nok_relationship, nok_address, driving_license, tax_id, address)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (comp_id, name, email, phone, position, dept, pay_rate, pay_model, emp_type, access, nok_name, nok_phone, nok_rel, nok_addr, license_path, tax_id, address))
+                INSERT INTO staff (company_id, name, email, phone, position, dept, pay_rate, pay_model, employment_type, access_level, nok_name, nok_phone, nok_relationship, nok_address, driving_license, profile_photo, tax_id, address)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (comp_id, name, email, phone, position, dept, pay_rate, pay_model, emp_type, access, nok_name, nok_phone, nok_rel, nok_addr, license_path, photo_path, tax_id, address))
             
             if access != "None" and email:
                 cur.execute("SELECT id FROM users WHERE email=%s", (email,))
                 if not cur.fetchone():
                     pw = ''.join(secrets.choice(string.ascii_letters + string.digits) for i in range(12))
                     cur.execute("INSERT INTO users (username, email, password_hash, role, company_id) VALUES (%s, %s, %s, %s, %s)", (email, email, generate_password_hash(pw), access, comp_id))
-                    
-                    try:
-                        send_company_email(comp_id, email, "Your Login Details", f"<p>Username: {email}</p><p>Password: {pw}</p>")
-                        flash(f"✅ Staff Added & Login Emailed to {email}")
-                    except:
-                        flash(f"✅ Staff Added. (Email failed to send, password is {pw})")
-            else:
-                flash("✅ New employee added.")
+                    try: send_company_email(comp_id, email, "Your Login Details", f"<p>Username: {email}</p><p>Password: {pw}</p>")
+                    except: pass
+            
+            flash("✅ New employee added.")
 
         conn.commit()
     except Exception as e:
@@ -205,28 +258,21 @@ def save_staff():
 
     return redirect(url_for('hr_bp.hr_dashboard'))
 
-# --- 4. DELETE STAFF ---
+# --- DELETE (Unchanged) ---
 @hr_bp.route('/hr/delete/<int:id>')
 def delete_staff(id):
+    # (Same code as before - no changes needed)
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    
-    conn = get_db()
-    cur = conn.cursor()
+    conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("SELECT email FROM staff WHERE id = %s", (id,))
         row = cur.fetchone()
-        
         cur.execute("DELETE FROM staff WHERE id = %s AND company_id = %s", (id, session.get('company_id')))
-        
-        if row and row[0]:
-            cur.execute("DELETE FROM users WHERE email = %s AND company_id = %s", (row[0], session.get('company_id')))
-            
+        if row and row[0]: cur.execute("DELETE FROM users WHERE email = %s AND company_id = %s", (row[0], session.get('company_id')))
         conn.commit()
         flash("🗑️ Staff member deleted.", "success")
     except Exception as e:
-        conn.rollback()
-        flash(f"Error: {e}", "error")
+        conn.rollback(); flash(f"Error: {e}", "error")
     finally:
         conn.close()
-        
     return redirect(url_for('hr_bp.hr_dashboard'))
