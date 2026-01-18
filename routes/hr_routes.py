@@ -106,14 +106,11 @@ def staff_profile(staff_id):
             c_out = r[2].strftime('%H:%M') if r[2] else '-'
             hours = float(r[3] or 0)
             cost = calculate_wage(hours, staff['pay_rate'], staff['pay_model'])
-            
-            # --- JOB LINKING LOGIC ---
-            # Look for jobs active on this specific date
-            # (Matches Start Date OR Jobs In Progress assigned to this engineer)
+
             cur.execute("""
                 SELECT id, ref, site_address FROM jobs 
                 WHERE engineer_id = %s 
-                AND start_date = %s
+                AND start_date::DATE = %s
             """, (staff_id, r[0]))
             
             daily_jobs = [{'id': j[0], 'ref': j[1], 'site': j[2]} for j in cur.fetchall()]
