@@ -8,9 +8,15 @@
         <h2 class="fw-bold m-0">{{ staff.name }}</h2>
         <p class="text-muted mb-0">{{ staff.position }} &bull; {{ staff.dept }} Dept</p>
     </div>
-    <a href="/hr/dashboard" class="btn btn-outline-secondary fw-bold">
-        <i class="fas fa-arrow-left me-2"></i> Back to List
-    </a>
+    
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+            <i class="fas fa-camera me-2"></i> Edit / Upload
+        </button>
+        <a href="/hr/dashboard" class="btn btn-outline-secondary fw-bold d-none d-md-inline-block">
+            <i class="fas fa-arrow-left me-2"></i> Back
+        </a>
+    </div>
 </div>
 
 <div class="row g-4">
@@ -18,7 +24,7 @@
         
         <div class="card border-0 shadow-sm rounded-4 mb-4">
             <div class="card-body p-4 text-center">
-                <div class="position-relative d-inline-block mb-3">
+                <div class="position-relative d-inline-block mb-3" data-bs-toggle="modal" data-bs-target="#editProfileModal" style="cursor: pointer;">
                     {% if staff.profile_photo %}
                         <img src="/static/{{ staff.profile_photo }}" class="rounded-circle shadow-sm object-fit-cover" style="width: 120px; height: 120px; border: 4px solid white;">
                     {% else %}
@@ -27,9 +33,9 @@
                         </div>
                     {% endif %}
                     
-                    <a href="/hr/dashboard" class="position-absolute bottom-0 end-0 btn btn-sm btn-primary rounded-circle shadow-sm" style="width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;" title="Edit Photo in Dashboard">
+                    <span class="position-absolute bottom-0 end-0 btn btn-sm btn-primary rounded-circle shadow-sm" style="width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">
                         <i class="fas fa-camera"></i>
-                    </a>
+                    </span>
                 </div>
 
                 <h5 class="fw-bold">{{ staff.name }}</h5>
@@ -49,10 +55,6 @@
                         <span class="text-muted">Joined</span>
                         <span class="fw-bold">{{ staff.created_at|default('Unknown') }}</span>
                     </li>
-                    <li class="list-group-item d-flex justify-content-between px-0">
-                        <span class="text-muted">Type</span>
-                        <span class="fw-bold">{{ staff.employment_type }}</span>
-                    </li>
                 </ul>
             </div>
         </div>
@@ -64,49 +66,17 @@
             <div class="card-body text-center">
                 {% if staff.driving_license %}
                     <img src="/static/{{ staff.driving_license }}" class="img-fluid rounded border mb-3 shadow-sm" style="max-height: 200px;" alt="Driving License">
-                    <div class="d-grid">
-                        <a href="/static/{{ staff.driving_license }}" target="_blank" class="btn btn-outline-dark btn-sm">
-                            <i class="fas fa-expand me-2"></i> View Full Size
-                        </a>
-                    </div>
+                    <a href="/static/{{ staff.driving_license }}" target="_blank" class="btn btn-outline-dark btn-sm w-100">View Full Size</a>
                 {% else %}
-                    <div class="py-4 text-muted">
+                    <div class="py-3 text-muted">
                         <i class="fas fa-exclamation-triangle fa-2x mb-2 text-warning"></i>
                         <p class="mb-0 small fw-bold">No License on File</p>
-                        <small>Upload via HR Dashboard</small>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="card border-0 shadow-sm rounded-4 mb-4 border-start border-4 border-danger">
-            <div class="card-header bg-white fw-bold text-danger">
-                <i class="fas fa-heartbeat me-2"></i> Emergency Contact (NOK)
-            </div>
-            <div class="card-body">
-                {% if staff.nok_name %}
-                    <h6 class="fw-bold mb-1">{{ staff.nok_name }}</h6>
-                    <p class="text-muted small mb-3">{{ staff.nok_relationship }}</p>
-                    
-                    <a href="tel:{{ staff.nok_phone }}" class="btn btn-danger btn-sm w-100 fw-bold mb-2">
-                        <i class="fas fa-phone-alt me-2"></i> {{ staff.nok_phone }}
-                    </a>
-                    
-                    {% if staff.nok_address %}
-                    <hr class="my-2">
-                    <div class="small text-muted">
-                        <i class="fas fa-map-marker-alt me-1"></i> {{ staff.nok_address }}
-                    </div>
-                    {% endif %}
-                {% else %}
-                    <div class="text-center text-muted py-3 small">
-                        <i class="fas fa-exclamation-circle mb-2"></i><br>
-                        No Next of Kin details recorded.
                     </div>
                 {% endif %}
             </div>
         </div>
     </div> 
+
     <div class="col-md-8">
         
         <div class="card border-0 shadow-sm rounded-4 mb-4">
@@ -135,25 +105,37 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th class="ps-3">Day</th>
-                                        <th>In</th>
-                                        <th>Out</th>
-                                        <th>Hrs</th>
+                                        <th>Activity / Job</th>
+                                        <th class="text-center">Hrs</th>
                                         <th class="text-end pe-3">Cost</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for day in week.days %}
                                     <tr>
-                                        <td class="ps-3">{{ day.date }}</td>
-                                        <td>{{ day.clock_in }}</td>
-                                        <td>{{ day.clock_out }}</td>
-                                        <td>{{ day.hours|round(2) }}</td>
+                                        <td class="ps-3" style="width: 20%;">
+                                            <div class="fw-bold">{{ day.date }}</div>
+                                            <span class="text-muted" style="font-size: 0.75rem;">{{ day.clock_in }} - {{ day.clock_out }}</span>
+                                        </td>
+                                        <td>
+                                            {% if day.linked_jobs %}
+                                                {% for j in day.linked_jobs %}
+                                                    <a href="/office/job/{{ j.id }}/files" class="badge bg-primary text-decoration-none mb-1">
+                                                        <i class="fas fa-hard-hat me-1"></i> {{ j.ref }}
+                                                    </a>
+                                                    <div class="text-truncate text-muted" style="font-size: 0.75rem; max-width: 150px;">{{ j.site }}</div>
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="text-muted fst-italic">No specific job linked</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">{{ day.hours|round(2) }}</td>
                                         <td class="text-end pe-3 fw-bold">{{ currency }}{{ day.cost }}</td>
                                     </tr>
                                     {% endfor %}
                                     <tr class="table-secondary fw-bold">
-                                        <td colspan="3" class="ps-3">WEEKLY TOTAL</td>
-                                        <td>{{ week.total_hours|round(2) }}</td>
+                                        <td colspan="2" class="ps-3">WEEKLY TOTAL</td>
+                                        <td class="text-center">{{ week.total_hours|round(2) }}</td>
                                         <td class="text-end pe-3">{{ currency }}{{ week.total_cost|round(2) }}</td>
                                     </tr>
                                 </tbody>
@@ -167,64 +149,44 @@
             </div>
         </div>
 
-        <div class="card border-0 shadow-sm rounded-4 mb-4">
-            <div class="card-header bg-white fw-bold">
-                <i class="fas fa-briefcase me-2 text-primary"></i> Job History
-            </div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 small">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="ps-3">Job Ref</th>
-                            <th>Status</th>
-                            <th>Date</th>
-                            <th class="text-end pe-3">Site</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for j in jobs %}
-                        <tr>
-                            <td class="ps-3 fw-bold">{{ j.title }}</td>
-                            <td>
-                                <span class="badge {{ 'bg-success' if j.status == 'Completed' else 'bg-primary' }}">
-                                    {{ j.status }}
-                                </span>
-                            </td>
-                            <td>{{ j.start_date }}</td>
-                            <td class="text-end pe-3 text-truncate" style="max-width: 150px;">{{ j.site_address }}</td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="4" class="text-center text-muted py-3">No jobs assigned recently.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="card border-0 shadow-sm rounded-4">
-            <div class="card-header bg-white fw-bold">
-                <i class="fas fa-check-double me-2 text-info"></i> Vehicle Checks
-            </div>
-            <div class="list-group list-group-flush small">
-                {% for c in checks %}
-                <div class="list-group-item d-flex justify-content-between align-items-center">
-                    <div>
-                        <span class="fw-bold">{{ c.reg_number }}</span>
-                        <span class="text-muted ms-2">{{ c.date }}</span>
-                        <div class="text-muted">{{ c.notes }}</div>
-                    </div>
-                    {% if c.passed %}
-                        <span class="badge bg-success">PASS</span>
-                    {% else %}
-                        <span class="badge bg-danger">FAIL</span>
-                    {% endif %}
-                </div>
-                {% else %}
-                <div class="text-center text-muted py-3">No vehicle checks recorded.</div>
-                {% endfor %}
-            </div>
-        </div>
-
     </div> 
+</div>
+
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="/hr/update" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Edit Profile & Uploads</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="staff_id" value="{{ staff.id }}">
+                    
+                    <div class="mb-3 bg-primary bg-opacity-10 p-3 rounded border border-primary">
+                        <label class="fw-bold text-dark mb-2"><i class="fas fa-camera me-2"></i>Update Profile Photo</label>
+                        <input type="file" name="profile_photo" class="form-control" accept="image/*">
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-6"><label class="small fw-bold">Name</label><input type="text" name="name" value="{{ staff.name }}" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold">Job Title</label><input type="text" name="position" value="{{ staff.position }}" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold">Email</label><input type="email" name="email" value="{{ staff.email }}" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold">Phone</label><input type="text" name="phone" value="{{ staff.phone }}" class="form-control"></div>
+                    </div>
+                    
+                    <input type="hidden" name="pay_rate" value="{{ staff.pay_rate }}">
+                    <input type="hidden" name="pay_model" value="{{ staff.pay_model }}">
+                    <input type="hidden" name="dept" value="{{ staff.dept }}">
+                    <input type="hidden" name="employment_type" value="{{ staff.employment_type }}">
+                    <input type="hidden" name="access_level" value="{{ staff.access_level }}">
+
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
+                </div>
+            </form>
+        </div>
     </div>
+</div>
 {% endblock %}

@@ -50,7 +50,6 @@ def hr_dashboard():
     conn.close()
     return render_template('finance/finance_hr.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
-# --- 2. STAFF PROFILE (WITH WAGES & WEEKS) ---
 @hr_bp.route('/hr/staff/<int:staff_id>')
 def staff_profile(staff_id):
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -66,7 +65,6 @@ def staff_profile(staff_id):
     # Get Staff Details
     cur.execute("SELECT * FROM staff WHERE id = %s", (staff_id,))
     staff_raw = cur.fetchone()
-    
     if not staff_raw: 
         conn.close()
         return "Staff member not found", 404
@@ -74,7 +72,7 @@ def staff_profile(staff_id):
     colnames = [desc[0] for desc in cur.description]
     staff = dict(zip(colnames, staff_raw))
     
-    # --- 1. JOBS ---
+    # --- 1. JOBS HISTORY ---
     cur.execute("""
         SELECT id, ref, status, start_date, site_address 
         FROM jobs 
@@ -89,8 +87,7 @@ def staff_profile(staff_id):
             'start_date': r[3], 'site_address': r[4]
         })
 
-    # --- 2. WEEKLY TIMESHEETS & WAGES ---
-    # Fetch last 60 days of activity
+    # --- 2. WEEKLY TIMESHEETS (With Job Linking) ---
     cur.execute("""
         SELECT date, clock_in, clock_out, total_hours 
         FROM staff_attendance 
@@ -99,33 +96,35 @@ def staff_profile(staff_id):
     """, (staff_id,))
     
     raw_times = cur.fetchall()
-    
-    # Process Grouping
     grouped_weeks = []
     
-    # We group by "Week Commencing" (ISO Week Number)
     for key, group in groupby(raw_times, key=lambda x: x[0].isocalendar()[1]):
-        week_data = {
-            'week_num': key,
-            'days': [],
-            'total_hours': 0,
-            'total_cost': 0
-        }
+        week_data = {'week_num': key, 'days': [], 'total_hours': 0, 'total_cost': 0}
         
         for r in group:
             c_in = r[1].strftime('%H:%M') if r[1] else '-'
             c_out = r[2].strftime('%H:%M') if r[2] else '-'
             hours = float(r[3] or 0)
-            
-            # Calculate Cost for this day
             cost = calculate_wage(hours, staff['pay_rate'], staff['pay_model'])
             
+            # --- JOB LINKING LOGIC ---
+            # Look for jobs active on this specific date
+            # (Matches Start Date OR Jobs In Progress assigned to this engineer)
+            cur.execute("""
+                SELECT id, ref, site_address FROM jobs 
+                WHERE engineer_id = %s 
+                AND start_date = %s
+            """, (staff_id, r[0]))
+            
+            daily_jobs = [{'id': j[0], 'ref': j[1], 'site': j[2]} for j in cur.fetchall()]
+
             week_data['days'].append({
-                'date': r[0].strftime('%a %d %b'), # "Mon 17 Jan"
+                'date': r[0].strftime('%a %d %b'),
                 'clock_in': c_in,
                 'clock_out': c_out,
                 'hours': hours,
-                'cost': cost
+                'cost': cost,
+                'linked_jobs': daily_jobs # <--- SENDING JOBS TO TEMPLATE
             })
             
             week_data['total_hours'] += hours
@@ -142,7 +141,7 @@ def staff_profile(staff_id):
     return render_template('hr/staff_profile.html', 
                            staff=staff, 
                            jobs=jobs, 
-                           weeks=grouped_weeks, # <-- Sending the grouped data
+                           weeks=grouped_weeks, 
                            checks=checks,
                            currency=currency)
 
