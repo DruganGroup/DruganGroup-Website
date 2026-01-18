@@ -894,7 +894,7 @@ def finance_dashboard():
                            brand_color=config['color'],
                            logo_url=config['logo'])
                            
-                           @finance_bp.route('/finance/settings/integrations', methods=['GET', 'POST'])
+@finance_bp.route('/finance/settings/integrations', methods=['GET', 'POST'])
 def settings_integrations():
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']: return redirect(url_for('auth.login'))
     
