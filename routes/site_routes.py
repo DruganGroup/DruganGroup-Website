@@ -248,7 +248,7 @@ def van_check_page():
                 cur.execute("INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost) VALUES (%s, %s, CURRENT_DATE, %s, %s, 0)", (comp_id, v_id, status_log, full_desc))
                 conn.commit()
                 flash("✅ Safety Check Logged!")
-                return redirect(url_for('site.site_dashboard'))
+                return redirect(request.referrer or url_for('site.site_dashboard'))
             else:
                 flash("❌ Vehicle not found.")
         except Exception as e: conn.rollback(); flash(f"Error: {e}")

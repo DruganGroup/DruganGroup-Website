@@ -152,7 +152,30 @@
                 <a href="/logout" class="btn btn-outline-danger btn-sm px-3">Logout</a>
             </div>
         </div>
-
+<div class="container mb-4" style="max-width: 800px;">
+            <div class="card border-0 shadow-sm rounded-4" style="background-color: #2c2c2c; border: 1px solid #444; color: white;">
+                <div class="card-body d-flex justify-content-between align-items-center p-3">
+                    <div>
+                        <h5 class="fw-bold m-0 text-white"><i class="fas fa-clock me-2 text-warning"></i>Time & Attendance</h5>
+                        <small style="color: #aaa;">Clock in for Payroll</small>
+                    </div>
+                    
+                    <form action="/site/toggle-day-clock" method="POST" class="m-0">
+                        {% if is_at_work %}
+                            <input type="hidden" name="action" value="stop">
+                            <button class="btn btn-danger fw-bold shadow-sm">
+                                <i class="fas fa-sign-out-alt me-2"></i> Clock Out
+                            </button>
+                        {% else %}
+                            <input type="hidden" name="action" value="start">
+                            <button class="btn btn-success fw-bold shadow-sm">
+                                <i class="fas fa-sign-in-alt me-2"></i> Clock In
+                            </button>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
         <div class="card-scroller">
             
             <a href="/site-companion" class="module-card site-card">

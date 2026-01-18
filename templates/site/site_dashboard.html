@@ -3,40 +3,6 @@
 {% block title %}Site Hub | Business Better{% endblock %}
 
 {% block content %}
-<div class="container py-3">
-
-    <div class="card shadow-sm border-0 mb-4 overflow-hidden">
-        {% if is_at_work %}
-            <div class="card-body bg-primary text-white d-flex justify-content-between align-items-center p-4">
-                <div>
-                    <h2 class="fw-bold m-0"><i class="fas fa-sun me-2"></i>ON SHIFT</h2>
-                    <small class="text-white-50">Clocked in for Payroll</small>
-                </div>
-                
-                <form action="/site/toggle-day-clock" method="POST" class="m-0">
-                    <input type="hidden" name="action" value="stop">
-                    <button type="submit" class="btn btn-light text-primary fw-bold shadow-sm">
-                        <i class="fas fa-sign-out-alt me-2"></i> End Day
-                    </button>
-                </form>
-            </div>
-        {% else %}
-            <div class="card-body bg-dark text-white d-flex justify-content-between align-items-center p-4">
-                <div>
-                    <h2 class="fw-bold m-0">START DAY</h2>
-                    <small class="text-white-50">Arrived at Yard/Site?</small>
-                </div>
-                
-                <form action="/site/toggle-day-clock" method="POST" class="m-0">
-                    <input type="hidden" name="action" value="start">
-                    <button type="submit" class="btn btn-success fw-bold shadow btn-lg">
-                        <i class="fas fa-clock me-2"></i> CLOCK IN
-                    </button>
-                </form>
-            </div>
-        {% endif %}
-    </div>
-
     <div class="row g-2 mb-4">
         <div class="col-6">
             <a href="/site/van-check" class="text-decoration-none">
