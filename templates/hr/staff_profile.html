@@ -66,7 +66,9 @@
             <div class="card-body text-center">
                 {% if staff.driving_license %}
                     <img src="/static/{{ staff.driving_license }}" class="img-fluid rounded border mb-3 shadow-sm" style="max-height: 200px;" alt="Driving License">
-                    <a href="/static/{{ staff.driving_license }}" target="_blank" class="btn btn-outline-dark btn-sm w-100">View Full Size</a>
+                    <div class="d-grid mt-2">
+                        <a href="/static/{{ staff.driving_license }}" target="_blank" class="btn btn-outline-dark btn-sm">View Full Size</a>
+                    </div>
                 {% else %}
                     <div class="py-3 text-muted">
                         <i class="fas fa-exclamation-triangle fa-2x mb-2 text-warning"></i>
@@ -75,6 +77,36 @@
                 {% endif %}
             </div>
         </div>
+
+        <div class="card border-0 shadow-sm rounded-4 mb-4 border-start border-4 border-danger">
+            <div class="card-header bg-white fw-bold text-danger">
+                <i class="fas fa-heartbeat me-2"></i> Emergency Contact
+            </div>
+            <div class="card-body">
+                {% if staff.nok_name %}
+                    <h6 class="fw-bold mb-1">{{ staff.nok_name }}</h6>
+                    <p class="text-muted small mb-3">{{ staff.nok_relationship }}</p>
+                    
+                    <a href="tel:{{ staff.nok_phone }}" class="btn btn-danger btn-sm w-100 fw-bold mb-2">
+                        <i class="fas fa-phone-alt me-2"></i> {{ staff.nok_phone }}
+                    </a>
+                    
+                    {% if staff.nok_address %}
+                    <hr class="my-2">
+                    <div class="small text-muted">
+                        <i class="fas fa-map-marker-alt me-1"></i> {{ staff.nok_address }}
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center text-muted py-3 small">
+                        <i class="fas fa-exclamation-circle mb-2"></i><br>
+                        No Next of Kin details recorded.<br>
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#editProfileModal">Add Details</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
     </div> 
 
     <div class="col-md-8">
@@ -149,6 +181,64 @@
             </div>
         </div>
 
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-white fw-bold">
+                <i class="fas fa-briefcase me-2 text-primary"></i> Job History
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 small">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Job Ref</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th class="text-end pe-3">Site</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for j in jobs %}
+                        <tr>
+                            <td class="ps-3 fw-bold">{{ j.title }}</td>
+                            <td>
+                                <span class="badge {{ 'bg-success' if j.status == 'Completed' else 'bg-primary' }}">
+                                    {{ j.status }}
+                                </span>
+                            </td>
+                            <td>{{ j.start_date }}</td>
+                            <td class="text-end pe-3 text-truncate" style="max-width: 150px;">{{ j.site_address }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">No jobs assigned recently.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white fw-bold">
+                <i class="fas fa-check-double me-2 text-info"></i> Vehicle Checks
+            </div>
+            <div class="list-group list-group-flush small">
+                {% for c in checks %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="fw-bold">{{ c.reg_number }}</span>
+                        <span class="text-muted ms-2">{{ c.date }}</span>
+                        <div class="text-muted">{{ c.notes }}</div>
+                    </div>
+                    {% if c.passed %}
+                        <span class="badge bg-success">PASS</span>
+                    {% else %}
+                        <span class="badge bg-danger">FAIL</span>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-3">No vehicle checks recorded.</div>
+                {% endfor %}
+            </div>
+        </div>
+
     </div> 
 </div>
 
@@ -168,11 +258,20 @@
                         <input type="file" name="profile_photo" class="form-control" accept="image/*">
                     </div>
 
-                    <div class="row g-2">
+                    <h6 class="fw-bold border-bottom pb-2 mb-3">Main Details</h6>
+                    <div class="row g-2 mb-3">
                         <div class="col-6"><label class="small fw-bold">Name</label><input type="text" name="name" value="{{ staff.name }}" class="form-control"></div>
                         <div class="col-6"><label class="small fw-bold">Job Title</label><input type="text" name="position" value="{{ staff.position }}" class="form-control"></div>
                         <div class="col-6"><label class="small fw-bold">Email</label><input type="email" name="email" value="{{ staff.email }}" class="form-control"></div>
                         <div class="col-6"><label class="small fw-bold">Phone</label><input type="text" name="phone" value="{{ staff.phone }}" class="form-control"></div>
+                    </div>
+
+                    <h6 class="fw-bold border-bottom pb-2 mb-3 text-danger">Emergency Contact (NOK)</h6>
+                    <div class="row g-2">
+                        <div class="col-6"><label class="small fw-bold">NOK Name</label><input type="text" name="nok_name" value="{{ staff.nok_name }}" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold">Relationship</label><input type="text" name="nok_relationship" value="{{ staff.nok_relationship }}" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold">NOK Phone</label><input type="text" name="nok_phone" value="{{ staff.nok_phone }}" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold">Address</label><input type="text" name="nok_address" value="{{ staff.nok_address }}" class="form-control"></div>
                     </div>
                     
                     <input type="hidden" name="pay_rate" value="{{ staff.pay_rate }}">
