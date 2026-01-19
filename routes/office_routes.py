@@ -151,8 +151,7 @@ def office_dashboard():
                            pipeline=pipeline,
                            clients=clients,
                            vehicles=vehicles)
-                           
-# --- OFFICE: LIVE OPERATIONS & LOGISTICS ---
+
 @office_bp.route('/office/live-ops', methods=['GET', 'POST'])
 def live_ops():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -161,55 +160,45 @@ def live_ops():
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
 
-    # --- HANDLE CREW ASSIGNMENT (POST) ---
     if request.method == 'POST':
         action = request.form.get('action')
         
         if action == 'update_crew':
             vehicle_id = request.form.get('vehicle_id')
             driver_id = request.form.get('driver_id')
-            crew_ids = request.form.getlist('crew_ids') # List of staff IDs
+            crew_ids = request.form.getlist('crew_ids')
             
             try:
-                # 1. Clear previous assignments for this vehicle
                 cur.execute("DELETE FROM vehicle_crews WHERE vehicle_id = %s", (vehicle_id,))
                 
-                # 2. Update the Vehicle's Driver
                 if driver_id and driver_id != 'None':
                     cur.execute("UPDATE vehicles SET assigned_driver_id = %s WHERE id = %s", (driver_id, vehicle_id))
                 else:
                     cur.execute("UPDATE vehicles SET assigned_driver_id = NULL WHERE id = %s", (vehicle_id,))
 
-                # 3. Update the Crew (Passengers)
-                # Note: Logic handles driver separation if needed, but here we just add everyone selected
                 for staff_id in crew_ids:
-                    # Avoid duplicate if driver is also in crew list (though usually fine)
                     if staff_id != driver_id: 
                         cur.execute("INSERT INTO vehicle_crews (company_id, vehicle_id, staff_id) VALUES (%s, %s, %s)", (comp_id, vehicle_id, staff_id))
                 
                 conn.commit()
                 flash("✅ Crew logistics updated.", "success")
             except Exception as e:
-                conn.rollback()
-                flash(f"Error updating crew: {e}", "error")
+                conn.rollback(); flash(f"Error updating crew: {e}", "error")
             
             return redirect(url_for('office.live_ops'))
 
-    # --- FETCH DATA FOR DASHBOARD (GET) ---
-    
-    # 1. GET ALL STAFF (Corrected to use vehicle_crews table)
+    # Fetch Data
     today = date.today()
+    
+    # FIX: Using a Subquery for clock_in prevents duplicate rows if staff clocked in multiple times
     cur.execute("""
         SELECT 
             s.id, s.name, s.position, s.profile_photo, 
-            vc.vehicle_id,  -- Get ID from junction table
-            a.clock_in,
-            j.ref, j.site_address,
-            v.reg_plate
+            vc.vehicle_id, 
+            (SELECT clock_in FROM staff_attendance WHERE staff_id = s.id AND date = %s ORDER BY clock_in DESC LIMIT 1),
+            j.ref, j.site_address, v.reg_plate
         FROM staff s
-        LEFT JOIN staff_attendance a ON s.id = a.staff_id AND a.date = %s
         LEFT JOIN jobs j ON s.id = j.engineer_id AND j.status = 'In Progress'
-        -- NEW JOIN LOGIC: Staff -> Crew -> Vehicle
         LEFT JOIN vehicle_crews vc ON s.id = vc.staff_id
         LEFT JOIN vehicles v ON vc.vehicle_id = v.id
         WHERE s.company_id = %s
@@ -217,80 +206,26 @@ def live_ops():
     """, (today, comp_id))
     
     staff_status = []
-    all_staff = [] 
-    
     for r in cur.fetchall():
         is_clocked_in = (r[5] is not None)
         status = 'Offline'
         if is_clocked_in: status = 'Online'
         if r[6]: status = 'On Job'
         
-        staff_obj = {
-            'id': r[0],
-            'name': r[1],
-            'role': r[2],
-            'photo': r[3],
-            'vehicle_id': r[4], 
-            'clock_in': format_date(r[5], "%H:%M") if r[5] else "-",
-            'job_ref': r[6],
-            'location': r[7] or "HQ / Idle",
-            'van': r[8],
-            'status': status
-        }
-        staff_status.append(staff_obj)
-        all_staff.append(staff_obj)
+        staff_status.append({
+            'id': r[0], 'name': r[1], 'role': r[2], 'photo': r[3],
+            'vehicle_id': r[4], 'clock_in': format_date(r[5], "%H:%M") if r[5] else "-",
+            'job_ref': r[6], 'location': r[7] or "HQ / Idle", 'van': r[8], 'status': status
+        })
 
-    # 2. GET ALL VEHICLES
-    cur.execute("""
-        SELECT v.id, v.reg_plate, v.make_model, v.assigned_driver_id, v.tracker_url, s.name 
-        FROM vehicles v
-        LEFT JOIN staff s ON v.assigned_driver_id = s.id
-        WHERE v.company_id = %s
-        ORDER BY v.reg_plate ASC
-    """, (comp_id,))
-    
+    cur.execute("SELECT id, reg_plate, make_model, assigned_driver_id, tracker_url FROM vehicles WHERE company_id = %s", (comp_id,))
     fleet = []
-    
-    # Check for API Key
-    cur.execute("SELECT value FROM settings WHERE company_id=%s AND key='samsara_api_key'", (comp_id,))
-    api_key_row = cur.fetchone()
-    api_key = api_key_row[0] if api_key_row else None
-    
-    try:
-        from telematics_engine import get_tracker_data
-        has_engine = True
-    except:
-        has_engine = False
-
     for v in cur.fetchall():
-        v_data = {
-            'id': v[0],
-            'reg': v[1], 
-            'model': v[2],
-            'driver_id': v[3],
-            'driver_name': v[5] or 'No Driver',
-            'lat': None, 'lon': None, 'speed': 0
-        }
-        
-        # Fetch Real Map Data
-        if has_engine and v[4] and api_key:
-            try:
-                telematics = get_tracker_data(v[4], api_key)
-                if telematics:
-                    v_data.update(telematics)
-            except: pass
-        
-        fleet.append(v_data)
+        fleet.append({'id': v[0], 'reg': v[1], 'model': v[2], 'driver_id': v[3], 'tracker_url': v[4]})
 
     conn.close()
-
-    return render_template('office/live_ops.html',
-                           staff=staff_status,
-                           all_staff=all_staff,
-                           fleet=fleet,
-                           brand_color=config['color'],
-                           logo_url=config['logo'])
-                          
+    return render_template('office/live_ops.html', staff=staff_status, all_staff=staff_status, fleet=fleet, brand_color=config['color'], logo_url=config['logo'])
+                           
 @office_bp.route('/office/quote/save', methods=['POST'])
 def save_quote():
     if not check_office_access(): return redirect(url_for('auth.login'))
