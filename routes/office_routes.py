@@ -385,3 +385,128 @@ def get_calendar_events():
         
     conn.close()
     return jsonify(events)
+    
+    # =========================================================
+# FLEET MANAGEMENT (Office Side)
+# =========================================================
+@office_bp.route('/office/fleet', methods=['GET', 'POST'])
+def office_fleet():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+
+    # --- HANDLE POST ACTIONS (Assign Crew / Add Receipt) ---
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        try:
+            if action == 'assign_crew':
+                veh_id = request.form.get('vehicle_id')
+                driver_id = request.form.get('driver_id')
+                if driver_id == 'None': driver_id = None
+                
+                # 1. Update Driver
+                cur.execute("UPDATE vehicles SET assigned_driver_id = %s WHERE id = %s AND company_id = %s", (driver_id, veh_id, comp_id))
+                
+                # 2. Update Crew (Plural Table)
+                crew_ids = request.form.getlist('crew_ids')
+                cur.execute("DELETE FROM vehicle_crews WHERE vehicle_id = %s", (veh_id,))
+                for staff_id in crew_ids:
+                    if str(staff_id) != str(driver_id):
+                        cur.execute("INSERT INTO vehicle_crews (company_id, vehicle_id, staff_id) VALUES (%s, %s, %s)", (comp_id, veh_id, staff_id))
+                flash("✅ Crew updated.")
+
+            elif action == 'add_log':
+                # Logic for the "Receipts & Logs" tab in fleet_management.html
+                veh_id = request.form.get('vehicle_id')
+                l_type = request.form.get('log_type')
+                desc = request.form.get('description')
+                cost = request.form.get('cost') or 0
+                l_date = request.form.get('date')
+                
+                # File Upload
+                file_path = None
+                if 'receipt_file' in request.files:
+                    f = request.files['receipt_file']
+                    if f and f.filename != '':
+                        from werkzeug.utils import secure_filename
+                        import os
+                        # Ensure folder exists
+                        save_dir = os.path.join('static', 'uploads', str(comp_id), 'fleet')
+                        os.makedirs(save_dir, exist_ok=True)
+                        
+                        fname = secure_filename(f"LOG_{veh_id}_{f.filename}")
+                        f.save(os.path.join(save_dir, fname))
+                        file_path = f"uploads/{comp_id}/fleet/{fname}"
+
+                cur.execute("""
+                    INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost, receipt_path)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (comp_id, veh_id, l_date, l_type, desc, cost, file_path))
+                flash("✅ Log entry added.")
+
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error: {e}", "error")
+
+    # --- FETCH DATA ---
+    cur.execute("""
+        SELECT v.id, v.reg_plate, v.make_model, v.status, 
+               v.assigned_driver_id, s.name, 
+               v.mot_expiry, v.tax_expiry, v.ins_expiry, v.service_expiry
+        FROM vehicles v
+        LEFT JOIN staff s ON v.assigned_driver_id = s.id
+        WHERE v.company_id = %s
+        ORDER BY v.reg_plate
+    """, (comp_id,))
+    
+    vehicles_raw = cur.fetchall()
+    vehicles = []
+    
+    # Fetch All Staff for Dropdowns
+    cur.execute("SELECT id, name FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
+    all_staff = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
+
+    for r in vehicles_raw:
+        v_id = r[0]
+        
+        # 1. Fetch Crew
+        cur.execute("""
+            SELECT s.name FROM vehicle_crews vc
+            JOIN staff s ON vc.staff_id = s.id
+            WHERE vc.vehicle_id = %s
+        """, (v_id,))
+        crew = [{'name': row[0]} for row in cur.fetchall()]
+
+        # 2. Fetch History (Logs) - Required for Office View
+        cur.execute("""
+            SELECT date, type, description, cost, receipt_path 
+            FROM maintenance_logs 
+            WHERE vehicle_id = %s 
+            ORDER BY date DESC LIMIT 5
+        """, (v_id,))
+        history = [{'date': h[0], 'type': h[1], 'desc': h[2], 'cost': h[3], 'receipt': h[4]} for h in cur.fetchall()]
+
+        vehicles.append({
+            'id': v_id,
+            'reg_number': r[1],  # Using reg_number here because your fleet_management.html might still use it (check below)
+            'reg_plate': r[1],   # sending both to be safe
+            'make_model': r[2],
+            'status': r[3],
+            'assigned_driver_id': r[4],
+            'driver_name': r[5],
+            'mot_expiry': r[6], 'tax_expiry': r[7], 'ins_expiry': r[8], 'service_expiry': r[9],
+            'crew': crew,
+            'history': history
+        })
+
+    conn.close()
+    
+    # Note: Ensure this matches the file you uploaded: 'office/fleet_management.html'
+    return render_template('office/fleet_management.html', 
+                           vehicles=vehicles, 
+                           staff=all_staff,  # Template expects 'staff' loop for dropdowns
+                           all_staff=all_staff, # Sending both just in case
+                           today=date.today())
