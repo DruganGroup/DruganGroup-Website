@@ -270,6 +270,8 @@ def live_ops():
                            logo_url=config['logo'])
                            
                            @office_bp.route('/office/quote/new')
+
+@office_bp.route('/office/quote/new')
 def new_quote():
     if not check_office_access(): return redirect(url_for('auth.login'))
     
@@ -290,7 +292,7 @@ def new_quote():
     
     conn.close()
 
-    # 4. Calculate Tax Rate (CRITICAL FIX)
+    # 4. Calculate Tax Rate
     TAX_RATES = {
         'UK': 0.20, 'IE': 0.23, 'US': 0.00, 'CAN': 0.05, 
         'AUS': 0.10, 'NZ': 0.15, 'FR': 0.20, 'DE': 0.19, 'ES': 0.21
@@ -310,13 +312,12 @@ def new_quote():
         except:
             tax_rate = 0.20
 
-    # 5. Pass everything to the template
     return render_template('office/create_quote.html', 
                            clients=clients, 
                            materials=materials, 
                            settings=settings, 
                            tax_rate=tax_rate)
-                           
+                          
 @office_bp.route('/office/quote/save', methods=['POST'])
 def save_quote():
     if not check_office_access(): return redirect(url_for('auth.login'))
