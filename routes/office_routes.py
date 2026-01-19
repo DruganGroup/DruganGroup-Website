@@ -140,8 +140,7 @@ def live_ops():
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
 
-    # 1. GET STAFF STATUS (The "Who is working?" logic)
-    # We join Staff -> Attendance (Today) -> Current Active Job
+    # 1. GET STAFF STATUS
     today = date.today()
     cur.execute("""
         SELECT 
@@ -158,27 +157,18 @@ def live_ops():
     """, (today, comp_id))
     
     staff_status = []
-    vehicles_on_map = []
     
-    # We need the API key for the map
+    # Check for API Key
     cur.execute("SELECT value FROM settings WHERE company_id=%s AND key='samsara_api_key'", (comp_id,))
     api_key_row = cur.fetchone()
     api_key = api_key_row[0] if api_key_row else None
 
     for r in cur.fetchall():
-        # Status Logic
         is_clocked_in = (r[4] is not None and r[5] is None)
         status = 'Offline'
         if is_clocked_in: status = 'Online'
-        if r[6]: status = 'On Job' # If they have an active job, that overrides "Online"
+        if r[6]: status = 'On Job'
         
-        # Live Location Logic (If they have a van)
-        lat, lon = None, None
-        if r[9]: # If vehicle has tracker URL
-            # In production, fetch from 'get_tracker_data' service
-            # For now, we simulate or pass the tracker URL for the frontend JS
-            pass 
-
         staff_status.append({
             'name': r[1],
             'role': r[2],
@@ -191,12 +181,18 @@ def live_ops():
             'tracker_url': r[9]
         })
 
-    # 2. GET ALL VEHICLES (For the Map)
-    # We fetch real lat/lon if you have the telematics engine connected
-    cur.execute("SELECT id, reg_plate, make_model, driver_name, tracker_url FROM vehicles WHERE company_id=%s", (comp_id,))
+    # 2. GET ALL VEHICLES (FIXED JOIN QUERY)
+    # We join 'staff' to get the name, instead of looking for a missing 'driver_name' column
+    cur.execute("""
+        SELECT v.id, v.reg_plate, v.make_model, s.name, v.tracker_url 
+        FROM vehicles v
+        LEFT JOIN staff s ON v.assigned_driver_id = s.id
+        WHERE v.company_id = %s
+    """, (comp_id,))
+    
     fleet = []
     
-    # Try to import the engine safely
+    # Safely import the engine logic
     try:
         from telematics_engine import get_tracker_data
         has_engine = True
@@ -205,15 +201,25 @@ def live_ops():
         get_tracker_data = None
 
     for v in cur.fetchall():
-        v_data = {'reg': v[1], 'model': v[2], 'driver': v[3], 'lat': None, 'lon': None}
+        v_data = {
+            'reg': v[1], 
+            'model': v[2], 
+            'driver': v[3] or 'Unassigned',  # Now correctly pulls from staff table
+            'lat': None, 
+            'lon': None,
+            'speed': 0
+        }
         
         # If we have the engine and a URL, fetch real data
         if has_engine and v[4] and api_key:
-            telematics = get_tracker_data(v[4], api_key)
-            if telematics:
-                v_data['lat'] = telematics.get('lat')
-                v_data['lon'] = telematics.get('lon')
-                v_data['speed'] = telematics.get('speed')
+            try:
+                telematics = get_tracker_data(v[4], api_key)
+                if telematics:
+                    v_data['lat'] = telematics.get('lat')
+                    v_data['lon'] = telematics.get('lon')
+                    v_data['speed'] = telematics.get('speed')
+            except:
+                pass # Fail silently if API is down
         
         fleet.append(v_data)
 
@@ -224,7 +230,6 @@ def live_ops():
                            fleet=fleet,
                            brand_color=config['color'],
                            logo_url=config['logo'])
-
 # =========================================================
 # 2. QUOTING SYSTEM
 # =========================================================
