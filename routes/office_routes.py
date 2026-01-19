@@ -30,21 +30,29 @@ def format_date(d, fmt_str='%d/%m/%Y'):
 
 @office_bp.route('/office-hub')
 def office_dashboard():
-    # 1. Security Check
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
 
-    # --- GET SETTINGS (Date Format) ---
+    # --- GET SETTINGS ---
     cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'date_format'", (comp_id,))
     row = cur.fetchone()
-    # Use the format from Settings, or default to UK if missing
     user_date_fmt = row[0] if row and row[0] else '%d/%m/%Y'
 
-    # --- COUNTERS (Top Row) ---
-    cur.execute("SELECT COUNT(*) FROM clients WHERE company_id=%s AND status='Active'", (comp_id,))
+    # --- HELPER: Date Formatter ---
+    def process_date(date_val, fmt):
+        if not date_val: return "TBC", None, None
+        dt = date_val
+        if isinstance(date_val, str):
+            try: dt = datetime.strptime(date_val[:10], '%Y-%m-%d')
+            except: return str(date_val), None, None
+        return dt.strftime(fmt), dt.strftime('%d'), dt.strftime('%b')
+
+    # --- COUNTERS ---
+    # 1. New Requests (Portal)
+    cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id=%s AND status='Pending'", (comp_id,))
     leads_count = cur.fetchone()[0]
     
     cur.execute("SELECT COUNT(*) FROM quotes WHERE company_id=%s AND status='Pending'", (comp_id,))
@@ -56,43 +64,30 @@ def office_dashboard():
     cur.execute("SELECT COUNT(*) FROM invoices WHERE company_id=%s AND status='Unpaid'", (comp_id,))
     unpaid_inv = cur.fetchone()[0]
 
-    # --- HELPER: Safe Date Formatter ---
-    def process_date(date_val, fmt):
-        """Converts DB date (obj or str) to User Setting Format"""
-        if not date_val: return "TBC", None, None
-        
-        # Ensure we have a datetime object
-        dt = date_val
-        if isinstance(date_val, str):
-            try:
-                # Try standard ISO format first
-                dt = datetime.strptime(date_val[:10], '%Y-%m-%d')
-            except:
-                return str(date_val), None, None # Give up, return raw string
-        
-        # Return: (Formatted String, Day, Month_Abbr)
-        return dt.strftime(fmt), dt.strftime('%d'), dt.strftime('%b')
-
-    # --- ACTION CENTER LISTS ---
+    # --- LISTS ---
     
-    # 1. LEADS NEEDING QUOTES
+    # 1. NEW REQUESTS (Replaces "Leads Needing Quotes")
+    # Fetches actual requests submitted via the portal
     cur.execute("""
-        SELECT c.id, c.name, c.phone, c.created_at
-        FROM clients c
-        LEFT JOIN quotes q ON c.id = q.client_id
-        WHERE c.company_id = %s AND c.status = 'Active' AND q.id IS NULL
-        ORDER BY c.created_at DESC LIMIT 5
+        SELECT r.id, c.name, c.phone, r.created_at, r.description
+        FROM service_requests r
+        JOIN clients c ON r.client_id = c.id
+        WHERE r.company_id = %s AND r.status = 'Pending'
+        ORDER BY r.created_at DESC LIMIT 5
     """, (comp_id,))
     
-    leads_needing_quotes = []
+    incoming_requests = []
     for r in cur.fetchall():
         fmt_date, _, _ = process_date(r[3], user_date_fmt)
-        leads_needing_quotes.append({
-            'id': r[0], 'name': r[1], 'phone': r[2], 
-            'date_added': fmt_date
+        incoming_requests.append({
+            'id': r[0], 
+            'client_name': r[1], 
+            'phone': r[2], 
+            'date_added': fmt_date,
+            'desc': r[4]
         })
 
-    # 2. JOBS STARTING SOON
+    # 2. UPCOMING JOBS
     cur.execute("""
         SELECT j.id, j.ref, j.site_address, c.name, j.start_date, j.status 
         FROM jobs j 
@@ -103,14 +98,10 @@ def office_dashboard():
     
     upcoming_jobs = []
     for r in cur.fetchall():
-        # Get formatted date AND parts for the calendar box
         fmt_full, day_num, month_abbr = process_date(r[4], user_date_fmt)
-        
         upcoming_jobs.append({
             'id': r[0], 'ref': r[1], 'address': r[2], 'client_name': r[3],
-            'start_date_fmt': fmt_full,  # e.g. 19/01/2026 or 01/19/2026 based on setting
-            'day': day_num or '?',       # e.g. 19
-            'month': month_abbr or '-'   # e.g. JAN
+            'start_date_fmt': fmt_full, 'day': day_num, 'month': month_abbr
         })
 
     # 3. UNINVOICED JOBS
@@ -125,9 +116,7 @@ def office_dashboard():
     
     uninvoiced_jobs = []
     for r in cur.fetchall():
-        uninvoiced_jobs.append({
-            'id': r[0], 'ref': r[1], 'client_name': r[2], 'total': r[3]
-        })
+        uninvoiced_jobs.append({'id': r[0], 'ref': r[1], 'client_name': r[2], 'total': r[3]})
 
     # --- PIPELINE ---
     cur.execute("SELECT status, COUNT(*), SUM(total) FROM quotes WHERE company_id=%s GROUP BY status", (comp_id,))
@@ -145,19 +134,19 @@ def office_dashboard():
 
     # Dropdowns
     cur.execute("SELECT id, name FROM clients WHERE company_id=%s ORDER BY name", (comp_id,))
-    clients = cur.fetchall() # Returns list of tuples
+    clients = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
     
     cur.execute("SELECT id, reg_plate FROM vehicles WHERE company_id=%s AND status='Active'", (comp_id,))
-    vehicles = cur.fetchall()
+    vehicles = [{'id': r[0], 'reg': r[1]} for r in cur.fetchall()]
 
     conn.close()
 
     return render_template('office/office_dashboard.html',
-                           leads_count=leads_count,
+                           leads_count=leads_count, # Now counts requests
                            pending_quotes=pending_quotes,
                            active_jobs=active_jobs,
                            unpaid_inv=unpaid_inv,
-                           leads_needing_quotes=leads_needing_quotes,
+                           incoming_requests=incoming_requests, # NEW VARIABLE
                            upcoming_jobs=upcoming_jobs,
                            uninvoiced_jobs=uninvoiced_jobs,
                            pipeline=pipeline,
