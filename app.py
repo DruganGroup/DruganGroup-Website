@@ -169,14 +169,17 @@ def inject_branding():
 
     return dict(brand_color=color or default_color, logo=logo)
 
+# --- TEMPORARY DATABASE CLEANUP TOOL ---
 @client_bp.route('/debug/cleanup-tables')
 def cleanup_tables():
+    # Security: Only Admin can run this
     if session.get('role') not in ['Admin', 'SuperAdmin']: return "Unauthorized", 403
     
     conn = get_db()
     cur = conn.cursor()
     log = []
     
+    # These are the legacy tables causing conflicts with the new system
     tables_to_drop = [
         'job_photos',      # Legacy (We use job_evidence)
         'timesheets',      # Legacy (We use staff_timesheets)
@@ -187,12 +190,16 @@ def cleanup_tables():
     
     try:
         for table in tables_to_drop:
-            # Check if table exists before dropping
             cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE;")
             log.append(f"🗑️ DROPPED TABLE: {table}")
             
+        # Also ensure job_evidence has the correct columns for Certs
+        cur.execute("ALTER TABLE job_evidence ADD COLUMN IF NOT EXISTS file_type TEXT DEFAULT 'Site Photo';")
+        cur.execute("ALTER TABLE job_evidence ADD COLUMN IF NOT EXISTS document_date DATE;")
+        log.append("✅ UPDATED TABLE: job_evidence (Ready for Certificates)")
+
         conn.commit()
-        return f"<h1>Database Cleaned</h1><pre>{chr(10).join(log)}</pre>"
+        return f"<h1>Database Cleaned & Upgraded</h1><pre>{chr(10).join(log)}</pre>"
         
     except Exception as e:
         conn.rollback()
