@@ -219,37 +219,6 @@ def view_client(client_id):
                            invoices=invoices,
                            current_date=date.today())
 
-# --- MISSING ROUTE 2: ADD PROPERTY ---
-@client_bp.route('/office/client/<int:client_id>/add-property', methods=['POST'])
-def add_property(client_id):
-    if 'user_id' not in session: return redirect(url_for('auth.login'))
-    
-    comp_id = session.get('company_id')
-    address = request.form.get('address')
-    postcode = request.form.get('postcode')
-    tenant = request.form.get('tenant_name')
-    key_code = request.form.get('key_code')
-    
-    # Dates
-    gas = request.form.get('gas_expiry') or None
-    eicr = request.form.get('eicr_expiry') or None
-    
-    conn = get_db(); cur = conn.cursor()
-    try:
-        cur.execute("""
-            INSERT INTO properties (company_id, client_id, address_line1, postcode, tenant_name, key_code, gas_expiry, eicr_expiry)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (comp_id, client_id, address, postcode, tenant, key_code, gas, eicr))
-        conn.commit()
-        flash("✅ Property added successfully.")
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error adding property: {e}", "error")
-    finally:
-        conn.close()
-        
-    return redirect(url_for('client.view_client', client_id=client_id))
-
 # --- MISSING ROUTE 3: DELETE CLIENT ---
 @client_bp.route('/client/delete/<int:client_id>')
 def delete_client(client_id):
