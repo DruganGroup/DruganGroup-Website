@@ -51,7 +51,6 @@ def office_dashboard():
         return dt.strftime(fmt), dt.strftime('%d'), dt.strftime('%b')
 
     # --- COUNTERS ---
-    # 1. New Requests (Portal)
     cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id=%s AND status='Pending'", (comp_id,))
     leads_count = cur.fetchone()[0]
     
@@ -66,9 +65,9 @@ def office_dashboard():
 
     # --- LISTS ---
     
-    # 1. NEW REQUESTS (Fixed Column Name)
+    # 1. NEW REQUESTS (Now includes client_id for the button)
     cur.execute("""
-        SELECT r.id, c.name, c.phone, r.created_at, r.issue_description
+        SELECT r.id, c.name, c.phone, r.created_at, r.issue_description, r.client_id
         FROM service_requests r
         JOIN clients c ON r.client_id = c.id
         WHERE r.company_id = %s AND r.status = 'Pending'
@@ -83,7 +82,8 @@ def office_dashboard():
             'client_name': r[1], 
             'phone': r[2], 
             'date_added': fmt_date,
-            'desc': r[4]  # Now mapping from issue_description
+            'desc': r[4],
+            'client_id': r[5]  # Critical for the Review button
         })
 
     # 2. UPCOMING JOBS
@@ -486,7 +486,8 @@ def office_fleet():
                            staff=all_staff,  # Template expects 'staff' loop for dropdowns
                            all_staff=all_staff, # Sending both just in case
                            today=date.today())
-                           
+
+
 @office_bp.route('/office/quote/new')
 def new_quote():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -494,33 +495,62 @@ def new_quote():
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
     
-    # FIX: Return Dictionaries so c.id and c.name work in the template
+    # 1. Fetch Clients (as Dictionaries)
     cur.execute("SELECT id, name FROM clients WHERE company_id=%s AND status='Active' ORDER BY name", (comp_id,))
     clients = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
     
+    # 2. Fetch Materials
     cur.execute("SELECT id, name, cost_price FROM materials WHERE company_id=%s ORDER BY name", (comp_id,))
     materials = [{'id': r[0], 'name': r[1], 'price': r[2]} for r in cur.fetchall()]
 
+    # 3. Fetch Settings
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     
+    # 4. LOOKUP SERVICE REQUEST (If clicked from Dashboard)
+    request_id = request.args.get('request_id')
+    source_request = None
+    
+    if request_id:
+        # Note: 'issue_description' matches your DB table now
+        cur.execute("""
+            SELECT issue_description, image_url, property_id 
+            FROM service_requests 
+            WHERE id = %s AND company_id = %s
+        """, (request_id, comp_id))
+        row = cur.fetchone()
+        if row:
+            source_request = {
+                'desc': row[0],
+                'image': row[1],
+                'prop_id': row[2]
+            }
+
     conn.close()
 
-    # Tax Logic (Keep your existing tax logic here)
-    tax_rate = 0.20 
-    # ... (Your existing tax calculation) ...
+    # Tax Logic
+    country = settings.get('country_code', 'UK')
+    vat_reg = settings.get('vat_registered', 'no')
+    tax_rate = 0.20
+    
+    TAX_RATES = {'UK': 0.20, 'IE': 0.23, 'US': 0.00, 'CAN': 0.05, 'AUS': 0.10, 'NZ': 0.15}
+    if vat_reg in ['yes', 'on', 'true', '1']:
+        manual_rate = settings.get('default_tax_rate')
+        if manual_rate: tax_rate = float(manual_rate) / 100
+        else: tax_rate = TAX_RATES.get(country, 0.20)
+    else:
+        tax_rate = 0.00
 
-    # Check query params for pre-selected client
     pre_client = request.args.get('client_id')
 
     return render_template('office/create_quote.html', 
                            clients=clients, 
                            materials=materials, 
                            settings=settings, 
-                           tax_rate=tax_rate,
-                           pre_selected_client=pre_client)
+                           tax_rate=tax_rate, 
+                           pre_selected_client=pre_client,
+                           source_request=source_request)
 
-# =========================================================
 # 2. FIX: API FOR PROPERTIES (Dropdown Population)
 # =========================================================
 @office_bp.route('/api/client/<int:client_id>/properties')

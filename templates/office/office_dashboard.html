@@ -61,7 +61,7 @@
                             <small class="text-muted d-block">{{ r.desc|truncate(30) }}</small>
                             <small class="text-primary" style="font-size: 0.75rem;">{{ r.date_added }}</small>
                         </div>
-                        <a href="/office/quote/new?request_id={{ r.id }}&client_id={{ r.id }}" class="btn btn-sm btn-outline-dark fw-bold">
+                        <a href="/office/quote/new?request_id={{ r.id }}&client_id={{ r.client_id }}" class="btn btn-sm btn-outline-dark fw-bold">
                             Review <i class="fas fa-arrow-right ms-1"></i>
                         </a>
                     </div>
