@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tracking | {{ job.ref }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { background: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+        .map-container { height: 50vh; width: 100%; position: relative; }
+        .status-card { 
+            background: white; border-radius: 20px 20px 0 0; 
+            margin-top: -20px; position: relative; z-index: 1000;
+            padding: 30px; box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
+            min-height: 50vh;
+        }
+        .driver-img { width: 80px; height: 80px; object-fit: cover; border: 4px solid white; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .timeline-dot { width: 12px; height: 12px; background: #ddd; border-radius: 50%; display: inline-block; margin-right: 10px; }
+        .timeline-dot.active { background: #198754; box-shadow: 0 0 0 4px rgba(25, 135, 84, 0.2); }
+    </style>
+</head>
+<body>
+
+    <div id="map" class="map-container"></div>
+
+    <div class="status-card">
+        <div class="text-center mb-4">
+            <div class="d-inline-block position-relative">
+                {% if engineer.photo %}
+                    <img src="/static/{{ engineer.photo }}" class="rounded-circle driver-img">
+                {% else %}
+                    <div class="rounded-circle driver-img bg-light d-flex align-items-center justify-content-center text-secondary">
+                        <i class="fas fa-user fa-2x"></i>
+                    </div>
+                {% endif %}
+                <span class="position-absolute bottom-0 end-0 badge rounded-pill bg-success border border-white">
+                    {{ job.status }}
+                </span>
+            </div>
+            <h4 class="fw-bold mt-3 mb-0">{{ engineer.name }}</h4>
+            <p class="text-muted small">{{ engineer.position }}</p>
+            
+            <a href="tel:{{ settings.get('company_phone') }}" class="btn btn-outline-dark rounded-pill fw-bold px-4 mt-2">
+                <i class="fas fa-phone me-2"></i> Contact Office
+            </a>
+        </div>
+
+        <hr class="opacity-10">
+
+        <div class="mt-4">
+            <h6 class="text-uppercase text-muted small fw-bold mb-4">Job Status</h6>
+            
+            <div class="d-flex align-items-center mb-3">
+                <div class="timeline-dot bg-success"></div>
+                <div class="fw-bold">Job Scheduled</div>
+                <div class="ms-auto small text-muted">{{ job.start_date }}</div>
+            </div>
+
+            <div class="d-flex align-items-center mb-3">
+                <div class="timeline-dot {% if job.status in ['En Route', 'In Progress', 'Completed'] %}active{% endif %}"></div>
+                <div class="{{ 'fw-bold' if job.status in ['En Route', 'In Progress', 'Completed'] else 'text-muted' }}">
+                    Engineer En Route
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center mb-3">
+                <div class="timeline-dot {% if job.status == 'In Progress' %}active{% endif %}"></div>
+                <div class="{{ 'fw-bold' if job.status == 'In Progress' else 'text-muted' }}">
+                    Work in Progress
+                </div>
+            </div>
+            
+            <div class="d-flex align-items-center">
+                <div class="timeline-dot {% if job.status == 'Completed' %}bg-primary{% endif %}"></div>
+                <div class="{{ 'fw-bold text-primary' if job.status == 'Completed' else 'text-muted' }}">
+                    Completed
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Init Map
+        var map = L.map('map').setView([{{ job.site_lat or 51.505 }}, {{ job.site_lon or -0.09 }}], 13);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OSM & Carto'
+        }).addTo(map);
+
+        // Job Location Marker (House)
+        var jobIcon = L.divIcon({
+            html: '<div style="background:#dc3545; color:white; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 10px rgba(0,0,0,0.2);"><i class="fas fa-home"></i></div>',
+            className: ''
+        });
+        L.marker([{{ job.site_lat or 51.505 }}, {{ job.site_lon or -0.09 }}], {icon: jobIcon}).addTo(map);
+
+        // Engineer Marker (Van) - Only if En Route or In Progress
+        {% if telematics and telematics.lat %}
+            var vanIcon = L.divIcon({
+                html: '<div style="background:#198754; color:white; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 10px rgba(0,0,0,0.2);"><i class="fas fa-truck"></i></div>',
+                className: ''
+            });
+            var vanMarker = L.marker([{{ telematics.lat }}, {{ telematics.lon }}], {icon: vanIcon}).addTo(map);
+            
+            // Auto-Zoom to fit both
+            var group = new L.featureGroup([
+                L.marker([{{ job.site_lat or 51.505 }}, {{ job.site_lon or -0.09 }}]),
+                vanMarker
+            ]);
+            map.fitBounds(group.getBounds(), {padding: [50, 50]});
+        {% endif %}
+    </script>
+</body>
+</html>

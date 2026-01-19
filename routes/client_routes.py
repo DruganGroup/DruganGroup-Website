@@ -6,6 +6,10 @@ import random
 import string
 from werkzeug.security import generate_password_hash
 from datetime import date
+try:
+    from telematics_engine import get_tracker_data
+except ImportError:
+    get_tracker_data = None
 
 client_bp = Blueprint('client', __name__)
 
@@ -90,3 +94,65 @@ def get_client_properties(client_id):
     conn.close()
     
     return jsonify(props)
+    
+    @client_bp.route('/track/<job_ref>')
+def track_job(job_ref):
+    """
+    Public tracking page for customers.
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # 1. Fetch Job & Engineer Details
+    # We join Job -> Staff (Engineer) -> Vehicle -> Company Settings
+    cur.execute("""
+        SELECT 
+            j.id, j.status, j.start_date, j.site_address,
+            s.name, s.position, s.profile_photo,
+            v.tracker_url,
+            j.company_id
+        FROM jobs j
+        LEFT JOIN staff s ON j.engineer_id = s.id
+        LEFT JOIN vehicles v ON j.vehicle_id = v.id
+        WHERE j.ref = %s
+    """, (job_ref,))
+    
+    row = cur.fetchone()
+    if not row:
+        return "Job not found", 404
+
+    # 2. Organize Data
+    job_data = {
+        'ref': job_ref,
+        'status': row[1],
+        'start_date': row[2],
+        'site_lat': 51.5074, # In a real app, geocode the address row[3]
+        'site_lon': -0.1278
+    }
+    
+    engineer_data = {
+        'name': row[4] or "Assigned Engineer",
+        'position': row[5] or "Technician",
+        'photo': row[6]
+    }
+    
+    tracker_url = row[7]
+    comp_id = row[8]
+
+    # 3. Get Company Settings (Phone Number/API Keys)
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {r[0]: r[1] for r in cur.fetchall()}
+
+    # 4. Fetch Live Telematics (If available)
+    telematics = None
+    if tracker_url and get_tracker_data:
+        api_key = settings.get('samsara_api_key')
+        telematics = get_tracker_data(tracker_url, api_key=api_key)
+
+    conn.close()
+
+    return render_template('public/track_job.html', 
+                           job=job_data, 
+                           engineer=engineer_data,
+                           telematics=telematics,
+                           settings=settings)
