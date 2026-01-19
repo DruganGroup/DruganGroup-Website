@@ -95,7 +95,7 @@ def get_client_properties(client_id):
     
     return jsonify(props)
     
-    @client_bp.route('/track/<job_ref>')
+@client_bp.route('/track/<job_ref>')
 def track_job(job_ref):
     """
     Public tracking page for customers.
