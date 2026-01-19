@@ -159,14 +159,14 @@ def finance_fleet():
                 mot = request.form.get('mot_expiry') or None
                 tax = request.form.get('tax_expiry') or None
                 ins = request.form.get('ins_expiry') or None
-
+                serv = request.form.get('service_expiry') or None
                 # 1. Update Vehicle Details
                 cur.execute("""
-                    UPDATE vehicles 
-                    SET daily_cost = %s, tracker_url = %s, assigned_driver_id = %s,
-                        mot_expiry = %s, tax_expiry = %s, ins_expiry = %s
-                    WHERE id = %s AND company_id = %s
-                """, (daily, tracker_url, driver_id, mot, tax, ins, veh_id, comp_id))
+                UPDATE vehicles 
+                SET daily_cost = %s, tracker_url = %s, assigned_driver_id = %s,
+                mot_expiry = %s, tax_expiry = %s, ins_expiry = %s, service_expiry = %s
+                WHERE id = %s AND company_id = %s
+                """, (daily, tracker_url, driver_id, mot, tax, ins, serv, veh_id, comp_id))
 
                 # 2. Update Crew
                 crew_ids = request.form.getlist('crew_ids')

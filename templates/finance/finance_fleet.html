@@ -51,8 +51,7 @@
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <div class="d-flex align-items-center gap-2 mb-1">
-                                    <h4 class="fw-bold m-0">{{ v.reg_plate }}</h4>
-                                    <span class="badge bg-secondary">{{ v.make_model }}</span>
+                                    <h4 class="fw-bold m-0">{{ v.reg_plate }}</h4> <span class="badge bg-secondary">{{ v.make_model }}</span>
                                     {% if v.telematics %}
                                         <span class="badge bg-success"><i class="fas fa-wifi"></i> Live</span>
                                     {% endif %}
@@ -71,6 +70,13 @@
                             </div>
                         </div>
                         
+                        <div class="d-flex justify-content-between mt-3 mb-3 small bg-light p-2 rounded text-center">
+                            <div><strong>MOT:</strong><br>{{ v.mot_expiry.strftime('%d/%m/%y') if v.mot_expiry else '-' }}</div>
+                            <div><strong>TAX:</strong><br>{{ v.tax_expiry.strftime('%d/%m/%y') if v.tax_expiry else '-' }}</div>
+                            <div><strong>INS:</strong><br>{{ v.ins_expiry.strftime('%d/%m/%y') if v.ins_expiry else '-' }}</div>
+                            <div><strong>SERV:</strong><br>{{ v.service_expiry.strftime('%d/%m/%y') if v.service_expiry else '-' }}</div>
+                        </div>
+
                         <div class="mt-3 d-flex gap-1 flex-wrap">
                             {% for c in v.crew %}
                                 <span class="badge bg-light text-dark border"><i class="fas fa-hard-hat me-1"></i> {{ c.name }}</span>
@@ -132,11 +138,14 @@
                                             <div class="card border-0 shadow-sm">
                                                 <div class="card-body">
                                                     <h6 class="fw-bold text-muted border-bottom pb-2 mb-3">Compliance & API</h6>
+                                                    
                                                     <div class="row g-2 mb-3">
-                                                        <div class="col-4"><label class="small fw-bold">MOT</label><input type="date" name="mot_expiry" value="{{ v.mot_expiry }}" class="form-control form-control-sm"></div>
-                                                        <div class="col-4"><label class="small fw-bold">Tax</label><input type="date" name="tax_expiry" value="{{ v.tax_expiry }}" class="form-control form-control-sm"></div>
-                                                        <div class="col-4"><label class="small fw-bold">Ins</label><input type="date" name="ins_expiry" value="{{ v.ins_expiry }}" class="form-control form-control-sm"></div>
+                                                        <div class="col-3"><label class="small fw-bold">MOT</label><input type="date" name="mot_expiry" value="{{ v.mot_expiry }}" class="form-control form-control-sm"></div>
+                                                        <div class="col-3"><label class="small fw-bold">Tax</label><input type="date" name="tax_expiry" value="{{ v.tax_expiry }}" class="form-control form-control-sm"></div>
+                                                        <div class="col-3"><label class="small fw-bold">Ins</label><input type="date" name="ins_expiry" value="{{ v.ins_expiry }}" class="form-control form-control-sm"></div>
+                                                        <div class="col-3"><label class="small fw-bold">Service</label><input type="date" name="service_expiry" value="{{ v.service_expiry }}" class="form-control form-control-sm"></div>
                                                     </div>
+
                                                     <label class="small fw-bold">Tracker / API Link</label>
                                                     <input type="text" name="tracker_url" value="{{ v.tracker_url or '' }}" class="form-control form-control-sm" placeholder="https://api.samsara.com/...">
                                                 </div>
