@@ -29,7 +29,7 @@
             <div class="card p-3 border-0 shadow-sm text-center h-100 bg-white border-bottom border-warning border-4">
                 <h6 class="text-muted text-uppercase small fw-bold">Pending Quotes</h6>
                 <h2 class="fw-bold text-dark m-0">{{ pending_quotes }}</h2>
-                <div class="small text-muted">Value: £{{ "%.0f"|format(pipeline.Sent.value) }}</div>
+                <div class="small text-muted">Value: £{{ "%.0f"|format(pipeline['Sent']['value']) }}</div>
             </div>
         </div>
         <div class="col-md-3">
@@ -57,10 +57,9 @@
                     {% for l in leads_needing_quotes %}
                     <div class="list-group-item d-flex justify-content-between align-items-center">
                         <div>
-                            <div class="fw-bold text-dark">{{ l.name }}</div>
-                            <small class="text-muted">Added: {{ l.created_at.strftime('%d %b') if l.created_at else 'Recent' }}</small>
+                            <div class="fw-bold text-dark">{{ l[1] }}</div> <small class="text-muted">Added: {{ l[3].strftime('%d %b') if l[3] else 'Recent' }}</small>
                         </div>
-                        <a href="/office/quote/new?client_id={{ l.id }}" class="btn btn-sm btn-outline-dark fw-bold">
+                        <a href="/office/quote/new?client_id={{ l[0] }}" class="btn btn-sm btn-outline-dark fw-bold">
                             Create <i class="fas fa-arrow-right ms-1"></i>
                         </a>
                     </div>
@@ -83,15 +82,12 @@
                     {% for j in upcoming_jobs %}
                     <div class="list-group-item">
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="badge bg-light text-dark border">{{ j.ref }}</span>
-                            <small class="fw-bold text-primary">{{ j.start_date.strftime('%d %b') if j.start_date else 'TBC' }}</small>
-                        </div>
-                        <div class="fw-bold small mb-1">{{ j.name }}</div>
-                        <div class="d-flex gap-2">
-                            <a href="/office/job/{{ j.id }}/files" class="btn btn-sm btn-light border w-100 text-muted">
+                            <span class="badge bg-light text-dark border">{{ j[1] }}</span> <small class="fw-bold text-primary">{{ j[4].strftime('%d %b') if j[4] else 'TBC' }}</small> </div>
+                        <div class="fw-bold small mb-1">{{ j[3] or 'Unknown Client' }}</div> <div class="d-flex gap-2">
+                            <a href="/office/job/{{ j[0] }}/files" class="btn btn-sm btn-light border w-100 text-muted">
                                 <i class="fas fa-folder-open me-1"></i> Files
                             </a>
-                            <a href="/office/job/{{ j.id }}/files" class="btn btn-sm btn-warning w-100 fw-bold">
+                            <a href="/office/job/{{ j[0] }}/files" class="btn btn-sm btn-warning w-100 fw-bold">
                                 <i class="fas fa-file-contract me-1"></i> RAMS
                             </a>
                         </div>
@@ -112,10 +108,8 @@
                     {% for j in uninvoiced_jobs %}
                     <div class="list-group-item d-flex justify-content-between align-items-center bg-danger bg-opacity-10">
                         <div>
-                            <div class="fw-bold text-dark">{{ j.ref }}</div>
-                            <small class="text-dark">{{ j.name }}</small>
-                        </div>
-                        <form action="/office/job/{{ j.id }}/files" method="get">
+                            <div class="fw-bold text-dark">{{ j[1] }}</div> <small class="text-dark">{{ j[2] }}</small> </div>
+                        <form action="/office/job/{{ j[0] }}/files" method="get">
                             <button class="btn btn-sm btn-success fw-bold shadow-sm">
                                 Invoice <i class="fas fa-pound-sign ms-1"></i>
                             </button>
@@ -146,7 +140,7 @@
                         <select name="client_id" class="form-select" required>
                             <option value="">-- Select Client --</option>
                             {% for c in clients %}
-                                <option value="{{ c.id }}">{{ c.name }}</option>
+                                <option value="{{ c[0] }}">{{ c[1] }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -175,7 +169,7 @@
                          <select name="vehicle_id" class="form-select">
                              <option value="">-- None --</option>
                              {% for v in vehicles %}
-                                <option value="{{ v.id }}">{{ v.reg_plate }}</option>
+                                <option value="{{ v[0] }}">{{ v[1] }}</option>
                              {% endfor %}
                          </select>
                     </div>
@@ -187,4 +181,4 @@
         </div>
     </div>
     
-    {% endblock %}
+{% endblock %}
