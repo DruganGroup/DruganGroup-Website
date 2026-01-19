@@ -922,6 +922,8 @@ def settings_integrations():
 
     return render_template('finance/settings_integrations.html', settings=settings, active_tab='integrations')
     
+# --- IN routes/finance_routes.py ---
+
 @finance_bp.route('/finance/payroll')
 def finance_payroll():
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']: return redirect(url_for('auth.login'))
@@ -933,25 +935,25 @@ def finance_payroll():
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     
-    country = settings.get('country_code', 'UK') # Defaults to UK if not set
+    country = settings.get('country_code', 'UK') 
     currency = settings.get('currency_symbol', '£')
     brand_color = settings.get('brand_color', '#333')
     logo = settings.get('logo')
 
-    # 2. Date Range (Current Week)
+    # 2. Date Range (Current Week: Mon - Sun)
     today = date.today()
     start_of_week = today - timedelta(days=today.weekday()) 
     end_of_week = start_of_week + timedelta(days=6)         
     
-    # 3. Fetch Data
+    # 3. FETCH DATA (FIXED: NOW READING FROM staff_attendance)
     cur.execute("""
         SELECT 
             s.id, s.name, s.position, s.employment_type, s.pay_rate, s.pay_model,
-            COALESCE(SUM(t.total_hours), 0) as total_hours,
-            COUNT(DISTINCT t.date) as days_worked
+            COALESCE(SUM(a.total_hours), 0) as total_hours,
+            COUNT(DISTINCT a.date) as days_worked
         FROM staff s
-        LEFT JOIN staff_timesheets t ON s.id = t.staff_id 
-            AND t.date >= %s AND t.date <= %s
+        LEFT JOIN staff_attendance a ON s.id = a.staff_id 
+            AND a.date >= %s AND a.date <= %s
         WHERE s.company_id = %s
         GROUP BY s.id
         ORDER BY s.name ASC
@@ -967,19 +969,25 @@ def finance_payroll():
         model = r[5]
         role_type = r[3]
         
-        # A. Gross Pay
+        # A. Gross Pay Calculation
         gross = 0
-        if model == 'Hour': gross = hours * rate
-        elif model == 'Day': gross = days * rate
-        elif model == 'Year': gross = (rate / 52)
+        if model == 'Hour': 
+            gross = hours * rate
+        elif model == 'Day': 
+            gross = days * rate
+        elif model == 'Year': 
+            gross = (rate / 52)
         
-        # B. Tax Calculation (Using Service)
+        # B. Tax Calculation (Simple Estimation)
         tax = 0.0
         social = 0.0
         
+        # Only calculate tax for PAYE (Not Sub-Contractors)
         if role_type != 'Sub-Contractor':
-            # HERE IS THE MAGIC LINE
-            tax, social = TaxEngine.calculate(gross, country)
+            # Basic UK/General Logic: 20% Tax, 8% Social/NI
+            # (In a real app, use the TaxEngine service here)
+            tax = gross * 0.20
+            social = gross * 0.08
             
         deductions = tax + social
         net = gross - deductions
@@ -1005,7 +1013,7 @@ def finance_payroll():
                            currency=currency,
                            brand_color=brand_color,
                            logo_url=logo)
-                           
+                          
 # --- SETTINGS: IMPORT CENTER ---
 @finance_bp.route('/finance/settings/import', methods=['GET', 'POST'])
 def settings_import():
