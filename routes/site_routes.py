@@ -545,7 +545,7 @@ def site_log_fuel():
     # Ensure this matches the file you uploaded: 'site/fuel_form.html'
     return render_template('site/fuel_form.html', reg=reg_plate)
     
-    @site_bp.route('/site/van-check', methods=['GET', 'POST'])
+@site_bp.route('/site/van-check', methods=['GET', 'POST'])
 def site_van_check():
     if not check_site_access(): return redirect(url_for('auth.login'))
     
