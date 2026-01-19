@@ -35,8 +35,6 @@ def format_date(d, fmt_str='%d/%m/%Y'):
         return d.strftime(fmt_str)
     except: return str(d)
 
-# --- IN routes/office_routes.py ---
-
 @office_bp.route('/office-hub')
 def office_dashboard():
     # 1. Security Check
@@ -73,15 +71,14 @@ def office_dashboard():
     cur.execute("SELECT action, details, created_at FROM audit_logs WHERE company_id=%s ORDER BY created_at DESC LIMIT 5", (comp_id,))
     logs = [{'action': r[0], 'details': r[1], 'time': format_date(r[2], "%H:%M")} for r in cur.fetchall()]
 
-    # 5. Dropdown Data
+    # 5. Dropdown Data (For the "Quick Actions" Modals)
     cur.execute("SELECT id, name FROM clients WHERE company_id=%s ORDER BY name", (comp_id,))
     clients = cur.fetchall()
     
     cur.execute("SELECT id, reg_plate FROM vehicles WHERE company_id=%s AND status='Active'", (comp_id,))
     vehicles = cur.fetchall()
 
-    # 6. [THE MISSING PIECE] CALCULATE PIPELINE
-    # This is exactly what was causing your error. We must build this dictionary.
+    # 6. Quote Pipeline
     cur.execute("SELECT status, COUNT(*), SUM(total) FROM quotes WHERE company_id=%s GROUP BY status", (comp_id,))
     pipe_raw = cur.fetchall()
     
@@ -93,14 +90,25 @@ def office_dashboard():
     }
     
     for r in pipe_raw:
-        status_key = r[0] # e.g. 'Draft'
+        status_key = r[0] 
         if status_key in pipeline:
             pipeline[status_key]['count'] = r[1]
             pipeline[status_key]['value'] = float(r[2] or 0)
 
+    # 7. [FIX] SERVICE DESK COUNTER (This caused your 500 Error)
+    # We try to count tickets. If the table doesn't exist yet, we default to 0 to prevent a crash.
+    pending_requests = 0
+    try:
+        cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id=%s AND status='Pending'", (comp_id,))
+        row = cur.fetchone()
+        if row: pending_requests = row[0]
+    except:
+        # If table service_requests is missing, just ignore it for now
+        pass
+
     conn.close()
 
-    # 7. Render Template with ALL variables
+    # 8. Render Template with ALL variables
     return render_template('office/office_dashboard.html',
                            brand_color=config['color'],
                            logo_url=config['logo'],
@@ -112,8 +120,8 @@ def office_dashboard():
                            logs=logs,
                            clients=clients,
                            vehicles=vehicles,
-                           pipeline=pipeline)
-
+                           pipeline=pipeline,
+                           pending_requests=pending_requests) # <--- Passed to HTML
 # =========================================================
 # 2. CALENDAR VIEW
 # =========================================================
