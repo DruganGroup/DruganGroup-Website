@@ -284,7 +284,7 @@ def new_quote():
     clients = cur.fetchall()
     
     # Get Materials (for the dropdown)
-    cur.execute("SELECT id, name, unit_cost FROM materials WHERE company_id=%s ORDER BY name", (comp_id,))
+    cur.execute("SELECT id, name, cost_price FROM materials WHERE company_id=%s ORDER BY name", (comp_id,))
     materials = cur.fetchall()
     
     conn.close()

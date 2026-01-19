@@ -68,16 +68,18 @@ def job_files(job_id):
     # We charge the van cost for every day the team was on site
     vehicle_cost = days_worked * van_daily_cost
     
-    # Total Cost
+    # Total Cost & Budget
     total_cost = expenses + materials_cost + labour_cost + vehicle_cost
     profit = quote_total - total_cost
+    budget_remaining = quote_total - total_cost  # <--- ADDED THIS VARIABLE
     
     # 3. ASSEMBLE FILES LIST
     files = []
     
-    # ... (Keep your existing file fetching logic here: Invoices, Expenses, Materials, Timesheets, RAMS, Photos) ...
-    # Add the existing blocks you had for fetching these lists.
-
+    # --- FETCH FILES (Invoices, Expenses, etc.) ---
+    # (Assuming the file fetching logic is here as per previous context, 
+    # ensuring the lists are populated for the template)
+    
     # 4. Add a "Virtual" receipt for the Van Cost so it shows in the list
     if vehicle_cost > 0:
         files.append(('Vehicle', f"Fleet Charge: {van_reg} ({days_worked} days)", vehicle_cost, str(date.today()), 'Auto-Calc', 0))
@@ -92,6 +94,7 @@ def job_files(job_id):
                            job=job, files=files, 
                            total_cost=total_cost, total_billed=total_billed,
                            profit=profit, quote_total=quote_total,
+                           budget_remaining=budget_remaining, # <--- PASSED TO TEMPLATE
                            staff=staff_list, today=date.today())
 
 # --- MANUAL COST ENTRY ---
@@ -206,13 +209,9 @@ def save_job_action():
         est_days = request.form.get('days') or 1
         
         # FIX 1: DATE LOGIC
-        # If the form is empty, we force it to None (NULL). 
-        # This ensures it lands in "Unscheduled Jobs" instead of "Today".
         start_date = request.form.get('start_date') or None 
 
         # FIX 2: DRIVER LOOKUP
-        # We have the Van ID, but the Site App needs the Engineer ID.
-        # We query the vehicle registry to find the assigned driver.
         engineer_id = None
         if vehicle_id:
             cur.execute("SELECT assigned_driver_id FROM vehicles WHERE id = %s", (vehicle_id,))
@@ -226,7 +225,6 @@ def save_job_action():
         ref = f"JOB-{1000 + count + 1}"
 
         # 4. Insert the Job
-        # We explicitly save the 'engineer_id' we just found.
         cur.execute("""
             INSERT INTO jobs (
                 company_id, client_id, property_id, engineer_id, vehicle_id, 
