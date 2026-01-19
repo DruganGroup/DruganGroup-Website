@@ -28,18 +28,18 @@ def format_date(d, fmt_str='%d/%m/%Y'):
     except:
         return str(d)
 
-# =========================================================
-# 1. OFFICE DASHBOARD (THE HUB)
-# =========================================================
+# --- IN routes/office_routes.py ---
+
 @office_bp.route('/office-hub')
 def office_dashboard():
+    # 1. Security Check
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
 
-    # 1. COUNTERS
+    # --- COUNTERS (Top Row) ---
     cur.execute("SELECT COUNT(*) FROM clients WHERE company_id=%s AND status='Active'", (comp_id,))
     leads_count = cur.fetchone()[0]
     
@@ -52,52 +52,67 @@ def office_dashboard():
     cur.execute("SELECT COUNT(*) FROM invoices WHERE company_id=%s AND status='Unpaid'", (comp_id,))
     unpaid_inv = cur.fetchone()[0]
 
-    # 2. UPCOMING JOBS (Next 5)
+    # --- ACTION CENTER LISTS (The "Boom" Feature) ---
+    
+    # 1. LEADS NEEDING QUOTES (Active Clients with NO Quotes)
     cur.execute("""
-        SELECT j.id, j.ref, j.site_address, c.name, j.start_date, j.estimated_days, j.status 
+        SELECT c.id, c.name, c.phone, c.created_at
+        FROM clients c
+        LEFT JOIN quotes q ON c.id = q.client_id
+        WHERE c.company_id = %s AND c.status = 'Active' AND q.id IS NULL
+        ORDER BY c.created_at DESC LIMIT 5
+    """, (comp_id,))
+    leads_needing_quotes = cur.fetchall()
+
+    # 2. JOBS STARTING SOON (Check Files/RAMS)
+    # We define "Soon" as the next 7 days
+    cur.execute("""
+        SELECT j.id, j.ref, j.site_address, c.name, j.start_date, j.status 
         FROM jobs j 
         LEFT JOIN clients c ON j.client_id = c.id 
-        WHERE j.company_id = %s AND j.status IN ('Scheduled', 'In Progress') 
+        WHERE j.company_id = %s AND j.status = 'Scheduled' 
         ORDER BY j.start_date ASC LIMIT 5
     """, (comp_id,))
     upcoming_jobs = cur.fetchall()
 
-    # 3. RECENT LOGS
-    cur.execute("SELECT action, details, created_at FROM audit_logs WHERE company_id=%s ORDER BY created_at DESC LIMIT 5", (comp_id,))
-    logs = [{'action': r[0], 'details': r[1], 'time': format_date(r[2], "%H:%M")} for r in cur.fetchall()]
+    # 3. JOBS FINISHED BUT NOT INVOICED (Cash Flow Killer)
+    cur.execute("""
+        SELECT j.id, j.ref, c.name, j.quote_total
+        FROM jobs j
+        LEFT JOIN invoices i ON j.id = i.job_id
+        LEFT JOIN clients c ON j.client_id = c.id
+        WHERE j.company_id = %s AND j.status = 'Completed' AND i.id IS NULL
+        ORDER BY j.start_date DESC LIMIT 5
+    """, (comp_id,))
+    uninvoiced_jobs = cur.fetchall()
 
-    # 4. DROPDOWNS (For Modals)
-    cur.execute("SELECT id, name FROM clients WHERE company_id=%s ORDER BY name", (comp_id,))
-    clients = cur.fetchall()
-    
-    cur.execute("SELECT id, reg_plate FROM vehicles WHERE company_id=%s AND status='Active'", (comp_id,))
-    vehicles = cur.fetchall()
-
-    # 5. QUOTE PIPELINE (Fixes 'pipeline undefined' error)
+    # --- PIPELINE & TICKETS (Keep existing logic) ---
     cur.execute("SELECT status, COUNT(*), SUM(total) FROM quotes WHERE company_id=%s GROUP BY status", (comp_id,))
     pipe_raw = cur.fetchall()
-    
     pipeline = {
         'Draft': {'count': 0, 'value': 0},
         'Sent': {'count': 0, 'value': 0},
         'Accepted': {'count': 0, 'value': 0},
         'Rejected': {'count': 0, 'value': 0}
     }
-    
     for r in pipe_raw:
-        status_key = r[0]
-        if status_key in pipeline:
-            pipeline[status_key]['count'] = r[1]
-            pipeline[status_key]['value'] = float(r[2] or 0)
+        if r[0] in pipeline:
+            pipeline[r[0]]['count'] = r[1]
+            pipeline[r[0]]['value'] = float(r[2] or 0)
 
-    # 6. SERVICE DESK TICKETS (Fixes 'pending_requests undefined' error)
     pending_requests = 0
     try:
         cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id=%s AND status='Pending'", (comp_id,))
         row = cur.fetchone()
         if row: pending_requests = row[0]
-    except:
-        pass # Table might not exist yet
+    except: pass
+
+    # Dropdowns for Quick Actions
+    cur.execute("SELECT id, name FROM clients WHERE company_id=%s ORDER BY name", (comp_id,))
+    clients = cur.fetchall()
+    
+    cur.execute("SELECT id, reg_plate FROM vehicles WHERE company_id=%s AND status='Active'", (comp_id,))
+    vehicles = cur.fetchall()
 
     conn.close()
 
@@ -108,12 +123,13 @@ def office_dashboard():
                            pending_quotes=pending_quotes,
                            active_jobs=active_jobs,
                            unpaid_inv=unpaid_inv,
-                           upcoming_jobs=upcoming_jobs,
-                           logs=logs,
-                           clients=clients,
-                           vehicles=vehicles,
+                           leads_needing_quotes=leads_needing_quotes, # NEW
+                           upcoming_jobs=upcoming_jobs,               # UPDATED
+                           uninvoiced_jobs=uninvoiced_jobs,           # NEW
                            pipeline=pipeline,
-                           pending_requests=pending_requests) # <--- Sending the variable
+                           pending_requests=pending_requests,
+                           clients=clients,
+                           vehicles=vehicles)
 
 # --- OFFICE: LIVE OPERATIONS (The "God Mode" View) ---
 @office_bp.route('/office/live-ops')

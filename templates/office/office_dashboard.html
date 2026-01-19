@@ -6,313 +6,185 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold m-0">Mission Control</h2>
-            <p class="text-muted mb-0">Operational Overview</p>
+            <p class="text-muted mb-0">Operational Overview for {{ session.get('company_name') }}</p>
         </div>
         <div class="d-flex gap-2">
-            <a href="/office/quote/new" class="btn btn-warning fw-bold text-dark shadow-sm">
-                <i class="fas fa-plus me-2"></i>New Quote
-            </a>
-            <a href="/office/calendar" class="btn btn-primary fw-bold shadow-sm" style="background-color: var(--brand-color); border:none;">
-                <i class="fas fa-calendar-alt me-2"></i>Schedule
+            <button class="btn btn-warning fw-bold text-dark shadow-sm" data-bs-toggle="modal" data-bs-target="#createJobModal">
+                <i class="fas fa-hammer me-2"></i>New Job
+            </button>
+            <a href="/office/quote/new" class="btn btn-dark fw-bold shadow-sm">
+                <i class="fas fa-file-invoice me-2"></i>New Quote
             </a>
         </div>
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-md-2">
-            <div class="card p-3 border-0 shadow-sm text-center h-100 bg-white card-hover">
+        <div class="col-md-3">
+            <div class="card p-3 border-0 shadow-sm text-center h-100 bg-white border-bottom border-primary border-4">
                 <h6 class="text-muted text-uppercase small fw-bold">New Leads</h6>
                 <h2 class="fw-bold text-dark m-0">{{ leads_count }}</h2>
-                <a href="/clients" class="stretched-link"></a>
             </div>
         </div>
-
-        <div class="col-md-2">
-            <div class="card p-3 border-0 shadow-sm text-center h-100 card-hover">
-                <h6 class="text-muted text-uppercase small fw-bold">Drafting</h6>
-                <h2 class="fw-bold text-secondary m-0">{{ pipeline.Draft.count }}</h2>
-                <small class="text-muted">Quotes</small>
-                <a href="#quote-tracker" class="stretched-link"></a>
+        <div class="col-md-3">
+            <div class="card p-3 border-0 shadow-sm text-center h-100 bg-white border-bottom border-warning border-4">
+                <h6 class="text-muted text-uppercase small fw-bold">Pending Quotes</h6>
+                <h2 class="fw-bold text-dark m-0">{{ pending_quotes }}</h2>
+                <div class="small text-muted">Value: £{{ "%.0f"|format(pipeline.Sent.value) }}</div>
             </div>
         </div>
-
-        <div class="col-md-2">
-            <div class="card p-3 border-0 shadow-sm text-center h-100 position-relative overflow-hidden card-hover" style="border-bottom: 4px solid #0dcaf0 !important;">
-                <h6 class="text-info text-uppercase small fw-bold">Pending</h6>
-                <h2 class="fw-bold text-dark m-0">{{ pipeline.Sent.count }}</h2>
-                <small class="text-muted">Sent to Client</small>
-                <a href="#quote-tracker" class="stretched-link"></a>
+        <div class="col-md-3">
+            <div class="card p-3 border-0 shadow-sm text-center h-100 bg-white border-bottom border-success border-4">
+                <h6 class="text-muted text-uppercase small fw-bold">Active Jobs</h6>
+                <h2 class="fw-bold text-dark m-0">{{ active_jobs }}</h2>
             </div>
         </div>
-
-        <div class="col-md-2">
-            <div class="card p-3 border-0 shadow-sm text-center h-100 position-relative overflow-hidden card-hover" style="border-bottom: 4px solid #198754 !important;">
-                <h6 class="text-success text-uppercase small fw-bold">To Book</h6>
-                <h2 class="fw-bold text-dark m-0">{{ pipeline.Accepted.count }}</h2>
-                <small class="text-muted">Ready for Schedule</small>
-                <a href="#won-quotes" class="stretched-link"></a>
-            </div>
-        </div>
-
-        <div class="col-md-2">
-            <div class="card p-3 border-0 shadow-sm text-center h-100 bg-dark text-white card-hover">
-                <h6 class="text-white-50 text-uppercase small fw-bold">Live Jobs</h6>
-                <h2 class="fw-bold m-0">{{ jobs_active }}</h2>
-                <small class="text-white-50">On Site Now</small>
-                <a href="#live-ops" class="stretched-link"></a>
-            </div>
-        </div>
-
-        <div class="col-md-2">
-            <div class="card p-3 border-0 shadow-sm text-center h-100 bg-warning bg-gradient text-dark card-hover">
-                <h6 class="text-uppercase small fw-bold opacity-75">To Review</h6>
-                <h2 class="fw-bold m-0">{{ invoices_to_review }}</h2>
-                <small class="fw-bold">Draft Invoices</small>
-                <a href="#draft-invoices" class="stretched-link"></a>
+        <div class="col-md-3">
+            <div class="card p-3 border-0 shadow-sm text-center h-100 bg-white border-bottom border-danger border-4">
+                <h6 class="text-muted text-uppercase small fw-bold">Unpaid Invoices</h6>
+                <h2 class="fw-bold text-danger m-0">{{ unpaid_inv }}</h2>
             </div>
         </div>
     </div>
 
     <div class="row g-4">
         
-        <div class="col-lg-8">
-            
-            {% if accepted_quotes %}
-            <div id="won-quotes" class="card border-0 shadow-sm mb-4 border-start border-4 border-success">
-                <div class="card-header bg-white fw-bold text-success">
-                    <i class="fas fa-check-circle me-2"></i> Quotes Accepted (Need Scheduling)
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold border-bottom py-3">
+                    <i class="fas fa-funnel-dollar text-warning me-2"></i>Needs Quote
                 </div>
-                <div class="card-body p-0">
-                    <table class="table table-hover align-middle mb-0">
-                        <tbody>
-                            {% for q in accepted_quotes %}
-                            <tr>
-                                <td class="ps-4 fw-bold">{{ q.client }}</td>
-                                <td class="text-muted small">{{ q.ref }}</td>
-                                <td class="text-end pe-4">
-                                <a href="/office/quote/{{ q.id }}/book-job" class="btn btn-sm btn-success fw-bold text-white">
-                                <i class="fas fa-calendar-plus me-1"></i> Book to Calendar </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if draft_invoices %}
-            <div id="draft-invoices" class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-envelope-open-text me-2"></i> Invoices to Review & Send</span>
-                    <span class="badge bg-dark text-white">{{ draft_invoices|length }} Pending</span>
-                </div>
-                <div class="card-body p-0">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-light small text-muted text-uppercase">
-                            <tr>
-                                <th class="ps-4">Client</th>
-                                <th>Ref</th>
-                                <th>Total</th>
-                                <th class="text-end pe-4">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for inv in draft_invoices %}
-                            <tr>
-                                <td class="ps-4 fw-bold">{{ inv.client }}</td>
-                                <td class="small text-muted">{{ inv.ref }} <br> <span class="text-truncate" style="max-width: 150px; display:inline-block;">{{ inv.desc }}</span></td>
-                                <td class="fw-bold">{{ currency_symbol }}{{ "%.2f"|format(inv.total) }}</td>
-                                <td class="text-end pe-4">
-                                    <div class="btn-group">
-                                        <a href="/finance/invoice/{{ inv.id }}/download" target="_blank" class="btn btn-sm btn-outline-dark" title="Preview PDF">
-                                            <i class="fas fa-file-pdf"></i> View
-                                        </a>
-                                        <a href="/finance/invoice/{{ inv.id }}/email" class="btn btn-sm btn-dark fw-bold" title="Email to Client">
-                                            <i class="fas fa-paper-plane me-1"></i> Send
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div class="list-group list-group-flush">
+                    {% for l in leads_needing_quotes %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold text-dark">{{ l.name }}</div>
+                            <small class="text-muted">Added: {{ l.created_at.strftime('%d %b') if l.created_at else 'Recent' }}</small>
+                        </div>
+                        <a href="/office/quote/new?client_id={{ l.id }}" class="btn btn-sm btn-outline-dark fw-bold">
+                            Create <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="p-4 text-center text-muted small">
+                        <i class="fas fa-check-circle text-success mb-2 fs-4"></i><br>
+                        All leads have been quoted!
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
-            {% endif %}
-
-            <div id="quote-tracker" class="card border-0 shadow-sm mb-4 rounded-4 overflow-hidden">
-                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold m-0">Quote Tracker</h5>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-light text-muted small text-uppercase">
-                            <tr>
-                                <th class="ps-4">Client</th>
-                                <th>Ref</th>
-                                <th>Date</th>
-                                <th>Status</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for q in recent_quotes %}
-                            <tr>
-                                <td class="ps-4 fw-bold">{{ q.client }}</td>
-                                <td class="small text-muted">{{ q.ref }}</td>
-                                <td class="small text-muted">{{ q.date }}</td>
-                                <td>
-                                    {% if q.status == 'Sent' %}
-                                        <span class="badge bg-info text-dark">Sent</span>
-                                    {% else %}
-                                        <span class="badge bg-light text-dark border">Draft</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-end pe-3">
-                                    <a href="/office/quote/{{ q.id }}" class="btn btn-sm btn-light border" title="View"><i class="fas fa-eye"></i></a>
-                                    <a href="/office/quote/delete/{{ q.id }}" 
-                                       class="btn btn-sm btn-outline-danger ms-1" 
-                                       onclick="return confirm('Are you sure? This cannot be undone.');" 
-                                       title="Delete">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr><td colspan="5" class="text-center py-4 text-muted">No active quotes.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
         </div>
 
         <div class="col-lg-4">
-            
-            <div class="card border-0 shadow-sm mb-4 overflow-hidden position-relative text-white" style="background: linear-gradient(135deg, var(--brand-color), #4a90e2);">
-                <div class="card-body p-4 text-center" id="dropzone" style="cursor: pointer; border: 2px dashed rgba(255,255,255,0.3); border-radius: 12px;">
-                    <input type="file" id="fileInput" hidden onchange="handleFileUpload(this.files[0])">
-                    <div id="dropzone-content">
-                        <i class="fas fa-cloud-upload-alt fa-2x mb-2 opacity-75"></i>
-                        <h6 class="fw-bold">Smart Upload</h6>
-                        <p class="small mb-0 opacity-75">Drop receipts or docs here</p>
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold border-bottom py-3">
+                    <i class="fas fa-clipboard-list text-primary me-2"></i>Upcoming Jobs (RAMS)
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for j in upcoming_jobs %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="badge bg-light text-dark border">{{ j.ref }}</span>
+                            <small class="fw-bold text-primary">{{ j.start_date.strftime('%d %b') if j.start_date else 'TBC' }}</small>
+                        </div>
+                        <div class="fw-bold small mb-1">{{ j.name }}</div>
+                        <div class="d-flex gap-2">
+                            <a href="/office/job/{{ j.id }}/files" class="btn btn-sm btn-light border w-100 text-muted">
+                                <i class="fas fa-folder-open me-1"></i> Files
+                            </a>
+                            <a href="/office/job/{{ j.id }}/files" class="btn btn-sm btn-warning w-100 fw-bold">
+                                <i class="fas fa-file-contract me-1"></i> RAMS
+                            </a>
+                        </div>
                     </div>
-                    <div id="uploadStatus" class="d-none mt-2 fw-bold">Uploading...</div>
+                    {% else %}
+                    <div class="p-4 text-center text-muted small">No upcoming jobs scheduled.</div>
+                    {% endfor %}
                 </div>
             </div>
-
-            <div class="list-group shadow-sm mb-4 rounded-4 overflow-hidden border-0">
-                <div class="list-group-item bg-white fw-bold d-flex justify-content-between align-items-center">
-                    <span>Priority Alerts</span>
-                    {% if pending_requests > 0 %}<span class="badge bg-danger">{{ pending_requests }}</span>{% endif %}
-                </div>
-                
-                {% if pending_requests > 0 %}
-                <a href="/office/service-desk" class="list-group-item list-group-item-action d-flex align-items-center p-3">
-                    <div class="bg-danger-subtle text-danger rounded-circle p-2 me-3"><i class="fas fa-headset"></i></div>
-                    <div>
-                        <div class="fw-bold text-danger">{{ pending_requests }} Service Requests</div>
-                        <div class="small text-muted">Tenants reporting issues</div>
-                    </div>
-                </a>
-                {% endif %}
-
-                {% if leads_count > 0 %}
-                <a href="/clients" class="list-group-item list-group-item-action d-flex align-items-center p-3">
-                    <div class="bg-primary-subtle text-primary rounded-circle p-2 me-3"><i class="fas fa-user-plus"></i></div>
-                    <div>
-                        <div class="fw-bold text-dark">{{ leads_count }} New Leads</div>
-                        <div class="small text-muted">Potential clients to contact</div>
-                    </div>
-                </a>
-                {% endif %}
-                
-                {% if leads_count == 0 and pending_requests == 0 %}
-                <div class="list-group-item p-3 text-center text-muted small">
-                    <i class="fas fa-check-circle text-success me-1"></i> No urgent alerts.
-                </div>
-                {% endif %}
-            </div>
-
-            <div id="live-ops" class="card border-0 shadow-sm rounded-4">
-                <div class="card-header bg-white fw-bold">
-                    <i class="fas fa-satellite-dish text-success me-2"></i> Live Operations
-                </div>
-                <div class="card-body p-0">
-                    <table class="table table-sm mb-0 small">
-                        {% for op in live_ops %}
-                        <tr>
-                            <td class="ps-3 py-2">
-                                <div class="fw-bold">{{ op.staff }}</div>
-                                <div class="text-muted">{{ op.address }}</div>
-                            </td>
-                            <td class="text-end pe-3 py-2 text-success fw-bold">Active</td>
-                        </tr>
-                        {% else %}
-                        <tr><td class="text-center py-3 text-muted">No staff currently clocked in.</td></tr>
-                        {% endfor %}
-                    </table>
-                </div>
-            </div>
-
         </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold border-bottom py-3">
+                    <i class="fas fa-wallet text-success me-2"></i>Ready to Invoice
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for j in uninvoiced_jobs %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center bg-danger bg-opacity-10">
+                        <div>
+                            <div class="fw-bold text-dark">{{ j.ref }}</div>
+                            <small class="text-dark">{{ j.name }}</small>
+                        </div>
+                        <form action="/office/job/{{ j.id }}/files" method="get">
+                            <button class="btn btn-sm btn-success fw-bold shadow-sm">
+                                Invoice <i class="fas fa-pound-sign ms-1"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <div class="p-4 text-center text-muted small">
+                        <i class="fas fa-check-circle text-success mb-2 fs-4"></i><br>
+                        All finished jobs are invoiced.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <script>
-        const dropzone = document.getElementById('dropzone');
-        const fileInput = document.getElementById('fileInput');
-        const content = document.getElementById('dropzone-content');
-        const status = document.getElementById('uploadStatus');
-
-        dropzone.addEventListener('click', () => fileInput.click());
-        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.style.opacity = '0.7'; });
-        dropzone.addEventListener('dragleave', () => { dropzone.style.opacity = '1'; });
-        dropzone.addEventListener('drop', (e) => { e.preventDefault(); dropzone.style.opacity = '1'; handleFileUpload(e.dataTransfer.files[0]); });
-
-        function handleFileUpload(file) {
-            if (!file) return;
-            content.classList.add('d-none');
-            status.classList.remove('d-none');
-            const formData = new FormData(); formData.append('file', file);
-            fetch('/office/upload-center', { method: 'POST', body: formData })
-            .then(r => r.json()).then(d => {
-                status.innerText = d.status === 'success' ? '✅ Uploaded' : '❌ Error';
-                setTimeout(() => location.reload(), 1500);
-            });
-        }
-		// LISTENER FOR DASHBOARD NEW JOB MODAL
-document.addEventListener('DOMContentLoaded', function() {
-    // Find the Client dropdown in the modal
-    const dashClientSelect = document.querySelector('#createJobModal select[name="client_id"]');
-    const dashPropSelect = document.getElementById('dashJobPropertySelect');
-
-    if (dashClientSelect && dashPropSelect) {
-        dashClientSelect.addEventListener('change', function() {
-            const clientId = this.value;
-            dashPropSelect.innerHTML = '<option value="">Loading...</option>';
-            
-            if (!clientId) {
-                dashPropSelect.innerHTML = '<option value="">-- Select Client First --</option>';
-                return;
-            }
-
-            // Use the API we created earlier
-            fetch(`/api/client/${clientId}/properties`)
-                .then(res => res.json())
-                .then(data => {
-                    dashPropSelect.innerHTML = '<option value="">-- Use Billing Address --</option>';
-                    data.forEach(p => {
-                        const opt = document.createElement('option');
-                        opt.value = p.id;
-                        opt.text = p.address;
-                        dashPropSelect.appendChild(opt);
-                    });
-                })
-                .catch(err => console.error(err));
-        });
-    }
-});
-    </script>
-{% endblock %}
+    <div class="modal fade" id="createJobModal" tabindex="-1">
+        <div class="modal-dialog">
+            <form class="modal-content" method="POST" action="/office/job/create">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Schedule New Job</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Client</label>
+                        <select name="client_id" class="form-select" required>
+                            <option value="">-- Select Client --</option>
+                            {% for c in clients %}
+                                <option value="{{ c.id }}">{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Site Address</label>
+                        <select name="property_id" id="dashJobPropertySelect" class="form-select">
+                            <option value="">-- Select Client First --</option>
+                        </select>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Start Date</label>
+                            <input type="date" name="start_date" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Est Days</label>
+                            <input type="number" name="est_days" class="form-control" value="1">
+                        </div>
+                    </div>
+                    <div class="mb-3 mt-3">
+                        <label class="form-label small fw-bold">Description</label>
+                        <textarea name="description" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                         <label class="form-label small fw-bold">Assign Vehicle (Optional)</label>
+                         <select name="vehicle_id" class="form-select">
+                             <option value="">-- None --</option>
+                             {% for v in vehicles %}
+                                <option value="{{ v.id }}">{{ v.reg_plate }}</option>
+                             {% endfor %}
+                         </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-warning fw-bold text-dark w-100">Add to Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    {% endblock %}
