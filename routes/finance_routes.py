@@ -6,6 +6,7 @@ import secrets
 import string
 import os
 import csv
+import shutil
 from services.tax_engine import TaxEngine
 from io import TextIOWrapper
 from datetime import datetime, date, timedelta
@@ -1081,3 +1082,93 @@ def settings_import():
     conn.close()
 
     return render_template('finance/settings_import.html', settings=settings, active_tab='import')
+    
+@finance_bp.route('/finance/bookkeeping', methods=['GET', 'POST'])
+def finance_bookkeeping():
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']:
+        return redirect(url_for('auth.login'))
+
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. DEFINE INBOX PATH
+    # This is where you dump raw receipts before sorting them
+    inbox_path = os.path.join(current_app.static_folder, 'uploads', str(comp_id), 'inbox')
+    os.makedirs(inbox_path, exist_ok=True)
+
+    # 2. HANDLE ACTIONS (Sort the file)
+    if request.method == 'POST':
+        action = request.form.get('action')
+        filename = request.form.get('file_id') # In this case, ID is the filename
+        cost = request.form.get('cost') or 0
+        desc = request.form.get('description') or "Unsorted Receipt"
+        
+        src_file = os.path.join(inbox_path, filename)
+        
+        try:
+            if action == 'delete':
+                if os.path.exists(src_file): os.remove(src_file)
+                flash("🗑️ Document discarded.")
+
+            elif action == 'assign_job':
+                job_id = request.form.get('job_id')
+                # Move file to permanent storage
+                dest_dir = os.path.join(current_app.static_folder, 'uploads', str(comp_id), 'expenses')
+                os.makedirs(dest_dir, exist_ok=True)
+                dest_path = os.path.join(dest_dir, filename)
+                shutil.move(src_file, dest_path)
+                
+                # DB Path (Relative)
+                db_path = f"uploads/{comp_id}/expenses/{filename}"
+                
+                cur.execute("""
+                    INSERT INTO job_expenses (company_id, job_id, description, cost, date, receipt_path)
+                    VALUES (%s, %s, %s, %s, CURRENT_DATE, %s)
+                """, (comp_id, job_id, desc, cost, db_path))
+                flash("✅ Assigned to Job Expense.")
+
+            elif action == 'assign_overhead':
+                cat_id = request.form.get('category_id')
+                # Move file
+                dest_dir = os.path.join(current_app.static_folder, 'uploads', str(comp_id), 'overheads')
+                os.makedirs(dest_dir, exist_ok=True)
+                dest_path = os.path.join(dest_dir, filename)
+                shutil.move(src_file, dest_path)
+                
+                db_path = f"uploads/{comp_id}/overheads/{filename}"
+                
+                cur.execute("""
+                    INSERT INTO overhead_items (category_id, name, amount, date_incurred, receipt_path)
+                    VALUES (%s, %s, %s, CURRENT_DATE, %s)
+                """, (cat_id, desc, cost, db_path))
+                flash("✅ Assigned to Overheads.")
+
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error: {e}", "error")
+
+    # 3. FETCH UNSORTED FILES
+    unsorted_files = []
+    if os.path.exists(inbox_path):
+        for f in os.listdir(inbox_path):
+            if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+                # Structure: (ID, Description, Cost, DisplayName, FilePath)
+                # For inbox, ID = filename, Cost = 0
+                full_web_path = f"static/uploads/{comp_id}/inbox/{f}"
+                unsorted_files.append((f, "Scanned Receipt", 0.00, f, full_web_path))
+
+    # 4. FETCH DROPDOWNS
+    cur.execute("SELECT id, ref, description FROM jobs WHERE company_id=%s AND status!='Completed'", (comp_id,))
+    jobs = cur.fetchall()
+    
+    cur.execute("SELECT id, name FROM overhead_categories WHERE company_id=%s", (comp_id,))
+    categories = cur.fetchall()
+    
+    conn.close()
+
+    # 5. RENDER TEMPLATE
+    return render_template('bookkeeping_inbox.html', 
+                           unsorted=unsorted_files, 
+                           jobs=jobs, 
+                           categories=categories)

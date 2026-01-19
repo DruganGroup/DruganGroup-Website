@@ -682,50 +682,48 @@ def view_system_logs():
 
     return render_template('admin/system_logs.html', logs=logs)
 
-@admin_bp.route('/admin/debug-logo')
-def debug_logo():
-    if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
+# --- TEMP DATABASE CHECKER ---
+@admin_bp.route('/admin/debug/db-schema')
+def debug_db_schema():
+    # Only allow SuperAdmin (or you can remove this check temporarily if you can't login yet)
+    if session.get('role') != 'SuperAdmin': 
+        return "Login as SuperAdmin to see this.", 403
+
+    conn = get_db()
+    if not conn: return "Database connection failed."
     
-    # FORCE CHECK COMPANY ID 1 (Drugan Group)
-    comp_id = session.get('company_id') or 1 
+    cur = conn.cursor()
+    output = "<h1>Database Schema</h1><hr>"
     
-    try:
-        config = get_site_config(comp_id)
-    except NameError:
-        return "❌ Error: 'get_site_config' is not imported."
+    # Get all tables
+    cur.execute("""
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        ORDER BY table_name;
+    """)
+    tables = cur.fetchall()
     
-    db_logo_path = config.get('logo')
-    root_path = current_app.root_path
+    output += f"<h3>FOUND {len(tables)} TABLES:</h3>"
     
-    resolved_path = "Could not resolve"
-    file_exists = False
-    
-    if db_logo_path and db_logo_path.startswith('/'):
-        clean_path = db_logo_path.lstrip('/')
-        resolved_path = os.path.join(root_path, clean_path)
-        file_exists = os.path.exists(resolved_path)
-    
-    return f"""
-    <div style="font-family: monospace; padding: 20px;">
-        <h1>🕵️‍♂️ Logo Debugger (Checking Company {comp_id})</h1>
-        <hr>
-        <h3>1. Database Record</h3>
-        <p>Your database says the logo is here: <br>
-        <span style="background: #eee; padding: 5px;">{db_logo_path}</span></p>
+    for t in tables:
+        table_name = t[0]
+        output += f"<div style='background:#f4f4f4; padding:10px; margin-bottom:10px; border:1px solid #ccc;'>"
+        output += f"<strong>TABLE: {table_name}</strong><br><ul>"
         
-        <h3>2. Server File Check</h3>
-        <p>Looking for file at: <br>
-        <span style="background: #eee; padding: 5px;">{resolved_path}</span></p>
+        # Get columns
+        cur.execute("""
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = %s 
+            ORDER BY ordinal_position;
+        """, (table_name,))
         
-        <h3>3. Result</h3>
-        <p><strong>File Exists?</strong> 
-        <span style="color: {'green' if file_exists else 'red'}; font-weight: bold; font-size: 1.2rem;">
-            {str(file_exists).upper()}
-        </span>
-        </p>
-        
-        <br>
-        <p><strong>IF FALSE:</strong> Go to 'Finance > Settings > General' and re-upload the logo.</p>
-        <p><strong>IF TRUE:</strong> The logo is there! Try sending an email now.</p>
-    </div>
-    """
+        columns = cur.fetchall()
+        for col in columns:
+            output += f"<li>{col[0]} <span style='color:#888;'>({col[1]})</span></li>"
+            
+        output += "</ul></div>"
+
+    conn.close()
+    return output
