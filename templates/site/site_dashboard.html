@@ -4,11 +4,21 @@
 
 {% block head %}
 <style>
-    /* 1. TILE STYLE (From job_details.html) */
+    /* 1. HEADER BAR (Exact match to job_details.html) */
+    .header-bar { 
+        background-color: {{ brand_color or '#333' }}; 
+        color: white; 
+        padding: 20px 15px 30px 15px; 
+        border-radius: 0 0 15px 15px; 
+        margin-bottom: 25px; 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    /* 2. ACTION TILES (Exact match to job_details.html .action-btn) */
     .action-btn { 
-        background-color: white;
+        background: white;
         border-radius: 12px; 
-        padding: 20px 10px; 
+        padding: 20px 15px; 
         font-weight: bold; 
         font-size: 0.9rem; 
         box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
@@ -17,46 +27,42 @@
         text-align: center;
         text-decoration: none;
         color: #333;
-        transition: transform 0.1s;
         border: none;
         height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.1s;
         text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
     .action-btn:active { transform: scale(0.98); }
-    .action-btn i { font-size: 2rem; margin-bottom: 10px; display: block; }
+    .action-btn i { font-size: 2rem; margin-bottom: 10px; color: var(--brand-color, #333); }
 
-    /* 2. CARD STYLE (From van_check_form.html) */
-    .dashboard-card {
+    /* 3. JOB CARD (Clean style like van_check_form.html) */
+    .job-card {
+        background: white;
         border-radius: 12px;
         border: none;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         margin-bottom: 15px;
-        background: white;
         text-decoration: none;
         display: block;
         color: inherit;
         overflow: hidden;
+        transition: transform 0.1s;
     }
+    .job-card:active { transform: scale(0.99); background-color: #f8f9fa; }
 
-    /* 3. STATUS BORDERS */
-    .status-active { border-left: 8px solid #ffc107; }
-    .status-scheduled { border-left: 8px solid var(--brand-color, #333); }
-
-    /* 4. WELCOME AREA */
-    .welcome-box {
-        background: white;
-        border-radius: 12px;
-        padding: 20px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        margin-bottom: 25px;
-    }
+    .card-body { padding: 15px; }
     
     .date-header {
         font-weight: bold;
         color: #6c757d;
         text-transform: uppercase;
-        font-size: 0.85rem;
-        margin: 20px 0 10px 0;
+        font-size: 0.8rem;
+        margin: 20px 0 10px 5px;
         letter-spacing: 0.5px;
     }
 </style>
@@ -64,97 +70,123 @@
 
 {% block content %}
 
-    <div class="welcome-box d-flex justify-content-between align-items-center">
+    <div class="header-bar">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex align-items-center gap-2">
+                {% if logo_url %}
+                    <img src="{{ logo_url }}" style="max-height: 40px; background: rgba(255,255,255,0.95); padding: 4px; border-radius: 6px;">
+                {% else %}
+                    <span class="fw-bold fs-4">SITE HUB</span>
+                {% endif %}
+            </div>
+            
+            <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1rem; border: 2px solid rgba(255,255,255,0.3);">
+                {{ staff_name[0] }}
+            </div>
+        </div>
+
         <div>
-            <h2 class="fw-bold m-0 text-dark">Hi, {{ staff_name.split(' ')[0] }}</h2>
-            <div class="text-muted fw-bold small mt-1">{{ now_ymd }}</div>
-        </div>
-        
-        <div class="text-end">
-            {% if active_job %}
-                <span class="badge bg-warning text-dark p-2 shadow-sm">
-                    <i class="fas fa-hammer me-1"></i> WORKING
-                </span>
-            {% elif is_at_work %}
-                <span class="badge bg-success p-2 shadow-sm">
-                    <i class="fas fa-clock me-1"></i> CLOCKED IN
-                </span>
-            {% else %}
-                <span class="badge bg-secondary p-2 shadow-sm">
-                    OFF CLOCK
-                </span>
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="row g-3 mb-4">
-        <div class="col-6">
-            <a href="/site/van-check" class="action-btn text-primary">
-                <i class="fas fa-shuttle-van"></i>
-                Check Van
-            </a>
-        </div>
-        <div class="col-6">
-            <a href="/site/log-fuel" class="action-btn text-warning">
-                <i class="fas fa-gas-pump"></i>
-                Log Fuel
-            </a>
+            <h2 class="m-0 fw-bold">Hi, {{ staff_name.split(' ')[0] }}</h2>
+            <div class="d-flex justify-content-between align-items-end mt-2">
+                <div class="small opacity-75 fw-bold text-uppercase">{{ now_ymd }}</div>
+                
+                {% if active_job %}
+                    <span class="badge bg-warning text-dark shadow-sm p-2 rounded-3">
+                        <i class="fas fa-hammer me-1"></i> WORKING
+                    </span>
+                {% elif is_at_work %}
+                    <span class="badge bg-success shadow-sm p-2 rounded-3">
+                        <i class="fas fa-clock me-1"></i> CLOCKED IN
+                    </span>
+                {% else %}
+                    <span class="badge bg-dark bg-opacity-50 shadow-sm p-2 rounded-3">
+                        OFF DUTY
+                    </span>
+                {% endif %}
+            </div>
         </div>
     </div>
 
-    <h5 class="fw-bold text-dark mb-3">Your Schedule</h5>
+    <div class="container px-2">
 
-    {% if jobs %}
-        {% set ns = namespace(last_date=None) %}
+        <div class="row g-3 mb-4">
+            <div class="col-6">
+                <a href="/site/van-check" class="action-btn">
+                    <i class="fas fa-shuttle-van text-primary"></i>
+                    CHECK VAN
+                </a>
+            </div>
+            <div class="col-6">
+                <a href="/site/log-fuel" class="action-btn">
+                    <i class="fas fa-gas-pump text-warning"></i>
+                    LOG FUEL
+                </a>
+            </div>
+        </div>
+
+        <h6 class="text-muted fw-bold text-uppercase small mb-3 ps-1">Your Schedule</h6>
+
+        {% if jobs %}
+            {% set ns = namespace(last_date=None) %}
+            
+            {% for job in jobs %}
+                
+                {# DATE LOGIC #}
+                {% if job.raw_date %}
+                    {% set display_date = job.display_date %}
+                    {% set compare_date = job.raw_date %}
+                {% else %}
+                    {% set display_date = 'Unscheduled' %}
+                    {% set compare_date = 'None' %}
+                {% endif %}
+                
+                {# DATE HEADER #}
+                {% if ns.last_date != compare_date %}
+                    <div class="date-header">
+                        {% if compare_date == now_ymd %}TODAY
+                        {% else %}{{ display_date }}
+                        {% endif %}
+                    </div>
+                    {% set ns.last_date = compare_date %}
+                {% endif %}
+
+                <a href="/site/job/{{ job.id }}" class="job-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h5 class="fw-bold text-dark m-0">{{ job.client or 'Unknown Client' }}</h5>
+                                <div class="text-muted small">{{ job.desc|truncate(40) }}</div>
+                            </div>
+                            <span class="badge {{ 'bg-warning text-dark' if job.status == 'In Progress' else 'bg-light text-dark border' }}">
+                                {{ job.status }}
+                            </span>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                            <div class="text-muted small fw-bold text-truncate" style="max-width: 70%;">
+                                <i class="fas fa-map-marker-alt text-danger me-1"></i> {{ job.address }}
+                            </div>
+                            <div class="fw-bold text-dark small bg-light px-2 py-1 rounded border">
+                                {{ job.ref }}
+                            </div>
+                        </div>
+                    </div>
+                </a>
+
+            {% endfor %}
         
-        {% for job in jobs %}
-            
-            {# DATE LOGIC #}
-            {% if job.raw_date %}
-                {% set display_date = job.display_date %}
-                {% set compare_date = job.raw_date %}
-            {% else %}
-                {% set display_date = 'Unscheduled' %}
-                {% set compare_date = 'None' %}
-            {% endif %}
-            
-            {# DATE HEADER #}
-            {% if ns.last_date != compare_date %}
-                <div class="date-header">
-                    {% if compare_date == now_ymd %}TODAY
-                    {% else %}{{ display_date }}
-                    {% endif %}
+        {% else %}
+            <div class="text-center py-5">
+                <div class="card shadow-sm border-0 p-4 d-inline-block">
+                    <i class="fas fa-calendar-check fa-3x text-success mb-2"></i>
+                    <h6 class="fw-bold text-dark m-0">ALL CAUGHT UP</h6>
+                    <div class="small text-muted">No jobs scheduled.</div>
                 </div>
-                {% set ns.last_date = compare_date %}
-            {% endif %}
+            </div>
+        {% endif %}
 
-            <a href="/site/job/{{ job.id }}" class="card dashboard-card {{ 'status-active' if job.status == 'In Progress' else 'status-scheduled' }}">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="badge {{ 'bg-warning text-dark' if job.status == 'In Progress' else 'bg-light text-dark border' }}">
-                            {{ job.status }}
-                        </span>
-                        <span class="fw-bold text-muted small">{{ job.ref }}</span>
-                    </div>
-
-                    <h5 class="fw-bold text-dark mb-1">{{ job.client or 'Unknown Client' }}</h5>
-                    <div class="text-muted small mb-3">{{ job.desc|truncate(50) }}</div>
-
-                    <div class="d-flex align-items-center text-secondary small fw-bold">
-                        <i class="fas fa-map-marker-alt text-danger me-2"></i> {{ job.address }}
-                    </div>
-                </div>
-            </a>
-
-        {% endfor %}
+    </div>
     
-    {% else %}
-        <div class="text-center py-5 text-muted">
-            <i class="fas fa-calendar-check fa-3x mb-3 opacity-25"></i>
-            <h6 class="fw-bold text-muted text-uppercase small">No Jobs Scheduled</h6>
-        </div>
-    {% endif %}
-
     <div style="height: 60px;"></div>
 
 {% endblock %}
