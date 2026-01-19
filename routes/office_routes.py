@@ -268,29 +268,29 @@ def live_ops():
                            fleet=fleet,
                            brand_color=config['color'],
                            logo_url=config['logo'])
-
-@office_bp.route('/office/quote/new')
+                           
+                           @office_bp.route('/office/quote/new')
 def new_quote():
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
     
-    # Get Clients
+    # 1. Get Clients
     cur.execute("SELECT id, name FROM clients WHERE company_id=%s ORDER BY name", (comp_id,))
     clients = cur.fetchall()
     
-    # Get Materials (Fixed: using 'cost_price' based on your schema)
+    # 2. Get Materials (Using 'cost_price')
     cur.execute("SELECT id, name, cost_price FROM materials WHERE company_id=%s ORDER BY name", (comp_id,))
     materials = cur.fetchall()
 
-    # Get Settings
+    # 3. Get Settings
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     
     conn.close()
 
-    # --- CALCULATE TAX RATE (Fixes 'tax_rate is undefined' error) ---
+    # 4. Calculate Tax Rate (CRITICAL FIX)
     TAX_RATES = {
         'UK': 0.20, 'IE': 0.23, 'US': 0.00, 'CAN': 0.05, 
         'AUS': 0.10, 'NZ': 0.15, 'FR': 0.20, 'DE': 0.19, 'ES': 0.21
@@ -308,14 +308,15 @@ def new_quote():
             else:
                 tax_rate = TAX_RATES.get(country, 0.20)
         except:
-            tax_rate = 0.20 # Fallback if data is bad
+            tax_rate = 0.20
 
+    # 5. Pass everything to the template
     return render_template('office/create_quote.html', 
                            clients=clients, 
                            materials=materials, 
                            settings=settings, 
                            tax_rate=tax_rate)
- 
+                           
 @office_bp.route('/office/quote/save', methods=['POST'])
 def save_quote():
     if not check_office_access(): return redirect(url_for('auth.login'))
