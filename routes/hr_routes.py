@@ -272,3 +272,73 @@ def delete_staff(id):
     finally:
         conn.close()
     return redirect(url_for('hr_bp.hr_dashboard'))
+    
+# --- UPDATE STAFF (ADMIN & SELF) ---
+@hr_bp.route('/hr/update', methods=['POST'])
+def update_staff():
+    # Allow Admin, SuperAdmin, OR the user updating themselves
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Capture Data
+        staff_id = request.form.get('staff_id')
+        name = request.form.get('name')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        address = request.form.get('address') # Staff Home Address
+        
+        # Next of Kin (The Missing Links)
+        nok_name = request.form.get('nok_name')
+        nok_relationship = request.form.get('nok_relationship')
+        nok_phone = request.form.get('nok_phone')
+        nok_address = request.form.get('nok_address')
+
+        # 2. Security Check
+        # If not Admin, ensure they are only updating their OWN record
+        cur.execute("SELECT id FROM staff WHERE email = (SELECT email FROM users WHERE id = %s)", (session['user_id'],))
+        my_staff_id = cur.fetchone()
+        
+        if session.get('role') not in ['Admin', 'SuperAdmin']:
+            if not my_staff_id or str(my_staff_id[0]) != str(staff_id):
+                flash("❌ You can only edit your own profile.", "error")
+                return redirect(url_for('main.launcher'))
+
+        # 3. Update Database
+        cur.execute("""
+            UPDATE staff 
+            SET name=%s, email=%s, phone=%s, address=%s,
+                nok_name=%s, nok_relationship=%s, nok_phone=%s, nok_address=%s
+            WHERE id=%s
+        """, (name, email, phone, address, nok_name, nok_relationship, nok_phone, nok_address, staff_id))
+        
+        # 4. If Admin, also update Admin-only fields (Role, Pay, Dept)
+        if session.get('role') in ['Admin', 'SuperAdmin']:
+            position = request.form.get('position')
+            dept = request.form.get('dept')
+            pay_rate = request.form.get('pay_rate')
+            pay_model = request.form.get('pay_model')
+            access_level = request.form.get('access_level')
+            
+            cur.execute("""
+                UPDATE staff 
+                SET position=%s, dept=%s, pay_rate=%s, pay_model=%s, access_level=%s
+                WHERE id=%s
+            """, (position, dept, pay_rate, pay_model, access_level, staff_id))
+
+        conn.commit()
+        flash("✅ Profile updated successfully.", "success")
+
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error updating profile: {e}", "error")
+    finally:
+        conn.close()
+
+    # Redirect back to where they came from
+    if session.get('role') in ['Admin', 'SuperAdmin'] and 'hr' in request.referrer:
+        return redirect(url_for('hr_bp.view_staff', id=staff_id))
+    else:
+        return redirect(url_for('main.launcher'))

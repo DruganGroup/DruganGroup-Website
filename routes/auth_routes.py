@@ -55,7 +55,7 @@ def main_launcher():
     conn = get_db(); cur = conn.cursor()
     user_id = session.get('user_id')
 
-    # 1. CHECK CLOCK STATUS (Robust Method)
+    # A. CHECK CLOCK STATUS (Your Robust Method)
     # We find the Staff ID by linking the User ID directly
     is_at_work = False
     
@@ -69,11 +69,15 @@ def main_launcher():
     
     if staff_row:
         staff_id = staff_row[0]
+        # Store for session usage
+        session['staff_id'] = staff_id
+        
+        # Check attendance
         cur.execute("SELECT id FROM staff_attendance WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
         if cur.fetchone(): 
             is_at_work = True
 
-    # 2. FETCH PROFILE
+    # B. FETCH FULL PROFILE (Using SELECT * to get NOK details automatically)
     cur.execute("SELECT * FROM staff WHERE id = %s", (staff_row[0] if staff_row else 0,))
     profile_data = cur.fetchone()
     
@@ -90,7 +94,8 @@ def main_launcher():
                            my_profile=my_profile,
                            is_at_work=is_at_work)
 
-@auth_bp.route('/auth/update-profile', methods=['POST'])
+
+@auth_bp.route('/auth/update_profile', methods=['POST'])
 def update_profile():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
     
@@ -98,32 +103,26 @@ def update_profile():
     cur = conn.cursor()
     
     try:
-        # --- UPDATED SAVE LOGIC ---
-        # Note: I removed the auto "ALTER TABLE" block here because 
-        # we ran the /fix-nok-columns script separately. It is safer this way.
+        # Get data from the modal form
+        phone = request.form.get('phone')
+        address = request.form.get('address')
+        nok_name = request.form.get('nok_name')
+        nok_relationship = request.form.get('nok_relationship')
+        nok_phone = request.form.get('nok_phone')
+        nok_address = request.form.get('nok_address')
         
+        # Security: Only update the staff member linked to this user's email
+        # This prevents ID manipulation
         cur.execute("""
             UPDATE staff 
-            SET phone = %s, 
-                address = %s, 
-                nok_name = %s, 
-                nok_phone = %s,
-                nok_relationship = %s, 
-                nok_address = %s
-            WHERE email = %s AND company_id = %s
-        """, (
-            request.form.get('phone'),
-            request.form.get('address'),
-            request.form.get('nok_name'),
-            request.form.get('nok_phone'),
-            request.form.get('nok_relationship'),
-            request.form.get('nok_address'),
-            session.get('user_email'), 
-            session.get('company_id')
-        ))
+            SET phone = %s, address = %s,
+                nok_name = %s, nok_relationship = %s, nok_phone = %s, nok_address = %s
+            WHERE email = (SELECT email FROM users WHERE id = %s)
+            AND company_id = %s
+        """, (phone, address, nok_name, nok_relationship, nok_phone, nok_address, session['user_id'], session['company_id']))
         
         conn.commit()
-        flash("✅ Profile details updated successfully.", "success")
+        flash("✅ Profile updated successfully.", "success")
         
     except Exception as e:
         conn.rollback()

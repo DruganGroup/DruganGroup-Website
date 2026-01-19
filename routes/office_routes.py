@@ -131,8 +131,8 @@ def office_dashboard():
                            clients=clients,
                            vehicles=vehicles)
 
-# --- OFFICE: LIVE OPERATIONS (The "God Mode" View) ---
-@office_bp.route('/office/live-ops')
+# --- OFFICE: LIVE OPERATIONS & LOGISTICS ---
+@office_bp.route('/office/live-ops', methods=['GET', 'POST'])
 def live_ops():
     if not check_office_access(): return redirect(url_for('auth.login'))
     
@@ -140,86 +140,123 @@ def live_ops():
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
 
-    # 1. GET STAFF STATUS
+    # --- HANDLE CREW ASSIGNMENT (POST) ---
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'update_crew':
+            vehicle_id = request.form.get('vehicle_id')
+            driver_id = request.form.get('driver_id')
+            crew_ids = request.form.getlist('crew_ids') # List of staff IDs
+            
+            try:
+                # 1. Clear previous assignments for this vehicle
+                # (Set anyone currently assigned to this van back to NULL)
+                cur.execute("UPDATE staff SET assigned_vehicle_id = NULL WHERE assigned_vehicle_id = %s AND company_id = %s", (vehicle_id, comp_id))
+                
+                # 2. Update the Vehicle's Driver
+                if driver_id and driver_id != 'None':
+                    cur.execute("UPDATE vehicles SET assigned_driver_id = %s WHERE id = %s", (driver_id, vehicle_id))
+                    # Also set the driver's vehicle_id
+                    cur.execute("UPDATE staff SET assigned_vehicle_id = %s WHERE id = %s", (vehicle_id, driver_id))
+                else:
+                    cur.execute("UPDATE vehicles SET assigned_driver_id = NULL WHERE id = %s", (vehicle_id,))
+
+                # 3. Update the Crew (Passengers)
+                for staff_id in crew_ids:
+                    # Skip the driver if they were selected in checkboxes too
+                    if staff_id != driver_id:
+                        cur.execute("UPDATE staff SET assigned_vehicle_id = %s WHERE id = %s", (vehicle_id, staff_id))
+                
+                conn.commit()
+                flash("✅ Crew logistics updated.", "success")
+            except Exception as e:
+                conn.rollback()
+                flash(f"Error updating crew: {e}", "error")
+            
+            return redirect(url_for('office.live_ops'))
+
+    # --- FETCH DATA FOR DASHBOARD (GET) ---
+    
+    # 1. GET ALL STAFF (Fixed: Removed 'Active' filter just in case, simplified JOINs)
     today = date.today()
     cur.execute("""
         SELECT 
-            s.id, s.name, s.position, s.profile_photo,
-            a.clock_in, a.clock_out,
+            s.id, s.name, s.position, s.profile_photo, s.assigned_vehicle_id,
+            a.clock_in,
             j.ref, j.site_address,
-            v.reg_plate, v.tracker_url
+            v.reg_plate
         FROM staff s
         LEFT JOIN staff_attendance a ON s.id = a.staff_id AND a.date = %s
         LEFT JOIN jobs j ON s.id = j.engineer_id AND j.status = 'In Progress'
-        LEFT JOIN vehicles v ON j.vehicle_id = v.id
-        WHERE s.company_id = %s AND s.status = 'Active'
+        LEFT JOIN vehicles v ON s.assigned_vehicle_id = v.id
+        WHERE s.company_id = %s
         ORDER BY s.name ASC
     """, (today, comp_id))
     
     staff_status = []
+    all_staff = [] # For the dropdowns
+    
+    for r in cur.fetchall():
+        is_clocked_in = (r[5] is not None)
+        status = 'Offline'
+        if is_clocked_in: status = 'Online'
+        if r[6]: status = 'On Job'
+        
+        staff_obj = {
+            'id': r[0],
+            'name': r[1],
+            'role': r[2],
+            'photo': r[3],
+            'vehicle_id': r[4], # Vital for logistics
+            'clock_in': format_date(r[5], "%H:%M") if r[5] else "-",
+            'job_ref': r[6],
+            'location': r[7] or "HQ / Idle",
+            'van': r[8],
+            'status': status
+        }
+        staff_status.append(staff_obj)
+        all_staff.append(staff_obj)
+
+    # 2. GET ALL VEHICLES
+    cur.execute("""
+        SELECT v.id, v.reg_plate, v.make_model, v.assigned_driver_id, v.tracker_url, s.name 
+        FROM vehicles v
+        LEFT JOIN staff s ON v.assigned_driver_id = s.id
+        WHERE v.company_id = %s
+        ORDER BY v.reg_plate ASC
+    """, (comp_id,))
+    
+    fleet = []
     
     # Check for API Key
     cur.execute("SELECT value FROM settings WHERE company_id=%s AND key='samsara_api_key'", (comp_id,))
     api_key_row = cur.fetchone()
     api_key = api_key_row[0] if api_key_row else None
-
-    for r in cur.fetchall():
-        is_clocked_in = (r[4] is not None and r[5] is None)
-        status = 'Offline'
-        if is_clocked_in: status = 'Online'
-        if r[6]: status = 'On Job'
-        
-        staff_status.append({
-            'name': r[1],
-            'role': r[2],
-            'photo': r[3],
-            'clock_in': format_date(r[4], "%H:%M") if r[4] else "-",
-            'job_ref': r[6],
-            'location': r[7] or "HQ / Idle",
-            'van': r[8],
-            'status': status,
-            'tracker_url': r[9]
-        })
-
-    # 2. GET ALL VEHICLES (FIXED JOIN QUERY)
-    # We join 'staff' to get the name, instead of looking for a missing 'driver_name' column
-    cur.execute("""
-        SELECT v.id, v.reg_plate, v.make_model, s.name, v.tracker_url 
-        FROM vehicles v
-        LEFT JOIN staff s ON v.assigned_driver_id = s.id
-        WHERE v.company_id = %s
-    """, (comp_id,))
     
-    fleet = []
-    
-    # Safely import the engine logic
     try:
         from telematics_engine import get_tracker_data
         has_engine = True
     except:
         has_engine = False
-        get_tracker_data = None
 
     for v in cur.fetchall():
         v_data = {
+            'id': v[0],
             'reg': v[1], 
-            'model': v[2], 
-            'driver': v[3] or 'Unassigned',  # Now correctly pulls from staff table
-            'lat': None, 
-            'lon': None,
-            'speed': 0
+            'model': v[2],
+            'driver_id': v[3],
+            'driver_name': v[5] or 'No Driver',
+            'lat': None, 'lon': None, 'speed': 0
         }
         
-        # If we have the engine and a URL, fetch real data
+        # Fetch Real Map Data
         if has_engine and v[4] and api_key:
             try:
                 telematics = get_tracker_data(v[4], api_key)
                 if telematics:
-                    v_data['lat'] = telematics.get('lat')
-                    v_data['lon'] = telematics.get('lon')
-                    v_data['speed'] = telematics.get('speed')
-            except:
-                pass # Fail silently if API is down
+                    v_data.update(telematics)
+            except: pass
         
         fleet.append(v_data)
 
@@ -227,9 +264,11 @@ def live_ops():
 
     return render_template('office/live_ops.html',
                            staff=staff_status,
+                           all_staff=all_staff,
                            fleet=fleet,
                            brand_color=config['color'],
                            logo_url=config['logo'])
+
 # =========================================================
 # 2. QUOTING SYSTEM
 # =========================================================
