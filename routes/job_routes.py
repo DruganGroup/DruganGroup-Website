@@ -5,6 +5,40 @@ from datetime import date
 # Define the Blueprint
 jobs_bp = Blueprint('jobs', __name__)
 
+# --- NEW ROUTE: CREATE JOB PAGE (Fixes 404) ---
+@jobs_bp.route('/office/job/create')
+def create_job():
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    comp_id = session.get('company_id')
+    
+    # 1. Fetch Lists for Dropdowns
+    cur.execute("SELECT id, name FROM clients WHERE company_id = %s ORDER BY name ASC", (comp_id,))
+    clients = cur.fetchall()
+    
+    cur.execute("SELECT id, reg_plate FROM vehicles WHERE company_id = %s AND status = 'Active' ORDER BY reg_plate ASC", (comp_id,))
+    vehicles = cur.fetchall()
+    
+    # 2. Handle Pre-selected Client/Property (from query string)
+    pre_client_id = request.args.get('client_id')
+    pre_prop_id = request.args.get('property_id')
+    
+    properties = []
+    if pre_client_id:
+        cur.execute("SELECT id, address_line1, postcode FROM properties WHERE client_id = %s ORDER BY address_line1 ASC", (pre_client_id,))
+        properties = cur.fetchall()
+        
+    conn.close()
+    
+    return render_template('office/create_job.html', 
+                           clients=clients, 
+                           vehicles=vehicles, 
+                           properties=properties,
+                           pre_client_id=pre_client_id,
+                           pre_prop_id=pre_prop_id)
+
 @jobs_bp.route('/office/job/<int:job_id>/files')
 def job_files(job_id):
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -71,15 +105,34 @@ def job_files(job_id):
     # Total Cost & Budget
     total_cost = expenses + materials_cost + labour_cost + vehicle_cost
     profit = quote_total - total_cost
-    budget_remaining = quote_total - total_cost  # <--- ADDED THIS VARIABLE
+    budget_remaining = quote_total - total_cost  # <--- PASSED TO TEMPLATE
     
     # 3. ASSEMBLE FILES LIST
     files = []
     
     # --- FETCH FILES (Invoices, Expenses, etc.) ---
-    # (Assuming the file fetching logic is here as per previous context, 
-    # ensuring the lists are populated for the template)
-    
+    # Fetch Invoices
+    cur.execute("SELECT id, reference, total_amount, date, status FROM invoices WHERE job_id = %s", (job_id,))
+    for row in cur.fetchall():
+        files.append(('Invoice', row[1], row[2], str(row[3]), row[4], row[0]))
+
+    # Fetch Expenses
+    cur.execute("SELECT id, description, cost, date, receipt_path FROM job_expenses WHERE job_id = %s", (job_id,))
+    for row in cur.fetchall():
+        files.append(('Expense', row[1], row[2], str(row[3]), row[4], row[0]))
+
+    # Fetch Materials
+    cur.execute("SELECT id, description, (quantity * unit_price), added_at FROM job_materials WHERE job_id = %s", (job_id,))
+    for row in cur.fetchall():
+        files.append(('Material', row[1], row[2], str(row[3])[:10], 'Logged', row[0]))
+
+    # Fetch Photos/Evidence
+    # FIX: Use 'filepath' based on schema
+    cur.execute("SELECT id, filepath, uploaded_at, file_type FROM job_evidence WHERE job_id = %s", (job_id,))
+    for row in cur.fetchall():
+        f_type = row[3] if row[3] else "Photo"
+        files.append((f_type, "Evidence Upload", 0, str(row[2])[:10], row[1], row[0]))
+
     # 4. Add a "Virtual" receipt for the Van Cost so it shows in the list
     if vehicle_cost > 0:
         files.append(('Vehicle', f"Fleet Charge: {van_reg} ({days_worked} days)", vehicle_cost, str(date.today()), 'Auto-Calc', 0))
@@ -94,7 +147,7 @@ def job_files(job_id):
                            job=job, files=files, 
                            total_cost=total_cost, total_billed=total_billed,
                            profit=profit, quote_total=quote_total,
-                           budget_remaining=budget_remaining, # <--- PASSED TO TEMPLATE
+                           budget_remaining=budget_remaining, 
                            staff=staff_list, today=date.today())
 
 # --- MANUAL COST ENTRY ---
