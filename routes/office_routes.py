@@ -66,10 +66,9 @@ def office_dashboard():
 
     # --- LISTS ---
     
-    # 1. NEW REQUESTS (Replaces "Leads Needing Quotes")
-    # Fetches actual requests submitted via the portal
+    # 1. NEW REQUESTS (Fixed Column Name)
     cur.execute("""
-        SELECT r.id, c.name, c.phone, r.created_at, r.description
+        SELECT r.id, c.name, c.phone, r.created_at, r.issue_description
         FROM service_requests r
         JOIN clients c ON r.client_id = c.id
         WHERE r.company_id = %s AND r.status = 'Pending'
@@ -84,7 +83,7 @@ def office_dashboard():
             'client_name': r[1], 
             'phone': r[2], 
             'date_added': fmt_date,
-            'desc': r[4]
+            'desc': r[4]  # Now mapping from issue_description
         })
 
     # 2. UPCOMING JOBS
@@ -142,17 +141,17 @@ def office_dashboard():
     conn.close()
 
     return render_template('office/office_dashboard.html',
-                           leads_count=leads_count, # Now counts requests
+                           leads_count=leads_count,
                            pending_quotes=pending_quotes,
                            active_jobs=active_jobs,
                            unpaid_inv=unpaid_inv,
-                           incoming_requests=incoming_requests, # NEW VARIABLE
+                           incoming_requests=incoming_requests,
                            upcoming_jobs=upcoming_jobs,
                            uninvoiced_jobs=uninvoiced_jobs,
                            pipeline=pipeline,
                            clients=clients,
                            vehicles=vehicles)
-
+                           
 # --- OFFICE: LIVE OPERATIONS & LOGISTICS ---
 @office_bp.route('/office/live-ops', methods=['GET', 'POST'])
 def live_ops():
