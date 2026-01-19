@@ -1,185 +1,186 @@
 {% extends "site/site_base.html" %}
 
-{% block title %}My Schedule | Business Better{% endblock %}
+{% block title %}Hub | Business Better{% endblock %}
 
 {% block head %}
 <style>
-    /* MOBILE-FIRST TIMELINE STYLES */
-    .timeline { 
-        position: relative; 
-        padding: 10px 0 30px 0; 
-    }
-    
-    /* The Vertical Line */
-    .timeline::before {
-        content: '';
-        position: absolute;
-        top: 0; 
-        bottom: 0; 
-        left: 20px; /* Aligned with dots */
-        width: 2px;
-        background: #e9ecef;
-        z-index: 0;
-    }
-    
-    /* Date Header (Sticky for better mobile UX) */
-    .timeline-date-header {
-        position: relative;
-        padding-left: 50px;
-        margin-bottom: 12px;
-        margin-top: 20px;
-        z-index: 1;
-    }
-    
-    .timeline-date-header span {
-        background: #2c3e50;
-        color: white;
-        padding: 4px 12px;
-        border-radius: 6px;
-        font-size: 0.7rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        display: inline-block;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-    /* Timeline Item Container */
-    .timeline-item {
-        position: relative;
-        padding-left: 50px;
-        margin-bottom: 15px; /* Tighter spacing */
-        z-index: 1;
-    }
-
-    /* The Dots */
-    .timeline-dot {
-        position: absolute;
-        left: 13px; 
-        top: 18px; /* Aligns with card title */
-        width: 16px; 
-        height: 16px;
-        border-radius: 50%;
+    /* 1. APP-STYLE BRAND HEADER */
+    .brand-header {
         background: white;
-        border: 3px solid #dee2e6;
-        z-index: 2;
+        padding: 15px 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
     }
-    
-    /* Status Colors */
-    .timeline-item.active .timeline-dot {
-        border-color: #ffc107;
-        background: #ffc107;
-        box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.15);
-    }
-    .timeline-item.completed .timeline-dot {
-        border-color: #198754;
-        background: #198754;
-    }
-    .timeline-item.scheduled .timeline-dot {
-        border-color: var(--brand-color);
-        background: #fff;
-    }
+    .brand-logo { max-height: 40px; width: auto; object-fit: contain; }
+    .brand-name { font-weight: 800; color: #2c3e50; font-size: 1.1rem; letter-spacing: -0.5px; }
 
-    /* The Job Card (App-Style Widget) */
-    .job-card {
-        background: white;
-        border-radius: 10px;
-        border: 1px solid #f0f0f0; /* Subtle border */
-        box-shadow: 0 2px 6px rgba(0,0,0,0.02);
-        transition: transform 0.15s ease-in-out;
-        text-decoration: none;
-        display: block;
-        color: inherit;
-        overflow: hidden;
-        position: relative;
-    }
-    
-    .job-card:active { 
-        transform: scale(0.98); 
-        background-color: #fafafa;
-    }
-    
-    /* Left Border Status Indicator */
-    .job-card.active { border-left: 4px solid #ffc107; }
-    .job-card.scheduled { border-left: 4px solid var(--brand-color); }
-    
-    .job-card-body { padding: 12px 15px; }
-
-    /* Typography Tweaks */
-    .job-ref { font-size: 0.7rem; font-weight: 700; color: #999; text-transform: uppercase; }
-    .job-title { font-size: 0.95rem; font-weight: 700; color: #2c3e50; margin: 2px 0; }
-    .job-address { font-size: 0.8rem; color: #666; display: flex; align-items: center; margin-top: 4px; }
-    
-    /* Quick Actions Bar (Compact) */
-    .quick-actions {
-        background: white;
-        border-bottom: 1px solid #eee;
-        padding: 12px 15px;
-        margin: -15px -12px 15px -12px;
+    /* 2. ACTION GRID (Big Buttons) */
+    .action-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr; /* 3 Equal Columns */
-        gap: 8px;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 25px;
     }
-    
-    .action-pill {
-        background: #f8f9fa;
-        border: 1px solid #e9ecef;
-        border-radius: 8px;
-        padding: 10px 0;
+    .action-card {
+        background: white;
+        border: none;
+        border-radius: 12px;
+        padding: 15px 10px;
         text-align: center;
-        color: #495057;
-        font-size: 0.75rem;
-        font-weight: 700;
         text-decoration: none;
+        color: #2c3e50;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        transition: transform 0.1s, box-shadow 0.1s;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 4px;
+        gap: 8px;
     }
-    .action-pill i { font-size: 1.1rem; margin-bottom: 2px; }
+    .action-card:active { transform: scale(0.96); box-shadow: none; }
+    .action-card i { font-size: 1.4rem; margin-bottom: 2px; }
+    .action-card span { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+
+    /* 3. MODERN TIMELINE */
+    .timeline { position: relative; padding-left: 20px; }
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 7px; top: 10px; bottom: 0;
+        width: 2px;
+        background: #e0e0e0;
+        z-index: 0;
+    }
+
+    /* Date Headers */
+    .date-marker {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        color: #6c757d;
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        padding: 5px 12px;
+        border-radius: 20px;
+        display: inline-block;
+        margin: 20px 0 10px 0;
+        position: relative;
+        z-index: 2;
+    }
+
+    /* Job Cards (The Frames) */
+    .job-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06); /* The "Frame" Depth */
+        padding: 16px;
+        margin-bottom: 15px;
+        position: relative;
+        text-decoration: none;
+        display: block;
+        color: inherit;
+        border-left: 5px solid transparent; /* Status Indicator */
+        transition: transform 0.2s;
+        margin-left: 15px; /* Spacing from timeline line */
+    }
+    .job-card:active { transform: scale(0.98); background: #fafafa; }
+
+    /* Status Styles */
+    .job-card.active { border-left-color: #ffc107; }
+    .job-card.scheduled { border-left-color: var(--brand-color); }
+    .job-card.completed { border-left-color: #198754; opacity: 0.8; }
+
+    .card-meta { font-size: 0.8rem; color: #6c757d; display: flex; align-items: center; gap: 6px; }
+    .card-title { font-weight: 800; color: #212529; margin: 4px 0; font-size: 1rem; }
+    
+    /* Timeline Dot */
+    .timeline-dot {
+        position: absolute;
+        left: -22px; /* Pulls it onto the line */
+        top: 20px;
+        width: 16px; height: 16px;
+        background: white;
+        border: 3px solid #dee2e6;
+        border-radius: 50%;
+        z-index: 1;
+    }
+    .job-card.active .timeline-dot { border-color: #ffc107; background: #ffc107; box-shadow: 0 0 0 3px rgba(255,193,7,0.2); }
+    .job-card.scheduled .timeline-dot { border-color: var(--brand-color); }
+
+    /* 4. WELCOME BLOCK */
+    .welcome-block { padding: 0 10px 20px 10px; }
+    .welcome-title { font-size: 1.5rem; font-weight: 800; color: #2c3e50; margin: 0; }
+    .status-pill { 
+        font-size: 0.75rem; font-weight: 700; 
+        padding: 4px 10px; border-radius: 6px; 
+        display: inline-flex; align-items: center; gap: 5px;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 
-    <div class="quick-actions">
-        <a href="/site/van-check" class="action-pill">
+    <div class="brand-header">
+        <div class="d-flex align-items-center gap-3">
+            {% if logo_url %}
+                <img src="{{ logo_url }}" class="brand-logo" alt="Logo">
+            {% endif %}
+            <div class="brand-name">{{ company_name or 'Business Better' }}</div>
+        </div>
+        <div style="width: 35px; height: 35px; background: #e9ecef; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #6c757d;">
+            {{ staff_name[0] }}
+        </div>
+    </div>
+
+    <div class="welcome-block">
+        <h1 class="welcome-title">Hi, {{ staff_name.split(' ')[0] }}</h1>
+        <div class="mt-2">
+            {% if active_job %}
+                <span class="status-pill bg-warning bg-opacity-25 text-dark border border-warning">
+                    <i class="fas fa-hammer"></i> Working: {{ active_job.name }}
+                </span>
+            {% elif is_at_work %}
+                <span class="status-pill bg-success bg-opacity-25 text-success border border-success">
+                    <i class="fas fa-clock"></i> Clocked In
+                </span>
+            {% else %}
+                <span class="status-pill bg-secondary bg-opacity-10 text-secondary border">
+                    <i class="fas fa-power-off"></i> Off Duty
+                </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="action-grid">
+        <a href="/site/van-check" class="action-card">
             <i class="fas fa-shuttle-van text-primary"></i>
             <span>Van Check</span>
         </a>
-        <a href="/site/log-fuel" class="action-pill">
+        <a href="/site/log-fuel" class="action-card">
             <i class="fas fa-gas-pump text-warning"></i>
-            <span>Fuel</span>
+            <span>Log Fuel</span>
         </a>
-        <a href="/site/toggle-day-clock" class="action-pill" 
-           onclick="event.preventDefault(); document.getElementById('dashClockForm').submit();"
-           style="{{ 'background:#e8f5e9; border-color:#c8e6c9; color:#2e7d32;' if is_at_work else '' }}">
+        
+        <a href="#" class="action-card" onclick="event.preventDefault(); document.getElementById('clockForm').submit();"
+           style="{{ 'background:#198754; color:white;' if not is_at_work else 'background:#dc3545; color:white;' }}">
+            
             {% if is_at_work %}
-                <i class="fas fa-stop-circle text-danger"></i>
+                <i class="fas fa-stop-circle"></i>
                 <span>End Day</span>
             {% else %}
-                <i class="fas fa-play-circle text-success"></i>
+                <i class="fas fa-play-circle"></i>
                 <span>Start Day</span>
             {% endif %}
         </a>
     </div>
 
-    <form id="dashClockForm" action="/site/toggle-day-clock" method="POST" style="display:none;">
+    <form id="clockForm" action="/site/toggle-day-clock" method="POST" style="display:none;">
         <input type="hidden" name="action" value="{{ 'stop' if is_at_work else 'start' }}">
     </form>
-
-    <div class="px-2 mb-3 d-flex justify-content-between align-items-end">
-        <div>
-            <h2 class="fw-bold m-0 text-dark">Hi, {{ staff_name.split(' ')[0] }}</h2>
-            <div class="small text-muted">{{ now_ymd }}</div>
-        </div>
-        {% if is_at_work %}
-            <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-pill">
-                <i class="fas fa-clock me-1"></i> Clocked In
-            </span>
-        {% endif %}
-    </div>
 
     <div class="timeline">
         
@@ -188,9 +189,8 @@
             
             {% for job in jobs %}
                 
-                {# --- DATE LOGIC --- #}
+                {# --- DATE HEADER LOGIC --- #}
                 {% if job.raw_date %}
-                    {# Logic handled in Python now #}
                     {% set display_date = job.display_date %}
                     {% set compare_date = job.raw_date %}
                 {% else %}
@@ -198,54 +198,49 @@
                     {% set compare_date = 'None' %}
                 {% endif %}
                 
-                {# DATE HEADER (Only show if date changes) #}
                 {% if ns.last_date != compare_date %}
-                    <div class="timeline-date-header">
-                        <span>
+                    <div>
+                        <div class="date-marker">
                             {% if compare_date == now_ymd %}Today
                             {% else %}{{ display_date }}
                             {% endif %}
-                        </span>
+                        </div>
                     </div>
                     {% set ns.last_date = compare_date %}
                 {% endif %}
 
-                <div class="timeline-item {{ 'active' if job.status == 'In Progress' else 'scheduled' }}">
-                    <div class="timeline-dot"></div>
+                <a href="/site/job/{{ job.id }}" class="job-card {{ 'active' if job.status == 'In Progress' else 'scheduled' }}">
                     
-                    <a href="/site/job/{{ job.id }}" class="job-card {{ 'active' if job.status == 'In Progress' else 'scheduled' }}">
-                        <div class="job-card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <span class="job-ref">{{ job.ref }}</span>
-                                {% if job.status == 'In Progress' %}
-                                    <span class="badge bg-warning text-dark" style="font-size:0.6rem;">ACTIVE</span>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="job-title">{{ job.client or 'Unknown Client' }}</div>
-                            <div class="small text-secondary mb-1">{{ job.desc|truncate(40) }}</div>
-                            
-                            <div class="job-address">
-                                <i class="fas fa-map-marker-alt me-2 text-danger"></i>
-                                <span class="text-truncate">{{ job.address }}</span>
-                            </div>
-                        </div>
-                    </a>
-                </div>
+                    <div class="timeline-dot"></div> <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="badge {{ 'bg-warning text-dark' if job.status == 'In Progress' else 'bg-light text-dark border' }}" style="font-size: 0.65rem;">
+                            {{ job.status }}
+                        </span>
+                        <span class="card-meta fw-bold">{{ job.ref }}</span>
+                    </div>
+
+                    <div class="card-title">{{ job.client or 'Unknown Client' }}</div>
+                    <div style="font-size: 0.85rem; color: #555; margin-bottom: 8px;">
+                        {{ job.desc|truncate(50) }}
+                    </div>
+
+                    <div class="card-meta">
+                        <i class="fas fa-map-marker-alt text-danger"></i>
+                        <span class="text-truncate">{{ job.address }}</span>
+                    </div>
+                </a>
+
             {% endfor %}
         
         {% else %}
             <div class="text-center py-5">
-                <div class="mb-3 p-3 bg-light rounded-circle d-inline-block">
-                    <i class="fas fa-mug-hot fa-2x text-muted"></i>
+                <div class="mb-3 p-3 bg-white rounded-circle d-inline-block shadow-sm">
+                    <i class="fas fa-calendar-check fa-2x text-muted"></i>
                 </div>
-                <h6 class="fw-bold text-dark">No Jobs Scheduled</h6>
-                <p class="small text-muted">Enjoy your day off!</p>
+                <h6 class="fw-bold text-dark">Schedule Clear</h6>
+                <p class="small text-muted">No jobs assigned for the upcoming days.</p>
             </div>
         {% endif %}
 
     </div>
 
-    <div style="height: 50px;"></div>
-
-{% endblock %}
+    <div style="height: 60px;"></div> {% endblock %}
