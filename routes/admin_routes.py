@@ -685,7 +685,6 @@ def view_system_logs():
 # --- TEMP DATABASE CHECKER ---
 @admin_bp.route('/admin/debug/db-schema')
 def debug_db_schema():
-    # Only allow SuperAdmin (or you can remove this check temporarily if you can't login yet)
     if session.get('role') != 'SuperAdmin': 
         return "Login as SuperAdmin to see this.", 403
 
@@ -727,3 +726,88 @@ def debug_db_schema():
 
     conn.close()
     return output
+    
+# =========================================================
+# DATABASE CLEANUP TOOL (Run once via Browser)
+# =========================================================
+@admin_bp.route('/admin/fix-db-schema')
+def fix_db_schema():
+    # 1. Security: Only SuperAdmin can run this
+    if session.get('role') != 'SuperAdmin': 
+        return "⛔ Access Denied: SuperAdmin only."
+
+    conn = get_db()
+    if not conn: return "❌ Database connection failed."
+    
+    cur = conn.cursor()
+    messages = []
+
+    try:
+        # --- STEP 1: MIGRATE DATA (Old 'vehicle_crew' -> New 'vehicle_crews') ---
+        # We check if the old table exists first to avoid errors if you run this twice.
+        cur.execute("SELECT to_regclass('public.vehicle_crew')")
+        if cur.fetchone()[0]:
+            cur.execute("""
+                INSERT INTO vehicle_crews (company_id, vehicle_id, staff_id, created_at)
+                SELECT 
+                    v.company_id, 
+                    vc.vehicle_id, 
+                    vc.staff_id, 
+                    NOW()
+                FROM vehicle_crew vc
+                JOIN vehicles v ON vc.vehicle_id = v.id
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM vehicle_crews 
+                    WHERE vehicle_id = vc.vehicle_id AND staff_id = vc.staff_id
+                );
+            """)
+            messages.append("✅ Migrated existing crew data to 'vehicle_crews' table.")
+        else:
+            messages.append("ℹ️ Old 'vehicle_crew' table already gone (Skipped migration).")
+
+        # --- STEP 2: DROP REDUNDANT TABLES ---
+        tables_to_drop = ['vehicle_crew', 'teams', 'team_members', 'timesheets']
+        for table in tables_to_drop:
+            cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
+            messages.append(f"🗑️ Dropped table: {table}")
+
+        # --- STEP 3: CLEANUP VEHICLES TABLE ---
+        # Drop text columns that should be dates or are duplicates
+        cols_to_drop = [
+            'mot_due', 'tax_due', 'service_due', 'insurance_due', 
+            'current_mileage', 'defect_image'
+        ]
+        for col in cols_to_drop:
+            cur.execute(f"ALTER TABLE vehicles DROP COLUMN IF EXISTS {col}")
+        
+        messages.append("✨ Cleaned up 'vehicles' table (Removed duplicate/text columns).")
+
+        # --- STEP 4: ENSURE CORRECT COLUMNS EXIST ---
+        # We add them only if they are missing
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS mot_expiry DATE")
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tax_expiry DATE")
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS ins_expiry DATE")
+        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS mileage INTEGER DEFAULT 0")
+        
+        messages.append("✅ Verified correct columns (mot_expiry, tax_expiry, etc) exist.")
+
+        conn.commit()
+        return f"""
+        <h1>Database Cleanup Complete 🚀</h1>
+        <hr>
+        <ul>
+            {''.join(f'<li>{m}</li>' for m in messages)}
+        </ul>
+        <br>
+        <a href="/admin/debug/db-schema">View New Schema</a> | <a href="/launcher">Back to Dashboard</a>
+        """
+
+    except Exception as e:
+        conn.rollback()
+        return f"""
+        <h1>❌ Error During Cleanup</h1>
+        <p>The operation was cancelled (Rolled Back). No data was changed.</p>
+        <pre>{str(e)}</pre>
+        """
+    finally:
+        conn.close()
