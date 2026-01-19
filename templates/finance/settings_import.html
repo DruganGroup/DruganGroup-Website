@@ -1,0 +1,85 @@
+{% extends "finance/settings_layout.html" %}
+
+{% block settings_content %}
+<div class="row g-4">
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+                <h5 class="fw-bold text-secondary mb-3"><i class="fas fa-file-import me-2"></i>Migration Center</h5>
+                <p class="text-muted small mb-4">
+                    Moving from Tradify, Sage, or Xero? Upload your CSV exports here to instantly populate your dashboard.
+                </p>
+
+                <ul class="nav nav-tabs mb-3" id="importTabs" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active fw-bold" data-bs-toggle="tab" data-bs-target="#tabClients" type="button">Clients</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link fw-bold" data-bs-toggle="tab" data-bs-target="#tabStaff" type="button">Staff</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link fw-bold" data-bs-toggle="tab" data-bs-target="#tabVehicles" type="button">Vehicles</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="tabClients">
+                        <form method="POST" enctype="multipart/form-data">
+                            <input type="hidden" name="type" value="clients">
+                            <div class="alert alert-info small border-0 bg-info bg-opacity-10">
+                                <strong>Required Columns:</strong> Name, Email, Phone, Address
+                            </div>
+                            <label class="form-label fw-bold small">Upload Client CSV</label>
+                            <input type="file" name="file" class="form-control mb-3" accept=".csv" required>
+                            <button type="submit" class="btn btn-primary fw-bold"><i class="fas fa-upload me-2"></i>Import Clients</button>
+                        </form>
+                    </div>
+
+                    <div class="tab-pane fade" id="tabStaff">
+                        <form method="POST" enctype="multipart/form-data">
+                            <input type="hidden" name="type" value="staff">
+                            <div class="alert alert-warning small border-0 bg-warning bg-opacity-10">
+                                <strong>Required Columns:</strong> Name, Email, Role (e.g. Engineer), Rate
+                            </div>
+                            <label class="form-label fw-bold small">Upload Staff CSV</label>
+                            <input type="file" name="file" class="form-control mb-3" accept=".csv" required>
+                            <button type="submit" class="btn btn-primary fw-bold"><i class="fas fa-upload me-2"></i>Import Staff</button>
+                        </form>
+                    </div>
+
+                    <div class="tab-pane fade" id="tabVehicles">
+                        <form method="POST" enctype="multipart/form-data">
+                            <input type="hidden" name="type" value="vehicles">
+                            <div class="alert alert-success small border-0 bg-success bg-opacity-10">
+                                <strong>Required Columns:</strong> Reg Plate, Make/Model, Daily Cost
+                            </div>
+                            <label class="form-label fw-bold small">Upload Fleet CSV</label>
+                            <input type="file" name="file" class="form-control mb-3" accept=".csv" required>
+                            <button type="submit" class="btn btn-primary fw-bold"><i class="fas fa-upload me-2"></i>Import Fleet</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card bg-light border-0 p-4 h-100">
+            <h6 class="fw-bold mb-3">Templates</h6>
+            <p class="small text-muted">Download these templates to ensure your data is formatted correctly.</p>
+            
+            <div class="d-grid gap-2">
+                <a href="/static/templates/import_clients.csv" class="btn btn-white border text-start shadow-sm" download>
+                    <i class="fas fa-download me-2 text-success"></i> Client Template
+                </a>
+                <a href="/static/templates/import_staff.csv" class="btn btn-white border text-start shadow-sm" download>
+                    <i class="fas fa-download me-2 text-warning"></i> Staff Template
+                </a>
+                <a href="/static/templates/import_vehicles.csv" class="btn btn-white border text-start shadow-sm" download>
+                    <i class="fas fa-download me-2 text-danger"></i> Fleet Template
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

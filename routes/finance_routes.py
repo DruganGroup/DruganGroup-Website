@@ -1005,3 +1005,71 @@ def finance_payroll():
                            currency=currency,
                            brand_color=brand_color,
                            logo_url=logo)
+                           
+# --- SETTINGS: IMPORT CENTER ---
+@finance_bp.route('/finance/settings/import', methods=['GET', 'POST'])
+def settings_import():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    comp_id = session.get('company_id')
+    
+    if request.method == 'POST':
+        import_type = request.form.get('type')
+        file = request.files.get('file')
+        
+        if file and file.filename.endswith('.csv'):
+            try:
+                stream = TextIOWrapper(file.stream, encoding='utf-8')
+                csv_reader = csv.reader(stream)
+                header = next(csv_reader) # Skip Header
+                
+                conn = get_db(); cur = conn.cursor()
+                count = 0
+                
+                for row in csv_reader:
+                    if not row: continue
+                    
+                    if import_type == 'clients':
+                        # Expects: Name, Email, Phone, Address
+                        if len(row) >= 4:
+                            cur.execute("""
+                                INSERT INTO clients (company_id, name, email, phone, site_address, billing_address, status)
+                                VALUES (%s, %s, %s, %s, %s, %s, 'Active')
+                            """, (comp_id, row[0], row[1], row[2], row[3], row[3]))
+                            count += 1
+
+                    elif import_type == 'staff':
+                        # Expects: Name, Email, Position, Rate
+                        if len(row) >= 4:
+                            rate = float(row[3]) if row[3] else 0.0
+                            cur.execute("""
+                                INSERT INTO staff (company_id, name, email, position, pay_rate, pay_model)
+                                VALUES (%s, %s, %s, %s, %s, 'Hour')
+                            """, (comp_id, row[0], row[1], row[2], rate))
+                            count += 1
+
+                    elif import_type == 'vehicles':
+                        # Expects: Reg, Model, Daily Cost
+                        if len(row) >= 3:
+                            cost = float(row[2]) if row[2] else 0.0
+                            cur.execute("""
+                                INSERT INTO vehicles (company_id, reg_plate, make_model, daily_cost, status)
+                                VALUES (%s, %s, %s, %s, 'Active')
+                            """, (comp_id, row[0], row[1], cost))
+                            count += 1
+                
+                conn.commit()
+                conn.close()
+                flash(f"✅ Successfully imported {count} records.", "success")
+                
+            except Exception as e:
+                flash(f"❌ Import Error: {e}", "error")
+        else:
+            flash("❌ Invalid file. Please upload a CSV.", "error")
+
+    # Load Settings Context (for Layout)
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    conn.close()
+
+    return render_template('finance/settings_import.html', settings=settings, active_tab='import')

@@ -92,7 +92,7 @@ def staff_profile(staff_id):
         SELECT date, clock_in, clock_out, total_hours 
         FROM staff_attendance 
         WHERE staff_id = %s 
-        ORDER BY date DESC LIMIT 60
+        ORDER BY date DESC LIMIT 10
     """, (staff_id,))
     
     raw_times = cur.fetchall()

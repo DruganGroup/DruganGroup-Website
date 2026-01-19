@@ -35,9 +35,6 @@ def format_date(d, fmt_str='%d/%m/%Y'):
         return d.strftime(fmt_str)
     except: return str(d)
 
-# =========================================================
-# 1. OFFICE DASHBOARD (MISSION CONTROL)
-# =========================================================
 @office_bp.route('/office-hub')
 def office_dashboard():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -80,6 +77,26 @@ def office_dashboard():
     cur.execute("SELECT id, reg_plate FROM vehicles WHERE company_id=%s AND status='Active'", (comp_id,))
     vehicles = cur.fetchall()
 
+    # 5. [FIX] QUOTE PIPELINE (This was missing!)
+    # We fetch all quotes and group them by status to populate the dashboard widgets
+    cur.execute("SELECT status, COUNT(*), SUM(total) FROM quotes WHERE company_id=%s GROUP BY status", (comp_id,))
+    pipe_raw = cur.fetchall()
+    
+    # Default values so the page doesn't crash if empty
+    pipeline = {
+        'Draft': {'count': 0, 'value': 0},
+        'Sent': {'count': 0, 'value': 0},
+        'Accepted': {'count': 0, 'value': 0},
+        'Rejected': {'count': 0, 'value': 0}
+    }
+    
+    for r in pipe_raw:
+        # DB statuses: 'Draft', 'Sent', 'Accepted', 'Rejected'
+        status_key = r[0]
+        if status_key in pipeline:
+            pipeline[status_key]['count'] = r[1]
+            pipeline[status_key]['value'] = float(r[2] or 0)
+
     conn.close()
 
     return render_template('office/office_dashboard.html',
@@ -92,8 +109,8 @@ def office_dashboard():
                            upcoming_jobs=upcoming_jobs,
                            logs=logs,
                            clients=clients,
-                           vehicles=vehicles)
-
+                           vehicles=vehicles,
+                           pipeline=pipeline)
 # =========================================================
 # 2. CALENDAR VIEW
 # =========================================================

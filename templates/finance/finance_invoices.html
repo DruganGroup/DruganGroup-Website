@@ -1,5 +1,4 @@
 {% extends "finance/finance_base.html" %}
-
 {% from "components/_macros.html" import status_badge %}
 
 {% block title %}Sales Ledger | Business Better{% endblock %}
@@ -28,10 +27,9 @@
                         <th class="ps-4">Invoice #</th>
                         <th>Client</th>
                         <th>Date</th>
-                        <th>Due</th>
                         <th>Status</th>
                         <th class="text-end pe-4">Total</th>
-                        <th class="text-center">Actions</th>
+                        <th class="text-end pe-4">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -40,48 +38,48 @@
                         <td class="ps-4 fw-bold text-primary">{{ inv.ref }}</td>
                         <td>{{ inv.client }}</td>
                         <td class="small">{{ inv.date }}</td>
-                        <td class="small {{ 'text-danger fw-bold' if inv.status == 'Unpaid' else 'text-muted' }}">{{ inv.due }}</td>
-                        
                         <td>{{ status_badge(inv.status) }}</td>
-
                         <td class="text-end pe-4 fw-bold">{{ currency }}{{ "%.2f"|format(inv.total or 0) }}</td>
-                        <td class="text-center">
+                        <td class="text-end pe-4">
                             <div class="btn-group">
-                                <button class="btn btn-sm btn-outline-dark" 
+                                <button class="btn btn-sm btn-light border" 
                                         title="Quick View"
                                         onclick="openInvoiceDrawer('{{ inv.ref }}', '{{ inv.client }}', '{{ '%.2f'|format(inv.total or 0) }}', '{{ inv.status }}')">
-                                    <i class="fas fa-eye"></i>
+                                    <i class="fas fa-eye text-dark"></i>
                                 </button>
-
-                                <a href="{{ url_for('pdf.download_invoice_pdf', invoice_id=inv.id) }}" target="_blank" class="btn btn-sm btn-outline-dark" title="Download PDF">
-                                    <i class="fas fa-file-pdf"></i>
-                                </a>
-
-                                <a href="{{ url_for('finance.email_invoice', invoice_id=inv.id) }}" 
-                                   class="btn btn-sm btn-outline-primary" 
-                                   title="Email to Client"
-                                   onclick="return confirm('Email this invoice to the client?');">
-                                    <i class="fas fa-envelope"></i>
-                                </a>
                                 
-                                <a href="{{ url_for('finance.mark_invoice_sent', invoice_id=inv.id) }}" 
-                                   class="btn btn-sm btn-outline-secondary" 
-                                   title="Mark as Sent (No Email)"
-                                   onclick="return confirm('Mark as Sent manually?');">
-                                    <i class="fas fa-check"></i>
-                                </a>
-
-                                <a href="{{ url_for('finance.delete_invoice', invoice_id=inv.id) }}" 
-                                   class="btn btn-sm btn-outline-danger" 
-                                   title="Delete Invoice"
-                                   onclick="return confirm('⚠️ Are you sure? This will permanently delete this invoice.');">
-                                    <i class="fas fa-trash"></i>
-                                </a>
+                                <button type="button" class="btn btn-sm btn-light border dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                                    <li><h6 class="dropdown-header small text-uppercase">Manage</h6></li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('pdf.download_invoice_pdf', invoice_id=inv.id) }}" target="_blank">
+                                            <i class="fas fa-file-pdf me-2 text-danger"></i>Download PDF
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('finance.email_invoice', invoice_id=inv.id) }}" 
+                                           onclick="return confirm('Email this invoice to the client?');">
+                                            <i class="fas fa-envelope me-2 text-primary"></i>Email Client
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('finance.mark_invoice_sent', invoice_id=inv.id) }}">
+                                            <i class="fas fa-check me-2 text-success"></i>Mark Sent
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item text-danger" href="{{ url_for('finance.delete_invoice', invoice_id=inv.id) }}"
+                                           onclick="return confirm('⚠️ Are you sure? This will permanently delete this invoice.');">
+                                            <i class="fas fa-trash me-2"></i>Delete
+                                        </a>
+                                    </li>
+                                </ul>
                             </div>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="7" class="text-center py-5 text-muted">No invoices found. Generate one from a Quote.</td></tr>
+                    <tr><td colspan="6" class="text-center py-5 text-muted">No invoices found. Generate one from a Quote.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
