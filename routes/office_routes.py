@@ -269,9 +269,6 @@ def live_ops():
                            brand_color=config['color'],
                            logo_url=config['logo'])
 
-# =========================================================
-# 2. QUOTING SYSTEM
-# =========================================================
 @office_bp.route('/office/quote/new')
 def new_quote():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -286,12 +283,16 @@ def new_quote():
     # Get Materials (for the dropdown)
     cur.execute("SELECT id, name, cost_price FROM materials WHERE company_id=%s ORDER BY name", (comp_id,))
     materials = cur.fetchall()
+
+    # --- FIX: Fetch Settings (This was missing) ---
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
     
     conn.close()
     
-    # FIX: Pointing to 'office/create_quote.html' instead of 'new_quote.html'
-    return render_template('office/create_quote.html', clients=clients, materials=materials)
-
+    # FIX: Pass settings to template (This was missing)
+    return render_template('office/create_quote.html', clients=clients, materials=materials, settings=settings)
+    
 @office_bp.route('/office/quote/save', methods=['POST'])
 def save_quote():
     if not check_office_access(): return redirect(url_for('auth.login'))
