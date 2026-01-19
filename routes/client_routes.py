@@ -332,7 +332,7 @@ def update_property():
         
     return redirect(url_for('client.view_client', client_id=client_id))
 
-# --- 6. ADD PROPERTY (Fixed Tenant Phone) ---
+
 @client_bp.route('/office/client/<int:client_id>/add-property', methods=['POST'])
 def add_property(client_id):
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -341,7 +341,7 @@ def add_property(client_id):
     addr = request.form.get('address')
     post = request.form.get('postcode')
     tenant = request.form.get('tenant_name')
-    t_phone = request.form.get('tenant_phone') # <--- Added
+    t_phone = request.form.get('tenant_phone')
     key = request.form.get('key_code')
     
     gas = request.form.get('gas_expiry') or None
@@ -361,3 +361,41 @@ def add_property(client_id):
         conn.close()
         
     return redirect(url_for('client.view_client', client_id=client_id))
+    
+# --- TEMPORARY DATABASE CLEANUP TOOL ---
+@client_bp.route('/debug/cleanup-tables')
+def cleanup_tables():
+    # Security: Only Admin can run this
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Unauthorized", 403
+    
+    conn = get_db()
+    cur = conn.cursor()
+    log = []
+    
+    # These are the legacy tables causing conflicts with the new system
+    tables_to_drop = [
+        'job_photos',      # Legacy (We use job_evidence)
+        'timesheets',      # Legacy (We use staff_timesheets)
+        'vehicle_crew',    # Legacy (We use vehicle_crews)
+        'vehicle_checks',  # Legacy (We use maintenance_logs)
+        'job_items'        # Legacy (We use job_materials)
+    ]
+    
+    try:
+        for table in tables_to_drop:
+            cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE;")
+            log.append(f"🗑️ DROPPED TABLE: {table}")
+            
+        # Also ensure job_evidence has the correct columns for Certs
+        cur.execute("ALTER TABLE job_evidence ADD COLUMN IF NOT EXISTS file_type TEXT DEFAULT 'Site Photo';")
+        cur.execute("ALTER TABLE job_evidence ADD COLUMN IF NOT EXISTS document_date DATE;")
+        log.append("✅ UPDATED TABLE: job_evidence (Ready for Certificates)")
+
+        conn.commit()
+        return f"<h1>Database Cleaned & Upgraded</h1><pre>{chr(10).join(log)}</pre>"
+        
+    except Exception as e:
+        conn.rollback()
+        return f"Error: {e}"
+    finally:
+        conn.close()
