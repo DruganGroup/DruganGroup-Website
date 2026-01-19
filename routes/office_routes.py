@@ -302,52 +302,6 @@ def live_ops():
                            fleet=fleet,
                            brand_color=config['color'],
                            logo_url=config['logo'])
-
-@office_bp.route('/office/quote/new')
-def new_quote():
-    if not check_office_access(): return redirect(url_for('auth.login'))
-    
-    comp_id = session.get('company_id')
-    conn = get_db(); cur = conn.cursor()
-    
-    # 1. Get Clients
-    cur.execute("SELECT id, name FROM clients WHERE company_id=%s ORDER BY name", (comp_id,))
-    clients = cur.fetchall()
-    
-    # 2. Get Materials (Using 'cost_price' to fix the unit_cost error)
-    cur.execute("SELECT id, name, cost_price FROM materials WHERE company_id=%s ORDER BY name", (comp_id,))
-    materials = cur.fetchall()
-
-    # 3. Get Settings (Fixes 'settings is undefined')
-    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
-    settings = {row[0]: row[1] for row in cur.fetchall()}
-    
-    conn.close()
-
-    # 4. Calculate Tax Rate (Fixes 'tax_rate is undefined')
-    country = settings.get('country_code', 'UK')
-    vat_reg = settings.get('vat_registered', 'no')
-    tax_rate = 0.00
-    
-    # Tax Logic
-    TAX_RATES = {'UK': 0.20, 'IE': 0.23, 'US': 0.00, 'CAN': 0.05, 'AUS': 0.10, 'NZ': 0.15, 'FR': 0.20, 'DE': 0.19, 'ES': 0.21}
-    
-    if vat_reg in ['yes', 'on', 'true', '1']:
-        manual_rate = settings.get('default_tax_rate')
-        try:
-            if manual_rate and float(manual_rate) > 0:
-                tax_rate = float(manual_rate) / 100
-            else:
-                tax_rate = TAX_RATES.get(country, 0.20)
-        except:
-            tax_rate = 0.20
-
-    # 5. Return with ALL variables
-    return render_template('office/create_quote.html', 
-                           clients=clients, 
-                           materials=materials, 
-                           settings=settings, 
-                           tax_rate=tax_rate)
                           
 @office_bp.route('/office/quote/save', methods=['POST'])
 def save_quote():
