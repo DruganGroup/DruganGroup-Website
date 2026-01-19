@@ -169,22 +169,33 @@ def inject_branding():
 
     return dict(brand_color=color or default_color, logo=logo)
 
-# --- FIX JOBS TABLE (Moved Up) ---
-@app.route('/fix-jobs-table')
-def fix_jobs_table():
+@client_bp.route('/debug/cleanup-tables')
+def cleanup_tables():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Unauthorized", 403
+    
+    conn = get_db()
+    cur = conn.cursor()
+    log = []
+    
+    tables_to_drop = [
+        'job_photos',      # Legacy (We use job_evidence)
+        'timesheets',      # Legacy (We use staff_timesheets)
+        'vehicle_crew',    # Legacy (We use vehicle_crews)
+        'vehicle_checks',  # Legacy (We use maintenance_logs)
+        'job_items'        # Legacy (We use job_materials)
+    ]
+    
     try:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS quote_id INTEGER;")
-        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS quote_total NUMERIC DEFAULT 0;")
-        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS contractor_cost REAL DEFAULT 0;")
+        for table in tables_to_drop:
+            # Check if table exists before dropping
+            cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE;")
+            log.append(f"🗑️ DROPPED TABLE: {table}")
+            
         conn.commit()
-        conn.close()
-        return "✅ Success! Jobs table updated."
+        return f"<h1>Database Cleaned</h1><pre>{chr(10).join(log)}</pre>"
+        
     except Exception as e:
-        return f"❌ Error: {e}"
-
-# --- APP ENTRY POINT ---
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+        conn.rollback()
+        return f"Error: {e}"
+    finally:
+        conn.close()
