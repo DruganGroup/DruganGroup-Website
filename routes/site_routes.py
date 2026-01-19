@@ -6,8 +6,6 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta, date
-
-# Safe Import for AI Service
 try:
     from services.ai_assistant import scan_receipt
 except ImportError:
@@ -28,10 +26,12 @@ def get_staff_identity(user_id, cur):
     Returns: (staff_id, staff_name, company_id, assigned_vehicle_id)
     """
     # 1. Try to find matching Staff record
+    # UPDATED: Joins 'vehicle_crews' to get the vehicle_id instead of reading column s.assigned_vehicle_id
     cur.execute("""
-        SELECT s.id, s.name, u.company_id, s.assigned_vehicle_id 
+        SELECT s.id, s.name, u.company_id, vc.vehicle_id
         FROM users u
         JOIN staff s ON LOWER(u.email) = LOWER(s.email) AND u.company_id = s.company_id
+        LEFT JOIN vehicle_crews vc ON s.id = vc.staff_id
         WHERE u.id = %s
     """, (user_id,))
     match = cur.fetchone()

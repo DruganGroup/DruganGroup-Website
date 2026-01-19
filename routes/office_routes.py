@@ -151,22 +151,20 @@ def live_ops():
             
             try:
                 # 1. Clear previous assignments for this vehicle
-                # (Set anyone currently assigned to this van back to NULL)
-                cur.execute("UPDATE staff SET assigned_vehicle_id = NULL WHERE assigned_vehicle_id = %s AND company_id = %s", (vehicle_id, comp_id))
+                cur.execute("DELETE FROM vehicle_crews WHERE vehicle_id = %s", (vehicle_id,))
                 
                 # 2. Update the Vehicle's Driver
                 if driver_id and driver_id != 'None':
                     cur.execute("UPDATE vehicles SET assigned_driver_id = %s WHERE id = %s", (driver_id, vehicle_id))
-                    # Also set the driver's vehicle_id
-                    cur.execute("UPDATE staff SET assigned_vehicle_id = %s WHERE id = %s", (vehicle_id, driver_id))
                 else:
                     cur.execute("UPDATE vehicles SET assigned_driver_id = NULL WHERE id = %s", (vehicle_id,))
 
                 # 3. Update the Crew (Passengers)
+                # Note: Logic handles driver separation if needed, but here we just add everyone selected
                 for staff_id in crew_ids:
-                    # Skip the driver if they were selected in checkboxes too
-                    if staff_id != driver_id:
-                        cur.execute("UPDATE staff SET assigned_vehicle_id = %s WHERE id = %s", (vehicle_id, staff_id))
+                    # Avoid duplicate if driver is also in crew list (though usually fine)
+                    if staff_id != driver_id: 
+                        cur.execute("INSERT INTO vehicle_crews (company_id, vehicle_id, staff_id) VALUES (%s, %s, %s)", (comp_id, vehicle_id, staff_id))
                 
                 conn.commit()
                 flash("✅ Crew logistics updated.", "success")
@@ -178,24 +176,27 @@ def live_ops():
 
     # --- FETCH DATA FOR DASHBOARD (GET) ---
     
-    # 1. GET ALL STAFF (Fixed: Removed 'Active' filter just in case, simplified JOINs)
+    # 1. GET ALL STAFF (Corrected to use vehicle_crews table)
     today = date.today()
     cur.execute("""
         SELECT 
-            s.id, s.name, s.position, s.profile_photo, s.assigned_vehicle_id,
+            s.id, s.name, s.position, s.profile_photo, 
+            vc.vehicle_id,  -- Get ID from junction table
             a.clock_in,
             j.ref, j.site_address,
             v.reg_plate
         FROM staff s
         LEFT JOIN staff_attendance a ON s.id = a.staff_id AND a.date = %s
         LEFT JOIN jobs j ON s.id = j.engineer_id AND j.status = 'In Progress'
-        LEFT JOIN vehicles v ON s.assigned_vehicle_id = v.id
+        -- NEW JOIN LOGIC: Staff -> Crew -> Vehicle
+        LEFT JOIN vehicle_crews vc ON s.id = vc.staff_id
+        LEFT JOIN vehicles v ON vc.vehicle_id = v.id
         WHERE s.company_id = %s
         ORDER BY s.name ASC
     """, (today, comp_id))
     
     staff_status = []
-    all_staff = [] # For the dropdowns
+    all_staff = [] 
     
     for r in cur.fetchall():
         is_clocked_in = (r[5] is not None)
@@ -208,7 +209,7 @@ def live_ops():
             'name': r[1],
             'role': r[2],
             'photo': r[3],
-            'vehicle_id': r[4], # Vital for logistics
+            'vehicle_id': r[4], 
             'clock_in': format_date(r[5], "%H:%M") if r[5] else "-",
             'job_ref': r[6],
             'location': r[7] or "HQ / Idle",
