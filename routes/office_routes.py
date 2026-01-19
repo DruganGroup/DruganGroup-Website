@@ -268,8 +268,6 @@ def live_ops():
                            fleet=fleet,
                            brand_color=config['color'],
                            logo_url=config['logo'])
-                           
-                           @office_bp.route('/office/quote/new')
 
 @office_bp.route('/office/quote/new')
 def new_quote():
