@@ -215,12 +215,12 @@ def finance_fleet():
         daily_cost = r[3] or 0.0
         tracker_url = r[7]
 
-cur.execute("""
-    SELECT s.name, s.pay_rate, s.pay_model 
-    FROM vehicle_crews vc  <-- PLURAL
-    JOIN staff s ON vc.staff_id = s.id
-    WHERE vc.vehicle_id = %s
-""", (v_id,))
+        cur.execute("""
+        SELECT s.name, s.pay_rate, s.pay_model 
+        FROM vehicle_crews vc  <-- PLURAL
+        JOIN staff s ON vc.staff_id = s.id
+        WHERE vc.vehicle_id = %s
+        """, (v_id,))
         crew = cur.fetchall()
         
         total_wages = 0

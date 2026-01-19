@@ -29,7 +29,7 @@
             <div class="card p-3 shadow-sm vehicle-card border-0 h-100" data-bs-toggle="modal" data-bs-target="#detailModal{{ v.id }}">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h4 class="fw-bold mb-0">{{ v.reg_number }}</h4>
+                        <h4 class="fw-bold mb-0">{{ v.reg_plate }}</h4>
                         <span class="text-muted small">{{ v.make_model }}</span>
                     </div>
                     {{ status_badge(v.status) }}
@@ -57,7 +57,7 @@
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header text-white" style="background-color: var(--brand-color);">
-                        <h5 class="modal-title fw-bold">{{ v.reg_number }} - Management</h5>
+                        <h5 class="modal-title fw-bold">{{ v.reg_plate }} - Management</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
