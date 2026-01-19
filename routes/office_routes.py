@@ -190,12 +190,14 @@ def live_ops():
     # Fetch Data
     today = date.today()
     
-    # FIX: Using a Subquery for clock_in prevents duplicate rows if staff clocked in multiple times
+    # LOGIC UPDATE: We fetch the LATEST attendance record for today.
+    # We grab both clock_in and clock_out from that specific record.
     cur.execute("""
         SELECT 
             s.id, s.name, s.position, s.profile_photo, 
             vc.vehicle_id, 
-            (SELECT clock_in FROM staff_attendance WHERE staff_id = s.id AND date = %s ORDER BY clock_in DESC LIMIT 1),
+            (SELECT clock_in FROM staff_attendance WHERE staff_id = s.id AND date = %s ORDER BY clock_in DESC LIMIT 1) as latest_in,
+            (SELECT clock_out FROM staff_attendance WHERE staff_id = s.id AND date = %s ORDER BY clock_in DESC LIMIT 1) as latest_out,
             j.ref, j.site_address, v.reg_plate
         FROM staff s
         LEFT JOIN jobs j ON s.id = j.engineer_id AND j.status = 'In Progress'
@@ -203,19 +205,40 @@ def live_ops():
         LEFT JOIN vehicles v ON vc.vehicle_id = v.id
         WHERE s.company_id = %s
         ORDER BY s.name ASC
-    """, (today, comp_id))
+    """, (today, today, comp_id))
     
     staff_status = []
     for r in cur.fetchall():
-        is_clocked_in = (r[5] is not None)
+        latest_clock_in = r[5]
+        latest_clock_out = r[6]
+        
+        # STRICT STATUS LOGIC
+        # 1. Default: Offline
         status = 'Offline'
-        if is_clocked_in: status = 'Online'
-        if r[6]: status = 'On Job'
+        location_text = "Not working today"
+
+        if latest_clock_in:
+            # They have clocked in at least once today
+            
+            if latest_clock_out is None:
+                # NO clock out time found -> They are currently working
+                status = 'Online'
+                location_text = f"Clocked in at {format_date(latest_clock_in, '%H:%M')}"
+                if r[7]: 
+                    status = 'On Job'
+                    location_text = f"Working on {r[7]}"
+            else:
+                # They HAVE a clock out time -> They are finished
+                status = 'Offline'
+                location_text = f"Shift Finished (Out: {format_date(latest_clock_out, '%H:%M')})"
         
         staff_status.append({
             'id': r[0], 'name': r[1], 'role': r[2], 'photo': r[3],
-            'vehicle_id': r[4], 'clock_in': format_date(r[5], "%H:%M") if r[5] else "-",
-            'job_ref': r[6], 'location': r[7] or "HQ / Idle", 'van': r[8], 'status': status
+            'vehicle_id': r[4], 
+            'clock_in': format_date(latest_clock_in, "%H:%M") if latest_clock_in else "-",
+            'job_ref': r[7], 
+            'location': location_text,
+            'van': r[9], 'status': status
         })
 
     cur.execute("SELECT id, reg_plate, make_model, assigned_driver_id, tracker_url FROM vehicles WHERE company_id = %s", (comp_id,))
