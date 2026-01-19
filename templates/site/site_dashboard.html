@@ -9,7 +9,7 @@
     .timeline::before {
         content: '';
         position: absolute;
-        top: 0; bottom: 0; left: 24px; /* Line position */
+        top: 0; bottom: 0; left: 24px;
         width: 2px;
         background: #e9ecef;
         z-index: 0;
@@ -40,7 +40,6 @@
         z-index: 1;
     }
 
-    /* THE DOTS */
     .timeline-dot {
         position: absolute;
         left: 15px; top: 15px;
@@ -51,19 +50,18 @@
         z-index: 2;
     }
     .timeline-item.active .timeline-dot {
-        border-color: #ffc107; /* Yellow for Active */
+        border-color: #ffc107;
         box-shadow: 0 0 0 4px rgba(255, 193, 7, 0.2);
         background: #ffc107;
     }
     .timeline-item.completed .timeline-dot {
-        border-color: #198754; /* Green for Done */
+        border-color: #198754;
         background: #198754;
     }
     .timeline-item.scheduled .timeline-dot {
-        border-color: var(--brand-color); /* Brand for Future */
+        border-color: var(--brand-color);
     }
 
-    /* THE CARDS */
     .job-card {
         background: white;
         border-radius: 12px;
@@ -80,12 +78,11 @@
     .job-card.active { border-left: 5px solid #ffc107; }
     .job-card.scheduled { border-left: 5px solid var(--brand-color); }
     
-    /* QUICK ACTIONS BAR */
     .quick-actions {
         background: white;
         border-bottom: 1px solid #eee;
         padding: 15px;
-        margin: -15px -12px 20px -12px; /* Stretch to edges */
+        margin: -15px -12px 20px -12px;
         display: flex;
         gap: 10px;
         overflow-x: auto;
@@ -151,35 +148,35 @@
             {% set ns = namespace(last_date=None) %}
             
             {% for job in jobs %}
-                {% set job_date = job[5].strftime('%Y-%m-%d') if job[5] else 'No Date' %}
-                {% set display_date = job[5].strftime('%a %d %b') if job[5] else 'Unscheduled' %}
                 
-                {% if ns.last_date != job_date %}
+                {# Check if we need a new Date Header #}
+                {% if ns.last_date != job.raw_date %}
                     <div class="timeline-date-header">
                         <span>
-                            {% if job_date == 0 %}{{ display_date }} {% elif job_date == now_ymd %}Today
-                            {% else %}{{ display_date }}
+                            {% if job.raw_date == now_ymd %}Today
+                            {% else %}{{ job.display_date }}
                             {% endif %}
                         </span>
                     </div>
-                    {% set ns.last_date = job_date %}
+                    {% set ns.last_date = job.raw_date %}
                 {% endif %}
 
-                <div class="timeline-item {{ 'active' if job[6] == 'In Progress' else 'scheduled' }}">
+                <div class="timeline-item {{ 'active' if job.status == 'In Progress' else 'scheduled' }}">
                     <div class="timeline-dot"></div>
                     
-                    <a href="/site/job/{{ job[0] }}" class="job-card {{ 'active' if job[6] == 'In Progress' else 'scheduled' }} p-3">
+                    <a href="/site/job/{{ job.id }}" class="job-card {{ 'active' if job.status == 'In Progress' else 'scheduled' }} p-3">
                         <div class="d-flex justify-content-between align-items-start mb-1">
-                            <span class="badge {{ 'bg-warning text-dark' if job[6] == 'In Progress' else 'bg-light text-dark border' }}">
-                                {{ job[6] }}
+                            <span class="badge {{ 'bg-warning text-dark' if job.status == 'In Progress' else 'bg-light text-dark border' }}">
+                                {{ job.status }}
                             </span>
-                            <small class="text-muted fw-bold">{{ job[1] }}</small> </div>
+                            <small class="text-muted fw-bold">{{ job.ref }}</small> 
+                        </div>
                         
-                        <h6 class="fw-bold text-dark m-0 mb-1">{{ job[3] or 'Unknown Client' }}</h6>
+                        <h6 class="fw-bold text-dark m-0 mb-1">{{ job.client or 'Unknown Client' }}</h6>
                         
                         <div class="d-flex align-items-center text-muted small">
                             <i class="fas fa-map-marker-alt me-2 text-danger"></i>
-                            <span class="text-truncate">{{ job[2] }}</span>
+                            <span class="text-truncate">{{ job.address }}</span>
                         </div>
                     </a>
                 </div>
@@ -198,18 +195,5 @@
     </div>
 
     <div style="height: 50px;"></div>
-
-    <script>
-        // Simple script to replace today's date with word "Today"
-        document.addEventListener("DOMContentLoaded", function() {
-            const today = new Date().toDateString(); // e.g. "Mon Jan 19 2026"
-            
-            document.querySelectorAll('.timeline-date-header span').forEach(span => {
-                // If you want robust "Today" logic, Python is better, 
-                // but this visual check works if dates match format
-                // For now, Python sends specific formats, so we leave it as is.
-            });
-        });
-    </script>
 
 {% endblock %}

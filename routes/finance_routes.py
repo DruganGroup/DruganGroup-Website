@@ -1189,7 +1189,7 @@ def finance_bookkeeping():
     conn.close()
 
     # 5. RENDER TEMPLATE
-    return render_template('bookkeeping_inbox.html', 
+    return render_template('finance/bookkeeping_inbox.html', 
                            unsorted=unsorted_files, 
                            jobs=jobs, 
                            categories=categories)

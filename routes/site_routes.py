@@ -68,9 +68,6 @@ def send_email_notification(company_id, to_email, client_name, job_ref, address)
     except Exception: return False
     finally: conn.close()
 
-# =========================================================
-# 1. SITE DASHBOARD (With Crew Logic Fix)
-# =========================================================
 @site_bp.route('/site-hub')
 @site_bp.route('/site-companion')
 def site_dashboard():
@@ -78,19 +75,24 @@ def site_dashboard():
     
     conn = get_db(); cur = conn.cursor()
     
-    # 1. IDENTIFY STAFF & VEHICLE
+    # 1. IDENTIFY STAFF
     staff_id, staff_name, comp_id, vehicle_id = get_staff_identity(session['user_id'], cur)
     
-    # 2. CHECK STATUSES
+    # 2. GET SETTINGS (Date Format)
+    # We fetch the specific format you saved in Settings > General
+    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'date_format'", (comp_id,))
+    row = cur.fetchone()
+    # Default to UK (%d/%m/%Y) if not set
+    date_fmt = row[0] if row and row[0] else '%d/%m/%Y' 
+
+    # 3. CHECK STATUSES
     is_at_work = False    
     active_job = None     
     
     if staff_id:
-        # Check Day Clock (Payroll)
         cur.execute("SELECT id FROM staff_attendance WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
         is_at_work = cur.fetchone() is not None
         
-        # Check Job Clock (Costing)
         cur.execute("""
             SELECT t.job_id, COALESCE(p.address_line1, j.site_address, 'No Address') as addr
             FROM staff_timesheets t
@@ -102,8 +104,8 @@ def site_dashboard():
         if row:
             active_job = {'id': row[0], 'name': row[1]}
 
-    # 3. FETCH ASSIGNED JOBS (THE FIX: Check Engineer OR Vehicle)
-    jobs = []
+    # 4. FETCH ASSIGNED JOBS & FORMAT DATES
+    formatted_jobs = []
     if staff_id:
         cur.execute("""
             SELECT 
@@ -112,24 +114,53 @@ def site_dashboard():
                 COALESCE(p.address_line1, j.site_address, 'No Address Logged') as address, 
                 c.name, 
                 j.description, 
-                j.start_date, 
+                j.start_date,  -- This is the raw string from DB (YYYY-MM-DD)
                 j.status 
             FROM jobs j 
             LEFT JOIN clients c ON j.client_id = c.id 
             LEFT JOIN properties p ON j.property_id = p.id
             WHERE j.company_id = %s
             AND j.status != 'Completed'
-            AND (j.engineer_id = %s OR j.vehicle_id = %s) -- <--- CREW LOGIC FIX
+            AND (j.engineer_id = %s OR j.vehicle_id = %s)
             ORDER BY j.status ASC, j.start_date ASC
-        """, (comp_id, staff_id, vehicle_id)) # Pass vehicle_id here
-        jobs = cur.fetchall()
+        """, (comp_id, staff_id, vehicle_id))
+        
+        raw_jobs = cur.fetchall()
+        
+        for job in raw_jobs:
+            j_dict = {
+                'id': job[0],
+                'ref': job[1],
+                'address': job[2],
+                'client': job[3],
+                'desc': job[4],
+                'status': job[6],
+                'raw_date': job[5],
+                'display_date': 'Unscheduled'
+            }
+
+            # DYNAMIC DATE FORMATTING
+            if job[5]:
+                try:
+                    # 1. Parse DB String (YYYY-MM-DD) to Object
+                    # Handle cases where it might be a full timestamp
+                    str_val = str(job[5])[:10] 
+                    dt_obj = datetime.strptime(str_val, '%Y-%m-%d')
+                    
+                    # 2. Re-format using YOUR settings
+                    j_dict['display_date'] = dt_obj.strftime(date_fmt)
+                except Exception:
+                    j_dict['display_date'] = str(job[5]) # Fallback
+
+            formatted_jobs.append(j_dict)
     
     conn.close()
     return render_template('site/site_dashboard.html', 
-                           jobs=jobs, 
+                           jobs=formatted_jobs,
                            is_at_work=is_at_work, 
                            active_job=active_job,
-                           staff_name=staff_name)
+                           staff_name=staff_name,
+                           now_ymd=date.today().strftime('%Y-%m-%d'))
 
 # =========================================================
 # 2. DAY CLOCK (For Payroll - On Launcher)
