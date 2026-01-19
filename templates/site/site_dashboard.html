@@ -1,82 +1,215 @@
 {% extends "site/site_base.html" %}
 
-{% block title %}Site Hub | Business Better{% endblock %}
+{% block title %}My Schedule | Business Better{% endblock %}
+
+{% block head %}
+<style>
+    /* TIMELINE STYLES */
+    .timeline { position: relative; padding: 20px 0; }
+    .timeline::before {
+        content: '';
+        position: absolute;
+        top: 0; bottom: 0; left: 24px; /* Line position */
+        width: 2px;
+        background: #e9ecef;
+        z-index: 0;
+    }
+    
+    .timeline-date-header {
+        position: relative;
+        padding-left: 60px;
+        margin-bottom: 15px;
+        margin-top: 25px;
+        z-index: 1;
+    }
+    .timeline-date-header span {
+        background: #2c3e50;
+        color: white;
+        padding: 5px 12px;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .timeline-item {
+        position: relative;
+        padding-left: 60px;
+        margin-bottom: 20px;
+        z-index: 1;
+    }
+
+    /* THE DOTS */
+    .timeline-dot {
+        position: absolute;
+        left: 15px; top: 15px;
+        width: 20px; height: 20px;
+        border-radius: 50%;
+        background: white;
+        border: 4px solid #dee2e6;
+        z-index: 2;
+    }
+    .timeline-item.active .timeline-dot {
+        border-color: #ffc107; /* Yellow for Active */
+        box-shadow: 0 0 0 4px rgba(255, 193, 7, 0.2);
+        background: #ffc107;
+    }
+    .timeline-item.completed .timeline-dot {
+        border-color: #198754; /* Green for Done */
+        background: #198754;
+    }
+    .timeline-item.scheduled .timeline-dot {
+        border-color: var(--brand-color); /* Brand for Future */
+    }
+
+    /* THE CARDS */
+    .job-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border: 1px solid #eee;
+        transition: transform 0.2s;
+        text-decoration: none;
+        display: block;
+        color: inherit;
+        overflow: hidden;
+    }
+    .job-card:active { transform: scale(0.98); }
+    
+    .job-card.active { border-left: 5px solid #ffc107; }
+    .job-card.scheduled { border-left: 5px solid var(--brand-color); }
+    
+    /* QUICK ACTIONS BAR */
+    .quick-actions {
+        background: white;
+        border-bottom: 1px solid #eee;
+        padding: 15px;
+        margin: -15px -12px 20px -12px; /* Stretch to edges */
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+    }
+    .action-pill {
+        flex: 1;
+        white-space: nowrap;
+        padding: 10px 15px;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        color: #333;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-    <div class="row g-2 mb-4">
-        <div class="col-6">
-            <a href="/site/van-check" class="text-decoration-none">
-                <div class="card shadow-sm border-0 text-center py-4 h-100">
-                    <i class="fas fa-shuttle-van fa-2x text-primary mb-2"></i>
-                    <h6 class="fw-bold text-dark m-0 small">Van Check</h6>
-                </div>
-            </a>
-        </div>
 
-        <div class="col-6">
-            <a href="/site/log-fuel" class="text-decoration-none">
-                <div class="card shadow-sm border-0 text-center py-4 h-100">
-                    <i class="fas fa-gas-pump fa-2x text-warning mb-2"></i>
-                    <h6 class="fw-bold text-dark m-0 small">Log Fuel</h6>
-                </div>
-            </a>
-        </div>
-    </div>
-
-    {% if active_job %}
-    <div class="alert alert-warning border-start border-4 border-warning shadow-sm d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <div class="small fw-bold text-uppercase text-muted">Currently Working On</div>
-            <div class="fw-bold text-dark">{{ active_job.name }}</div>
-        </div>
-        <a href="/site/job/{{ active_job.id }}" class="btn btn-sm btn-dark fw-bold">View Job</a>
-    </div>
-    {% endif %}
-
-    <div class="d-flex justify-content-between align-items-center mb-2 px-1">
-        <h6 class="fw-bold text-uppercase text-secondary m-0 small">Upcoming Schedule</h6>
-        <span class="badge bg-light text-dark border">{{ jobs|length }} Jobs</span>
-    </div>
-
-    {% if jobs %}
-        {% for job in jobs %}
-        <a href="/site/job/{{ job[0] }}" class="text-decoration-none text-dark">
-            <div class="card shadow-sm border-0 mb-3">
-                <div class="card-body p-3">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            {% if job[6] == 'In Progress' %}
-                                <span class="badge bg-success mb-2">Active</span>
-                            {% elif job[6] == 'Scheduled' %}
-                                <span class="badge bg-primary mb-2">
-                                    {% if job[5] %}
-                                        {{ job[5] }}
-                                    {% else %}
-                                        Scheduled
-                                    {% endif %}
-                                </span>
-                            {% else %}
-                                <span class="badge bg-secondary mb-2">{{ job[6] }}</span>
-                            {% endif %}
-                            
-                            <h6 class="fw-bold m-0">{{ job[3] or 'Unknown Client' }}</h6>
-                            <div class="text-muted small text-truncate" style="max-width: 200px;">
-                                <i class="fas fa-map-marker-alt me-1 text-danger"></i> {{ job[2] or 'No Address' }}
-                            </div>
-                        </div>
-                        <i class="fas fa-chevron-right text-muted mt-3"></i>
-                    </div>
-                </div>
-            </div>
+    <div class="quick-actions">
+        <a href="/site/van-check" class="action-pill">
+            <i class="fas fa-shuttle-van text-primary me-2"></i> Van Check
         </a>
-        {% endfor %}
-    
-    {% else %}
-        <div class="text-center py-5 text-muted">
-            <i class="fas fa-mug-hot fa-3x mb-3 text-light-emphasis"></i>
-            <p class="small">No upcoming jobs found.<br>Enjoy your brew!</p>
-        </div>
-    {% endif %}
+        <a href="/site/log-fuel" class="action-pill">
+            <i class="fas fa-gas-pump text-warning me-2"></i> Log Fuel
+        </a>
+        <a href="/site/toggle-day-clock" class="action-pill" 
+           onclick="event.preventDefault(); document.getElementById('dashClockForm').submit();">
+            {% if is_at_work %}
+                <i class="fas fa-stop-circle text-danger me-2"></i> End Day
+            {% else %}
+                <i class="fas fa-play-circle text-success me-2"></i> Start Day
+            {% endif %}
+        </a>
+    </div>
 
-</div>
+    <form id="dashClockForm" action="/site/toggle-day-clock" method="POST" style="display:none;">
+        <input type="hidden" name="action" value="{{ 'stop' if is_at_work else 'start' }}">
+    </form>
+
+    <div class="mb-4 px-2">
+        <h2 class="fw-bold m-0">Hello, {{ staff_name.split(' ')[0] }}</h2>
+        {% if active_job %}
+            <p class="text-warning fw-bold mb-0">
+                <i class="fas fa-hard-hat me-2"></i> Currently on site
+            </p>
+        {% elif is_at_work %}
+            <p class="text-success small mb-0"><i class="fas fa-clock me-1"></i> You are clocked in</p>
+        {% else %}
+            <p class="text-muted small mb-0">You are off the clock</p>
+        {% endif %}
+    </div>
+
+    <div class="timeline">
+        
+        {% if jobs %}
+            {% set ns = namespace(last_date=None) %}
+            
+            {% for job in jobs %}
+                {% set job_date = job[5].strftime('%Y-%m-%d') if job[5] else 'No Date' %}
+                {% set display_date = job[5].strftime('%a %d %b') if job[5] else 'Unscheduled' %}
+                
+                {% if ns.last_date != job_date %}
+                    <div class="timeline-date-header">
+                        <span>
+                            {% if job_date == 0 %}{{ display_date }} {% elif job_date == now_ymd %}Today
+                            {% else %}{{ display_date }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% set ns.last_date = job_date %}
+                {% endif %}
+
+                <div class="timeline-item {{ 'active' if job[6] == 'In Progress' else 'scheduled' }}">
+                    <div class="timeline-dot"></div>
+                    
+                    <a href="/site/job/{{ job[0] }}" class="job-card {{ 'active' if job[6] == 'In Progress' else 'scheduled' }} p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <span class="badge {{ 'bg-warning text-dark' if job[6] == 'In Progress' else 'bg-light text-dark border' }}">
+                                {{ job[6] }}
+                            </span>
+                            <small class="text-muted fw-bold">{{ job[1] }}</small> </div>
+                        
+                        <h6 class="fw-bold text-dark m-0 mb-1">{{ job[3] or 'Unknown Client' }}</h6>
+                        
+                        <div class="d-flex align-items-center text-muted small">
+                            <i class="fas fa-map-marker-alt me-2 text-danger"></i>
+                            <span class="text-truncate">{{ job[2] }}</span>
+                        </div>
+                    </a>
+                </div>
+            {% endfor %}
+        
+        {% else %}
+            <div class="text-center py-5 text-muted">
+                <div class="mb-3 p-4 bg-white rounded-circle d-inline-block shadow-sm">
+                    <i class="fas fa-calendar-check fa-2x text-success"></i>
+                </div>
+                <h6 class="fw-bold">All caught up!</h6>
+                <p class="small">No jobs scheduled for upcoming days.</p>
+            </div>
+        {% endif %}
+
+    </div>
+
+    <div style="height: 50px;"></div>
+
+    <script>
+        // Simple script to replace today's date with word "Today"
+        document.addEventListener("DOMContentLoaded", function() {
+            const today = new Date().toDateString(); // e.g. "Mon Jan 19 2026"
+            
+            document.querySelectorAll('.timeline-date-header span').forEach(span => {
+                // If you want robust "Today" logic, Python is better, 
+                // but this visual check works if dates match format
+                // For now, Python sends specific formats, so we leave it as is.
+            });
+        });
+    </script>
+
 {% endblock %}
