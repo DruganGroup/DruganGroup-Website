@@ -361,32 +361,3 @@ def add_property(client_id):
         conn.close()
         
     return redirect(url_for('client.view_client', client_id=client_id))
-    
-@client_bp.route('/debug/cleanup-tables')
-def cleanup_tables():
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Unauthorized", 403
-    
-    conn = get_db(); cur = conn.cursor()
-    log = []
-    
-    # Legacy tables to remove
-    tables_to_drop = ['job_photos', 'timesheets', 'vehicle_crew', 'vehicle_checks', 'job_items']
-    
-    try:
-        for table in tables_to_drop:
-            cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE;")
-            log.append(f"🗑️ DROPPED TABLE: {table}")
-            
-        # Upgrade job_evidence for Certificates
-        cur.execute("ALTER TABLE job_evidence ADD COLUMN IF NOT EXISTS file_type TEXT DEFAULT 'Site Photo';")
-        cur.execute("ALTER TABLE job_evidence ADD COLUMN IF NOT EXISTS document_date DATE;")
-        log.append("✅ UPDATED TABLE: job_evidence (Ready for Certificates)")
-
-        conn.commit()
-        return f"<h1>Database Cleaned & Upgraded</h1><pre>{chr(10).join(log)}</pre>"
-        
-    except Exception as e:
-        conn.rollback()
-        return f"Error: {e}"
-    finally:
-        conn.close()
