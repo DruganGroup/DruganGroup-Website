@@ -35,15 +35,18 @@ def format_date(d, fmt_str='%d/%m/%Y'):
         return d.strftime(fmt_str)
     except: return str(d)
 
+# --- IN routes/office_routes.py ---
+
 @office_bp.route('/office-hub')
 def office_dashboard():
+    # 1. Security Check
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
 
-    # 1. COUNTERS
+    # 2. Main Counters
     cur.execute("SELECT COUNT(*) FROM clients WHERE company_id=%s AND status='Active'", (comp_id,))
     leads_count = cur.fetchone()[0]
     
@@ -56,7 +59,7 @@ def office_dashboard():
     cur.execute("SELECT COUNT(*) FROM invoices WHERE company_id=%s AND status='Unpaid'", (comp_id,))
     unpaid_inv = cur.fetchone()[0]
 
-    # 2. UPCOMING JOBS (Next 5)
+    # 3. Upcoming Jobs (Next 5)
     cur.execute("""
         SELECT j.id, j.ref, j.site_address, c.name, j.start_date, j.estimated_days, j.status 
         FROM jobs j 
@@ -66,23 +69,22 @@ def office_dashboard():
     """, (comp_id,))
     upcoming_jobs = cur.fetchall()
 
-    # 3. RECENT ACTIVITY (Last 5 Logs)
+    # 4. Recent Logs
     cur.execute("SELECT action, details, created_at FROM audit_logs WHERE company_id=%s ORDER BY created_at DESC LIMIT 5", (comp_id,))
     logs = [{'action': r[0], 'details': r[1], 'time': format_date(r[2], "%H:%M")} for r in cur.fetchall()]
 
-    # 4. DATA FOR MODALS
+    # 5. Dropdown Data
     cur.execute("SELECT id, name FROM clients WHERE company_id=%s ORDER BY name", (comp_id,))
     clients = cur.fetchall()
     
     cur.execute("SELECT id, reg_plate FROM vehicles WHERE company_id=%s AND status='Active'", (comp_id,))
     vehicles = cur.fetchall()
 
-    # 5. [FIX] QUOTE PIPELINE (This was missing!)
-    # We fetch all quotes and group them by status to populate the dashboard widgets
+    # 6. [THE MISSING PIECE] CALCULATE PIPELINE
+    # This is exactly what was causing your error. We must build this dictionary.
     cur.execute("SELECT status, COUNT(*), SUM(total) FROM quotes WHERE company_id=%s GROUP BY status", (comp_id,))
     pipe_raw = cur.fetchall()
     
-    # Default values so the page doesn't crash if empty
     pipeline = {
         'Draft': {'count': 0, 'value': 0},
         'Sent': {'count': 0, 'value': 0},
@@ -91,14 +93,14 @@ def office_dashboard():
     }
     
     for r in pipe_raw:
-        # DB statuses: 'Draft', 'Sent', 'Accepted', 'Rejected'
-        status_key = r[0]
+        status_key = r[0] # e.g. 'Draft'
         if status_key in pipeline:
             pipeline[status_key]['count'] = r[1]
             pipeline[status_key]['value'] = float(r[2] or 0)
 
     conn.close()
 
+    # 7. Render Template with ALL variables
     return render_template('office/office_dashboard.html',
                            brand_color=config['color'],
                            logo_url=config['logo'],
@@ -111,6 +113,7 @@ def office_dashboard():
                            clients=clients,
                            vehicles=vehicles,
                            pipeline=pipeline)
+
 # =========================================================
 # 2. CALENDAR VIEW
 # =========================================================
