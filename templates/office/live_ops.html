@@ -1,0 +1,142 @@
+{% extends "office/office_base.html" %}
+
+{% block title %}Live Ops | Business Better{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+    .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; }
+    .status-online { background-color: #198754; box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.2); }
+    .status-job { background-color: #ffc107; box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.2); }
+    .status-offline { background-color: #dc3545; opacity: 0.5; }
+    
+    .staff-card { transition: all 0.2s; border-left: 4px solid transparent; }
+    .staff-card:hover { transform: translateX(5px); background-color: #f8f9fa; }
+    .staff-card.online { border-left-color: #198754; }
+    .staff-card.job { border-left-color: #ffc107; }
+    
+    #opsMap { height: 75vh; width: 100%; border-radius: 15px; border: 1px solid #ddd; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-0 h-100">
+    
+    <div class="col-lg-4 pe-lg-4 d-flex flex-column" style="height: 85vh;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h3 class="fw-bold m-0">Live Operations</h3>
+                <p class="text-muted mb-0 small">Real-time workforce tracking</p>
+            </div>
+            <span class="badge bg-dark">{{ staff|length }} Staff</span>
+        </div>
+
+        <div class="input-group mb-3 shadow-sm">
+            <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+            <input type="text" id="staffSearch" class="form-control border-start-0" placeholder="Find engineer..." onkeyup="filterStaff()">
+        </div>
+
+        <div class="flex-grow-1 overflow-auto pe-2" id="staffList">
+            {% for s in staff %}
+            <div class="card mb-2 border-0 shadow-sm staff-card 
+                        {% if s.status == 'Online' %}online{% elif s.status == 'On Job' %}job{% endif %}">
+                <div class="card-body p-3 d-flex align-items-center">
+                    <div class="position-relative me-3">
+                        {% if s.photo %}
+                            <img src="/static/{{ s.photo }}" class="rounded-circle" style="width:45px; height:45px; object-fit:cover;">
+                        {% else %}
+                            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center text-secondary" style="width:45px; height:45px;">
+                                <i class="fas fa-user"></i>
+                            </div>
+                        {% endif %}
+                        
+                        <span class="position-absolute bottom-0 end-0 status-dot 
+                            {% if s.status == 'Online' %}status-online
+                            {% elif s.status == 'On Job' %}status-job
+                            {% else %}status-offline{% endif %}">
+                        </span>
+                    </div>
+
+                    <div class="flex-grow-1 line-height-sm">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="fw-bold mb-0 text-dark">{{ s.name }}</h6>
+                            <span class="badge rounded-pill fw-normal 
+                                {% if s.status == 'Online' %}bg-success bg-opacity-10 text-success
+                                {% elif s.status == 'On Job' %}bg-warning bg-opacity-10 text-dark
+                                {% else %}bg-secondary bg-opacity-10 text-secondary{% endif %}" style="font-size: 0.7rem;">
+                                {{ s.status }}
+                            </span>
+                        </div>
+                        <div class="small text-muted mb-1">{{ s.role }}</div>
+                        
+                        {% if s.status == 'On Job' %}
+                            <div class="small bg-warning bg-opacity-10 p-1 rounded text-truncate">
+                                <i class="fas fa-tools me-1 text-warning"></i> 
+                                <strong>{{ s.job_ref }}</strong>: {{ s.location }}
+                            </div>
+                        {% elif s.status == 'Online' %}
+                            <div class="small text-success">
+                                <i class="fas fa-clock me-1"></i> Clocked in at {{ s.clock_in }}
+                            </div>
+                        {% else %}
+                            <div class="small text-muted fst-italic">Not working today</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-1">
+                <div id="opsMap"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. INIT MAP
+    var map = L.map('opsMap').setView([54.5, -3.0], 6); // Default UK View
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OSM & Carto'
+    }).addTo(map);
+
+    // 2. PLOT VANS
+    {% for v in fleet %}
+        {% if v.lat %}
+            var iconHtml = `<div style="background:#2c3e50; color:white; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(0,0,0,0.3); font-size:12px;"><i class="fas fa-shuttle-van"></i></div>`;
+            
+            var icon = L.divIcon({ html: iconHtml, className: '' });
+            
+            L.marker([{{ v.lat }}, {{ v.lon }}], {icon: icon}).addTo(map)
+                .bindPopup(`
+                    <div class="text-center">
+                        <strong>{{ v.reg }}</strong><br>
+                        <span class="text-muted">{{ v.driver or 'Unknown Driver' }}</span><br>
+                        <span class="badge bg-primary">{{ v.speed or 0 }} mph</span>
+                    </div>
+                `);
+        {% endif %}
+    {% endfor %}
+
+    // 3. SEARCH FILTER
+    function filterStaff() {
+        var input = document.getElementById("staffSearch").value.toUpperCase();
+        var list = document.getElementById("staffList");
+        var cards = list.getElementsByClassName("staff-card");
+        
+        for (var i = 0; i < cards.length; i++) {
+            var name = cards[i].getElementsByTagName("h6")[0].innerText;
+            if (name.toUpperCase().indexOf(input) > -1) {
+                cards[i].style.display = "";
+            } else {
+                cards[i].style.display = "none";
+            }
+        }
+    }
+</script>
+{% endblock %}

@@ -115,6 +115,100 @@ def office_dashboard():
                            pipeline=pipeline,
                            pending_requests=pending_requests) # <--- Sending the variable
 
+# --- OFFICE: LIVE OPERATIONS (The "God Mode" View) ---
+@office_bp.route('/office/live-ops')
+def live_ops():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+
+    # 1. GET STAFF STATUS (The "Who is working?" logic)
+    # We join Staff -> Attendance (Today) -> Current Active Job
+    today = date.today()
+    cur.execute("""
+        SELECT 
+            s.id, s.name, s.position, s.profile_photo,
+            a.clock_in, a.clock_out,
+            j.ref, j.site_address,
+            v.reg_plate, v.tracker_url
+        FROM staff s
+        LEFT JOIN staff_attendance a ON s.id = a.staff_id AND a.date = %s
+        LEFT JOIN jobs j ON s.id = j.engineer_id AND j.status = 'In Progress'
+        LEFT JOIN vehicles v ON j.vehicle_id = v.id
+        WHERE s.company_id = %s AND s.status = 'Active'
+        ORDER BY s.name ASC
+    """, (today, comp_id))
+    
+    staff_status = []
+    vehicles_on_map = []
+    
+    # We need the API key for the map
+    cur.execute("SELECT value FROM settings WHERE company_id=%s AND key='samsara_api_key'", (comp_id,))
+    api_key_row = cur.fetchone()
+    api_key = api_key_row[0] if api_key_row else None
+
+    for r in cur.fetchall():
+        # Status Logic
+        is_clocked_in = (r[4] is not None and r[5] is None)
+        status = 'Offline'
+        if is_clocked_in: status = 'Online'
+        if r[6]: status = 'On Job' # If they have an active job, that overrides "Online"
+        
+        # Live Location Logic (If they have a van)
+        lat, lon = None, None
+        if r[9]: # If vehicle has tracker URL
+            # In production, fetch from 'get_tracker_data' service
+            # For now, we simulate or pass the tracker URL for the frontend JS
+            pass 
+
+        staff_status.append({
+            'name': r[1],
+            'role': r[2],
+            'photo': r[3],
+            'clock_in': format_date(r[4], "%H:%M") if r[4] else "-",
+            'job_ref': r[6],
+            'location': r[7] or "HQ / Idle",
+            'van': r[8],
+            'status': status,
+            'tracker_url': r[9]
+        })
+
+    # 2. GET ALL VEHICLES (For the Map)
+    # We fetch real lat/lon if you have the telematics engine connected
+    cur.execute("SELECT id, reg_plate, make_model, driver_name, tracker_url FROM vehicles WHERE company_id=%s", (comp_id,))
+    fleet = []
+    
+    # Try to import the engine safely
+    try:
+        from telematics_engine import get_tracker_data
+        has_engine = True
+    except:
+        has_engine = False
+        get_tracker_data = None
+
+    for v in cur.fetchall():
+        v_data = {'reg': v[1], 'model': v[2], 'driver': v[3], 'lat': None, 'lon': None}
+        
+        # If we have the engine and a URL, fetch real data
+        if has_engine and v[4] and api_key:
+            telematics = get_tracker_data(v[4], api_key)
+            if telematics:
+                v_data['lat'] = telematics.get('lat')
+                v_data['lon'] = telematics.get('lon')
+                v_data['speed'] = telematics.get('speed')
+        
+        fleet.append(v_data)
+
+    conn.close()
+
+    return render_template('office/live_ops.html',
+                           staff=staff_status,
+                           fleet=fleet,
+                           brand_color=config['color'],
+                           logo_url=config['logo'])
+
 # =========================================================
 # 2. QUOTING SYSTEM
 # =========================================================
