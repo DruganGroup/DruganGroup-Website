@@ -142,7 +142,7 @@ def finance_fleet():
                 model = request.form.get('make_model')
                 daily = request.form.get('daily_cost') or 0.00
                 tracker = request.form.get('tracker_url')
-                driver = request.form.get('driver_id') or None # <--- Added Driver
+                driver = request.form.get('driver_id') or None
                 
                 cur.execute("""
                     INSERT INTO vehicles (company_id, reg_plate, make_model, daily_cost, tracker_url, assigned_driver_id, status)
@@ -150,30 +150,40 @@ def finance_fleet():
                 """, (comp_id, reg, model, daily, tracker, driver))
                 flash("✅ Vehicle added successfully.")
 
-            elif action == 'assign_crew': # Or 'update_vehicle'
+            elif action == 'assign_crew': 
                 veh_id = request.form.get('vehicle_id')
                 daily = request.form.get('daily_cost')
                 tracker_url = request.form.get('tracker_url')
-                driver_id = request.form.get('driver_id') or None 
+                driver_id = request.form.get('driver_id') or None
+                if driver_id == 'None': driver_id = None
                 
+                # Capture the 4 Dates
                 mot = request.form.get('mot_expiry') or None
                 tax = request.form.get('tax_expiry') or None
                 ins = request.form.get('ins_expiry') or None
                 serv = request.form.get('service_expiry') or None
+
                 # 1. Update Vehicle Details
                 cur.execute("""
-                UPDATE vehicles 
-                SET daily_cost = %s, tracker_url = %s, assigned_driver_id = %s,
-                mot_expiry = %s, tax_expiry = %s, ins_expiry = %s, service_expiry = %s
-                WHERE id = %s AND company_id = %s
+                    UPDATE vehicles 
+                    SET daily_cost = %s, tracker_url = %s, assigned_driver_id = %s,
+                        mot_expiry = %s, tax_expiry = %s, ins_expiry = %s, service_expiry = %s
+                    WHERE id = %s AND company_id = %s
                 """, (daily, tracker_url, driver_id, mot, tax, ins, serv, veh_id, comp_id))
 
-                # 2. Update Crew
+                # 2. Update Crew (Using the correct plural table: vehicle_crews)
                 crew_ids = request.form.getlist('crew_ids')
-                cur.execute("DELETE FROM vehicle_crew WHERE vehicle_id = %s", (veh_id,))
+                
+                # Clear existing crew
+                cur.execute("DELETE FROM vehicle_crews WHERE vehicle_id = %s", (veh_id,))
+                
+                # Insert new crew
                 for staff_id in crew_ids:
                     if str(staff_id) != str(driver_id):
-                        cur.execute("INSERT INTO vehicle_crew (vehicle_id, staff_id) VALUES (%s, %s)", (veh_id, staff_id))
+                        cur.execute("""
+                            INSERT INTO vehicle_crews (company_id, vehicle_id, staff_id) 
+                            VALUES (%s, %s, %s)
+                        """, (comp_id, veh_id, staff_id))
                 
                 flash("✅ Vehicle & Crew updated.")
 
@@ -185,18 +195,17 @@ def finance_fleet():
 
     # --- GET REQUEST (DISPLAY DATA) ---
     
-    # [PART B START]: Fetch the Company's API Key
-    # We need this key to unlock the Telematics Engine
+    # Fetch API Key for Telematics
     cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'samsara_api_key'", (comp_id,))
     row = cur.fetchone()
     company_api_key = row[0] if row else None
-    # [PART B END]
 
+    # Fetch Vehicles
     cur.execute("""
         SELECT v.id, v.reg_plate, v.make_model, v.daily_cost, v.status, 
                v.assigned_driver_id, s.name as driver_name, 
                v.tracker_url, 
-               v.mot_expiry, v.tax_expiry, v.ins_expiry
+               v.mot_expiry, v.tax_expiry, v.ins_expiry, v.service_expiry
         FROM vehicles v
         LEFT JOIN staff s ON v.assigned_driver_id = s.id
         WHERE v.company_id = %s
@@ -215,11 +224,12 @@ def finance_fleet():
         daily_cost = r[3] or 0.0
         tracker_url = r[7]
 
+        # 1. Calculate Crew Costs (Using correct plural table: vehicle_crews)
         cur.execute("""
-        SELECT s.name, s.pay_rate, s.pay_model 
-        FROM vehicle_crews vc  <-- PLURAL
-        JOIN staff s ON vc.staff_id = s.id
-        WHERE vc.vehicle_id = %s
+            SELECT s.name, s.pay_rate, s.pay_model 
+            FROM vehicle_crews vc
+            JOIN staff s ON vc.staff_id = s.id
+            WHERE vc.vehicle_id = %s
         """, (v_id,))
         crew = cur.fetchall()
         
@@ -227,32 +237,44 @@ def finance_fleet():
         crew_list = []
         for c in crew:
             name, rate, model = c
-            if model == 'Hour': total_wages += (rate * 8)
-            elif model == 'Day': total_wages += rate
-            elif model == 'Year': total_wages += (rate / 260)
+            if model == 'Hour': total_wages += (float(rate or 0) * 8)
+            elif model == 'Day': total_wages += float(rate or 0)
+            elif model == 'Year': total_wages += (float(rate or 0) / 260)
             crew_list.append({'name': name})
             
+        # Add Driver Cost
+        if r[5]: # If assigned_driver_id exists
+            cur.execute("SELECT pay_rate, pay_model FROM staff WHERE id = %s", (r[5],))
+            d_row = cur.fetchone()
+            if d_row:
+                d_rate, d_model = d_row
+                if d_model == 'Hour': total_wages += (float(d_rate or 0) * 8)
+                elif d_model == 'Day': total_wages += float(d_rate or 0)
+                elif d_model == 'Year': total_wages += (float(d_rate or 0) / 260)
+
         total_daily_run = float(daily_cost) + float(total_wages)
 
-        # [PART B LOGIC]: Call the Engine using the Company Key
+        # Telematics Logic
         telematics_data = None
-        if tracker_url:
-            # We pass the key we found earlier + the specific van's URL
+        if tracker_url and get_tracker_data:
             telematics_data = get_tracker_data(tracker_url, api_key=company_api_key)
 
         vehicles.append({
             'id': v_id,
-            'reg_number': r[1],
+            'reg_plate': r[1],      # Corrected key
             'make_model': r[2],
             'daily_cost': daily_cost,
             'status': r[4],
             'assigned_driver_id': r[5],
             'driver_name': r[6],
             'tracker_url': tracker_url,
-            'mot_expiry': r[8], 'tax_expiry': r[9], 'ins_expiry': r[10],
+            'mot_expiry': r[8], 
+            'tax_expiry': r[9], 
+            'ins_expiry': r[10], 
+            'service_expiry': r[11], # Added Service Date
             'crew': crew_list,
             'total_gang_cost': total_daily_run,
-            'telematics': telematics_data # <--- This sends the map data to HTML
+            'telematics': telematics_data
         })
 
     conn.close()
@@ -260,9 +282,9 @@ def finance_fleet():
     return render_template('finance/finance_fleet.html', 
                            vehicles=vehicles, 
                            all_staff=all_staff, 
-                           today=datetime.now().date(),
+                           today=date.today(),
                            date_fmt='%d/%m/%Y')
-                          
+                           
 @finance_bp.route('/finance/fleet/delete/<int:id>')
 def delete_vehicle(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
