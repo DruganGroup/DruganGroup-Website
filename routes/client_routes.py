@@ -362,8 +362,8 @@ def add_property(client_id):
         
     return redirect(url_for('client.view_client', client_id=client_id))
     
-# --- PASTE THIS INTO YOUR FLASK APP ---
-@app.route('/debug/schema')
+# --- DEBUG SCHEMA ROUTE (Corrected for Client Blueprint) ---
+@client_bp.route('/debug/schema')
 def debug_schema():
     # Only allow Admin/SuperAdmin to see this for security
     if session.get('role') not in ['Admin', 'SuperAdmin']:
@@ -385,12 +385,13 @@ def debug_schema():
 
         output.append(f"FOUND {len(tables)} TABLES:\n")
 
-        # 2. Loop Through Each Table and Get Columns
+        # 2. Loop Through Each Table and Get Real Columns
         for table in tables:
             output.append(f"==========================================")
             output.append(f"TABLE: {table}")
             output.append(f"==========================================")
             
+            # Get factual column names and types
             cur.execute(f"""
                 SELECT column_name, data_type, is_nullable
                 FROM information_schema.columns 
@@ -400,7 +401,6 @@ def debug_schema():
             columns = cur.fetchall()
             
             for col in columns:
-                # Format:  - column_name (type) [NULL/NOT NULL]
                 nullable = "NULL" if col[2] == 'YES' else "NOT NULL"
                 output.append(f"   - {col[0]} ({col[1]}) [{nullable}]")
             
