@@ -280,25 +280,23 @@ def new_quote():
     cur.execute("SELECT id, name FROM clients WHERE company_id=%s ORDER BY name", (comp_id,))
     clients = cur.fetchall()
     
-    # 2. Get Materials (Using 'cost_price')
+    # 2. Get Materials (Using 'cost_price' to fix the unit_cost error)
     cur.execute("SELECT id, name, cost_price FROM materials WHERE company_id=%s ORDER BY name", (comp_id,))
     materials = cur.fetchall()
 
-    # 3. Get Settings
+    # 3. Get Settings (Fixes 'settings is undefined')
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     
     conn.close()
 
-    # 4. Calculate Tax Rate
-    TAX_RATES = {
-        'UK': 0.20, 'IE': 0.23, 'US': 0.00, 'CAN': 0.05, 
-        'AUS': 0.10, 'NZ': 0.15, 'FR': 0.20, 'DE': 0.19, 'ES': 0.21
-    }
-    
+    # 4. Calculate Tax Rate (Fixes 'tax_rate is undefined')
     country = settings.get('country_code', 'UK')
     vat_reg = settings.get('vat_registered', 'no')
     tax_rate = 0.00
+    
+    # Tax Logic
+    TAX_RATES = {'UK': 0.20, 'IE': 0.23, 'US': 0.00, 'CAN': 0.05, 'AUS': 0.10, 'NZ': 0.15, 'FR': 0.20, 'DE': 0.19, 'ES': 0.21}
     
     if vat_reg in ['yes', 'on', 'true', '1']:
         manual_rate = settings.get('default_tax_rate')
@@ -310,6 +308,7 @@ def new_quote():
         except:
             tax_rate = 0.20
 
+    # 5. Return with ALL variables
     return render_template('office/create_quote.html', 
                            clients=clients, 
                            materials=materials, 
