@@ -15,33 +15,45 @@ site_bp = Blueprint('site', __name__)
 UPLOAD_FOLDER = 'static/uploads/van_checks'
 JOB_EVIDENCE_FOLDER = 'static/uploads/job_evidence'
 
-# --- HELPER: CHECK ACCESS ---
+
 def check_site_access():
     if 'user_id' not in session: return False
     return True
-
-# --- HELPER: GET STAFF IDENTITY ---
+    
 def get_staff_identity(user_id, cur):
     """
     Returns: (staff_id, staff_name, company_id, assigned_vehicle_id)
+    Logic: Checks if user is a DRIVER (vehicles table) OR CREW (vehicle_crews table).
     """
-    # 1. Try to find matching Staff record
-    # UPDATED: Joins 'vehicle_crews' to get the vehicle_id instead of reading column s.assigned_vehicle_id
+    # 1. Get Basic Staff Info & Company
     cur.execute("""
-        SELECT s.id, s.name, u.company_id, vc.vehicle_id
+        SELECT s.id, s.name, u.company_id
         FROM users u
         JOIN staff s ON LOWER(u.email) = LOWER(s.email) AND u.company_id = s.company_id
-        LEFT JOIN vehicle_crews vc ON s.id = vc.staff_id
         WHERE u.id = %s
     """, (user_id,))
     match = cur.fetchone()
     
-    if match: return match[0], match[1], match[2], match[3]
+    if not match: return None, "Unknown", None, None
     
-    # 2. Fallback
-    return None, "Unknown", None, None
+    staff_id, staff_name, comp_id = match
+    vehicle_id = None
 
-# --- HELPER: SEND EMAIL ---
+    # 2. Check if they are the DRIVER (Priority Check)
+    cur.execute("SELECT id FROM vehicles WHERE assigned_driver_id = %s", (staff_id,))
+    driver_row = cur.fetchone()
+    
+    if driver_row:
+        vehicle_id = driver_row[0]
+    else:
+        # 3. If not driver, check if they are CREW/PASSENGER
+        cur.execute("SELECT vehicle_id FROM vehicle_crews WHERE staff_id = %s", (staff_id,))
+        crew_row = cur.fetchone()
+        if crew_row:
+            vehicle_id = crew_row[0]
+
+    return staff_id, staff_name, comp_id, vehicle_id
+
 def send_email_notification(company_id, to_email, client_name, job_ref, address):
     conn = get_db()
     try:
@@ -552,7 +564,7 @@ def site_van_check():
     conn = get_db(); cur = conn.cursor()
     staff_id, staff_name, comp_id, vehicle_id = get_staff_identity(session['user_id'], cur)
 
-    # 1. Get Assigned Vehicle Details
+    # 1. Get Assigned Vehicle Details (If found by helper)
     assigned_van = None
     if vehicle_id:
         cur.execute("SELECT id, reg_plate FROM vehicles WHERE id = %s", (vehicle_id,))
@@ -561,27 +573,47 @@ def site_van_check():
     # 2. Handle Form Submission
     if request.method == 'POST':
         try:
-            # If user has an assigned van, use that ID. 
-            # If not (and logic allows selecting), grab from form.
-            target_veh_id = vehicle_id if vehicle_id else request.form.get('reg_plate') # If value is ID
+            # If assigned, force that ID. Else get from dropdown.
+            target_veh_id = vehicle_id if vehicle_id else None
             
+            # If no assigned van, look up the one selected in dropdown
+            if not target_veh_id:
+                sel_reg = request.form.get('reg_plate')
+                if sel_reg:
+                    cur.execute("SELECT id FROM vehicles WHERE reg_plate = %s AND company_id = %s", (sel_reg, comp_id))
+                    row = cur.fetchone()
+                    if row: target_veh_id = row[0]
+
+            if not target_veh_id:
+                raise Exception("No vehicle selected or assigned.")
+
             mileage = request.form.get('mileage')
             defects = request.form.get('defects')
             signature = request.form.get('signature')
             
-            # Save Check Logic Here (Simplified for brevity, ensure your INSERT matches table cols)
-            # ... (Your existing save logic goes here) ...
-
+            # Determine Check Status
+            is_safe = False if (defects and len(defects) > 2) else True
+            status_log = 'Check Failed' if not is_safe else 'Daily Check'
+            desc = f"Walkaround Complete. Signed: {signature}. Mileage: {mileage}. Notes: {defects}"
+            
+            # Insert Log
+            cur.execute("""
+                INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost, mileage)
+                VALUES (%s, %s, CURRENT_DATE, %s, %s, 0, %s)
+            """, (comp_id, target_veh_id, status_log, desc, mileage))
+            
+            conn.commit()
             flash("✅ Safety check submitted.", "success")
             return redirect(url_for('site.site_dashboard'))
+
         except Exception as e:
             conn.rollback()
             flash(f"Error: {e}", "error")
 
-    # 3. Fetch all vehicles ONLY if no van is assigned (Fallback)
+    # 3. Fallback List (Only used if no van assigned)
     vehicles = []
     if not assigned_van:
-        cur.execute("SELECT reg_plate FROM vehicles WHERE company_id = %s", (comp_id,))
+        cur.execute("SELECT reg_plate FROM vehicles WHERE company_id = %s AND status='Active' ORDER BY reg_plate ASC", (comp_id,))
         vehicles = [r[0] for r in cur.fetchall()]
 
     conn.close()
