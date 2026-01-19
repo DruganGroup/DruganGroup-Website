@@ -79,16 +79,20 @@
                             </div>
                             
                             <div class="dropdown">
-                                <button class="btn btn-sm btn-light border dropdown-toggle fw-bold" type="button" data-bs-toggle="dropdown">
-                                    Manage
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow">
-                                    <li><h6 class="dropdown-header">Actions</h6></li>
-                                    <li><a class="dropdown-item" href="/office/property/{{ prop.id }}"><i class="fas fa-eye me-2 text-secondary"></i>View Details</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ prop.id }}"><i class="fas fa-tools text-primary me-2"></i>Book Job</a></li>
-                                </ul>
-                            </div>
+    <button class="btn btn-sm btn-light border dropdown-toggle fw-bold" type="button" data-bs-toggle="dropdown">
+        Manage
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end shadow">
+        <li><h6 class="dropdown-header">Actions</h6></li>
+        <li><a class="dropdown-item" href="/office/property/{{ prop.id }}"><i class="fas fa-eye me-2 text-secondary"></i>View History</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><h6 class="dropdown-header">Book Compliance</h6></li>
+        <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ prop.id }}&description=Gas Safety Check"><i class="fas fa-burn text-warning me-2"></i>Book Gas Safety</a></li>
+        <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ prop.id }}&description=EICR Inspection"><i class="fas fa-bolt text-warning me-2"></i>Book EICR</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item text-primary fw-bold" href="/office/property/{{ prop.id }}"><i class="fas fa-edit me-2"></i>Edit Property</a></li>
+    </ul>
+</div>
                         </div>
 
                         <div class="card-body position-relative">
@@ -99,6 +103,10 @@
                                     <div class="small fw-bold text-uppercase text-muted">Tenant</div>
                                     <div class="fw-bold text-dark">{{ prop.tenant_name or 'Vacant' }}</div>
                                 </div>
+								<div class="row g-2 mb-4">
+    <div class="col-6"><input type="text" name="tenant_name" class="form-control" placeholder="Tenant Name"></div>
+    <div class="col-6"><input type="text" name="tenant_phone" class="form-control" placeholder="Tenant Phone"></div> <div class="col-12 mt-2"><input type="text" name="key_code" class="form-control" placeholder="Key Safe Code"></div>
+</div>
                                 <div class="text-end">
                                     <div class="small fw-bold text-uppercase text-muted">Key Safe</div>
                                     <span class="badge bg-dark fs-6">{{ prop.key_code or '---' }}</span>

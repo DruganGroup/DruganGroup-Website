@@ -1,0 +1,172 @@
+{% extends "office/office_base.html" %}
+
+{% block title %}Property | {{ prop.address }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small">
+                    <li class="breadcrumb-item"><a href="/office-hub" class="text-decoration-none text-muted">Office</a></li>
+                    <li class="breadcrumb-item"><a href="/office/client/{{ client.id }}" class="text-decoration-none text-muted">{{ client.name }}</a></li>
+                    <li class="breadcrumb-item active">{{ prop.address }}</li>
+                </ol>
+            </nav>
+            <h2 class="fw-bold m-0">{{ prop.address }}</h2>
+            <div class="text-muted"><i class="fas fa-map-marker-alt me-2"></i>{{ prop.postcode }}</div>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#editPropModal">
+                <i class="fas fa-edit me-2"></i>Edit
+            </button>
+            <a href="/office/client/{{ client.id }}" class="btn btn-outline-secondary fw-bold">
+                <i class="fas fa-arrow-left me-2"></i>Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white fw-bold py-3">Access & Tenant</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted fw-bold text-uppercase">Tenant</small>
+                        <div class="fw-bold text-dark">{{ prop.tenant or 'Vacant' }}</div>
+                        {% if prop.tenant_phone %}
+                            <div class="small"><a href="tel:{{ prop.tenant_phone }}" class="text-decoration-none"><i class="fas fa-phone me-1"></i> {{ prop.tenant_phone }}</a></div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <small class="text-muted fw-bold text-uppercase">Key Safe</small>
+                        <div class="badge bg-dark text-white border font-monospace fs-6">{{ prop.key_code or 'N/A' }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white fw-bold py-3">Compliance Expiry</div>
+                <ul class="list-group list-group-flush">
+                    {% for label, date_val in [('Gas Safety', prop.gas), ('EICR', prop.eicr), ('PAT', prop.pat), ('EPC', prop.epc)] %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span class="small fw-bold">{{ label }}</span>
+                            {% if date_val %}
+                                {% set days = (date_val - today).days %}
+                                <span class="badge {{ 'bg-danger' if days < 0 else ('bg-warning text-dark' if days < 30 else 'bg-success') }}">
+                                    {{ date_val.strftime('%d/%m/%Y') }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-muted border">Missing</span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white fw-bold py-3">
+                    <i class="fas fa-certificate me-2 text-warning"></i>Certificates
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for c in certs %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-dark me-2">{{ c.type }}</span>
+                            <span class="small text-muted">{{ c.date.strftime('%d/%m/%y') }}</span>
+                        </div>
+                        <a href="/static/{{ c.path }}" target="_blank" class="btn btn-sm btn-outline-dark fw-bold">
+                            <i class="fas fa-file-pdf me-1"></i> View
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="p-3 text-center text-muted small">No certificates filed yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-history me-2"></i>Job History</span>
+                    <a href="/office/job/create?client_id={{ client.id }}&property_id={{ prop.id }}" class="btn btn-sm btn-primary fw-bold">
+                        <i class="fas fa-plus me-1"></i> New Job
+                    </a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light small text-uppercase text-muted">
+                            <tr>
+                                <th class="ps-3">Ref</th>
+                                <th>Description</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th class="text-end pe-3">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for job in jobs %}
+                            <tr>
+                                <td class="ps-3 fw-bold"><a href="/office/job/{{ job.id }}/files" class="text-decoration-none">{{ job.ref }}</a></td>
+                                <td>{{ job.desc }}</td>
+                                <td class="text-muted small">{{ job.date.strftime('%d/%m/%Y') if job.date else '-' }}</td>
+                                <td>
+                                    <span class="badge {{ 'bg-success' if job.status == 'Completed' else 'bg-primary' }}">{{ job.status }}</span>
+                                </td>
+                                
+                                <td class="text-end pe-3">
+                                    <div class="btn-group">
+                                        <a href="/office/job/{{ job.id }}/files" class="btn btn-sm btn-outline-secondary" title="View Job Files">
+                                            <i class="fas fa-folder-open"></i>
+                                        </a>
+                                        <a href="/office/job/{{ job.id }}/rams/create" class="btn btn-sm btn-warning text-dark fw-bold" title="Generate RAMS">
+                                            <i class="fas fa-clipboard-check"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="5" class="text-center py-4 text-muted">No jobs history found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editPropModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="/office/property/update" method="POST">
+                <div class="modal-header bg-dark text-white"><h5 class="modal-title fw-bold">Edit Property</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input type="hidden" name="property_id" value="{{ prop.id }}">
+                    <input type="hidden" name="client_id" value="{{ client.id }}">
+                    
+                    <div class="mb-2"><label class="small fw-bold">Address</label><input type="text" name="address" class="form-control" value="{{ prop.address }}" required></div>
+                    <div class="mb-3"><label class="small fw-bold">Postcode</label><input type="text" name="postcode" class="form-control" value="{{ prop.postcode }}" required></div>
+                    
+                    <div class="row g-2 mb-3">
+                        <div class="col-6"><label class="small fw-bold">Tenant Name</label><input type="text" name="tenant_name" class="form-control" value="{{ prop.tenant or '' }}"></div>
+                        <div class="col-6"><label class="small fw-bold">Tenant Phone</label><input type="text" name="tenant_phone" class="form-control" value="{{ prop.tenant_phone or '' }}"></div>
+                        <div class="col-12"><label class="small fw-bold">Key Code</label><input type="text" name="key_code" class="form-control" value="{{ prop.key_code or '' }}"></div>
+                    </div>
+                    
+                    <h6 class="fw-bold text-danger border-top pt-3">Compliance</h6>
+                    <div class="row g-2">
+                        <div class="col-6"><label class="small fw-bold">Gas Safety</label><input type="date" name="gas_expiry" class="form-control" value="{{ prop.gas }}"></div>
+                        <div class="col-6"><label class="small fw-bold">EICR</label><input type="date" name="eicr_expiry" class="form-control" value="{{ prop.eicr }}"></div>
+                        <div class="col-6"><label class="small fw-bold">PAT</label><input type="date" name="pat_expiry" class="form-control" value="{{ prop.pat }}"></div>
+                        <div class="col-6"><label class="small fw-bold">EPC</label><input type="date" name="epc_expiry" class="form-control" value="{{ prop.epc }}"></div>
+                    </div>
+                </div>
+                <div class="modal-footer"><button type="submit" class="btn btn-primary fw-bold">Save Changes</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

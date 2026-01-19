@@ -266,3 +266,129 @@ def delete_client(client_id):
     finally:
         conn.close()
     return redirect(url_for('client.client_dashboard'))
+
+@client_bp.route('/office/property/<int:property_id>')
+def view_property(property_id):
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. Fetch Property & Client
+    cur.execute("""
+        SELECT p.id, p.address_line1, p.postcode, p.city, 
+               p.tenant_name, p.tenant_phone, p.key_code,
+               p.gas_expiry, p.eicr_expiry, p.pat_expiry, p.epc_expiry,
+               c.id, c.name, c.phone, c.email
+        FROM properties p
+        JOIN clients c ON p.client_id = c.id
+        WHERE p.id = %s
+    """, (property_id,))
+    row = cur.fetchone()
+    
+    if not row:
+        conn.close()
+        return "Property not found", 404
+
+    prop = {
+        'id': row[0], 'address': row[1], 'postcode': row[2], 'city': row[3],
+        'tenant': row[4], 'tenant_phone': row[5], 'key_code': row[6],
+        'gas': row[7], 'eicr': row[8], 'pat': row[9], 'epc': row[10]
+    }
+    
+    client = {'id': row[11], 'name': row[12], 'phone': row[13], 'email': row[14]}
+
+    # 2. Fetch Jobs
+    cur.execute("""
+        SELECT id, ref, status, description, start_date 
+        FROM jobs 
+        WHERE property_id = %s 
+        ORDER BY start_date DESC
+    """, (property_id,))
+    jobs = []
+    for j in cur.fetchall():
+        jobs.append({'id': j[0], 'ref': j[1], 'status': j[2], 'desc': j[3], 'date': j[4]})
+
+    # 3. Fetch Certificates (The missing link)
+    # We look for files in job_files that match certificate types
+    cur.execute("""
+        SELECT f.id, f.file_type, f.uploaded_at, j.ref, f.file_path
+        FROM job_files f
+        JOIN jobs j ON f.job_id = j.id
+        WHERE j.property_id = %s AND f.file_type IN ('CP12', 'EICR', 'PAT', 'EPC')
+        ORDER BY f.uploaded_at DESC
+    """, (property_id,))
+    certs = []
+    for c in cur.fetchall():
+        certs.append({'type': c[1], 'date': c[2], 'job_ref': c[3], 'path': c[4]})
+
+    conn.close()
+    
+    # We will save your uploaded file as 'property_details.html'
+    return render_template('office/property_details.html', prop=prop, client=client, jobs=jobs, certs=certs, today=date.today())
+
+@client_bp.route('/office/property/update', methods=['POST'])
+def update_property():
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    prop_id = request.form.get('property_id')
+    client_id = request.form.get('client_id')
+    
+    # Fields
+    addr = request.form.get('address')
+    post = request.form.get('postcode')
+    tenant = request.form.get('tenant_name')
+    t_phone = request.form.get('tenant_phone') # <--- Added
+    key = request.form.get('key_code')
+    
+    # Dates
+    gas = request.form.get('gas_expiry') or None
+    eicr = request.form.get('eicr_expiry') or None
+    pat = request.form.get('pat_expiry') or None
+    epc = request.form.get('epc_expiry') or None
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("""
+            UPDATE properties 
+            SET address_line1=%s, postcode=%s, tenant_name=%s, tenant_phone=%s, key_code=%s,
+                gas_expiry=%s, eicr_expiry=%s, pat_expiry=%s, epc_expiry=%s
+            WHERE id=%s
+        """, (addr, post, tenant, t_phone, key, gas, eicr, pat, epc, prop_id))
+        conn.commit()
+        flash("✅ Property updated.")
+    except Exception as e:
+        conn.rollback(); flash(f"Error: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('client.view_client', client_id=client_id))
+
+# --- 6. ADD PROPERTY (Fixed Tenant Phone) ---
+@client_bp.route('/office/client/<int:client_id>/add-property', methods=['POST'])
+def add_property(client_id):
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    addr = request.form.get('address')
+    post = request.form.get('postcode')
+    tenant = request.form.get('tenant_name')
+    t_phone = request.form.get('tenant_phone') # <--- Added
+    key = request.form.get('key_code')
+    
+    gas = request.form.get('gas_expiry') or None
+    eicr = request.form.get('eicr_expiry') or None
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO properties (company_id, client_id, address_line1, postcode, tenant_name, tenant_phone, key_code, gas_expiry, eicr_expiry)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (comp_id, client_id, addr, post, tenant, t_phone, key, gas, eicr))
+        conn.commit()
+        flash("✅ Property added.")
+    except Exception as e:
+        conn.rollback(); flash(f"Error: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('client.view_client', client_id=client_id))
