@@ -82,7 +82,6 @@
         .content { margin-left: 260px; padding: 40px; }
         .currency-text { font-family: 'Consolas', monospace; letter-spacing: -0.5px; }
 
-        /* --- MOBILE VIEW CONTROL (The Logic you asked about) --- */
         @media (max-width: 768px) {
             .sidebar { width: 100%; height: auto; position: relative; }
             .content { margin-left: 0; padding: 20px; }
@@ -126,11 +125,13 @@
         <a href="/finance/materials" class="{% if 'materials' in request.path %}active{% endif %}">
             <i class="fas fa-cubes me-3"></i> Material Library
         </a>
-        <a href="/finance/hr" class="{% if 'hr' in request.path and 'payroll' not in request.path %}active{% endif %}">
-            <i class="fas fa-users me-3"></i> HR Management
+
+        <div class="sidebar-heading">Human Resources</div>
+        <a href="/finance/hr" class="{% if 'hr' in request.path %}active{% endif %}">
+            <i class="fas fa-users me-3"></i> Staff Manager
         </a>
         <a href="/finance/payroll" class="{% if 'payroll' in request.path %}active{% endif %}">
-            <i class="fas fa-file-invoice-dollar me-3"></i> Run Payroll
+            <i class="fas fa-file-invoice-dollar me-3"></i> Run Weekly Payroll
         </a>
 
         <div class="sidebar-heading">System</div>
