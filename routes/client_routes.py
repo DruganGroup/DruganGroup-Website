@@ -156,3 +156,113 @@ def track_job(job_ref):
                            engineer=engineer_data,
                            telematics=telematics,
                            settings=settings)
+                           
+@client_bp.route('/client/<int:client_id>')
+def view_client(client_id):
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. Fetch Client Details (Including Billing Address & Notes)
+    cur.execute("""
+        SELECT id, name, email, phone, billing_address, notes 
+        FROM clients 
+        WHERE id = %s AND company_id = %s
+    """, (client_id, comp_id))
+    client_row = cur.fetchone()
+    
+    if not client_row:
+        conn.close()
+        return "Client not found", 404
+
+    client = {
+        'id': client_row[0], 
+        'name': client_row[1], 
+        'email': client_row[2], 
+        'phone': client_row[3],
+        'billing_address': client_row[4], 
+        'notes': client_row[5]
+    }
+
+    # 2. Fetch Properties
+    cur.execute("""
+        SELECT id, address_line1, postcode, city, tenant_name, tenant_phone, 
+               key_code, gas_expiry, eicr_expiry, pat_expiry, epc_expiry
+        FROM properties 
+        WHERE client_id = %s 
+        ORDER BY address_line1
+    """, (client_id,))
+    
+    properties = []
+    cols = ['id', 'address_line1', 'postcode', 'city', 'tenant_name', 'tenant_phone', 
+            'key_code', 'gas_expiry', 'eicr_expiry', 'pat_expiry', 'epc_expiry']
+            
+    for row in cur.fetchall():
+        properties.append(dict(zip(cols, row)))
+
+    # 3. Fetch Invoices
+    cur.execute("""
+        SELECT id, reference, total, status, date 
+        FROM invoices 
+        WHERE client_id = %s 
+        ORDER BY date DESC
+    """, (client_id,))
+    invoices = cur.fetchall()
+    
+    conn.close()
+    
+    # This loads the HTML file you uploaded earlier
+    return render_template('office/client_details.html', 
+                           client=client, 
+                           properties=properties, 
+                           invoices=invoices,
+                           current_date=date.today())
+
+# --- MISSING ROUTE 2: ADD PROPERTY ---
+@client_bp.route('/office/client/<int:client_id>/add-property', methods=['POST'])
+def add_property(client_id):
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    address = request.form.get('address')
+    postcode = request.form.get('postcode')
+    tenant = request.form.get('tenant_name')
+    key_code = request.form.get('key_code')
+    
+    # Dates
+    gas = request.form.get('gas_expiry') or None
+    eicr = request.form.get('eicr_expiry') or None
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO properties (company_id, client_id, address_line1, postcode, tenant_name, key_code, gas_expiry, eicr_expiry)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (comp_id, client_id, address, postcode, tenant, key_code, gas, eicr))
+        conn.commit()
+        flash("✅ Property added successfully.")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error adding property: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('client.view_client', client_id=client_id))
+
+# --- MISSING ROUTE 3: DELETE CLIENT ---
+@client_bp.route('/client/delete/<int:client_id>')
+def delete_client(client_id):
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("UPDATE clients SET status='Archived' WHERE id=%s AND company_id=%s", (client_id, session.get('company_id')))
+        conn.commit()
+        flash("🗑️ Client archived.")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}")
+    finally:
+        conn.close()
+    return redirect(url_for('client.client_dashboard'))
