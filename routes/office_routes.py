@@ -544,3 +544,92 @@ def office_fleet():
                            staff=all_staff,  # Template expects 'staff' loop for dropdowns
                            all_staff=all_staff, # Sending both just in case
                            today=date.today())
+                           
+@office_bp.route('/office/quote/new')
+def new_quote():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    
+    # FIX: Return Dictionaries so c.id and c.name work in the template
+    cur.execute("SELECT id, name FROM clients WHERE company_id=%s AND status='Active' ORDER BY name", (comp_id,))
+    clients = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
+    
+    cur.execute("SELECT id, name, cost_price FROM materials WHERE company_id=%s ORDER BY name", (comp_id,))
+    materials = [{'id': r[0], 'name': r[1], 'price': r[2]} for r in cur.fetchall()]
+
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    
+    conn.close()
+
+    # Tax Logic (Keep your existing tax logic here)
+    tax_rate = 0.20 
+    # ... (Your existing tax calculation) ...
+
+    # Check query params for pre-selected client
+    pre_client = request.args.get('client_id')
+
+    return render_template('office/create_quote.html', 
+                           clients=clients, 
+                           materials=materials, 
+                           settings=settings, 
+                           tax_rate=tax_rate,
+                           pre_selected_client=pre_client)
+
+# =========================================================
+# 2. FIX: API FOR PROPERTIES (Dropdown Population)
+# =========================================================
+@office_bp.route('/api/client/<int:client_id>/properties')
+def get_client_properties(client_id):
+    if not check_office_access(): return jsonify([])
+    
+    conn = get_db(); cur = conn.cursor()
+    # Fetch properties for this client
+    cur.execute("""
+        SELECT id, address_line1, postcode 
+        FROM properties 
+        WHERE client_id = %s AND status = 'Active'
+        ORDER BY address_line1
+    """, (client_id,))
+    
+    props = [{'id': r[0], 'address': f"{r[1]}, {r[2]}"} for r in cur.fetchall()]
+    conn.close()
+    
+    return jsonify(props)
+
+# =========================================================
+# 3. FIX: RAMS PDF GENERATION
+# =========================================================
+@office_bp.route('/office/job/<int:job_id>/rams/pdf')
+def generate_job_rams(job_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    # 1. Fetch Job Data
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("""
+        SELECT j.ref, j.description, j.site_address, c.name
+        FROM jobs j
+        LEFT JOIN clients c ON j.client_id = c.id
+        WHERE j.id = %s
+    """, (job_id,))
+    job = cur.fetchone()
+    conn.close()
+    
+    if not job: return "Job not found", 404
+
+    # 2. Generate PDF (Placeholder logic - requires your PDF service)
+    # If you have a specific RAMS generator service, call it here.
+    # For now, we return a simple PDF to prove the link works.
+    try:
+        from services.pdf_generator import create_simple_pdf
+        pdf_bytes = create_simple_pdf(f"RAMS DOCUMENT\nRef: {job[0]}\nClient: {job[3]}\nRisk Assessment & Method Statement")
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=False,
+            download_name=f"RAMS_{job[0]}.pdf"
+        )
+    except ImportError:
+        return "PDF Service Missing. Please check backend services.", 500
