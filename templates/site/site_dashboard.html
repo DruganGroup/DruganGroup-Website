@@ -4,243 +4,213 @@
 
 {% block head %}
 <style>
-    /* 1. APP-STYLE BRAND HEADER */
-    .brand-header {
-        background: white;
-        padding: 15px 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 20px;
+    /* MATCHING STYLE FROM job_details.html */
+    body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; padding-bottom: 80px; }
+    
+    /* 1. THE HEADER BAR (Exact match to your Job Details) */
+    .header-bar { 
+        background-color: {{ brand_color or '#333' }}; 
+        color: white; 
+        padding: 20px 15px 25px 15px; 
+        border-radius: 0 0 15px 15px; 
+        margin-bottom: 25px; 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
-    .brand-logo { max-height: 40px; width: auto; object-fit: contain; }
-    .brand-name { font-weight: 800; color: #2c3e50; font-size: 1.1rem; letter-spacing: -0.5px; }
 
-    /* 2. ACTION GRID (Big Buttons) */
-    .action-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 12px;
-        margin-bottom: 25px;
-    }
-    .action-card {
+    /* 2. ACTION BUTTONS (Exact match to your Job Details) */
+    .action-btn { 
         background: white;
         border: none;
-        border-radius: 12px;
-        padding: 15px 10px;
-        text-align: center;
+        border-radius: 12px; 
+        padding: 15px; 
+        font-weight: bold; 
+        font-size: 0.9rem; 
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+        width: 100%; 
+        margin-bottom: 10px;
         text-decoration: none;
-        color: #2c3e50;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        transition: transform 0.1s, box-shadow 0.1s;
+        color: #333;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        height: 100%;
+        transition: transform 0.1s;
     }
-    .action-card:active { transform: scale(0.96); box-shadow: none; }
-    .action-card i { font-size: 1.4rem; margin-bottom: 2px; }
-    .action-card span { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+    .action-btn:active { transform: scale(0.98); }
+    .action-btn i { font-size: 1.5rem; margin-bottom: 8px; }
 
-    /* 3. MODERN TIMELINE */
-    .timeline { position: relative; padding-left: 20px; }
+    /* 3. TIMELINE & CARDS */
+    .timeline { position: relative; padding-left: 15px; }
     .timeline::before {
-        content: '';
-        position: absolute;
-        left: 7px; top: 10px; bottom: 0;
-        width: 2px;
-        background: #e0e0e0;
-        z-index: 0;
+        content: ''; position: absolute; left: 6px; top: 10px; bottom: 0;
+        width: 2px; background: #ddd; z-index: 0;
     }
 
-    /* Date Headers */
-    .date-marker {
-        background: #f8f9fa;
-        border: 1px solid #e9ecef;
+    .date-header {
+        font-weight: bold;
         color: #6c757d;
-        font-size: 0.75rem;
-        font-weight: 800;
         text-transform: uppercase;
-        padding: 5px 12px;
-        border-radius: 20px;
+        font-size: 0.8rem;
+        background: #f0f2f5; /* Matches body bg */
+        padding: 5px 10px;
+        margin: 15px 0 10px 0;
+        position: relative; z-index: 1;
         display: inline-block;
-        margin: 20px 0 10px 0;
-        position: relative;
-        z-index: 2;
     }
 
-    /* Job Cards (The Frames) */
+    /* Exact Card Style from your files */
     .job-card {
         background: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.06); /* The "Frame" Depth */
-        padding: 16px;
+        border-radius: 12px; /* Matches action-btn radius */
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* Matches action-btn shadow */
+        border: 0;
         margin-bottom: 15px;
-        position: relative;
         text-decoration: none;
         display: block;
         color: inherit;
-        border-left: 5px solid transparent; /* Status Indicator */
-        transition: transform 0.2s;
-        margin-left: 15px; /* Spacing from timeline line */
+        position: relative;
+        overflow: hidden;
     }
-    .job-card:active { transform: scale(0.98); background: #fafafa; }
-
-    /* Status Styles */
-    .job-card.active { border-left-color: #ffc107; }
-    .job-card.scheduled { border-left-color: var(--brand-color); }
-    .job-card.completed { border-left-color: #198754; opacity: 0.8; }
-
-    .card-meta { font-size: 0.8rem; color: #6c757d; display: flex; align-items: center; gap: 6px; }
-    .card-title { font-weight: 800; color: #212529; margin: 4px 0; font-size: 1rem; }
     
-    /* Timeline Dot */
-    .timeline-dot {
-        position: absolute;
-        left: -22px; /* Pulls it onto the line */
-        top: 20px;
-        width: 16px; height: 16px;
-        background: white;
-        border: 3px solid #dee2e6;
-        border-radius: 50%;
-        z-index: 1;
-    }
-    .job-card.active .timeline-dot { border-color: #ffc107; background: #ffc107; box-shadow: 0 0 0 3px rgba(255,193,7,0.2); }
-    .job-card.scheduled .timeline-dot { border-color: var(--brand-color); }
+    /* Left Strip for Status */
+    .job-card.active { border-left: 6px solid #ffc107; }
+    .job-card.scheduled { border-left: 6px solid {{ brand_color or '#333' }}; }
 
-    /* 4. WELCOME BLOCK */
-    .welcome-block { padding: 0 10px 20px 10px; }
-    .welcome-title { font-size: 1.5rem; font-weight: 800; color: #2c3e50; margin: 0; }
-    .status-pill { 
-        font-size: 0.75rem; font-weight: 700; 
-        padding: 4px 10px; border-radius: 6px; 
-        display: inline-flex; align-items: center; gap: 5px;
-    }
+    .card-body { padding: 15px; }
 </style>
 {% endblock %}
 
 {% block content %}
 
-    <div class="brand-header">
-        <div class="d-flex align-items-center gap-3">
-            {% if logo_url %}
-                <img src="{{ logo_url }}" class="brand-logo" alt="Logo">
-            {% endif %}
-            <div class="brand-name">{{ company_name or 'Business Better' }}</div>
+    <div class="header-bar">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex align-items-center gap-2">
+                {% if logo_url %}
+                    <img src="{{ logo_url }}" style="max-height: 40px; background: rgba(255,255,255,0.9); padding: 5px; border-radius: 5px;">
+                {% else %}
+                    <span class="fw-bold fs-4">SITE HUB</span>
+                {% endif %}
+            </div>
+            
+            <div style="width: 35px; height: 35px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                {{ staff_name[0] }}
+            </div>
         </div>
-        <div style="width: 35px; height: 35px; background: #e9ecef; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #6c757d;">
-            {{ staff_name[0] }}
-        </div>
-    </div>
 
-    <div class="welcome-block">
-        <h1 class="welcome-title">Hi, {{ staff_name.split(' ')[0] }}</h1>
-        <div class="mt-2">
+        <div class="d-flex justify-content-between align-items-end">
+            <div>
+                <h2 class="m-0 fw-bold">Hi, {{ staff_name.split(' ')[0] }}</h2>
+                <div class="small opacity-75">{{ now_ymd }}</div>
+            </div>
+            
             {% if active_job %}
-                <span class="status-pill bg-warning bg-opacity-25 text-dark border border-warning">
-                    <i class="fas fa-hammer"></i> Working: {{ active_job.name }}
+                <span class="badge bg-warning text-dark shadow-sm p-2">
+                    <i class="fas fa-hammer me-1"></i> WORKING
                 </span>
             {% elif is_at_work %}
-                <span class="status-pill bg-success bg-opacity-25 text-success border border-success">
-                    <i class="fas fa-clock"></i> Clocked In
+                <span class="badge bg-success shadow-sm p-2">
+                    <i class="fas fa-clock me-1"></i> CLOCKED IN
                 </span>
             {% else %}
-                <span class="status-pill bg-secondary bg-opacity-10 text-secondary border">
-                    <i class="fas fa-power-off"></i> Off Duty
+                <span class="badge bg-dark bg-opacity-50 shadow-sm p-2">
+                    OFF DUTY
                 </span>
             {% endif %}
         </div>
     </div>
 
-    <div class="action-grid">
-        <a href="/site/van-check" class="action-card">
-            <i class="fas fa-shuttle-van text-primary"></i>
-            <span>Van Check</span>
-        </a>
-        <a href="/site/log-fuel" class="action-card">
-            <i class="fas fa-gas-pump text-warning"></i>
-            <span>Log Fuel</span>
-        </a>
-        
-        <a href="#" class="action-card" onclick="event.preventDefault(); document.getElementById('clockForm').submit();"
-           style="{{ 'background:#198754; color:white;' if not is_at_work else 'background:#dc3545; color:white;' }}">
-            
-            {% if is_at_work %}
-                <i class="fas fa-stop-circle"></i>
-                <span>End Day</span>
-            {% else %}
-                <i class="fas fa-play-circle"></i>
-                <span>Start Day</span>
-            {% endif %}
-        </a>
-    </div>
+    <div class="container px-2">
 
-    <form id="clockForm" action="/site/toggle-day-clock" method="POST" style="display:none;">
-        <input type="hidden" name="action" value="{{ 'stop' if is_at_work else 'start' }}">
-    </form>
-
-    <div class="timeline">
-        
-        {% if jobs %}
-            {% set ns = namespace(last_date=None) %}
-            
-            {% for job in jobs %}
-                
-                {# --- DATE HEADER LOGIC --- #}
-                {% if job.raw_date %}
-                    {% set display_date = job.display_date %}
-                    {% set compare_date = job.raw_date %}
-                {% else %}
-                    {% set display_date = 'Unscheduled' %}
-                    {% set compare_date = 'None' %}
-                {% endif %}
-                
-                {% if ns.last_date != compare_date %}
-                    <div>
-                        <div class="date-marker">
-                            {% if compare_date == now_ymd %}Today
-                            {% else %}{{ display_date }}
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% set ns.last_date = compare_date %}
-                {% endif %}
-
-                <a href="/site/job/{{ job.id }}" class="job-card {{ 'active' if job.status == 'In Progress' else 'scheduled' }}">
-                    
-                    <div class="timeline-dot"></div> <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="badge {{ 'bg-warning text-dark' if job.status == 'In Progress' else 'bg-light text-dark border' }}" style="font-size: 0.65rem;">
-                            {{ job.status }}
-                        </span>
-                        <span class="card-meta fw-bold">{{ job.ref }}</span>
-                    </div>
-
-                    <div class="card-title">{{ job.client or 'Unknown Client' }}</div>
-                    <div style="font-size: 0.85rem; color: #555; margin-bottom: 8px;">
-                        {{ job.desc|truncate(50) }}
-                    </div>
-
-                    <div class="card-meta">
-                        <i class="fas fa-map-marker-alt text-danger"></i>
-                        <span class="text-truncate">{{ job.address }}</span>
-                    </div>
+        <div class="row g-2 mb-4">
+            <div class="col-4">
+                <a href="/site/van-check" class="action-btn text-primary">
+                    <i class="fas fa-shuttle-van"></i>
+                    VAN CHECK
                 </a>
-
-            {% endfor %}
-        
-        {% else %}
-            <div class="text-center py-5">
-                <div class="mb-3 p-3 bg-white rounded-circle d-inline-block shadow-sm">
-                    <i class="fas fa-calendar-check fa-2x text-muted"></i>
-                </div>
-                <h6 class="fw-bold text-dark">Schedule Clear</h6>
-                <p class="small text-muted">No jobs assigned for the upcoming days.</p>
             </div>
-        {% endif %}
+            <div class="col-4">
+                <a href="/site/log-fuel" class="action-btn text-warning">
+                    <i class="fas fa-gas-pump"></i>
+                    LOG FUEL
+                </a>
+            </div>
+            <div class="col-4">
+                <a href="#" onclick="event.preventDefault(); document.getElementById('clockForm').submit();" 
+                   class="action-btn"
+                   style="{{ 'color:#dc3545;' if is_at_work else 'color:#198754;' }}">
+                    
+                    {% if is_at_work %}
+                        <i class="fas fa-stop-circle"></i>
+                        END DAY
+                    {% else %}
+                        <i class="fas fa-play-circle"></i>
+                        START DAY
+                    {% endif %}
+                </a>
+            </div>
+        </div>
 
+        <form id="clockForm" action="/site/toggle-day-clock" method="POST" style="display:none;">
+            <input type="hidden" name="action" value="{{ 'stop' if is_at_work else 'start' }}">
+        </form>
+
+        <div class="timeline">
+            
+            {% if jobs %}
+                {% set ns = namespace(last_date=None) %}
+                
+                {% for job in jobs %}
+                    
+                    {# DATE LOGIC #}
+                    {% if job.raw_date %}
+                        {% set display_date = job.display_date %}
+                        {% set compare_date = job.raw_date %}
+                    {% else %}
+                        {% set display_date = 'Unscheduled' %}
+                        {% set compare_date = 'None' %}
+                    {% endif %}
+                    
+                    {# DATE HEADER #}
+                    {% if ns.last_date != compare_date %}
+                        <div>
+                            <div class="date-header">
+                                {% if compare_date == now_ymd %}Today
+                                {% else %}{{ display_date }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% set ns.last_date = compare_date %}
+                    {% endif %}
+
+                    <a href="/site/job/{{ job.id }}" class="job-card {{ 'active' if job.status == 'In Progress' else 'scheduled' }}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge {{ 'bg-warning text-dark' if job.status == 'In Progress' else 'bg-light text-dark border' }}">
+                                    {{ job.status }}
+                                </span>
+                                <span class="fw-bold text-muted small">{{ job.ref }}</span>
+                            </div>
+
+                            <h5 class="fw-bold text-dark mb-1">{{ job.client or 'Unknown Client' }}</h5>
+                            <div class="text-muted small mb-3">{{ job.desc|truncate(50) }}</div>
+
+                            <div class="d-flex align-items-center text-muted small fw-bold">
+                                <i class="fas fa-map-marker-alt text-danger me-2"></i> {{ job.address }}
+                            </div>
+                        </div>
+                    </a>
+
+                {% endfor %}
+            
+            {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-calendar-check fa-3x mb-3 opacity-25"></i>
+                    <h6 class="fw-bold">NO JOBS SCHEDULED</h6>
+                </div>
+            {% endif %}
+
+        </div>
     </div>
 
-    <div style="height: 60px;"></div> {% endblock %}
+{% endblock %}
