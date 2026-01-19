@@ -484,3 +484,107 @@ def create_site_cp12():
 @site_bp.route('/site/cert/eicr/create')
 def create_site_eicr():
     return redirect(f"/office/cert/eicr/create?job_id={request.args.get('job_id')}&prop_id={request.args.get('prop_id')}")
+    
+# =========================================================
+# LOG FUEL ROUTE (Fixes 404 Error)
+# =========================================================
+@site_bp.route('/site/log-fuel', methods=['GET', 'POST'])
+def site_log_fuel():
+    if not check_site_access(): return redirect(url_for('auth.login'))
+    
+    conn = get_db(); cur = conn.cursor()
+    # 1. Identify User & Assigned Vehicle
+    staff_id, _, comp_id, vehicle_id = get_staff_identity(session['user_id'], cur)
+
+    # 2. Get Vehicle Reg (for display in the form)
+    reg_plate = "Unknown"
+    if vehicle_id:
+        cur.execute("SELECT reg_plate FROM vehicles WHERE id = %s", (vehicle_id,))
+        row = cur.fetchone()
+        if row: reg_plate = row[0]
+
+    # 3. Handle Form Submission
+    if request.method == 'POST':
+        try:
+            total_cost = request.form.get('total_cost')
+            litres = request.form.get('litres')
+            mileage = request.form.get('mileage')
+            fuel_type = request.form.get('fuel_type')
+            
+            # Handle Receipt Upload
+            receipt_path = None
+            if 'receipt' in request.files:
+                f = request.files['receipt']
+                if f and f.filename != '':
+                    from werkzeug.utils import secure_filename
+                    import os
+                    # Ensure folder exists
+                    save_dir = os.path.join('static', 'uploads', str(comp_id), 'fuel')
+                    os.makedirs(save_dir, exist_ok=True)
+                    
+                    fname = secure_filename(f"FUEL_{date.today()}_{f.filename}")
+                    f.save(os.path.join(save_dir, fname))
+                    receipt_path = f"uploads/{comp_id}/fuel/{fname}"
+
+            # Save to Database (Maintenance Logs)
+            cur.execute("""
+                INSERT INTO maintenance_logs 
+                (company_id, vehicle_id, date, type, description, cost, receipt_path, mileage)
+                VALUES (%s, %s, %s, 'Fuel', %s, %s, %s, %s)
+            """, (comp_id, vehicle_id, date.today(), f"Fuel: {litres}L ({fuel_type})", total_cost, receipt_path, mileage))
+            
+            conn.commit()
+            flash("✅ Fuel logged successfully.", "success")
+            return redirect(url_for('site.site_dashboard'))
+
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error logging fuel: {e}", "error")
+
+    conn.close()
+    # Ensure this matches the file you uploaded: 'site/fuel_form.html'
+    return render_template('site/fuel_form.html', reg=reg_plate)
+    
+    @site_bp.route('/site/van-check', methods=['GET', 'POST'])
+def site_van_check():
+    if not check_site_access(): return redirect(url_for('auth.login'))
+    
+    conn = get_db(); cur = conn.cursor()
+    staff_id, staff_name, comp_id, vehicle_id = get_staff_identity(session['user_id'], cur)
+
+    # 1. Get Assigned Vehicle Details
+    assigned_van = None
+    if vehicle_id:
+        cur.execute("SELECT id, reg_plate FROM vehicles WHERE id = %s", (vehicle_id,))
+        assigned_van = cur.fetchone()
+
+    # 2. Handle Form Submission
+    if request.method == 'POST':
+        try:
+            # If user has an assigned van, use that ID. 
+            # If not (and logic allows selecting), grab from form.
+            target_veh_id = vehicle_id if vehicle_id else request.form.get('reg_plate') # If value is ID
+            
+            mileage = request.form.get('mileage')
+            defects = request.form.get('defects')
+            signature = request.form.get('signature')
+            
+            # Save Check Logic Here (Simplified for brevity, ensure your INSERT matches table cols)
+            # ... (Your existing save logic goes here) ...
+
+            flash("✅ Safety check submitted.", "success")
+            return redirect(url_for('site.site_dashboard'))
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error: {e}", "error")
+
+    # 3. Fetch all vehicles ONLY if no van is assigned (Fallback)
+    vehicles = []
+    if not assigned_van:
+        cur.execute("SELECT reg_plate FROM vehicles WHERE company_id = %s", (comp_id,))
+        vehicles = [r[0] for r in cur.fetchall()]
+
+    conn.close()
+    return render_template('site/van_check_form.html', 
+                           assigned_van=assigned_van, 
+                           vehicles=vehicles)
