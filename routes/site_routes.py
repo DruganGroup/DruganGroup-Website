@@ -415,7 +415,8 @@ def update_job(job_id):
                     db_path = f"uploads/job_evidence/{filename}"
                     file.save(os.path.join(JOB_EVIDENCE_FOLDER, filename))
                     
-                    cur.execute("INSERT INTO job_evidence (job_id, filepath, uploaded_by) VALUES (%s, %s, %s)", (job_id, db_path, session['user_id']))
+                    # FIX: Explicitly set file_type='Site Photo'
+                    cur.execute("INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type) VALUES (%s, %s, %s, 'Site Photo')", (job_id, db_path, session['user_id']))
                     flash("📷 Photo Uploaded")
 
         conn.commit()
