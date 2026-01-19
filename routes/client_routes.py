@@ -204,20 +204,37 @@ def view_property(property_id):
     }
     client = {'id': row[11], 'name': row[12], 'phone': row[13], 'email': row[14]}
 
-    # 2. Fetch Jobs
+    # 2. Fetch Jobs (With Date Fixing)
     cur.execute("""
         SELECT id, ref, status, description, start_date 
         FROM jobs 
         WHERE property_id = %s 
         ORDER BY start_date DESC
     """, (property_id,))
+    
     jobs = []
     for j in cur.fetchall():
-        jobs.append({'id': j[0], 'ref': j[1], 'status': j[2], 'desc': j[3], 'date': j[4]})
+        # --- THE FIX: Convert Text Date to Date Object ---
+        raw_date = j[4]
+        date_obj = None
+        if raw_date:
+            if isinstance(raw_date, str):
+                try:
+                    # Try timestamp format first (e.g. 2025-01-19 14:30:00)
+                    safe_str = raw_date.split('.')[0] # Remove milliseconds if present
+                    date_obj = datetime.strptime(safe_str, '%Y-%m-%d %H:%M:%S')
+                except (ValueError, TypeError):
+                    try:
+                        # Try simple date format (e.g. 2025-01-19)
+                        date_obj = datetime.strptime(raw_date, '%Y-%m-%d')
+                    except:
+                        pass # Keep as None if fail
+            else:
+                date_obj = raw_date # Already an object
 
-    # 3. Fetch Certificates (FIXED: Using job_evidence and filepath)
-    # The error 'relation job_files does not exist' happened here.
-    # We now point to job_evidence and check for file_type or generic photos.
+        jobs.append({'id': j[0], 'ref': j[1], 'status': j[2], 'desc': j[3], 'date': date_obj})
+
+    # 3. Fetch Certificates (Fixed for job_evidence)
     cur.execute("""
         SELECT f.id, f.file_type, f.uploaded_at, j.ref, f.filepath
         FROM job_evidence f
@@ -228,8 +245,6 @@ def view_property(property_id):
     
     certs = []
     for c in cur.fetchall():
-        # c[1] is file_type (e.g. 'CP12', 'EICR', or 'Site Photo')
-        # c[4] is filepath
         certs.append({'type': c[1], 'date': c[2], 'job_ref': c[3], 'path': c[4]})
 
     conn.close()
