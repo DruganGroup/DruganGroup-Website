@@ -563,3 +563,57 @@ def generate_job_rams(job_id):
         )
     except ImportError:
         return "PDF Service Missing. Please check backend services.", 500
+        
+# =========================================================
+# DANGER: WIPE OPERATIONAL DATA (Jobs, Quotes, Invoices)
+# =========================================================
+@office_bp.route('/office/admin/wipe-data')
+def wipe_operational_data():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    # EXTRA SECURITY: Only allow Admin/SuperAdmin
+    if session.get('role') not in ['Admin', 'SuperAdmin']:
+        flash("❌ Access Denied: Admins only.", "error")
+        return redirect(url_for('office.office_dashboard'))
+
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+
+    try:
+        # 1. CLEAR INVOICES & ITEMS
+        cur.execute("DELETE FROM invoice_items USING invoices WHERE invoice_items.invoice_id = invoices.id AND invoices.company_id = %s", (comp_id,))
+        cur.execute("DELETE FROM invoices WHERE company_id = %s", (comp_id,))
+
+        # 2. CLEAR QUOTES & ITEMS
+        # (We update jobs to remove quote links first, to avoid locking)
+        cur.execute("UPDATE jobs SET quote_id = NULL WHERE company_id = %s", (comp_id,))
+        cur.execute("DELETE FROM quote_items USING quotes WHERE quote_items.quote_id = quotes.id AND quotes.company_id = %s", (comp_id,))
+        cur.execute("DELETE FROM quotes WHERE company_id = %s", (comp_id,))
+
+        # 3. CLEAR JOB DEPENDENCIES (RAMS, Materials, Photos, etc.)
+        cur.execute("DELETE FROM job_rams WHERE company_id = %s", (comp_id,))
+        # For tables without company_id, we delete via the job join
+        cur.execute("DELETE FROM job_materials USING jobs WHERE job_materials.job_id = jobs.id AND jobs.company_id = %s", (comp_id,))
+        cur.execute("DELETE FROM job_expenses USING jobs WHERE job_expenses.job_id = jobs.id AND jobs.company_id = %s", (comp_id,))
+        cur.execute("DELETE FROM job_evidence USING jobs WHERE job_evidence.job_id = jobs.id AND jobs.company_id = %s", (comp_id,))
+        cur.execute("DELETE FROM job_photos USING jobs WHERE job_photos.job_id = jobs.id AND jobs.company_id = %s", (comp_id,))
+        cur.execute("DELETE FROM site_diary USING jobs WHERE site_diary.job_id = jobs.id AND jobs.company_id = %s", (comp_id,))
+        # Only delete timesheets attached to jobs (keep general clock-ins)
+        cur.execute("DELETE FROM staff_timesheets USING jobs WHERE staff_timesheets.job_id = jobs.id AND jobs.company_id = %s", (comp_id,))
+
+        # 4. CLEAR JOBS
+        cur.execute("DELETE FROM jobs WHERE company_id = %s", (comp_id,))
+
+        # 5. CLEAR SERVICE REQUESTS
+        cur.execute("DELETE FROM service_requests WHERE company_id = %s", (comp_id,))
+
+        conn.commit()
+        flash("⚠️ All Jobs, Quotes, Invoices, RAMS, and Requests have been wiped.", "success")
+
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error wiping data: {e}", "error")
+    finally:
+        conn.close()
+
+    return redirect(url_for('office.office_dashboard'))
