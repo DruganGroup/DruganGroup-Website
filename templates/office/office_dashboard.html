@@ -142,6 +142,56 @@
         </div>
 
     </div>
+	
+	<div class="row g-4 mt-1">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-bold border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-file-invoice text-info me-2"></i>Recent Quotes</span>
+                    <a href="#" class="btn btn-sm btn-outline-secondary">View All</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead class="bg-light text-muted text-uppercase">
+                            <tr>
+                                <th class="ps-3">Reference</th>
+                                <th>Client</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th class="text-end pe-3">Value</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for q in recent_quotes %}
+                            <tr>
+                                <td class="ps-3 fw-bold text-dark">{{ q.ref }}</td>
+                                <td>{{ q.client_name }}</td>
+                                <td class="text-muted">{{ q.date }}</td>
+                                <td>
+                                    <span class="badge rounded-pill 
+                                        {% if q.status == 'Sent' %}bg-primary
+                                        {% elif q.status == 'Draft' %}bg-secondary
+                                        {% else %}bg-warning text-dark{% endif %}">
+                                        {{ q.status }}
+                                    </span>
+                                </td>
+                                <td class="text-end pe-3 fw-bold">£{{ "%.2f"|format(q.total or 0) }}</td>
+                                <td class="text-end">
+                                    <a href="/office/quote/{{ q.id }}" class="btn btn-sm btn-light border">
+                                        View <i class="fas fa-arrow-right ms-1"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="6" class="text-center py-4 text-muted">No active quotes found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="modal fade" id="createJobModal" tabindex="-1">
         <div class="modal-dialog">

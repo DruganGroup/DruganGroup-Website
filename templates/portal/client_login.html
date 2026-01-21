@@ -62,6 +62,8 @@
         {% endwith %}
         
         <form action="/portal/auth" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
             <input type="hidden" name="company_id" value="{{ company_id }}">
             
             <label class="form-label">Email Address</label>

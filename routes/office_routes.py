@@ -85,6 +85,23 @@ def office_dashboard():
             'desc': r[4],
             'client_id': r[5]  # Critical for the Review button
         })
+        
+    # 4. RECENT QUOTES (The Missing List)
+    cur.execute("""
+        SELECT q.id, q.reference, c.name, q.total, q.status, q.date
+        FROM quotes q
+        JOIN clients c ON q.client_id = c.id
+        WHERE q.company_id = %s AND q.status IN ('Draft', 'Sent', 'Pending')
+        ORDER BY q.date DESC LIMIT 5
+    """, (comp_id,))
+    
+    recent_quotes = []
+    for r in cur.fetchall():
+        fmt_date = format_date(r[5], user_date_fmt)
+        recent_quotes.append({
+            'id': r[0], 'ref': r[1], 'client_name': r[2], 
+            'total': r[3], 'status': r[4], 'date': fmt_date
+        })
 
     # 2. UPCOMING JOBS
     cur.execute("""
@@ -148,6 +165,7 @@ def office_dashboard():
                            incoming_requests=incoming_requests,
                            upcoming_jobs=upcoming_jobs,
                            uninvoiced_jobs=uninvoiced_jobs,
+                           recent_quotes=recent_quotes,
                            pipeline=pipeline,
                            clients=clients,
                            vehicles=vehicles)
