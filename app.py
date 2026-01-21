@@ -1,8 +1,10 @@
 import os
 import traceback
+from datetime import timedelta
 from flask import Flask, render_template, request, session
-from werkzeug.exceptions import HTTPException  # <--- ADDED THIS IMPORT
+from werkzeug.exceptions import HTTPException
 from db import get_db
+from flask_wtf.csrf import CSRFProtect
 
 # 1. Import all Blueprints
 from routes.portal_routes import portal_bp
@@ -24,9 +26,18 @@ from routes.quote_routes import quote_bp
 # 2. CREATE THE APP
 app = Flask(__name__)
 
+# --- SECURITY: INITIALIZE CSRF PROTECTION ---
+csrf = CSRFProtect(app)
+
 # Configuration
-app.secret_key = os.environ.get("SECRET_KEY", "dev_key_123") 
+app.secret_key = os.environ.get("SECRET_KEY", "dev_key_123")
 app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'static', 'uploads', 'logos')
+
+# --- SECURITY: SESSION HARDENING (HTTPS ENABLED) ---
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=12)
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # 3. REGISTER BLUEPRINTS
 app.register_blueprint(portal_bp)
@@ -46,23 +57,19 @@ app.register_blueprint(jobs_bp)
 app.register_blueprint(quote_bp)
 
 # =========================================================
-# GLOBAL ERROR CAPTURE (The "Black Box")
-# This catches crashes and writes them to your Admin Log
+# GLOBAL ERROR CAPTURE
 # =========================================================
 @app.errorhandler(Exception)
 def handle_exception(e):
-    # 1. Pass through standard HTTP errors (like 404 Page Not Found)
     if isinstance(e, HTTPException):
         return e
 
-    # 2. Capture the Crash Details
     tb = traceback.format_exc()
     err_msg = str(e)
     route = request.path
     
     print(f"🚨 CRITICAL ERROR at {route}: {err_msg}") 
     
-    # 3. Save to Database (system_logs table)
     try:
         conn = get_db()
         if conn:
@@ -76,7 +83,6 @@ def handle_exception(e):
     except Exception as db_err:
         print(f"❌ LOGGING FAILED: {db_err}")
 
-    # 4. Show a friendly error page
     return "<h1>500 Internal Server Error</h1><p>The system administrator has been notified.</p>", 500
 
 # --- DEBUG ROUTE ---
@@ -93,7 +99,7 @@ def debug_files():
             output += f"{subindent}{f}<br>"
     return output
 
-# --- SYSTEM BROADCAST CONTEXT PROCESSOR ---
+# --- CONTEXT PROCESSORS ---
 @app.context_processor
 def inject_global_alert():
     alert_msg = None
@@ -104,73 +110,46 @@ def inject_global_alert():
             try:
                 cur.execute("SELECT value FROM system_settings WHERE key = 'global_alert'")
                 row = cur.fetchone()
-                if row and row[0]: 
-                    alert_msg = row[0]
+                if row and row[0]: alert_msg = row[0]
             except: pass
             conn.close()
     except: pass
-    
     return dict(global_system_alert=alert_msg)
 
-# --- GLOBAL CURRENCY INJECTOR ---
 @app.context_processor
 def inject_currency():
     default_sym = '£'
-    if 'company_id' not in session:
-        return dict(currency_symbol=default_sym)
-    
+    if 'company_id' not in session: return dict(currency_symbol=default_sym)
     try:
-        if 'currency_symbol' in session:
-            return dict(currency_symbol=session['currency_symbol'])
-            
-        conn = get_db()
-        cur = conn.cursor()
+        if 'currency_symbol' in session: return dict(currency_symbol=session['currency_symbol'])
+        conn = get_db(); cur = conn.cursor()
         cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'currency_symbol'", (session['company_id'],))
-        row = cur.fetchone()
-        conn.close()
-        
+        row = cur.fetchone(); conn.close()
         symbol = row[0] if row else default_sym
         session['currency_symbol'] = symbol
         return dict(currency_symbol=symbol)
-        
-    except Exception:
-        return dict(currency_symbol=default_sym)
-        
-# --- ERROR HANDLERS ---
-@app.errorhandler(404)
-def page_not_found(e):
-    # This tells Flask to render your new template when a 404 occurs
-    return render_template('publicbb/404.html'), 404
+    except: return dict(currency_symbol=default_sym)
 
-# --- GLOBAL BRANDING INJECTOR ---
 @app.context_processor
 def inject_branding():
-    default_color = '#2c3e50'
-    default_logo = None
+    default_color = '#2c3e50'; default_logo = None
+    if 'company_id' not in session: return dict(brand_color=default_color, logo=default_logo)
     
-    if 'company_id' not in session:
-        return dict(brand_color=default_color, logo=default_logo)
-
     color = session.get('brand_color')
     logo = session.get('logo')
 
     if not color or not logo:
         try:
-            conn = get_db()
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT key, value FROM settings 
-                WHERE company_id = %s AND key IN ('brand_color', 'logo')
-            """, (session['company_id'],))
-            row_dict = dict(cur.fetchall())
-            conn.close()
-            
+            conn = get_db(); cur = conn.cursor()
+            cur.execute("SELECT key, value FROM settings WHERE company_id = %s AND key IN ('brand_color', 'logo')", (session['company_id'],))
+            row_dict = dict(cur.fetchall()); conn.close()
             color = row_dict.get('brand_color', default_color)
             logo = row_dict.get('logo')
-            
-            session['brand_color'] = color
-            session['logo'] = logo
-        except Exception:
-            pass
-
+            session['brand_color'] = color; session['logo'] = logo
+        except: pass
     return dict(brand_color=color or default_color, logo=logo)
+
+# --- ERROR HANDLERS ---
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('publicbb/404.html'), 404

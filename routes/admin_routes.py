@@ -429,22 +429,32 @@ def create_backup():
 @admin_bp.route('/admin/backup/download/<filename>')
 def download_backup(filename):
     if session.get('role') != 'SuperAdmin': return "Access Denied"
+    
+    # SECURITY FIX: PREVENT PATH TRAVERSAL
+    from werkzeug.utils import secure_filename
+    safe_filename = secure_filename(filename)
+    
     backup_folder = os.path.join(os.getcwd(), 'static', 'backups')
-    return send_from_directory(backup_folder, filename, as_attachment=True)
+    return send_from_directory(backup_folder, safe_filename, as_attachment=True)
 
 # --- BACKUP SYSTEM: DELETE ---
 @admin_bp.route('/admin/backup/delete/<filename>')
 def delete_backup(filename):
     if session.get('role') != 'SuperAdmin': return "Access Denied"
     
+    # SECURITY FIX: PREVENT PATH TRAVERSAL
+    from werkzeug.utils import secure_filename
+    safe_filename = secure_filename(filename)
+    
     backup_folder = os.path.join(os.getcwd(), 'static', 'backups')
-    filepath = os.path.join(backup_folder, filename)
+    filepath = os.path.join(backup_folder, safe_filename)
     
     try:
+        # SAFETY CHECK: Ensure file exists before deleting
         if os.path.exists(filepath):
             os.remove(filepath)
-            flash(f"🗑️ Deleted archive: {filename}")
-            log_audit("DELETE BACKUP", filename, "Deleted manually")
+            flash(f"🗑️ Deleted archive: {safe_filename}")
+            log_audit("DELETE BACKUP", safe_filename, "Deleted manually")
         else:
             flash("❌ File not found.")
     except Exception as e:

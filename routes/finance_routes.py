@@ -1113,27 +1113,35 @@ def finance_bookkeeping():
     conn = get_db(); cur = conn.cursor()
     
     # 1. DEFINE INBOX PATH
-    # This is where you dump raw receipts before sorting them
     inbox_path = os.path.join(current_app.static_folder, 'uploads', str(comp_id), 'inbox')
     os.makedirs(inbox_path, exist_ok=True)
 
     # 2. HANDLE ACTIONS (Sort the file)
     if request.method == 'POST':
         action = request.form.get('action')
-        filename = request.form.get('file_id') # In this case, ID is the filename
+        
+        # --- SECURITY FIX: Sanitize the Filename ---
+        raw_filename = request.form.get('file_id')
+        if not raw_filename:
+            flash("❌ No file selected.", "error")
+            return redirect(url_for('finance.finance_bookkeeping'))
+            
+        filename = secure_filename(raw_filename) 
         cost = request.form.get('cost') or 0
         desc = request.form.get('description') or "Unsorted Receipt"
         
         src_file = os.path.join(inbox_path, filename)
         
         try:
-            if action == 'delete':
-                if os.path.exists(src_file): os.remove(src_file)
+            if not os.path.exists(src_file):
+                flash("❌ File not found or invalid filename.", "error")
+            
+            elif action == 'delete':
+                os.remove(src_file)
                 flash("🗑️ Document discarded.")
 
             elif action == 'assign_job':
                 job_id = request.form.get('job_id')
-                # Move file to permanent storage
                 dest_dir = os.path.join(current_app.static_folder, 'uploads', str(comp_id), 'expenses')
                 os.makedirs(dest_dir, exist_ok=True)
                 dest_path = os.path.join(dest_dir, filename)
@@ -1150,7 +1158,6 @@ def finance_bookkeeping():
 
             elif action == 'assign_overhead':
                 cat_id = request.form.get('category_id')
-                # Move file
                 dest_dir = os.path.join(current_app.static_folder, 'uploads', str(comp_id), 'overheads')
                 os.makedirs(dest_dir, exist_ok=True)
                 dest_path = os.path.join(dest_dir, filename)
@@ -1175,7 +1182,6 @@ def finance_bookkeeping():
         for f in os.listdir(inbox_path):
             if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
                 # Structure: (ID, Description, Cost, DisplayName, FilePath)
-                # For inbox, ID = filename, Cost = 0
                 full_web_path = f"static/uploads/{comp_id}/inbox/{f}"
                 unsorted_files.append((f, "Scanned Receipt", 0.00, f, full_web_path))
 

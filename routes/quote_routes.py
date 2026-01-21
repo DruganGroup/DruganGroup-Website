@@ -266,6 +266,8 @@ def convert_to_job(quote_id):
 
         job_ref = q_ref.replace('Q-', 'JOB-')
         
+        # --- TRANSACTION START ---
+        
         # 3. INSERT JOB (Uses prop_id from the Quote)
         cur.execute("""
             INSERT INTO jobs (company_id, client_id, property_id, ref, description, status, quote_id, quote_total, vehicle_id, estimated_days)
@@ -281,13 +283,16 @@ def convert_to_job(quote_id):
             FROM quote_items WHERE quote_id = %s
         """, (job_id, quote_id))
         
+        # 5. UPDATE QUOTE STATUS
         cur.execute("UPDATE quotes SET status = 'Accepted' WHERE id = %s", (quote_id,))
         
+        # --- TRANSACTION COMMIT ---
         conn.commit()
         flash(f"✅ Job {job_ref} Created! Materials synced.", "success")
         return redirect(url_for('office.office_calendar'))
 
     except Exception as e:
+        # --- ROLLBACK ON ERROR ---
         conn.rollback()
         flash(f"Error converting to job: {e}", "error")
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
