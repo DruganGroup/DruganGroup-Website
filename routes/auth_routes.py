@@ -35,7 +35,7 @@ def login():
             session['user_name'] = user[1]
             session['role'] = user[3]
             session['company_id'] = user[4]
-            session['user_email'] = user[5]
+            session['user_email'] = user[5] 
             
             # 3. LOG AUDIT
             ip = request.remote_addr
