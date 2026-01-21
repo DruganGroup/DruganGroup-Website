@@ -3,267 +3,179 @@
 {% block title %}Hub | Business Better{% endblock %}
 
 {% block head %}
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-
 <style>
-    /* --- 1. FORCE RESET & BACKGROUND --- */
+    /* 1. Global Reset & Premium Background */
     body {
-        background-color: #f3f4f6 !important; /* Premium Off-White */
-        font-family: 'Inter', sans-serif !important;
-        padding-top: 0 !important;
-        margin: 0 !important;
+        background-color: #f0f2f5 !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
-    
-    /* Remove default header to use our custom one */
-    .brand-header { display: none !important; }
+    .brand-header { display: none !important; } /* Hide old header */
     .container { max-width: 100% !important; padding: 0 !important; }
 
-    /* --- 2. LUXURY HEADER (The "Dubai" Look) --- */
-    .hero-header {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        padding: 40px 25px 80px 25px; /* Bottom padding for overlap */
-        border-radius: 0 0 30px 30px;
+    /* 2. Modern Header Block */
+    .hub-header {
+        background: #111; /* Sharp Black */
         color: white;
+        padding: 40px 20px 80px 20px; /* Deep padding for overlap */
+        border-bottom-left-radius: 24px;
+        border-bottom-right-radius: 24px;
         position: relative;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        z-index: 1;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
     }
-
-    .hero-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
+    .user-row {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 10px;
     }
-
-    .avatar-circle {
-        width: 50px; height: 50px;
-        background: linear-gradient(45deg, #FFD700, #FDB931); /* Gold Gradient */
+    .avatar {
+        width: 48px; height: 48px;
+        background: #C5A059; /* Gold */
         color: #000;
         font-weight: 800;
-        border-radius: 50%;
+        border-radius: 12px;
         display: flex; align-items: center; justify-content: center;
         font-size: 1.2rem;
-        border: 3px solid rgba(255,255,255,0.2);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
     }
+    .date-display { font-size: 0.85rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+    .greeting { font-size: 1.8rem; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
 
-    .greeting h1 { font-size: 1.8rem; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
-    .greeting p { color: rgba(255,255,255,0.6); margin: 0; font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-
-    /* --- 3. ACTION TILES (The "Buttons") --- */
-    .tiles-container {
+    /* 3. Action Grid (Overlapping Buttons) */
+    .quick-actions {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
         padding: 0 20px;
-        margin-top: -50px; /* Pulls tiles up into header */
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 15px;
-        position: relative;
-        z-index: 10;
-        margin-bottom: 30px;
+        margin-top: -50px; /* Overlaps header */
+        margin-bottom: 25px;
+        position: relative; z-index: 10;
     }
-
-    .action-tile {
-        background: #ffffff;
-        border-radius: 20px;
+    .action-btn {
+        background: white;
         padding: 20px;
+        border-radius: 16px;
         text-align: center;
         text-decoration: none;
-        color: #1e293b;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-        transition: transform 0.2s ease;
-        border: 1px solid rgba(255,255,255,0.5);
-    }
-    
-    .action-tile:active { transform: scale(0.96); }
-
-    .tile-icon {
-        width: 50px; height: 50px;
-        background: #f8fafc;
-        border-radius: 15px;
-        display: flex; align-items: center; justify-content: center;
-        margin: 0 auto 12px auto;
-        font-size: 1.4rem;
-    }
-    .icon-blue { color: #3b82f6; background: #eff6ff; }
-    .icon-orange { color: #f97316; background: #fff7ed; }
-
-    .tile-label { font-weight: 700; font-size: 0.95rem; }
-
-    /* --- 4. TIMELINE & CARDS --- */
-    .timeline-wrapper {
-        padding: 0 20px 40px 20px;
-        position: relative;
-    }
-    
-    /* The vertical line */
-    .timeline-line {
-        position: absolute;
-        left: 35px; /* Align with dots */
-        top: 0; bottom: 0;
-        width: 2px;
-        background: #e2e8f0;
-        z-index: 0;
-    }
-
-    .timeline-group { margin-bottom: 25px; position: relative; z-index: 1; }
-
-    .date-marker {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        margin-bottom: 15px;
-    }
-    
-    .date-dot {
-        width: 12px; height: 12px;
-        background: #94a3b8;
-        border-radius: 50%;
-        margin-left: 10px; /* Aligns with line */
-        border: 3px solid #f3f4f6; /* Masks line behind it */
-    }
-    .date-dot.today { background: #10b981; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2); }
-
-    .date-text {
-        font-weight: 800;
-        color: #64748b;
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-
-    /* THE JOB CARD ITSELF */
-    .job-card-premium {
-        background: white;
-        border-radius: 18px;
-        padding: 20px;
-        margin-left: 30px; /* Space for timeline */
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-        border-left: 5px solid transparent; /* Status strip */
-        text-decoration: none;
-        display: block;
+        color: #333;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        border: 1px solid rgba(0,0,0,0.05);
         transition: transform 0.1s;
     }
-    .job-card-premium:active { transform: scale(0.98); background: #fafafa; }
+    .action-btn:active { transform: scale(0.96); }
+    .action-icon {
+        font-size: 1.5rem; margin-bottom: 8px;
+        color: #C5A059;
+    }
+    .action-text { font-weight: 700; font-size: 0.95rem; }
+
+    /* 4. The Job Stream (Distinct Cards) */
+    .stream-container { padding: 0 20px 60px 20px; }
+    
+    .day-header {
+        font-size: 0.85rem; font-weight: 800; 
+        color: #888; text-transform: uppercase; 
+        margin: 25px 0 10px 5px; letter-spacing: 0.5px;
+    }
+
+    .job-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.04);
+        border-left: 6px solid transparent;
+        text-decoration: none; display: block;
+        color: inherit;
+    }
+    .job-card:active { background: #f9f9f9; }
 
     /* Status Colors */
     .status-InProgress { border-left-color: #f59e0b; } /* Amber */
     .status-Completed { border-left-color: #10b981; } /* Green */
     .status-Scheduled { border-left-color: #3b82f6; } /* Blue */
 
-    .job-client {
-        color: #0f172a;
-        font-weight: 800;
-        font-size: 1.1rem;
-        margin-bottom: 4px;
+    .job-top { display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px; }
+    .client-name { font-size: 1.1rem; font-weight: 800; color: #111; }
+    .time-badge { 
+        background: #f1f5f9; padding: 4px 8px; 
+        border-radius: 6px; font-size: 0.8rem; font-weight: 600; color: #64748b; 
     }
-    .job-desc {
-        color: #64748b;
-        font-size: 0.9rem;
-        line-height: 1.4;
-        margin-bottom: 12px;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
+    
+    .job-desc { color: #555; font-size: 0.95rem; margin-bottom: 12px; line-height: 1.4; }
+    
     .job-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-top: 1px solid #f1f5f9;
-        padding-top: 12px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: #94a3b8;
+        display: flex; align-items: center; gap: 8px;
+        font-size: 0.85rem; color: #888; font-weight: 500;
+        border-top: 1px solid #eee; padding-top: 12px;
     }
-    .job-time { background: #f1f5f9; padding: 4px 8px; border-radius: 6px; color: #475569; }
 
+    /* Empty State */
+    .empty-box {
+        text-align: center; padding: 60px 20px;
+        color: #aaa;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 
-    <header class="hero-header">
-        <div class="hero-top">
-            <a href="/logout" class="text-white opacity-50"><i class="fas fa-sign-out-alt fa-lg"></i></a>
-            <div class="avatar-circle">
-                {{ staff_name[0] }}
-            </div>
+    <div class="hub-header">
+        <div class="user-row">
+            <a href="/logout" style="color:white; opacity:0.7;"><i class="fas fa-sign-out-alt fa-lg"></i></a>
+            <div class="avatar">{{ staff_name[0] }}</div>
         </div>
-        <div class="greeting">
-            <p>{{ now_ymd }}</p>
-            <h1>{{ staff_name.split(' ')[0] }}'s Hub</h1>
-        </div>
-    </header>
+        <div class="date-display">{{ now_ymd }}</div>
+        <h1 class="greeting">Hello, {{ staff_name.split(' ')[0] }}</h1>
+    </div>
 
-    <div class="tiles-container">
-        <a href="/site/van-check" class="action-tile">
-            <div class="tile-icon icon-blue">
-                <i class="fas fa-shuttle-van"></i>
-            </div>
-            <div class="tile-label">Check Van</div>
+    <div class="quick-actions">
+        <a href="/site/van-check" class="action-btn">
+            <div class="action-icon"><i class="fas fa-truck-pickup"></i></div>
+            <div class="action-text">Van Check</div>
         </a>
-        <a href="/site/log-fuel" class="action-tile">
-            <div class="tile-icon icon-orange">
-                <i class="fas fa-gas-pump"></i>
-            </div>
-            <div class="tile-label">Log Fuel</div>
+        <a href="/site/log-fuel" class="action-btn">
+            <div class="action-icon"><i class="fas fa-gas-pump"></i></div>
+            <div class="action-text">Log Fuel</div>
         </a>
     </div>
 
-    <div class="timeline-wrapper">
-        <div class="timeline-line"></div>
-
+    <div class="stream-container">
+        
         {% if jobs %}
             {% set ns = namespace(last_date=None) %}
             
             {% for job in jobs %}
                 
-                {# DATE LOGIC #}
+                {# DETERMINE DISPLAY DATE #}
                 {% if job.raw_date %}
                     {% set compare_date = job.raw_date %}
-                    {% set display_text = 'TODAY' if compare_date == now_ymd else job.display_date %}
+                    {% set display_text = 'Today' if compare_date == now_ymd else job.display_date %}
                 {% else %}
                     {% set compare_date = 'TBC' %}
-                    {% set display_text = 'UNSCHEDULED' %}
+                    {% set display_text = 'Unscheduled Tasks' %}
                 {% endif %}
 
-                {# DATE HEADER (Only show if date changed) #}
+                {# RENDER HEADER IF DATE CHANGED #}
                 {% if ns.last_date != compare_date %}
-                    <div class="timeline-group">
-                        <div class="date-marker">
-                            <div class="date-dot {{ 'today' if compare_date == now_ymd else '' }}"></div>
-                            <div class="date-text {{ 'text-dark' if compare_date == now_ymd else '' }}">{{ display_text }}</div>
-                        </div>
-                    </div>
+                    <div class="day-header">{{ display_text }}</div>
                     {% set ns.last_date = compare_date %}
                 {% endif %}
 
-                <div class="timeline-group">
-                    <a href="/site/job/{{ job.id }}" class="job-card-premium status-{{ job.status|replace(' ', '') }}">
-                        <div class="job-client">{{ job.client or 'Unknown Client' }}</div>
-                        <div class="job-desc">{{ job.desc }}</div>
-                        
-                        <div class="job-footer">
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="fas fa-map-marker-alt text-danger"></i>
-                                <span class="text-truncate" style="max-width: 120px;">{{ job.address }}</span>
-                            </div>
-                            <div class="job-time">
-                                <i class="far fa-clock me-1"></i> {{ job.start_time or '09:00' }}
-                            </div>
-                        </div>
-                    </a>
-                </div>
+                <a href="/site/job/{{ job.id }}" class="job-card status-{{ job.status|replace(' ', '') }}">
+                    <div class="job-top">
+                        <div class="client-name">{{ job.client or 'Unknown Client' }}</div>
+                        <div class="time-badge">{{ job.start_time or '09:00' }}</div>
+                    </div>
+                    
+                    <div class="job-desc">{{ job.desc }}</div>
+                    
+                    <div class="job-footer">
+                        <i class="fas fa-map-marker-alt text-danger"></i>
+                        <span class="text-truncate">{{ job.address }}</span>
+                    </div>
+                </a>
 
             {% endfor %}
-        
         {% else %}
-            <div class="text-center pt-5" style="opacity: 0.5;">
-                <i class="fas fa-calendar-check fa-4x mb-3 text-secondary"></i>
-                <h3 class="fw-bold text-dark">All Clear</h3>
-                <p>No jobs scheduled right now.</p>
+            <div class="empty-box">
+                <i class="fas fa-coffee fa-3x mb-3"></i>
+                <p>No jobs scheduled for you right now.</p>
             </div>
         {% endif %}
 
