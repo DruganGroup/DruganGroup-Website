@@ -1,0 +1,167 @@
+{% extends "office/office_base.html" %}
+
+{% block title %}Smart Estimator | Office Hub{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold m-0"><i class="fas fa-calculator me-2 text-warning"></i>Smart Estimator</h2>
+        <a href="/office-hub" class="btn btn-outline-secondary">Back to Dashboard</a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-dark text-white fw-bold">
+                    <i class="fas fa-sliders-h me-2"></i>Job Details
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Select Trade</label>
+                            <select name="tool_type" class="form-select" onchange="this.form.submit()">
+                                <option value="fencing" selected>🚧 Fencing (Closeboard)</option>
+                                <option value="roofing" disabled>🏠 Roofing (Coming Soon)</option>
+                                <option value="patio" disabled>🧱 Patio / Paving (Coming Soon)</option>
+                            </select>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Fence Length (Meters)</label>
+                            <input type="number" step="0.1" name="length" class="form-control form-control-lg fw-bold" value="{{ inputs.get('length', '') }}" placeholder="e.g. 20.5" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Fence Height (Meters)</label>
+                            <select name="height" class="form-select">
+                                <option value="0.9" {% if inputs.get('height') == '0.9' %}selected{% endif %}>0.9m (3ft)</option>
+                                <option value="1.2" {% if inputs.get('height') == '1.2' %}selected{% endif %}>1.2m (4ft)</option>
+                                <option value="1.5" {% if inputs.get('height') == '1.5' %}selected{% endif %}>1.5m (5ft)</option>
+                                <option value="1.8" {% if inputs.get('height') == '1.8' %}selected{% endif %} selected>1.8m (6ft)</option>
+                                <option value="2.0" {% if inputs.get('height') == '2.0' %}selected{% endif %}>2.0m (6.5ft)</option>
+                            </select>
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary fw-bold btn-lg">
+                                <i class="fas fa-magic me-2"></i>Calculate Quote
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            {% if result %}
+            
+            <div class="card shadow-sm border-0 mb-4 border-start border-success border-5">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-uppercase text-muted fw-bold small">Estimated Quote Value</h6>
+                        <h1 class="fw-bold text-success m-0">£{{ "%.2f"|format(result.grand_total) }}</h1>
+                        <div class="text-muted small mt-1">{{ result.summary }}</div>
+                        <div class="text-muted small">Est. Duration: <strong>{{ result.est_duration_days }} days</strong> (based on 2-man crew)</div>
+                    </div>
+                    <div>
+                        <button class="btn btn-success fw-bold px-4 py-2 shadow">
+                            <i class="fas fa-file-invoice me-2"></i>Save as Quote
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-7">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-white fw-bold">
+                            <i class="fas fa-shopping-basket text-primary me-2"></i>Bill of Materials
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0 small">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Item</th>
+                                        <th class="text-center">Qty</th>
+                                        <th class="text-end">Cost</th>
+                                        <th class="text-end">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in result.breakdown %}
+                                    <tr>
+                                        <td>
+                                            {{ item.desc }}
+                                            {% if not item.supplier or item.supplier == "To Be Sourced" %}
+                                                <i class="fas fa-exclamation-circle text-danger ms-1" title="Not found in DB - Using £0 cost"></i>
+                                            {% else %}
+                                                <span class="badge bg-light text-dark border ms-1">{{ item.supplier }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center fw-bold">{{ item.qty }}</td>
+                                        <td class="text-end text-muted">£{{ "%.2f"|format(item.cost) }}</td>
+                                        <td class="text-end fw-bold">£{{ "%.2f"|format(item.total) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                    <tr class="table-light fw-bold">
+                                        <td colspan="3" class="text-end">Materials Total:</td>
+                                        <td class="text-end">£{{ "%.2f"|format(result.materials_total) }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="3" class="text-end text-muted">Labor & Plant:</td>
+                                        <td class="text-end text-muted">£{{ "%.2f"|format(result.resource_total) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-5">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-white fw-bold">
+                            <i class="fas fa-truck text-warning me-2"></i>Supplier Orders
+                        </div>
+                        <div class="card-body">
+                            {% if result.shopping_list %}
+                                <p class="small text-muted mb-3">One-click email ordering enabled.</p>
+                                
+                                {% for supplier, details in result.shopping_list.items() %}
+                                    <div class="border rounded p-3 mb-2 bg-light">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div class="fw-bold">{{ supplier }}</div>
+                                            <a href="mailto:{{ details.email }}?subject=Order for {{ inputs.length }}m Fencing Job&body=Please supply:%0D%0A{% for i in details.items %}- {{ i.qty }}x {{ i.name }}%0D%0A{% endfor %}" target="_blank" class="btn btn-sm btn-dark">
+                                                <i class="fas fa-envelope me-1"></i> Order
+                                            </a>
+                                        </div>
+                                        <ul class="mb-0 small text-muted ps-3">
+                                            {% for i in details.items %}
+                                                <li>{{ i.qty }}x {{ i.name }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center text-muted py-4">
+                                    <i class="fas fa-search mb-2"></i>
+                                    <p class="small">No items matched to known suppliers.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-hard-hat fa-4x mb-3 text-light"></i>
+                <h4>Ready to Calculate</h4>
+                <p>Enter the job dimensions on the left to generate an instant quote.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
