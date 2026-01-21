@@ -1,76 +1,138 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Quote {{ quote[1] }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background: #f4f7f6; padding: 40px 0; }
-        .card { border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .status-Draft { color: #666; background: #eee; }
-        .status-Accepted { color: #0f5132; background: #d1e7dd; }
-        .status-Declined { color: #842029; background: #f8d7da; }
-    </style>
-</head>
-<body>
-<div class="container" style="max-width: 800px;">
-    <div class="mb-3">
-        <a href="/portal/quotes" class="text-decoration-none text-muted">&larr; Back to List</a>
-    </div>
-    
-    <div class="card p-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="fw-bold m-0">Quote</h2>
-            <span class="badge status-{{ quote[4] }} fs-6 px-3 py-2">{{ quote[4] }}</span>
-        </div>
-        
-        <div class="row mb-5">
-            <div class="col-6">
-                <h5 class="text-muted small text-uppercase">Reference</h5>
-                <p class="fw-bold">{{ quote[1] }}</p>
-            </div>
-            <div class="col-6 text-end">
-                <h5 class="text-muted small text-uppercase">Date</h5>
-                <p class="fw-bold">{{ quote[2] }}</p>
-            </div>
-        </div>
+{% extends "portal/portal_base.html" %}
 
-        <table class="table mb-4">
-            <thead class="table-light">
-                <tr>
-                    <th>Description</th>
-                    <th class="text-end">Qty</th>
-                    <th class="text-end">Unit Price</th>
-                    <th class="text-end">Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in items %}
-                <tr>
-                    <td>{{ item[0] }}</td>
-                    <td class="text-end">{{ item[1] }}</td>
-                    <td class="text-end">£{{ "%.2f"|format(item[2]) }}</td>
-                    <td class="text-end fw-bold">£{{ "%.2f"|format(item[3]) }}</td>
-                </tr>
-                {% else %}
-                <tr><td colspan="4" class="text-center text-muted py-3">Summary Quote (No itemized breakdown)</td></tr>
-                {% endfor %}
-            </tbody>
-            <tfoot style="border-top: 2px solid #000;">
-                <tr>
-                    <td colspan="3" class="text-end fw-bold fs-5 pt-3">Grand Total</td>
-                    <td class="text-end fw-bold fs-5 pt-3">£{{ "%.2f"|format(quote[3]) }}</td>
-                </tr>
-            </tfoot>
-        </table>
+{% block title %}Quote {{ quote.ref }} | {{ company_name }}{% endblock %}
 
-        {% if quote[4] in ['Draft', 'Sent'] %}
-        <div class="d-flex gap-3 mt-4 pt-4 border-top">
-            <a href="/portal/quote/{{ quote[0] }}/accept" class="btn btn-success flex-grow-1 fw-bold py-2">Accept Quote</a>
-            <a href="/portal/quote/{{ quote[0] }}/decline" class="btn btn-outline-danger fw-bold py-2">Decline</a>
-        </div>
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <a href="/portal/quotes" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-2"></i>Back to Quotes
+    </a>
+    <div>
+        {% if quote.status in ['Draft', 'Sent'] %}
+        <span class="badge bg-warning text-dark fs-6 shadow-sm">
+            <i class="fas fa-clock me-1"></i> Awaiting Approval
+        </span>
+        {% elif quote.status == 'Accepted' %}
+        <span class="badge bg-success fs-6 shadow-sm">
+            <i class="fas fa-check-circle me-1"></i> Accepted
+        </span>
         {% endif %}
     </div>
 </div>
-</body>
-</html>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card border-0 shadow-lg overflow-hidden">
+            <div class="card-header border-0 p-4 p-md-5 text-white" style="background-color: {{ brand_color }};">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h1 class="fw-bold mb-0">QUOTE</h1>
+                        <p class="opacity-75 mb-0">{{ quote.ref }}</p>
+                    </div>
+                    <div class="text-end">
+                        <h5 class="mb-1">Total Value</h5>
+                        <h2 class="fw-bold mb-0">{{ config.currency }}{{ "%.2f"|format(quote.grand_total) }}</h2>
+                        <small class="opacity-75">Issued: {{ quote.date }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body p-4 p-md-5 bg-white">
+                <div class="row mb-5">
+                    <div class="col-md-6 mb-4 mb-md-0">
+                        <p class="small text-uppercase text-muted fw-bold mb-2">From</p>
+                        {% if logo_url %}
+                            <img src="{{ logo_url }}" alt="Logo" style="max-height: 60px;" class="mb-3">
+                        {% else %}
+                            <h4 class="fw-bold text-dark">{{ company_name }}</h4>
+                        {% endif %}
+                        <div class="text-muted small">
+                            {{ config.address }}<br>
+                            {{ config.email }}<br>
+                            {{ config.phone }}
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <p class="small text-uppercase text-muted fw-bold mb-2">For Project</p>
+                        <h5 class="fw-bold text-dark">{{ quote.title }}</h5>
+                        <div class="text-muted small mb-3">
+                            <i class="fas fa-map-marker-alt me-1"></i> {{ quote.site_address }}
+                        </div>
+                        <p class="small text-muted">{{ quote.desc }}</p>
+                    </div>
+                </div>
+
+                <div class="table-responsive mb-4">
+                    <table class="table table-borderless">
+                        <thead style="border-bottom: 2px solid #eee;">
+                            <tr class="text-uppercase small text-muted">
+                                <th class="ps-0 py-3">Description</th>
+                                <th class="text-end py-3">Qty</th>
+                                <th class="text-end py-3">Unit Price</th>
+                                <th class="text-end py-3 pe-0">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr style="border-bottom: 1px solid #f8f9fa;">
+                                <td class="ps-0 py-3">
+                                    <div class="fw-bold text-dark">{{ item[0] }}</div>
+                                </td>
+                                <td class="text-end py-3">{{ item[1] }}</td>
+                                <td class="text-end py-3">{{ config.currency }}{{ "%.2f"|format(item[2]) }}</td>
+                                <td class="text-end py-3 pe-0 fw-bold">{{ config.currency }}{{ "%.2f"|format(item[3]) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="row justify-content-end">
+                    <div class="col-md-5 col-lg-4">
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                            <span class="text-muted">Subtotal</span>
+                            <span class="fw-bold">{{ config.currency }}{{ "%.2f"|format(quote.subtotal) }}</span>
+                        </div>
+                        
+                        {% if quote.tax_rate_percent > 0 %}
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                            <span class="text-muted">VAT ({{ quote.tax_rate_percent }}%)</span>
+                            <span class="fw-bold">{{ config.currency }}{{ "%.2f"|format(quote.tax_amount) }}</span>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="d-flex justify-content-between align-items-center py-3">
+                            <span class="fs-5 fw-bold text-dark">Grand Total</span>
+                            <span class="fs-4 fw-bold" style="color: {{ brand_color }};">
+                                {{ config.currency }}{{ "%.2f"|format(quote.grand_total) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {% if quote.status in ['Draft', 'Sent'] %}
+                <div class="mt-5 pt-4 border-top text-center">
+                    <p class="mb-3 text-muted">Satisfied with this quote? Click below to proceed.</p>
+                    <a href="/portal/quote/{{ quote.id }}/accept" 
+                       class="btn btn-lg px-5 shadow-sm text-white fw-bold" 
+                       style="background-color: #28a745; border-radius: 50px;">
+                        <i class="fas fa-check-circle me-2"></i> Accept Quote
+                    </a>
+                </div>
+                {% elif quote.status == 'Accepted' %}
+                <div class="mt-5 pt-4 border-top text-center">
+                    <div class="alert alert-success d-inline-block px-5 py-3 rounded-pill">
+                        <i class="fas fa-check-circle me-2"></i> You have accepted this quote.
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+        
+        <div class="text-center mt-4 text-muted small">
+            Generated by {{ company_name }} Portal
+        </div>
+    </div>
+</div>
+{% endblock %}

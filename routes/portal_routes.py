@@ -278,44 +278,99 @@ def portal_quotes():
                            brand_color=config.get('color'),
                            quotes=quotes)
 
-# B. VIEW SINGLE QUOTE
 @portal_bp.route('/portal/quote/<int:quote_id>')
 def portal_view_quote(quote_id):
     if not check_portal_access(): return redirect(get_login_url())
     
     client_id = session['portal_client_id']
     comp_id = session['portal_company_id']
-    config = get_site_config(comp_id)
     
     conn = get_db(); cur = conn.cursor()
+
+    # 1. FETCH COMPANY SETTINGS (The "Brain" of the Quote)
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
     
-    # 1. Fetch Quote Header (Security Check: Must match client_id)
+    config = {
+        'name': settings.get('company_name', 'Our Company'),
+        'email': settings.get('company_email', ''),
+        'phone': settings.get('company_phone', ''),
+        'address': settings.get('company_address', ''),
+        'logo': settings.get('logo', ''),
+        'color': settings.get('brand_color', '#333333'),
+        'currency': settings.get('currency_symbol', '£')
+    }
+
+    # 2. FETCH QUOTE HEADER + JOB DETAILS
     cur.execute("""
-        SELECT id, reference, date, total, status 
-        FROM quotes 
-        WHERE id = %s AND client_id = %s
+        SELECT q.id, q.reference, q.date, q.total, q.status, 
+               q.job_title, p.address_line1, p.postcode, q.job_description
+        FROM quotes q
+        LEFT JOIN properties p ON q.property_id = p.id
+        WHERE q.id = %s AND q.client_id = %s
     """, (quote_id, client_id))
-    quote = cur.fetchone()
+    quote_row = cur.fetchone()
     
-    if not quote:
+    if not quote_row:
         conn.close()
         return "Quote not found or access denied", 404
-        
-    # 2. Fetch Line Items
+
+    # 3. FETCH LINE ITEMS
     cur.execute("""
         SELECT description, quantity, unit_price, total 
         FROM quote_items 
-        WHERE quote_id = %s
+        WHERE quote_id = %s ORDER BY id ASC
     """, (quote_id,))
-    items = cur.fetchall()
+    items_raw = cur.fetchall()
+    items = []
     
+    # Calculate Subtotal from Items (True Net)
+    subtotal = 0.0
+    for r in items_raw:
+        subtotal += float(r[3] or 0)
+        items.append(r)
+
     conn.close()
+
+    # 4. TAX LOGIC (Matches Office/PDF Logic)
+    vat_reg = settings.get('vat_registered', 'no')
+    tax_rate = 0.0
+    
+    if vat_reg in ['yes', 'on', 'true', '1']:
+        manual_rate = settings.get('default_tax_rate')
+        if manual_rate: 
+            tax_rate = float(manual_rate) / 100
+        else:
+            # Default Country Rates
+            country = settings.get('country_code', 'UK')
+            TAX_RATES = {'UK': 0.20, 'IE': 0.23, 'US': 0.00, 'CAN': 0.05, 'AUS': 0.10, 'NZ': 0.15}
+            tax_rate = TAX_RATES.get(country, 0.20)
+
+    tax_amount = subtotal * tax_rate
+    grand_total = subtotal + tax_amount
+
+    # Package Data
+    quote = {
+        'id': quote_row[0],
+        'ref': quote_row[1],
+        'date': format_date_by_country(quote_row[2], comp_id),
+        'status': quote_row[4],
+        'title': quote_row[5] or "General Quote",
+        'site_address': f"{quote_row[6]}, {quote_row[7]}" if quote_row[6] else "No Site Address",
+        'desc': quote_row[8],
+        # Financials
+        'subtotal': subtotal,
+        'tax_rate_percent': int(tax_rate * 100),
+        'tax_amount': tax_amount,
+        'grand_total': grand_total
+    }
     
     return render_template('portal/portal_quote_view.html',
                            client_name=session.get('portal_client_name'),
-                           company_name=config.get('name'), 
-                           logo_url=config.get('logo'),
-                           brand_color=config.get('color'),
+                           company_name=config['name'],
+                           logo_url=config['logo'],
+                           brand_color=config['color'],
+                           config=config,
                            quote=quote,
                            items=items)
 
