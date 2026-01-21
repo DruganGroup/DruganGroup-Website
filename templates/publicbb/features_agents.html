@@ -3,40 +3,109 @@
 {% block title %}Property Management Software | Business Better{% endblock %}
 
 {% block content %}
-<header class="bg-dark text-white py-5">
-    <div class="container py-5 text-center">
-        <span class="text-warning fw-bold text-uppercase letter-spacing-2">Service Desk Module</span>
-        <h1 class="display-3 fw-bold mb-4 mt-2">Stop the phone ringing.</h1>
-        <p class="lead text-white-50 mx-auto mb-5" style="max-width: 600px;">
-            The complete maintenance automation platform for Estate Agents and Block Managers.
+<header class="position-relative overflow-hidden" style="padding: 100px 0; background: var(--bb-bg);">
+    <div class="container position-relative z-2 text-center">
+        <div class="d-inline-block px-3 py-1 mb-4 border border-secondary rounded-pill">
+            <span class="text-white text-uppercase small fw-bold tracking-wide">Service Desk Module</span>
+        </div>
+        <h1 class="display-3 fw-bold text-white mb-4">
+            Stop the Phone Ringing.
+        </h1>
+        <p class="lead text-secondary mx-auto mb-5" style="max-width: 650px;">
+            The complete maintenance automation platform for Estate Agents and Block Managers. 
+            Tenants report issues digitally. You approve them in one click.
         </p>
-        <a href="/contact" class="btn btn-warning btn-lg fw-bold px-5">Book a Agency Demo</a>
+        <a href="/contact" class="btn btn-brand btn-lg shadow-lg px-5">Book an Agency Demo</a>
     </div>
 </header>
 
-<section class="py-5">
+<section class="py-5 bg-dark">
     <div class="container py-5">
         <div class="row align-items-center mb-5">
             <div class="col-lg-6">
-                <div class="p-4 border rounded-4 bg-light">
-                    <div class="d-flex align-items-center mb-4">
-                        <div class="bg-white p-3 rounded shadow-sm"><i class="fas fa-user text-muted"></i></div>
-                        <div class="flex-grow-1 mx-3" style="height: 2px; background: #ddd;"></div>
-                        <div class="bg-primary text-white p-3 rounded shadow-sm"><i class="fas fa-laptop"></i></div>
-                        <div class="flex-grow-1 mx-3" style="height: 2px; background: #ddd;"></div>
-                        <div class="bg-white p-3 rounded shadow-sm"><i class="fas fa-tools text-muted"></i></div>
+                <div class="p-5 border border-secondary rounded-4 bg-black position-relative">
+                    <div class="d-flex align-items-center justify-content-between mb-4 position-relative z-2">
+                        <div class="text-center">
+                            <div class="bg-dark border border-secondary p-3 rounded-circle text-white mb-2"><i class="fas fa-user"></i></div>
+                            <small class="text-secondary">Tenant</small>
+                        </div>
+                        <i class="fas fa-chevron-right text-gold"></i>
+                        <div class="text-center">
+                            <div class="bg-gold p-3 rounded-circle text-black mb-2"><i class="fas fa-laptop"></i></div>
+                            <small class="text-gold fw-bold">You</small>
+                        </div>
+                        <i class="fas fa-chevron-right text-gold"></i>
+                        <div class="text-center">
+                            <div class="bg-dark border border-secondary p-3 rounded-circle text-white mb-2"><i class="fas fa-tools"></i></div>
+                            <small class="text-secondary">Trade</small>
+                        </div>
                     </div>
-                    <p class="small text-muted text-center fst-italic">Tenant Reports -> You Approve -> Trade Fixes</p>
+                    <div class="text-center bg-dark border border-secondary p-2 rounded small text-secondary">
+                        <i class="fas fa-bolt text-warning me-2"></i> Auto-Dispatch Logic Active
+                    </div>
                 </div>
             </div>
             <div class="col-lg-6 ps-lg-5">
-                <h2 class="fw-bold mb-4">The "2 AM Boiler" Problem: Solved.</h2>
-                <p class="text-muted">You shouldn't be a call centre for leaky taps. With Business Better, your tenants get a login to report faults directly.</p>
-                <ul class="list-unstyled mt-4">
-                    <li class="mb-3 d-flex"><i class="fas fa-check-circle text-success mt-1 me-3"></i> <span><strong>Photo Evidence:</strong> Tenants must upload photos before reporting. No more vague "it's broken" calls.</span></li>
-                    <li class="mb-3 d-flex"><i class="fas fa-check-circle text-success mt-1 me-3"></i> <span><strong>One-Click Dispatch:</strong> You view the report, click "Approve", and it goes straight to your preferred contractor.</span></li>
-                    <li class="mb-3 d-flex"><i class="fas fa-check-circle text-success mt-1 me-3"></i> <span><strong>Full Audit Trail:</strong> Every action is time-stamped for landlord disputes.</span></li>
+                <h2 class="fw-bold text-white mb-4">The "2 AM Boiler" Problem: Solved.</h2>
+                <p class="text-secondary lead">You shouldn't be a call centre for leaky taps.</p>
+                <p class="text-secondary">With Business Better, your tenants get a login to report faults directly. Our system forces them to upload photos before they can hit submit.</p>
+                
+                <ul class="list-unstyled mt-4 text-white">
+                    <li class="mb-3 d-flex align-items-start">
+                        <i class="fas fa-check-circle text-gold mt-1 me-3"></i> 
+                        <span><strong>Photo Evidence:</strong> No more vague "it's broken" calls. See the problem instantly.</span>
+                    </li>
+                    <li class="mb-3 d-flex align-items-start">
+                        <i class="fas fa-check-circle text-gold mt-1 me-3"></i> 
+                        <span><strong>One-Click Dispatch:</strong> View the report, click "Approve", and it goes straight to the contractor's app.</span>
+                    </li>
+                    <li class="mb-3 d-flex align-items-start">
+                        <i class="fas fa-check-circle text-gold mt-1 me-3"></i> 
+                        <span><strong>Full Audit Trail:</strong> Every action is time-stamped for landlord disputes.</span>
+                    </li>
                 </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="py-5" style="background-color: var(--bb-bg);">
+    <div class="container py-5 text-center">
+        <h2 class="fw-bold text-white mb-5">Never Miss a Deadline.</h2>
+        
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="p-4 border border-secondary rounded-4 h-100 bg-black">
+                    <div class="d-inline-block p-3 rounded-circle bg-danger bg-opacity-25 text-danger mb-3">
+                        <i class="fas fa-fire fa-2x"></i>
+                    </div>
+                    <h4 class="text-white fw-bold">Gas Safety (CP12)</h4>
+                    <p class="text-secondary small">
+                        Traffic light system tracks every property. Get alerted 30 days before a certificate expires.
+                    </p>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="p-4 border border-secondary rounded-4 h-100 bg-black">
+                    <div class="d-inline-block p-3 rounded-circle bg-warning bg-opacity-25 text-warning mb-3">
+                        <i class="fas fa-bolt fa-2x"></i>
+                    </div>
+                    <h4 class="text-white fw-bold">EICR Compliance</h4>
+                    <p class="text-secondary small">
+                        Track 5-year electrical tests effortlessly. Auto-generate work orders for renewals.
+                    </p>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="p-4 border border-secondary rounded-4 h-100 bg-black">
+                    <div class="d-inline-block p-3 rounded-circle bg-success bg-opacity-25 text-success mb-3">
+                        <i class="fas fa-file-contract fa-2x"></i>
+                    </div>
+                    <h4 class="text-white fw-bold">EPC Tracking</h4>
+                    <p class="text-secondary small">
+                        Ensure all rental units meet the Minimum Energy Efficiency Standards (MEES).
+                    </p>
+                </div>
             </div>
         </div>
     </div>

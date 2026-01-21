@@ -1,82 +1,124 @@
 {% extends "publicbb/base.html" %}
 
-{% block title %}Trade Software | Business Better{% endblock %}
+{% block title %}Trade Operating System | Business Better{% endblock %}
 
 {% block content %}
-<header class="bg-primary text-white py-5 position-relative overflow-hidden">
-    <div class="container py-5 position-relative" style="z-index: 2;">
+<header class="position-relative overflow-hidden" style="padding: 100px 0; background: var(--bb-bg);">
+    <div class="container position-relative z-2">
         <div class="row align-items-center">
-            <div class="col-lg-6">
-                <div class="badge bg-white text-primary fw-bold mb-3 px-3 py-2">Trade Operating System</div>
-                <h1 class="display-4 fw-bold mb-4">Stop acting small.<br>Start winning big.</h1>
-                <p class="lead opacity-90 mb-5">
-                    The only software that helps you manage your current jobs AND helps you win commercial maintenance contracts.
+            <div class="col-lg-7">
+                <div class="d-inline-block px-3 py-1 mb-4 border border-warning rounded-pill">
+                    <span class="text-gold text-uppercase small fw-bold tracking-wide">For Contractors & Trades</span>
+                </div>
+                <h1 class="display-3 fw-bold text-white mb-4">
+                    Stop Acting Small. <br>
+                    <span class="text-gold">Start Winning Big.</span>
+                </h1>
+                <p class="lead text-secondary mb-5" style="max-width: 600px;">
+                    The only software that helps you manage your current jobs <strong>AND</strong> helps you win commercial maintenance contracts.
+                    From forensic profit analysis to fleet command.
                 </p>
                 <div class="d-flex gap-3">
-                    <a href="/pricing" class="btn btn-light btn-lg fw-bold text-primary">View Pricing</a>
-                    <a href="#growth" class="btn btn-outline-light btn-lg fw-bold">See How It Works</a>
+                    <a href="/pricing" class="btn btn-brand btn-lg shadow-lg">View Pricing</a>
+                    <a href="#profit" class="btn btn-outline-light btn-lg">How It Works</a>
                 </div>
             </div>
-            <div class="col-lg-6 d-none d-lg-block text-center">
-                 <i class="fas fa-tools fa-10x text-white opacity-25"></i>
+            <div class="col-lg-5 d-none d-lg-block">
+                <div class="p-5 rounded-circle border border-secondary d-flex align-items-center justify-content-center bg-dark" style="width: 450px; height: 450px; box-shadow: 0 0 50px rgba(212,175,55,0.1);">
+                    <i class="fas fa-tools fa-10x text-gold opacity-50"></i>
+                </div>
             </div>
         </div>
     </div>
 </header>
 
-<section id="growth" class="py-5">
+<section id="profit" class="py-5 bg-dark">
     <div class="container py-5">
-        <div class="row align-items-center mb-5">
-            <div class="col-lg-6 order-lg-2">
-                <div class="p-5 bg-light rounded-4 border text-center">
-                    <i class="fas fa-file-contract fa-5x text-success mb-3"></i>
-                    <h5 class="fw-bold text-muted">Commercial Compliance</h5>
+        <div class="row align-items-center">
+            <div class="col-lg-6 order-lg-2 mb-4 mb-lg-0">
+                <div class="p-4 border border-secondary bg-black rounded-4 shadow-lg">
+                    <div class="d-flex justify-content-between text-white mb-3 border-bottom border-secondary pb-2">
+                        <span>Invoice Value</span>
+                        <span>£5,000.00</span>
+                    </div>
+                    <div class="text-danger small mb-2"><i class="fas fa-minus me-2"></i> Materials: £1,200</div>
+                    <div class="text-danger small mb-2"><i class="fas fa-minus me-2"></i> Labor (32hrs): £800</div>
+                    <div class="text-danger small mb-3"><i class="fas fa-minus me-2"></i> Van Run Cost: £150</div>
+                    <div class="d-flex justify-content-between text-gold fw-bold h4 m-0 pt-2 border-top border-secondary">
+                        <span>Net Profit</span>
+                        <span>£2,850.00</span>
+                    </div>
                 </div>
             </div>
-            <div class="col-lg-6 order-lg-1">
-                <div class="pe-lg-5">
-                    <h2 class="fw-bold mb-3">Win the big contracts.</h2>
-                    <p class="text-muted lead">Estate Agents and Facility Managers won't hire you if you send invoices written on a scrap of paper.</p>
-                    <p class="text-muted"><strong>Business Better</strong> gives you a professional "Client Portal" automatically. You can go to an Estate Agent and say:</p>
-                    <blockquote class="border-start border-4 border-primary ps-3 my-4 fst-italic text-dark">
-                        "If you hire us, you can log in to our system, see all your properties, track every safety certificate, and view live photos of every job we do."
-                    </blockquote>
-                    <p class="text-muted">That is how you win the contract.</p>
+            <div class="col-lg-6 order-lg-1 pe-lg-5">
+                <h2 class="fw-bold text-white mb-3">The "True Profit" Engine.</h2>
+                <p class="text-secondary lead mb-4">Most apps just track invoices. We track margins.</p>
+                <p class="text-secondary">Our system automatically calculates the cost of every screw, every hour of labor, and the daily running cost of the van assigned to the job. You will know exactly which jobs are making you rich, and which are bleeding you dry.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="py-5" style="background-color: var(--bb-bg);">
+    <div class="container py-5">
+        <div class="row align-items-center">
+            <div class="col-lg-6 mb-4 mb-lg-0">
+                <div class="p-5 border border-warning rounded-4 text-center bg-dark position-relative overflow-hidden">
+                    <div style="position: absolute; top:0; left:0; width:100%; height:5px; background: var(--bb-gold);"></div>
+                    <i class="fas fa-file-contract fa-4x text-gold mb-4"></i>
+                    <h4 class="text-white fw-bold">Commercial Grade</h4>
+                    <p class="text-secondary small">Your Gateway to Big Contracts</p>
+                </div>
+            </div>
+            <div class="col-lg-6 ps-lg-5">
+                <h2 class="fw-bold text-white mb-3">Win the Big Contracts.</h2>
+                <p class="text-secondary mb-4">
+                    Estate Agents and Facility Managers won't hire you if you send invoices written on a scrap of paper. They need <strong>Audit Trails</strong>.
+                </p>
+                <div class="p-4 bg-dark rounded-3 border-start border-4 border-warning">
+                    <p class="text-white fst-italic m-0">
+                        "With Business Better, you give your commercial clients their own <strong>White-Label Portal</strong>. They can log in, see live job photos, download safety certificates, and track progress. You look like a multi-national firm."
+                    </p>
                 </div>
             </div>
         </div>
     </div>
 </section>
 
-<section class="py-5 bg-light">
-    <div class="container">
+<section class="py-5 bg-dark">
+    <div class="container py-5">
         <div class="text-center mb-5">
-            <h2 class="fw-bold">The Daily Tools</h2>
-            <p class="text-muted">Everything else you need to run the van.</p>
+            <h2 class="fw-bold text-white">The Daily Command Center</h2>
+            <p class="text-secondary">Everything else you need to run the van.</p>
         </div>
         <div class="row g-4">
             <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm p-4">
-                    <i class="fas fa-file-invoice-dollar fa-2x text-primary mb-3"></i>
+                <div class="card h-100 border-secondary bg-black text-white p-4 hover-gold">
+                    <i class="fas fa-file-invoice-dollar fa-2x text-gold mb-3"></i>
                     <h5 class="fw-bold">Smart Invoicing</h5>
-                    <p class="text-muted small">Convert quotes to invoices instantly. Automatic chase emails for late payers.</p>
+                    <p class="text-secondary small">Convert quotes to invoices instantly. Automatic chase emails for late payers.</p>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm p-4">
-                    <i class="fas fa-map-marked-alt fa-2x text-primary mb-3"></i>
-                    <h5 class="fw-bold">Fleet Tracking</h5>
-                    <p class="text-muted small">Know exactly where your engineers are. Re-route the closest van to emergency jobs.</p>
+                <div class="card h-100 border-secondary bg-black text-white p-4 hover-gold">
+                    <i class="fas fa-truck-pickup fa-2x text-gold mb-3"></i>
+                    <h5 class="fw-bold">Fleet Command</h5>
+                    <p class="text-secondary small">Track MOT, Tax, and Service dates. Force drivers to complete photo-verified walkaround checks.</p>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm p-4">
-                    <i class="fas fa-clipboard-check fa-2x text-primary mb-3"></i>
-                    <h5 class="fw-bold">Compliance Database</h5>
-                    <p class="text-muted small">Never miss a gas safety check or EICR expiry. The system alerts you when a property needs visiting.</p>
+                <div class="card h-100 border-secondary bg-black text-white p-4 hover-gold">
+                    <i class="fas fa-hard-hat fa-2x text-gold mb-3"></i>
+                    <h5 class="fw-bold">HR & Safety</h5>
+                    <p class="text-secondary small">Store Next-of-Kin details, track driving license points, and generate RAMS on the fly.</p>
                 </div>
             </div>
         </div>
     </div>
 </section>
+
+<style>
+    .hover-gold { transition: all 0.3s; }
+    .hover-gold:hover { transform: translateY(-5px); border-color: var(--bb-gold); }
+</style>
 {% endblock %}

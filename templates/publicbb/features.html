@@ -9,6 +9,40 @@
         <p class="lead text-secondary mb-5 mx-auto" style="max-width: 700px;">
             Most software stops at "Job Done." We go further—tracking your profit margins, fleet compliance, and HR data in forensic detail.
         </p>
+
+        <div class="row g-4 justify-content-center mt-4">
+            
+            <div class="col-md-5">
+                <a href="/features/trade" class="text-decoration-none">
+                    <div class="card h-100 p-4 rounded-4 border-secondary bg-dark text-white hover-glow text-start">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="p-3 rounded-circle border border-warning bg-black me-3">
+                                <i class="fas fa-hammer text-gold fa-lg"></i>
+                            </div>
+                            <h4 class="fw-bold m-0 text-white">For Trade & Construction</h4>
+                        </div>
+                        <p class="text-secondary small mb-3">Win commercial contracts, track fleet compliance, and manage engineers.</p>
+                        <span class="text-gold fw-bold small text-uppercase">View Trade Module <i class="fas fa-arrow-right ms-2"></i></span>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-5">
+                <a href="/features/agents" class="text-decoration-none">
+                    <div class="card h-100 p-4 rounded-4 border-secondary bg-dark text-white hover-glow text-start">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="p-3 rounded-circle border border-warning bg-black me-3">
+                                <i class="fas fa-building text-gold fa-lg"></i>
+                            </div>
+                            <h4 class="fw-bold m-0 text-white">For Property Managers</h4>
+                        </div>
+                        <p class="text-secondary small mb-3">Automate maintenance reporting and dispatch jobs instantly.</p>
+                        <span class="text-gold fw-bold small text-uppercase">View Agency Module <i class="fas fa-arrow-right ms-2"></i></span>
+                    </div>
+                </a>
+            </div>
+
+        </div>
     </div>
 </header>
 
@@ -34,7 +68,8 @@
             </div>
             <div class="col-lg-6 ps-lg-5 text-white">
                 <h2 class="fw-bold mb-3">Stop Guessing Your Margins.</h2>
-                <p class="text-secondary">See the exact net profit on every single project, down to the penny. Identify which jobs make money and which ones bleed cash.</p>
+                <p class="text-secondary mb-4">See the exact net profit on every single project, down to the penny. Identify which jobs make money and which ones bleed cash.</p>
+                <a href="/features/trade#profit" class="btn btn-outline-light">See How Profit Logic Works</a>
             </div>
         </div>
 
@@ -57,7 +92,8 @@
             </div>
             <div class="col-lg-6 pe-lg-5 text-white">
                 <h2 class="fw-bold mb-3">Enterprise-Grade Security.</h2>
-                <p class="text-secondary">Protect your business from internal threats and disputes. Our detailed logs give you total visibility over who did what, and when.</p>
+                <p class="text-secondary mb-4">Protect your business from internal threats and disputes. Our detailed logs give you total visibility over who did what, and when.</p>
+                <a href="/contact" class="btn btn-outline-light">Request Security Spec</a>
             </div>
         </div>
 
@@ -80,10 +116,16 @@
             </div>
             <div class="col-lg-6 ps-lg-5 text-white">
                 <h2 class="fw-bold mb-3">Your Brand. Your Empire.</h2>
-                <p class="text-secondary">Don't just use software; own the experience. Your clients see your logo, your colors, and your domain name. We stay invisible.</p>
+                <p class="text-secondary mb-4">Don't just use software; own the experience. Your clients see your logo, your colors, and your domain name. We stay invisible.</p>
+                <a href="/contact" class="btn btn-brand">Discuss White Label</a>
             </div>
         </div>
 
     </div>
 </section>
+
+<style>
+    .hover-glow { transition: all 0.3s ease; }
+    .hover-glow:hover { transform: translateY(-5px); border-color: var(--bb-gold) !important; box-shadow: 0 10px 30px rgba(212, 175, 55, 0.1); }
+</style>
 {% endblock %}
