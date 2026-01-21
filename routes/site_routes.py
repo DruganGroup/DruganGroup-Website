@@ -80,6 +80,7 @@ def send_email_notification(company_id, to_email, client_name, job_ref, address)
     except Exception: return False
     finally: conn.close()
 
+# --- ROUTE: SITE DASHBOARD ---
 @site_bp.route('/site-hub')
 @site_bp.route('/site-companion')
 def site_dashboard():
@@ -87,17 +88,30 @@ def site_dashboard():
     
     conn = get_db(); cur = conn.cursor()
     
-    # 1. IDENTIFY STAFF
+    # 1. IDENTIFY STAFF & GET PROFILE PIC
     staff_id, staff_name, comp_id, vehicle_id = get_staff_identity(session['user_id'], cur)
     
-    # 2. GET SETTINGS (Date Format)
-    # We fetch the specific format you saved in Settings > General
-    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'date_format'", (comp_id,))
-    row = cur.fetchone()
-    # Default to UK (%d/%m/%Y) if not set
-    date_fmt = row[0] if row and row[0] else '%d/%m/%Y' 
+    # Fetch Profile Photo from 'staff' table (Table 33)
+    profile_pic = None
+    if staff_id:
+        cur.execute("SELECT profile_photo FROM staff WHERE id = %s", (staff_id,))
+        row = cur.fetchone()
+        if row and row[0]: profile_pic = row[0]
 
-    # 3. CHECK STATUSES
+    # 2. GET LIVE SETTINGS (Table 28)
+    # We fetch Date Format, Brand Color, and Logo directly from the DB
+    cur.execute("""
+        SELECT key, value FROM settings 
+        WHERE company_id = %s 
+        AND key IN ('date_format', 'brand_color', 'logo')
+    """, (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    
+    date_fmt = settings.get('date_format', '%d/%m/%Y')
+    brand_color = settings.get('brand_color') # No hardcoded default, template handles None
+    logo_url = settings.get('logo')
+
+    # 3. CHECK STATUSES (Attendance & Active Jobs)
     is_at_work = False    
     active_job = None     
     
@@ -113,21 +127,16 @@ def site_dashboard():
             WHERE t.staff_id = %s AND t.clock_out IS NULL
         """, (staff_id,))
         row = cur.fetchone()
-        if row:
-            active_job = {'id': row[0], 'name': row[1]}
+        if row: active_job = {'id': row[0], 'name': row[1]}
 
-    # 4. FETCH ASSIGNED JOBS & FORMAT DATES
+    # 4. FETCH ASSIGNED JOBS
     formatted_jobs = []
     if staff_id:
         cur.execute("""
             SELECT 
-                j.id, 
-                j.ref, 
+                j.id, j.ref, 
                 COALESCE(p.address_line1, j.site_address, 'No Address Logged') as address, 
-                c.name, 
-                j.description, 
-                j.start_date,  -- This is the raw string from DB (YYYY-MM-DD)
-                j.status 
+                c.name, j.description, j.start_date, j.status 
             FROM jobs j 
             LEFT JOIN clients c ON j.client_id = c.id 
             LEFT JOIN properties p ON j.property_id = p.id
@@ -137,42 +146,34 @@ def site_dashboard():
             ORDER BY j.status ASC, j.start_date ASC
         """, (comp_id, staff_id, vehicle_id))
         
-        raw_jobs = cur.fetchall()
-        
-        for job in raw_jobs:
+        for job in cur.fetchall():
             j_dict = {
-                'id': job[0],
-                'ref': job[1],
-                'address': job[2],
-                'client': job[3],
-                'desc': job[4],
-                'status': job[6],
-                'raw_date': job[5],
-                'display_date': 'Unscheduled'
+                'id': job[0], 'ref': job[1], 'address': job[2], 'client': job[3],
+                'desc': job[4], 'status': job[6], 'raw_date': job[5], 'display_date': 'Unscheduled'
             }
-
-            # DYNAMIC DATE FORMATTING
+            # Apply Date Format from Settings
             if job[5]:
                 try:
-                    # 1. Parse DB String (YYYY-MM-DD) to Object
-                    # Handle cases where it might be a full timestamp
-                    str_val = str(job[5])[:10] 
+                    str_val = str(job[5])[:10]
                     dt_obj = datetime.strptime(str_val, '%Y-%m-%d')
-                    
-                    # 2. Re-format using YOUR settings
                     j_dict['display_date'] = dt_obj.strftime(date_fmt)
                 except Exception:
-                    j_dict['display_date'] = str(job[5]) # Fallback
+                    j_dict['display_date'] = str(job[5])
 
             formatted_jobs.append(j_dict)
     
     conn.close()
+    
+    # Pass 'my_profile' dictionary so the HTML can read the picture
     return render_template('site/site_dashboard.html', 
                            jobs=formatted_jobs,
                            is_at_work=is_at_work, 
                            active_job=active_job,
                            staff_name=staff_name,
-                           now_ymd=date.today().strftime('%Y-%m-%d'))
+                           now_ymd=date.today().strftime(date_fmt),
+                           brand_color=brand_color,
+                           logo_url=logo_url,
+                           my_profile={'profile_pic': profile_pic})
 
 # =========================================================
 # 2. DAY CLOCK (For Payroll - On Launcher)
@@ -371,106 +372,143 @@ def job_details(job_id):
     conn.close()
     return render_template('site/job_details.html', job=job, materials=materials, photos=photos, user_is_clocked_in=user_is_clocked_in, logo_url=logo_url)
 
+# --- ROUTE: UPDATE JOB (COMPLETE & INVOICE) ---
 @site_bp.route('/site/job/<int:job_id>/update', methods=['POST'])
 def update_job(job_id):
     if not check_site_access(): return redirect(url_for('auth.login'))
+    
     action = request.form.get('action')
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
-    user_name = session.get('user_name', 'Engineer')
     
     try:
-        # A. COMPLETE JOB (With Auto-Invoice)
+        # --- A. COMPLETE JOB ---
         if action == 'complete':
             work_summary = request.form.get('work_summary')
             private_notes = request.form.get('private_notes')
             signature = request.form.get('signature')
             
-            # Fetch Job Data
-            cur.execute("SELECT client_id, ref, quote_id FROM jobs WHERE id = %s", (job_id,))
-            job_data = cur.fetchone()
-            client_id, job_ref, linked_quote_id = job_data
-            
-            # Mark Complete
-            cur.execute("UPDATE jobs SET status = 'Completed', end_date = CURRENT_TIMESTAMP, work_summary = %s, private_notes = %s WHERE id = %s", (work_summary, private_notes, job_id))
+            # 1. Mark Job as Completed
+            cur.execute("""
+                UPDATE jobs 
+                SET status = 'Completed', 
+                    end_date = CURRENT_TIMESTAMP, 
+                    work_summary = %s, 
+                    private_notes = %s,
+                    client_signature = %s 
+                WHERE id = %s RETURNING client_id
+            """, (work_summary, private_notes, signature, job_id))
+            client_id = cur.fetchone()[0]
 
-            # --- INVOICE GENERATION ---
+            # 2. Create Invoice
+            # We put the "Work Summary" in the notes, not as a £0.00 line item
             cur.execute("SELECT COUNT(*) FROM invoices WHERE company_id = %s", (comp_id,))
-            inv_ref = f"INV-{1000 + cur.fetchone()[0] + 1}"
-
-            # Create Invoice Header
+            inv_count = cur.fetchone()[0]
+            inv_ref = f"INV-{1000 + inv_count + 1}"
+            
+            inv_notes = f"Work Summary:\n{work_summary}\n\nSigned by: {signature}"
+            
             cur.execute("""
                 INSERT INTO invoices (company_id, client_id, reference, date, due_date, status, subtotal, tax, total, job_id, notes) 
                 VALUES (%s, %s, %s, CURRENT_DATE, CURRENT_DATE + 14, 'Unpaid', 0, 0, 0, %s, %s) 
                 RETURNING id
-            """, (comp_id, client_id, inv_ref, job_id, f"Signed by: {signature}"))
+            """, (comp_id, client_id, inv_ref, job_id, inv_notes))
             inv_id = cur.fetchone()[0]
 
-            # Logic: If Quote exists, copy items. Else, add labour.
-            if linked_quote_id:
-                cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (linked_quote_id,))
-                for item in cur.fetchall():
-                    cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, %s, %s, %s)", (inv_id, item[0], item[1], item[2], item[3]))
-            else:
-                cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, 1, 0, 0)", (inv_id, f"Labour: {work_summary}"))
+            # 3. GET FINANCIAL SETTINGS (From DB)
+            cur.execute("""
+                SELECT key, value FROM settings 
+                WHERE company_id = %s 
+                AND key IN ('labour_markup_percent', 'material_markup_percent', 'vat_registered', 'country_code')
+            """, (comp_id,))
+            settings = {row[0]: row[1] for row in cur.fetchall()}
+            
+            # Calculate Multipliers (Default to 0 if not set in DB)
+            labour_markup = float(settings.get('labour_markup_percent', 0)) / 100
+            material_markup = float(settings.get('material_markup_percent', 0)) / 100
 
-            # Add Materials from Site
+            # 4. CALCULATE LABOUR (Real Data)
+            # Fetch actual hours from timesheets for this job
+            cur.execute("""
+                SELECT t.staff_id, SUM(t.total_hours) 
+                FROM staff_timesheets t 
+                WHERE t.job_id = %s 
+                GROUP BY t.staff_id
+            """, (job_id,))
+            time_entries = cur.fetchall()
+
+            for s_id, hours in time_entries:
+                if not hours: continue
+                hours = float(hours)
+                
+                # Fetch Pay Rate from Staff Table
+                cur.execute("SELECT name, pay_rate FROM staff WHERE id = %s", (s_id,))
+                staff_row = cur.fetchone()
+                s_name = staff_row[0]
+                base_rate = float(staff_row[1] or 0) # Wages
+                
+                # Apply Profit Markup
+                charge_rate = base_rate + (base_rate * labour_markup)
+                line_total = hours * charge_rate
+                
+                cur.execute("""
+                    INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) 
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (inv_id, f"Labour: {s_name}", hours, charge_rate, line_total))
+
+            # 5. CALCULATE MATERIALS (Real Data)
             cur.execute("SELECT description, quantity, unit_price FROM job_materials WHERE job_id = %s", (job_id,))
             for mat in cur.fetchall():
-                total = float(mat[1]) * float(mat[2])
-                cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (%s, %s, %s, %s, %s)", (inv_id, f"Material: {mat[0]}", mat[1], mat[2], total))
+                qty = float(mat[1] or 0)
+                cost_price = float(mat[2] or 0)
+                
+                # Apply Material Markup
+                sell_price = cost_price + (cost_price * material_markup)
+                line_total = qty * sell_price
+                
+                cur.execute("""
+                    INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) 
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (inv_id, f"Material: {mat[0]}", qty, sell_price, line_total))
 
-            # --- DYNAMIC TAX CALCULATION (THE FIX) ---
-            # Re-Calculate Subtotal
+            # 6. FINAL TOTALS & TAX
             cur.execute("SELECT SUM(total) FROM invoice_items WHERE invoice_id = %s", (inv_id,))
             subtotal = cur.fetchone()[0] or 0.0
-
-            # Get Tax Settings from DB
-            cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'vat_registered'", (comp_id,))
-            is_vat = (cur.fetchone()[0] == 'yes') if cur.rowcount > 0 else False
             
-            tax_rate = 0.20 # Default
-            if is_vat:
-                cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'country_code'", (comp_id,))
-                country_row = cur.fetchone()
-                country = country_row[0] if country_row else 'UK'
-                if country == 'US': tax_rate = 0.08
-                elif country == 'IE': tax_rate = 0.23
-                elif country == 'AUS': tax_rate = 0.10
-            else:
-                tax_rate = 0.0 # No VAT if not registered
-
-            new_tax = float(subtotal) * tax_rate
-            new_total = float(subtotal) + new_tax
+            is_vat = (settings.get('vat_registered') == 'yes')
+            tax_rate = 0.20 if (is_vat and settings.get('country_code', 'UK') == 'UK') else 0.0
             
-            cur.execute("UPDATE invoices SET subtotal = %s, tax = %s, total = %s WHERE id = %s", (subtotal, new_tax, new_total, inv_id))
-            flash(f"🎉 Job Completed & Invoice {inv_ref} Generated.")
+            tax_amt = float(subtotal) * tax_rate
+            final_total = float(subtotal) + tax_amt
+            
+            cur.execute("UPDATE invoices SET subtotal = %s, tax = %s, total = %s WHERE id = %s", (subtotal, tax_amt, final_total, inv_id))
+            flash(f"✅ Job Completed. Invoice {inv_ref} Generated.")
 
-        # B. UPLOAD PHOTO
+        # --- B. UPLOAD PHOTO ---
         elif action == 'upload_photo':
             if 'photo' in request.files:
                 file = request.files['photo']
                 if file.filename != '':
                     os.makedirs(JOB_EVIDENCE_FOLDER, exist_ok=True)
                     filename = secure_filename(f"JOB_{job_id}_{int(datetime.now().timestamp())}_{file.filename}")
-                    
-                    # Fix: Store relative path
                     db_path = f"uploads/job_evidence/{filename}"
                     file.save(os.path.join(JOB_EVIDENCE_FOLDER, filename))
-                    
-                    # FIX: Explicitly set file_type='Site Photo'
                     cur.execute("INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type) VALUES (%s, %s, %s, 'Site Photo')", (job_id, db_path, session['user_id']))
                     flash("📷 Photo Uploaded")
 
         conn.commit()
     except Exception as e:
-        conn.rollback(); flash(f"Error: {e}", "error")
+        conn.rollback()
+        # Log error to system_logs (Table 38)
+        cur.execute("INSERT INTO system_logs (level, message, route, created_at) VALUES ('ERROR', %s, 'site/update_job', CURRENT_TIMESTAMP)", (str(e),))
+        conn.commit()
+        flash(f"Error: {e}", "error")
     finally:
         conn.close()
     
     if action == 'complete': return redirect(url_for('site.site_dashboard'))
     return redirect(url_for('site.job_details', job_id=job_id))
-
+    
 # --- ADD MATERIAL ---
 @site_bp.route('/site/job/<int:job_id>/add-material', methods=['POST'])
 def add_job_material(job_id):

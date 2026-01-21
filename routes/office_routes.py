@@ -617,3 +617,30 @@ def wipe_operational_data():
         conn.close()
 
     return redirect(url_for('office.office_dashboard'))
+    
+@office_bp.route('/office/admin/add-supplier-email')
+def migrate_supplier_email():
+    if not check_office_access(): return "Access Denied"
+    
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # Check if column exists first to prevent errors
+        cur.execute("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='suppliers' AND column_name='email'
+        """)
+        if cur.fetchone():
+            return "✅ Column 'email' already exists in 'suppliers' table."
+
+        # Add the column
+        cur.execute("ALTER TABLE suppliers ADD COLUMN email TEXT")
+        conn.commit()
+        return "✅ SUCCESS: Added 'email' column to 'suppliers' table."
+        
+    except Exception as e:
+        conn.rollback()
+        return f"❌ Error: {e}"
+    finally:
+        conn.close()
