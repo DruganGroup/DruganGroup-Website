@@ -14,6 +14,8 @@
         <div class="card-body">
             <form method="POST" enctype="multipart/form-data" id="fuelForm">
                 
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                 <div class="mb-4 text-center p-4 border rounded bg-light" id="upload-area">
                     <label class="form-label fw-bold mb-3">📸 Step 1: Snap Receipt</label>
                     <input type="file" name="receipt" id="receiptInput" class="form-control" accept="image/*" capture="environment" required>
@@ -70,7 +72,6 @@ document.getElementById('receiptInput').addEventListener('change', function(even
     const file = event.target.files[0];
     if (!file) return;
 
-    // UI Updates
     const status = document.getElementById('scan-status');
     const spinner = document.getElementById('loading-spinner');
     const badge = document.getElementById('ai-badge');
@@ -78,33 +79,33 @@ document.getElementById('receiptInput').addEventListener('change', function(even
     status.style.display = 'none';
     spinner.style.display = 'block';
 
-    // Create Form Data to send to API
     const formData = new FormData();
     formData.append('receipt', file);
-
-    // Call Python API
+    
+    // NOTE: This call needs to include the CSRF token in headers if using AJAX, 
+    // but for now the user will just manually verify the data after the "scan" simulation.
     fetch('/site/api/scan-receipt', {
         method: 'POST',
-        body: formData
+        body: formData,
+        headers: {
+            'X-CSRFToken': "{{ csrf_token() }}" // Added security for the API call too
+        }
     })
     .then(response => response.json())
     .then(result => {
         spinner.style.display = 'none';
         
         if (result.success && result.data) {
-            // SUCCESS: Fill the boxes
             const data = result.data;
             if (data.total_cost) document.getElementById('total_cost').value = data.total_cost;
             if (data.litres) document.getElementById('litres').value = data.litres;
             if (data.fuel_type) document.getElementById('fuel_type').value = data.fuel_type;
             
-            // Show Badge
             badge.style.display = 'inline-block';
             status.innerText = "✅ Data extracted! Verify below.";
             status.style.display = 'block';
             status.className = "mt-2 small text-success fw-bold";
         } else {
-            // FAILURE (Or AI Disabled): Just let user type
             status.innerText = "Could not auto-read. Please type details.";
             status.style.display = 'block';
         }
