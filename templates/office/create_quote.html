@@ -3,15 +3,23 @@
 {% block title %}New Quote | Business Better{% endblock %}
 
 {% block content %}
-<form method="POST" id="quoteForm">
+<form method="POST" id="quoteForm" action="/office/quote/save-unified">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold m-0">Create New Quote</h2>
-            <p class="text-muted mb-0">Draft a proposal or estimate</p>
+            <p class="text-muted mb-0">Unified Estimator & Quote Engine</p>
         </div>
-        <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm">
-            <i class="fas fa-check me-2"></i> Save Quote
-        </button>
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-dark text-white px-3 py-2 rounded text-end shadow-sm">
+                <small class="d-block text-white-50" style="font-size: 0.7rem;">ESTIMATED TOTAL</small>
+                <span class="fw-bold fs-5" id="headerTotal">£0.00</span>
+            </div>
+            <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm">
+                <i class="fas fa-check me-2"></i> Save Quote
+            </button>
+        </div>
     </div>
 
     <div class="row g-4">
@@ -26,69 +34,66 @@
                 </div>
                 <div class="card-body bg-light">
                     <div id="existingClientDiv">
-                        <select name="client_id" class="form-select shadow-sm">
+                        <select name="client_id" class="form-select shadow-sm mb-3">
                             <option value="" selected disabled>-- Search Clients --</option>
                             {% for c in clients %}
                             <option value="{{ c.id }}" {% if pre_client == c.id|string %}selected{% endif %}>{{ c.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div id="newClientDiv" class="d-none">
+                    <div id="newClientDiv" class="d-none mb-3">
                         <input type="text" name="new_client_name" class="form-control mb-2" placeholder="Client Name">
                         <input type="email" name="new_client_email" class="form-control mb-2" placeholder="Email">
                         <input type="text" name="new_client_phone" class="form-control" placeholder="Phone">
                     </div>
+
+                    <hr>
+                    
+                    <label class="form-label fw-bold small text-muted">Site Address / Property</label>
+                    <select name="property_id" id="propertySelect" class="form-select mb-3">
+                        <option value="">-- Select Client First --</option>
+                    </select>
+
+                    <label class="form-label fw-bold small text-muted">Job Title</label>
+                    <input type="text" name="job_title" class="form-control mb-3" placeholder="e.g. Garden Fencing" required>
+
+                    <label class="form-label fw-bold small text-muted">Scope of Works</label>
+                    <textarea name="job_description" class="form-control" rows="3" placeholder="Brief description..."></textarea>
+                    
+                    <hr>
+
+                    <h6 class="fw-bold text-primary"><i class="fas fa-truck me-2"></i>Resources</h6>
+                    
+                    <label class="form-label fw-bold small text-muted">Est. Duration (Days)</label>
+                    <input type="number" step="0.5" name="estimated_days" id="daysInput" class="form-control mb-3" value="1" oninput="calcTotal()" required>
+
+                    <label class="form-label fw-bold small text-muted">Preferred Gang / Van</label>
+                    <select name="preferred_vehicle_id" id="vehicleSelect" class="form-select" onchange="calcTotal()">
+                        <option value="" data-cost="0">-- No Vehicle Cost --</option>
+                        {% for v in fleet %}
+                            <option value="{{ v.id }}" data-cost="{{ v.daily_cost or 0 }}">
+                                {{ v.name }} 
+                                {% if v.daily_cost %}(+£{{ v.daily_cost }}/day){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <div class="small text-muted mt-1" id="resourceCostDisplay">Resource Cost: £0.00</div>
                 </div>
             </div>
         </div>
 
         <div class="col-md-8">
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-secondary text-white fw-bold">
-                    <i class="fas fa-briefcase me-2"></i> Job Details
-                </div>
-                <div class="card-body bg-light">
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <label class="form-label fw-bold small text-muted">Site Address / Property</label>
-                            <select name="property_id" id="propertySelect" class="form-select">
-                                <option value="">-- Select Client First --</option>
-                            </select>
-                            <div class="form-text small">Select the specific property for this work.</div>
-                        </div>
-
-                        <div class="col-md-8">
-                            <label class="form-label fw-bold small text-muted">Job Title</label>
-                            <input type="text" name="job_title" class="form-control" placeholder="e.g. Kitchen Extension" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold small text-muted">Est. Duration (Days)</label>
-                            <input type="number" step="0.5" name="estimated_days" class="form-control" value="1" required>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label fw-bold small text-muted">Scope of Works</label>
-                            <textarea name="job_description" class="form-control" rows="2" placeholder="Brief description..."></textarea>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label fw-bold small text-muted">Preferred Gang / Van</label>
-                            <select name="preferred_vehicle_id" class="form-select">
-                                <option value="">-- No Preference --</option>
-                                {% for v in fleet %}
-                                    <option value="{{ v.id }}">{{ v.name }}</option>
-                                {% endfor %}
-                            </select>
-                            <div class="form-text small">Select the crew typically assigned to this vehicle.</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-list me-2"></i> Quote Items</span>
-                    <span class="badge bg-warning text-dark border border-warning">
-                        Markup: {{ settings.get('default_markup', 20) }}%
-                    </span>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-warning fw-bold text-dark me-2" data-bs-toggle="modal" data-bs-target="#smartCalcModal">
+                            <i class="fas fa-magic me-1"></i> Auto-Calc
+                        </button>
+                        <span class="badge bg-light text-dark border border-warning">
+                            Markup: {{ settings.get('default_markup', 20) }}%
+                        </span>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     <table class="table align-middle mb-0" id="itemsTable">
@@ -102,7 +107,7 @@
                             </tr>
                         </thead>
                         <tbody id="itemsBody">
-                        </tbody>
+                            </tbody>
                     </table>
                     
                     <div class="p-3 bg-light border-top d-flex justify-content-between align-items-center">
@@ -110,7 +115,8 @@
                             <i class="fas fa-plus me-1"></i> Add Line
                         </button>
                         <div class="text-end">
-                            <div class="small text-muted">Net Total: <span id="netTotal">0.00</span></div>
+                            <div class="small text-muted">Materials: <span id="matTotal">0.00</span></div>
+                            <div class="small text-muted">Resources (Van/Gang): <span id="resTotal">0.00</span></div>
                             <div class="small text-muted">Tax ({{ (tax_rate * 100)|int }}%): <span id="taxTotal">0.00</span></div>
                             <div class="h5 fw-bold m-0 text-dark">Total: <span id="grandTotal">0.00</span></div>
                         </div>
@@ -120,6 +126,42 @@
         </div>
     </div>
 </form>
+
+<div class="modal fade" id="smartCalcModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title fw-bold text-dark"><i class="fas fa-magic me-2"></i>Smart Estimator</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label fw-bold">Select Trade</label>
+                <select id="calcType" class="form-select mb-3">
+                    <option value="fencing">Fencing (Closeboard)</option>
+                    <option value="patio">Patio (Paving)</option>
+                </select>
+
+                <div id="fencingInputs">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="small">Length (m)</label>
+                            <input type="number" id="calcLength" class="form-control" placeholder="e.g. 20">
+                        </div>
+                        <div class="col-6">
+                            <label class="small">Height (m)</label>
+                            <input type="number" id="calcHeight" class="form-control" value="1.8">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-dark w-100" onclick="runSmartCalc()">
+                    <i class="fas fa-calculator me-2"></i> Calculate & Import
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <style>
     .suggestions-box {
@@ -138,7 +180,7 @@
     const storedMarkup = {{ settings.get('default_markup', 20) }};
     const MARKUP = 1 + (parseFloat(storedMarkup) / 100);
 
-    // 2. PREVENT ENTER KEY SUBMIT (The Crash Fix)
+    // 2. PREVENT ENTER KEY SUBMIT
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Enter' && event.target.tagName !== 'TEXTAREA') {
             event.preventDefault();
@@ -153,63 +195,123 @@
         document.getElementById('newClientDiv').classList.toggle('d-none', !isNew);
     }
 
-    // 4. ADD NEW ROW
-    function addRow() {
+    // 4. ADD NEW ROW (Updated to accept args from Smart Calc)
+    function addRow(desc='', qty=1, price='') {
         const tbody = document.getElementById('itemsBody');
         const row = document.createElement('tr');
         row.innerHTML = `
             <td class="ps-4 position-relative">
                 <input type="text" name="desc[]" class="form-control item-search" 
-                       placeholder="Start typing item..." autocomplete="off" onkeyup="searchMaterials(this)">
+                       value="${desc}" placeholder="Start typing item..." autocomplete="off" onkeyup="searchMaterials(this)">
                 <div class="suggestions-box d-none"></div>
             </td>
-            <td><input type="number" name="qty[]" class="form-control text-center" value="1" min="1" oninput="calcTotal()"></td>
-            <td><input type="number" name="price[]" class="form-control" placeholder="0.00" step="0.01" oninput="calcTotal()"></td>
+            <td><input type="number" name="qty[]" class="form-control text-center" value="${qty}" min="1" oninput="calcTotal()"></td>
+            <td><input type="number" name="price[]" class="form-control" value="${price}" placeholder="0.00" step="0.01" oninput="calcTotal()"></td>
             <td class="text-end pe-4 fw-bold row-total">0.00</td>
             <td><button type="button" class="btn btn-link text-danger p-0" onclick="this.closest('tr').remove(); calcTotal()"><i class="fas fa-times"></i></button></td>
         `;
         tbody.appendChild(row);
+        calcTotal();
     }
 
-    // 5. SMART SEARCH (With Debugging)
+    // 5. SMART CALCULATOR LOGIC (The New Brain)
+    function runSmartCalc() {
+        const length = document.getElementById('calcLength').value;
+        const height = document.getElementById('calcHeight').value;
+
+        // Fetch from the API you already have
+        fetch('/api/calculate/fencing', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}' // Uses token for security
+            },
+            body: JSON.stringify({ length: length, height: height })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Close Modal
+            bootstrap.Modal.getInstance(document.getElementById('smartCalcModal')).hide();
+            
+            // Loop through results and add rows
+            if(data.materials) {
+                data.materials.forEach(item => {
+                    const cost = parseFloat(item.est_cost || 0);
+                    const sellPrice = (cost * MARKUP).toFixed(2);
+                    addRow(item.name, item.qty, sellPrice);
+                });
+            }
+
+            // Update Days if calculated
+            if(data.labor_hours) {
+                const days = Math.ceil(data.labor_hours / 8);
+                document.getElementById('daysInput').value = days;
+            }
+            calcTotal();
+        })
+        .catch(err => alert("Error: " + err));
+    }
+
+    // 6. CALC TOTALS (Now includes Van/Gang Cost)
+    function calcTotal() {
+        // A. Material Total
+        let matTotal = 0;
+        document.querySelectorAll('#itemsBody tr').forEach(row => {
+            const qty = parseFloat(row.querySelector('[name="qty[]"]').value) || 0;
+            const price = parseFloat(row.querySelector('[name="price[]"]').value) || 0;
+            const total = qty * price;
+            row.querySelector('.row-total').innerText = total.toFixed(2);
+            matTotal += total;
+        });
+
+        // B. Resource Total (Days * Vehicle Daily Cost)
+        const days = parseFloat(document.getElementById('daysInput').value) || 0;
+        const vehicleSelect = document.getElementById('vehicleSelect');
+        
+        // Read the 'data-cost' we added to the dropdown options
+        let dailyCost = 0;
+        if(vehicleSelect.selectedIndex >= 0) {
+            dailyCost = parseFloat(vehicleSelect.options[vehicleSelect.selectedIndex].getAttribute('data-cost')) || 0;
+        }
+        
+        const resTotal = days * dailyCost;
+
+        // Update Resource Display
+        document.getElementById('resourceCostDisplay').innerText = `Resource Cost: £${resTotal.toFixed(2)}`;
+
+        // C. Final Sums
+        const subtotal = matTotal + resTotal;
+        const tax = subtotal * TAX_RATE;
+        const grand = subtotal + tax;
+
+        // D. Update DOM
+        document.getElementById('matTotal').innerText = matTotal.toFixed(2);
+        document.getElementById('resTotal').innerText = resTotal.toFixed(2);
+        document.getElementById('taxTotal').innerText = tax.toFixed(2);
+        document.getElementById('grandTotal').innerText = grand.toFixed(2);
+        document.getElementById('headerTotal').innerText = '£' + grand.toFixed(2);
+    }
+
+    // 7. SMART SEARCH (Preserved)
     function searchMaterials(input) {
         const box = input.nextElementSibling;
         const query = input.value;
-        
-        // Only search if 2+ chars
-        if (query.length < 2) { 
-            box.classList.add('d-none'); 
-            return; 
-        }
-
-        console.log("Searching for:", query); // DEBUG LOG
+        if (query.length < 2) { box.classList.add('d-none'); return; }
 
         fetch(`/api/materials/search?q=${query}`)
-            .then(response => {
-                if (!response.ok) { throw new Error("API Route Missing or Error"); }
-                return response.json();
-            })
+            .then(res => res.json())
             .then(data => {
-                console.log("Found results:", data); // DEBUG LOG
                 box.innerHTML = '';
-                
                 if (data.length > 0) {
                     box.classList.remove('d-none');
                     data.forEach(item => {
                         const sellPrice = (item.cost * MARKUP).toFixed(2);
-                        
                         const div = document.createElement('div');
                         div.className = 'suggestion-item';
-                        div.innerHTML = `
-                            <strong>${item.name}</strong> 
-                            <span class="text-muted small">(${item.supplier})</span>
-                            <span class="suggestion-cost">Buy: £${item.cost} | Sell: £${sellPrice}</span>
-                        `;
-                        
+                        div.innerHTML = `<strong>${item.name}</strong> <span class="text-muted small">(${item.supplier})</span> <span class="suggestion-cost">£${sellPrice}</span>`;
                         div.onclick = function() {
                             input.value = item.name;
-                            const row = input.closest('tr');
-                            row.querySelector('[name="price[]"]').value = sellPrice;
+                            input.closest('tr').querySelector('[name="price[]"]').value = sellPrice;
                             box.classList.add('d-none');
                             calcTotal();
                         };
@@ -219,80 +321,44 @@
                     box.classList.add('d-none');
                 }
             })
-            .catch(err => console.error("Search Error:", err));
+            .catch(err => console.error(err));
     }
 
-    // 6. CLOSE BOX ON CLICK OUTSIDE
     document.addEventListener('click', function(e) {
         if (!e.target.classList.contains('item-search')) {
             document.querySelectorAll('.suggestions-box').forEach(box => box.classList.add('d-none'));
         }
     });
 
-    // 7. CALC TOTALS
-    function calcTotal() {
-        let net = 0;
-        document.querySelectorAll('#itemsBody tr').forEach(row => {
-            const qty = parseFloat(row.querySelector('[name="qty[]"]').value) || 0;
-            const price = parseFloat(row.querySelector('[name="price[]"]').value) || 0;
-            const total = qty * price;
-            row.querySelector('.row-total').innerText = total.toFixed(2);
-            net += total;
-        });
-        
-        const tax = net * TAX_RATE;
-        document.getElementById('netTotal').innerText = net.toFixed(2);
-        document.getElementById('taxTotal').innerText = tax.toFixed(2);
-        document.getElementById('grandTotal').innerText = (net + tax).toFixed(2);
-    }
-
-    document.addEventListener('DOMContentLoaded', addRow);
-
-    // --- PROPERTY LOADER (FIXED SCRIPT NESTING) ---
+    // 8. PROPERTY LOADER (Preserved)
     document.addEventListener('DOMContentLoaded', function() {
+        addRow(); 
+        
         const clientSelect = document.querySelector('select[name="client_id"]');
         const propSelect = document.getElementById('propertySelect');
 
         function loadProperties(clientId) {
             if (!clientId) return;
-            
-            // Show loading state
             propSelect.innerHTML = '<option value="">Loading sites...</option>';
             propSelect.disabled = true;
 
-            // Fetch from API
             fetch(`/api/client/${clientId}/properties`)
-                .then(response => response.json())
+                .then(res => res.json())
                 .then(data => {
                     propSelect.disabled = false;
-                    if (data.length > 0) {
-                        propSelect.innerHTML = '<option value="">-- Select Site Address --</option>';
-                        data.forEach(prop => {
-                            const option = document.createElement('option');
-                            option.value = prop.id;
-                            option.text = prop.address;
-                            propSelect.appendChild(option);
-                        });
-                    } else {
-                        propSelect.innerHTML = '<option value="">-- Use Billing Address (Default) --</option>';
-                    }
-                })
-                .catch(err => {
-                    console.error('Error:', err);
-                    propSelect.innerHTML = '<option value="">Error loading sites</option>';
+                    propSelect.innerHTML = data.length ? '<option value="">-- Select Site Address --</option>' : '<option value="">-- Use Billing Address --</option>';
+                    data.forEach(prop => {
+                        const opt = document.createElement('option');
+                        opt.value = prop.id;
+                        opt.text = prop.address;
+                        propSelect.appendChild(opt);
+                    });
                 });
         }
 
         if (clientSelect) {
-            // 1. Listen for changes (User picks a new client)
-            clientSelect.addEventListener('change', function() {
-                loadProperties(this.value);
-            });
-
-            // 2. Check on Page Load (If client is pre-selected)
-            if (clientSelect.value) {
-                loadProperties(clientSelect.value);
-            }
+            clientSelect.addEventListener('change', function() { loadProperties(this.value); });
+            if (clientSelect.value) loadProperties(clientSelect.value);
         }
     });
 </script>

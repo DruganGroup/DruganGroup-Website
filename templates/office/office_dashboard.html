@@ -97,11 +97,14 @@
                             </div>
                         </div>
                         
-                        <div class="d-flex gap-2 mt-2">
-                            <a href="/office/job/{{ j.id }}/files" class="btn btn-sm btn-light border w-100 text-muted">
-                                <i class="fas fa-folder-open me-1"></i> Files
+                        <div class="d-flex gap-1 mt-2">
+                            <a href="/office/job/{{ j.id }}/files" class="btn btn-sm btn-light border flex-fill text-muted" title="View Files">
+                                <i class="fas fa-folder-open"></i>
                             </a>
-                            <a href="/office/job/{{ j.id }}/rams/pdf" target="_blank" class="btn btn-sm btn-warning w-100 fw-bold">
+                            <a href="/office/job/{{ j.id }}/materials/pdf" target="_blank" class="btn btn-sm btn-dark flex-fill fw-bold" title="Material List">
+                                <i class="fas fa-shopping-basket me-1"></i> Mat. List
+                            </a>
+                            <a href="/office/job/{{ j.id }}/rams/pdf" target="_blank" class="btn btn-sm btn-warning flex-fill fw-bold" title="Download RAMS">
                                 <i class="fas fa-file-contract me-1"></i> RAMS
                             </a>
                         </div>

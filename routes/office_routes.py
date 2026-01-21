@@ -562,85 +562,51 @@ def generate_job_rams(job_id):
             download_name=f"RAMS_{job[0]}.pdf"
         )
     except ImportError:
-        return "PDF Service Missing. Please check backend services.", 500
+        return "PDF Service Missing. Please check backend services.", 500   
         
-# =========================================================
-# DANGER: WIPE OPERATIONAL DATA (Jobs, Quotes, Invoices)
-# =========================================================
-@office_bp.route('/office/admin/wipe-data')
-def wipe_operational_data():
+@office_bp.route('/office/job/<int:job_id>/materials/pdf')
+def job_materials_pdf(job_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
     
-    # EXTRA SECURITY: Only allow Admin/SuperAdmin
-    if session.get('role') not in ['Admin', 'SuperAdmin']:
-        flash("❌ Access Denied: Admins only.", "error")
-        return redirect(url_for('office.office_dashboard'))
-
     comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
-
-    try:
-        # 1. CLEAR INVOICES & ITEMS
-        cur.execute("DELETE FROM invoice_items USING invoices WHERE invoice_items.invoice_id = invoices.id AND invoices.company_id = %s", (comp_id,))
-        cur.execute("DELETE FROM invoices WHERE company_id = %s", (comp_id,))
-
-        # 2. CLEAR QUOTES & ITEMS
-        # (We update jobs to remove quote links first, to avoid locking)
-        cur.execute("UPDATE jobs SET quote_id = NULL WHERE company_id = %s", (comp_id,))
-        cur.execute("DELETE FROM quote_items USING quotes WHERE quote_items.quote_id = quotes.id AND quotes.company_id = %s", (comp_id,))
-        cur.execute("DELETE FROM quotes WHERE company_id = %s", (comp_id,))
-
-        # 3. CLEAR JOB DEPENDENCIES (RAMS, Materials, Photos, etc.)
-        cur.execute("DELETE FROM job_rams WHERE company_id = %s", (comp_id,))
-        # For tables without company_id, we delete via the job join
-        cur.execute("DELETE FROM job_materials USING jobs WHERE job_materials.job_id = jobs.id AND jobs.company_id = %s", (comp_id,))
-        cur.execute("DELETE FROM job_expenses USING jobs WHERE job_expenses.job_id = jobs.id AND jobs.company_id = %s", (comp_id,))
-        cur.execute("DELETE FROM job_evidence USING jobs WHERE job_evidence.job_id = jobs.id AND jobs.company_id = %s", (comp_id,))
-        cur.execute("DELETE FROM job_photos USING jobs WHERE job_photos.job_id = jobs.id AND jobs.company_id = %s", (comp_id,))
-        cur.execute("DELETE FROM site_diary USING jobs WHERE site_diary.job_id = jobs.id AND jobs.company_id = %s", (comp_id,))
-        # Only delete timesheets attached to jobs (keep general clock-ins)
-        cur.execute("DELETE FROM staff_timesheets USING jobs WHERE staff_timesheets.job_id = jobs.id AND jobs.company_id = %s", (comp_id,))
-
-        # 4. CLEAR JOBS
-        cur.execute("DELETE FROM jobs WHERE company_id = %s", (comp_id,))
-
-        # 5. CLEAR SERVICE REQUESTS
-        cur.execute("DELETE FROM service_requests WHERE company_id = %s", (comp_id,))
-
-        conn.commit()
-        flash("⚠️ All Jobs, Quotes, Invoices, RAMS, and Requests have been wiped.", "success")
-
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error wiping data: {e}", "error")
-    finally:
-        conn.close()
-
-    return redirect(url_for('office.office_dashboard'))
     
-@office_bp.route('/office/admin/add-supplier-email')
-def migrate_supplier_email():
-    if not check_office_access(): return "Access Denied"
+    # 1. Fetch Job Details
+    cur.execute("SELECT ref, site_address FROM jobs WHERE id = %s AND company_id = %s", (job_id, comp_id))
+    job = cur.fetchone()
+    if not job: return "Job not found", 404
     
-    conn = get_db()
-    cur = conn.cursor()
-    try:
-        # Check if column exists first to prevent errors
-        cur.execute("""
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name='suppliers' AND column_name='email'
-        """)
-        if cur.fetchone():
-            return "✅ Column 'email' already exists in 'suppliers' table."
-
-        # Add the column
-        cur.execute("ALTER TABLE suppliers ADD COLUMN email TEXT")
-        conn.commit()
-        return "✅ SUCCESS: Added 'email' column to 'suppliers' table."
-        
-    except Exception as e:
-        conn.rollback()
-        return f"❌ Error: {e}"
-    finally:
-        conn.close()
+    # 2. Fetch Materials from DB (job_materials table)
+    cur.execute("""
+        SELECT description, quantity 
+        FROM job_materials 
+        WHERE job_id = %s
+    """, (job_id,))
+    
+    rows = cur.fetchall()
+    
+    # 3. Format for PDF
+    # (Since job_materials is simple, we might not have supplier data stored there yet unless we updated the table. 
+    # We will assume a simple list for now.)
+    items = [{'desc': r[0], 'qty': r[1], 'supplier': 'General'} for r in rows]
+    
+    conn.close()
+    
+    # 4. Generate PDF
+    html = render_template('office/pdf_materials.html',
+                           config=config,
+                           ref=job[0],
+                           date=date.today().strftime('%d/%m/%Y'),
+                           address=job[1],
+                           items=items,
+                           grouped_items=None) # Flat list for stored jobs
+                           
+    from services.pdf_generator import generate_pdf_from_html
+    pdf = generate_pdf_from_html(html)
+    
+    from flask import make_response
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'inline; filename=Materials_{job[0]}.pdf'
+    return response

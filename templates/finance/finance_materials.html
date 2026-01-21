@@ -72,13 +72,23 @@
     <div class="modal fade" id="addSupplierModal" tabindex="-1">
         <div class="modal-dialog">
             <form action="/finance/suppliers/add" method="POST" class="modal-content">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
                 <div class="modal-header">
                     <h5 class="modal-title fw-bold">Add Supplier</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <label class="small fw-bold text-muted">Supplier Name</label>
-                    <input type="text" name="name" class="form-control" placeholder="e.g. Travis Perkins" required>
+                    <div class="mb-3">
+                        <label class="small fw-bold text-muted">Supplier Name</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Travis Perkins" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="small fw-bold text-muted">Ordering Email Address</label>
+                        <input type="email" name="email" class="form-control" placeholder="orders@supplier.com">
+                        <div class="form-text small">This is where material lists will be emailed.</div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="submit" class="btn btn-primary fw-bold">Create Supplier</button>
@@ -90,6 +100,8 @@
     <div class="modal fade" id="importModal" tabindex="-1">
         <div class="modal-dialog">
             <form action="/finance/materials/import" method="POST" enctype="multipart/form-data" class="modal-content">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
                 <div class="modal-header">
                     <h5 class="modal-title fw-bold">Import Price List</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
