@@ -445,7 +445,6 @@ def office_fleet():
                            all_staff=all_staff, # Sending both just in case
                            today=date.today())
 
-
 @office_bp.route('/office/quote/new')
 def new_quote():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -453,7 +452,7 @@ def new_quote():
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
     
-    # 1. Fetch Clients (as Dictionaries)
+    # 1. Fetch Clients
     cur.execute("SELECT id, name FROM clients WHERE company_id=%s AND status='Active' ORDER BY name", (comp_id,))
     clients = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
     
@@ -461,16 +460,26 @@ def new_quote():
     cur.execute("SELECT id, name, cost_price FROM materials WHERE company_id=%s ORDER BY name", (comp_id,))
     materials = [{'id': r[0], 'name': r[1], 'price': r[2]} for r in cur.fetchall()]
 
-    # 3. Fetch Settings
+    # 3. Fetch Vehicles (THIS WAS MISSING)
+    cur.execute("SELECT id, reg_plate, make_model, daily_cost FROM vehicles WHERE company_id=%s AND status='Active'", (comp_id,))
+    vehicles = []
+    for r in cur.fetchall():
+        vehicles.append({
+            'id': r[0], 
+            'reg_plate': r[1], 
+            'make_model': r[2], 
+            'daily_cost': r[3]
+        })
+
+    # 4. Fetch Settings
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     
-    # 4. LOOKUP SERVICE REQUEST (If clicked from Dashboard)
+    # 5. LOOKUP SERVICE REQUEST
     request_id = request.args.get('request_id')
     source_request = None
     
     if request_id:
-        # Note: 'issue_description' matches your DB table now
         cur.execute("""
             SELECT issue_description, image_url, property_id 
             FROM service_requests 
@@ -504,6 +513,7 @@ def new_quote():
     return render_template('office/create_quote.html', 
                            clients=clients, 
                            materials=materials, 
+                           vehicles=vehicles,   # <--- ADDED THIS
                            settings=settings, 
                            tax_rate=tax_rate, 
                            pre_selected_client=pre_client,
