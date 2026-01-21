@@ -243,5 +243,105 @@ def archive_property(property_id):
         
     return redirect('/portal/home')
 
-# --- OTHER ROUTES (Quotes, Invoices, Profile, Requests, Add Prop) REMAIN SAME ---
-# Paste them here or ensure they are preserved in your file!
+@portal_bp.route('/portal/quotes')
+def portal_quotes():
+    if not check_portal_access(): return redirect(get_login_url())
+    
+    client_id = session['portal_client_id']
+    comp_id = session['portal_company_id']
+    config = get_site_config(comp_id)
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    # Fetch quotes for this client
+    cur.execute("""
+        SELECT id, reference, date, total, status 
+        FROM quotes 
+        WHERE client_id = %s AND status != 'Archived'
+        ORDER BY date DESC
+    """, (client_id,))
+    
+    quotes_raw = cur.fetchall()
+    quotes = []
+    
+    for r in quotes_raw:
+        q = list(r)
+        q[2] = format_date_by_country(q[2], comp_id) # Format the date
+        quotes.append(q)
+        
+    conn.close()
+    
+    return render_template('portal/portal_quotes.html',
+                           client_name=session.get('portal_client_name'),
+                           company_name=config.get('name'), 
+                           logo_url=config.get('logo'),
+                           brand_color=config.get('color'),
+                           quotes=quotes)
+
+# B. VIEW SINGLE QUOTE
+@portal_bp.route('/portal/quote/<int:quote_id>')
+def portal_view_quote(quote_id):
+    if not check_portal_access(): return redirect(get_login_url())
+    
+    client_id = session['portal_client_id']
+    comp_id = session['portal_company_id']
+    config = get_site_config(comp_id)
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. Fetch Quote Header (Security Check: Must match client_id)
+    cur.execute("""
+        SELECT id, reference, date, total, status 
+        FROM quotes 
+        WHERE id = %s AND client_id = %s
+    """, (quote_id, client_id))
+    quote = cur.fetchone()
+    
+    if not quote:
+        conn.close()
+        return "Quote not found or access denied", 404
+        
+    # 2. Fetch Line Items
+    cur.execute("""
+        SELECT description, quantity, unit_price, total 
+        FROM quote_items 
+        WHERE quote_id = %s
+    """, (quote_id,))
+    items = cur.fetchall()
+    
+    conn.close()
+    
+    return render_template('portal/portal_quote_view.html',
+                           client_name=session.get('portal_client_name'),
+                           company_name=config.get('name'), 
+                           logo_url=config.get('logo'),
+                           brand_color=config.get('color'),
+                           quote=quote,
+                           items=items)
+
+# C. ACCEPT QUOTE ACTION
+@portal_bp.route('/portal/quote/<int:quote_id>/accept')
+def portal_accept_quote(quote_id):
+    if not check_portal_access(): return redirect(get_login_url())
+    
+    client_id = session['portal_client_id']
+    conn = get_db(); cur = conn.cursor()
+    
+    try:
+        # Update status to 'Accepted'
+        cur.execute("""
+            UPDATE quotes 
+            SET status = 'Accepted' 
+            WHERE id = %s AND client_id = %s
+        """, (quote_id, client_id))
+        
+        conn.commit()
+        flash("✅ Quote accepted! We have been notified and will be in touch.", "success")
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('portal.portal_view_quote', quote_id=quote_id))
