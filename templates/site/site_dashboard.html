@@ -7,196 +7,290 @@
 <style>
     /* 1. Global Reset & Premium Background */
     body {
-        background-color: #f0f2f5 !important;
+        background-color: #f2f4f8 !important; /* Premium light grey */
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
     
-    /* HIDE THE OLD HEADER FORCEFULLY */
-    .brand-header { display: none !important; } 
+    /* HIDE OLD HEADER FORCEFULLY */
+    .brand-header { display: none !important; }
     .container { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
 
-    /* 2. Modern Header Block */
-    .hub-header {
-        background: #111; /* Sharp Black */
+    /* 2. Modern Header with Dynamic Brand Color */
+    .dashboard-header {
+        /* Use brand_color if available, else fallback to black */
+        background: {{ brand_color if brand_color else '#111' }} !important; 
         color: white;
-        padding: 40px 20px 80px 20px; /* Deep padding for overlap */
-        border-bottom-left-radius: 24px;
-        border-bottom-right-radius: 24px;
+        padding: 40px 25px 90px 25px; /* Deep padding for tile overlap */
+        border-bottom-left-radius: 30px;
+        border-bottom-right-radius: 30px;
         position: relative;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         margin-bottom: 0 !important;
     }
-    .user-row {
+
+    .header-top {
         display: flex; justify-content: space-between; align-items: center;
-        margin-bottom: 10px;
+        margin-bottom: 20px;
     }
-    .avatar {
-        width: 48px; height: 48px;
-        background: #C5A059; /* Gold */
+
+    /* Logo Styling */
+    .header-logo {
+        height: 40px;
+        object-fit: contain;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 4px 8px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .status-pill {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(5px);
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        display: inline-flex; align-items: center;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+    .dot-green { background-color: #00e676; box-shadow: 0 0 10px #00e676; }
+    .dot-grey { background-color: #9e9e9e; }
+
+    /* Profile Picture Container */
+    .user-avatar {
+        width: 45px; height: 45px;
+        background: #C5A059; /* Fallback Gold */
         color: #000;
-        font-weight: 800;
         border-radius: 12px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 1.2rem;
-        border: 2px solid rgba(255,255,255,0.2);
+        font-weight: 800; font-size: 1.2rem;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        overflow: hidden; /* Clips the image */
+        border: 2px solid rgba(255,255,255,0.8);
     }
-    .date-display { font-size: 0.85rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
-    .greeting { font-size: 1.8rem; font-weight: 800; margin: 0; letter-spacing: -0.5px; color: white; }
+    
+    .user-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
 
-    /* 3. Action Grid (THE TILES) */
-    .quick-actions {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
+    .greeting-title { font-size: 1.8rem; font-weight: 800; margin: 0; color: white; }
+    .date-subtitle { opacity: 0.8; font-size: 0.9rem; font-weight: 500; margin-top: 5px; color: rgba(255,255,255,0.8); }
+
+    /* 3. THE TILES (Big Buttons) */
+    .tiles-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* Two columns */
+        gap: 15px;
         padding: 0 20px;
-        margin-top: -50px; /* Overlaps header */
-        margin-bottom: 25px;
-        position: relative; z-index: 10;
+        margin-top: -60px; /* Pull up to overlap header */
+        position: relative;
+        z-index: 10;
+        margin-bottom: 30px;
     }
-    .action-btn {
-        background: white;
-        padding: 25px 20px;
-        border-radius: 16px;
+
+    .tile-card {
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 25px 15px;
         text-align: center;
         text-decoration: none;
         color: #333;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.15); /* Strong Shadow */
-        border: 1px solid rgba(255,255,255,0.5);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1); /* Deep 3D shadow */
+        transition: transform 0.1s ease;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
+        border: 1px solid rgba(0,0,0,0.02);
     }
-    .action-btn:active { transform: scale(0.96); background: #eee; }
-    
-    .action-icon {
-        font-size: 1.8rem; margin-bottom: 10px;
-        color: #C5A059;
-        background: #fff8e1;
+    .tile-card:active { transform: scale(0.96); background: #f9f9f9; }
+
+    .tile-icon {
+        font-size: 1.8rem;
+        margin-bottom: 10px;
+        /* Use brand color for icon if possible, else gold */
+        color: {{ brand_color if brand_color else '#C5A059' }};
+        background: #f8f9fa;
         width: 50px; height: 50px;
         border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
     }
-    .action-text { font-weight: 800; font-size: 1rem; color: #111; }
+    .tile-text { font-weight: 800; font-size: 0.95rem; display: block; color: #111; }
 
-    /* 4. The Job Stream (Distinct Cards) */
-    .stream-container { padding: 0 20px 80px 20px; }
-    
-    .day-header {
-        font-size: 0.85rem; font-weight: 800; 
-        color: #888; text-transform: uppercase; 
-        margin: 25px 0 10px 5px; letter-spacing: 0.5px;
-        border-bottom: 2px solid #e0e0e0;
-        padding-bottom: 5px;
-        display: inline-block;
+    /* 4. THE JOB STREAM (Distinct Cards) */
+    .job-stream { padding: 0 20px 80px 20px; }
+
+    .date-separator {
+        display: flex; align-items: center;
+        margin: 25px 0 15px 0;
     }
+    .date-separator span {
+        font-size: 0.8rem; font-weight: 800;
+        color: #888; text-transform: uppercase;
+        letter-spacing: 1px;
+        background: #f2f4f8;
+        padding-right: 10px;
+    }
+    .date-line { flex-grow: 1; height: 1px; background: #ddd; }
 
+    /* The Job Card */
     .job-card {
-        background: white;
-        border-radius: 16px;
+        display: block;
+        background: #ffffff;
+        border-radius: 18px;
         padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        border-left: 6px solid #ccc; /* Default Border */
-        text-decoration: none; display: block;
+        margin-bottom: 16px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05); /* Floating Box */
+        border: 1px solid rgba(0,0,0,0.04);
+        text-decoration: none;
         color: inherit;
         position: relative;
+        overflow: hidden;
     }
-    .job-card:active { background: #f9f9f9; transform: scale(0.98); }
+    .job-card:active { background-color: #fafafa; transform: scale(0.99); }
 
-    /* Status Colors */
-    .status-InProgress { border-left-color: #f59e0b !important; } /* Amber */
-    .status-Completed { border-left-color: #10b981 !important; } /* Green */
-    .status-Scheduled { border-left-color: #3b82f6 !important; } /* Blue */
+    /* Status Indicators (Left Border Strip) */
+    .status-strip { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }
+    .strip-InProgress { background: #f59e0b; } /* Amber */
+    .strip-Completed { background: #10b981; } /* Green */
+    .strip-Scheduled { background: #3b82f6; } /* Blue */
+    .strip-Pending { background: #64748b; }   /* Grey */
 
-    .job-top { display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px; }
-    .client-name { font-size: 1.2rem; font-weight: 800; color: #111; }
-    
-    .time-badge { 
-        background: #f1f5f9; padding: 5px 10px; 
-        border-radius: 8px; font-size: 0.85rem; font-weight: 700; color: #333; 
+    .job-header {
+        display: flex; justify-content: space-between; align-items: start;
+        margin-bottom: 8px; padding-left: 10px;
+    }
+    .client-name { font-size: 1.1rem; font-weight: 800; color: #111; }
+    .job-time { 
+        background: #f3f4f6; color: #555; 
+        font-size: 0.75rem; font-weight: 700; 
+        padding: 4px 8px; border-radius: 6px;
         border: 1px solid #ddd;
     }
-    
-    .job-desc { color: #555; font-size: 1rem; margin-bottom: 15px; line-height: 1.4; }
-    
-    .job-footer {
+
+    .job-desc {
+        color: #666; font-size: 0.95rem; line-height: 1.4;
+        margin-bottom: 12px; padding-left: 10px;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+
+    .job-location {
         display: flex; align-items: center; gap: 8px;
-        font-size: 0.9rem; color: #666; font-weight: 500;
-        border-top: 1px solid #eee; padding-top: 12px;
+        font-size: 0.85rem; color: #888; font-weight: 500;
+        border-top: 1px solid #f0f0f0;
+        padding-top: 10px; padding-left: 10px;
     }
 
     /* Empty State */
-    .empty-box {
-        text-align: center; padding: 60px 20px;
-        color: #aaa;
-    }
+    .empty-state { text-align: center; padding: 40px; color: #aaa; }
 </style>
 
-    <div class="hub-header">
-        <div class="user-row">
-            <a href="/logout" style="color:white; opacity:0.7;"><i class="fas fa-sign-out-alt fa-lg"></i></a>
-            <div class="avatar">{{ staff_name[0] }}</div>
+    <header class="dashboard-header">
+        <div class="header-top">
+            
+            <div class="d-flex align-items-center gap-3">
+                {% if logo_url %}
+                    <img src="{{ logo_url }}" alt="Company Logo" class="header-logo">
+                {% endif %}
+
+                <div class="status-pill">
+                    {% if active_job %}
+                        <span class="status-dot dot-green"></span> <span>ON JOB</span>
+                    {% elif is_at_work %}
+                        <span class="status-dot dot-green"></span> <span>ONLINE</span>
+                    {% else %}
+                        <span class="status-dot dot-grey"></span> <span>OFFLINE</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <a href="/logout" class="text-decoration-none">
+                <div class="user-avatar">
+                    {% if my_profile and my_profile.profile_pic %}
+                        <img src="{{ my_profile.profile_pic }}" alt="{{ staff_name }}">
+                    {% else %}
+                        {{ staff_name[0] }}
+                    {% endif %}
+                </div>
+            </a>
         </div>
-        <div class="date-display">{{ now_ymd }}</div>
-        <h1 class="greeting">Hello, {{ staff_name.split(' ')[0] }}</h1>
+
+        <div class="greeting-block">
+            <h1 class="greeting-title">Hello, {{ staff_name.split(' ')[0] }}</h1>
+            <p class="date-subtitle">{{ now_ymd }}</p>
+        </div>
+    </header>
+
+    <div class="tiles-grid">
+        <a href="/site/van-check" class="tile-card">
+            <div class="tile-icon"><i class="fas fa-truck-pickup"></i></div>
+            <span class="tile-text">Check Van</span>
+        </a>
+        <a href="/site/log-fuel" class="tile-card">
+            <div class="tile-icon"><i class="fas fa-gas-pump"></i></div>
+            <span class="tile-text">Log Fuel</span>
+        </a>
     </div>
 
-    <div class="quick-actions">
-        <a href="/site/van-check" class="action-btn">
-            <div class="action-icon"><i class="fas fa-truck-pickup"></i></div>
-            <div class="action-text">Check Van</div>
-        </a>
-        <a href="/site/log-fuel" class="action-btn">
-            <div class="action-icon"><i class="fas fa-gas-pump"></i></div>
-            <div class="action-text">Log Fuel</div>
-        </a>
-    </div>
-
-    <div class="stream-container">
+    <div class="job-stream">
         
         {% if jobs %}
             {% set ns = namespace(last_date=None) %}
             
             {% for job in jobs %}
                 
-                {# DETERMINE DISPLAY DATE #}
+                {# DETERMINE DATE #}
                 {% if job.raw_date %}
                     {% set compare_date = job.raw_date %}
-                    {% set display_text = 'Today' if compare_date == now_ymd else job.display_date %}
+                    {% set display_text = 'TODAY' if compare_date == now_ymd else job.display_date %}
                 {% else %}
                     {% set compare_date = 'TBC' %}
-                    {% set display_text = 'Unscheduled Tasks' %}
+                    {% set display_text = 'UNSCHEDULED TASKS' %}
                 {% endif %}
 
-                {# RENDER HEADER IF DATE CHANGED #}
+                {# RENDER DATE HEADER IF CHANGED #}
                 {% if ns.last_date != compare_date %}
-                    <div class="day-header">{{ display_text }}</div>
+                    <div class="date-separator">
+                        <span>{{ display_text }}</span>
+                        <div class="date-line"></div>
+                    </div>
                     {% set ns.last_date = compare_date %}
                 {% endif %}
 
                 <a href="/site/job/{{ job.id }}" class="job-card status-{{ job.status|replace(' ', '') }}">
-                    <div class="job-top">
+                    <div class="status-strip strip-{{ job.status|replace(' ', '') }}"></div>
+                    
+                    <div class="job-header">
                         <div class="client-name">{{ job.client or 'Unknown Client' }}</div>
-                        <div class="time-badge">
-                            {% if job.status == 'In Progress' %}
-                                <i class="fas fa-sync fa-spin text-warning"></i> Active
-                            {% elif job.status == 'Completed' %}
-                                <i class="fas fa-check text-success"></i> Done
+                        <div class="job-time">
+                            {% if job.status == 'Completed' %}
+                                <i class="fas fa-check text-success"></i> DONE
+                            {% elif job.status == 'In Progress' %}
+                                <i class="fas fa-sync fa-spin text-warning"></i> ACTIVE
                             {% else %}
                                 {{ job.start_time or '09:00' }}
                             {% endif %}
                         </div>
                     </div>
-                    
+
                     <div class="job-desc">{{ job.desc }}</div>
-                    
-                    <div class="job-footer">
+
+                    <div class="job-location">
                         <i class="fas fa-map-marker-alt text-danger"></i>
                         <span class="text-truncate">{{ job.address }}</span>
                     </div>
                 </a>
 
             {% endfor %}
+        
         {% else %}
-            <div class="empty-box">
+            <div class="empty-state">
                 <i class="fas fa-coffee fa-3x mb-3"></i>
-                <p>No jobs scheduled for you right now.</p>
+                <p>All caught up! No jobs scheduled.</p>
             </div>
         {% endif %}
 
