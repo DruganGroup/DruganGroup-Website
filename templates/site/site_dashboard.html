@@ -5,213 +5,163 @@
 {% block content %}
 
 <style>
-    /* 1. Global Reset & Premium Background */
+    /* 1. Global Reset */
     body {
-        background-color: #f2f4f8 !important; /* Premium light grey */
+        background-color: #f2f4f8 !important;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-        margin: 0 !important;
-        padding: 0 !important;
+        margin: 0 !important; padding: 0 !important;
     }
-    
-    /* HIDE OLD HEADER FORCEFULLY */
     .brand-header { display: none !important; }
     .container { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
 
-    /* 2. Modern Header with Dynamic Brand Color */
+    /* 2. COMPACT HEADER */
     .dashboard-header {
-        /* Use brand_color if available, else fallback to black */
         background: {{ brand_color if brand_color else '#111' }} !important; 
         color: white;
-        padding: 40px 25px 90px 25px; /* Deep padding for tile overlap */
-        border-bottom-left-radius: 30px;
-        border-bottom-right-radius: 30px;
+        /* Much smaller padding */
+        padding: 20px 20px 60px 20px; 
+        border-bottom-left-radius: 24px;
+        border-bottom-right-radius: 24px;
         position: relative;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.2);
         margin-bottom: 0 !important;
     }
 
     .header-top {
         display: flex; justify-content: space-between; align-items: center;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
     }
 
-    /* Logo Styling */
-    .header-logo {
-        height: 40px;
-        object-fit: contain;
-        background: rgba(255, 255, 255, 0.95);
-        padding: 4px 8px;
+    /* LOGO CONTAINER - White box to ensure visibility */
+    .logo-container {
+        background: white;
+        padding: 5px 10px;
         border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        max-height: 40px;
     }
+    .header-logo {
+        height: 28px; /* Constrained height */
+        width: auto;
+        object-fit: contain;
+        display: block;
+    }
+
+    /* Profile Pic / Avatar */
+    .user-avatar {
+        width: 38px; height: 38px;
+        background: rgba(255,255,255,0.2);
+        color: white;
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 1.1rem;
+        border: 2px solid rgba(255,255,255,0.3);
+        overflow: hidden;
+    }
+    .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* Compact Greeting */
+    .greeting-block { display: flex; justify-content: space-between; align-items: end; }
+    .greeting-title { font-size: 1.4rem; font-weight: 700; margin: 0; color: white; line-height: 1.1; }
+    .date-subtitle { opacity: 0.7; font-size: 0.8rem; margin: 0; font-weight: 500; }
 
     .status-pill {
-        background: rgba(255, 255, 255, 0.15);
-        backdrop-filter: blur(5px);
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        display: inline-flex; align-items: center;
-        border: 1px solid rgba(255,255,255,0.2);
+        background: rgba(0,0,0,0.3);
+        padding: 4px 10px; border-radius: 12px;
+        font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+        display: flex; align-items: center; gap: 6px;
+        border: 1px solid rgba(255,255,255,0.1);
     }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
-    .dot-green { background-color: #00e676; box-shadow: 0 0 10px #00e676; }
-    .dot-grey { background-color: #9e9e9e; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #00e676; box-shadow: 0 0 5px #00e676; }
 
-    /* Profile Picture Container */
-    .user-avatar {
-        width: 45px; height: 45px;
-        background: #C5A059; /* Fallback Gold */
-        color: #000;
-        border-radius: 12px;
-        display: flex; align-items: center; justify-content: center;
-        font-weight: 800; font-size: 1.2rem;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        overflow: hidden; /* Clips the image */
-        border: 2px solid rgba(255,255,255,0.8);
-    }
-    
-    .user-avatar img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .greeting-title { font-size: 1.8rem; font-weight: 800; margin: 0; color: white; }
-    .date-subtitle { opacity: 0.8; font-size: 0.9rem; font-weight: 500; margin-top: 5px; color: rgba(255,255,255,0.8); }
-
-    /* 3. THE TILES (Big Buttons) */
+    /* 3. TILES (Adjusted for smaller header) */
     .tiles-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr; /* Two columns */
-        gap: 15px;
-        padding: 0 20px;
-        margin-top: -60px; /* Pull up to overlap header */
-        position: relative;
-        z-index: 10;
-        margin-bottom: 30px;
+        grid-template-columns: 1fr 1fr; 
+        gap: 12px;
+        padding: 0 15px;
+        margin-top: -40px; /* Pull up less */
+        position: relative; z-index: 10;
+        margin-bottom: 25px;
     }
 
     .tile-card {
         background: #ffffff;
-        border-radius: 20px;
-        padding: 25px 15px;
+        border-radius: 16px;
+        padding: 20px 10px;
         text-align: center;
         text-decoration: none;
         color: #333;
-        box-shadow: 0 15px 35px rgba(0,0,0,0.1); /* Deep 3D shadow */
-        transition: transform 0.1s ease;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        display: flex; flex-direction: column; align-items: center;
         border: 1px solid rgba(0,0,0,0.02);
     }
-    .tile-card:active { transform: scale(0.96); background: #f9f9f9; }
+    .tile-card:active { transform: scale(0.97); background: #f9f9f9; }
 
     .tile-icon {
-        font-size: 1.8rem;
-        margin-bottom: 10px;
-        /* Use brand color for icon if possible, else gold */
+        font-size: 1.5rem; margin-bottom: 8px;
         color: {{ brand_color if brand_color else '#C5A059' }};
-        background: #f8f9fa;
-        width: 50px; height: 50px;
+        background: #f4f6f8;
+        width: 45px; height: 45px;
         border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
     }
-    .tile-text { font-weight: 800; font-size: 0.95rem; display: block; color: #111; }
+    .tile-text { font-weight: 700; font-size: 0.9rem; color: #111; }
 
-    /* 4. THE JOB STREAM (Distinct Cards) */
-    .job-stream { padding: 0 20px 80px 20px; }
-
+    /* 4. JOB CARDS */
+    .stream-container { padding: 0 15px 80px 15px; }
+    
     .date-separator {
-        display: flex; align-items: center;
-        margin: 25px 0 15px 0;
+        display: flex; align-items: center; margin: 20px 0 10px 0;
     }
     .date-separator span {
-        font-size: 0.8rem; font-weight: 800;
-        color: #888; text-transform: uppercase;
-        letter-spacing: 1px;
-        background: #f2f4f8;
-        padding-right: 10px;
+        font-size: 0.75rem; font-weight: 800; color: #888; 
+        text-transform: uppercase; letter-spacing: 0.5px;
+        background: #f2f4f8; padding-right: 10px;
     }
     .date-line { flex-grow: 1; height: 1px; background: #ddd; }
 
-    /* The Job Card */
     .job-card {
-        display: block;
-        background: #ffffff;
-        border-radius: 18px;
-        padding: 20px;
-        margin-bottom: 16px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.05); /* Floating Box */
-        border: 1px solid rgba(0,0,0,0.04);
-        text-decoration: none;
-        color: inherit;
-        position: relative;
+        display: block; background: white; border-radius: 14px;
+        padding: 16px; margin-bottom: 12px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+        border: 1px solid #eef0f2;
+        text-decoration: none; color: inherit; position: relative;
         overflow: hidden;
     }
-    .job-card:active { background-color: #fafafa; transform: scale(0.99); }
+    .job-card:active { background-color: #fafafa; }
 
-    /* Status Indicators (Left Border Strip) */
-    .status-strip { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }
-    .strip-InProgress { background: #f59e0b; } /* Amber */
-    .strip-Completed { background: #10b981; } /* Green */
-    .strip-Scheduled { background: #3b82f6; } /* Blue */
-    .strip-Pending { background: #64748b; }   /* Grey */
+    /* Status Strips */
+    .status-strip { position: absolute; left: 0; top: 0; bottom: 0; width: 5px; }
+    .strip-InProgress { background: #f59e0b; }
+    .strip-Completed { background: #10b981; }
+    .strip-Scheduled { background: #3b82f6; }
 
-    .job-header {
-        display: flex; justify-content: space-between; align-items: start;
-        margin-bottom: 8px; padding-left: 10px;
-    }
-    .client-name { font-size: 1.1rem; font-weight: 800; color: #111; }
-    .job-time { 
-        background: #f3f4f6; color: #555; 
-        font-size: 0.75rem; font-weight: 700; 
-        padding: 4px 8px; border-radius: 6px;
-        border: 1px solid #ddd;
-    }
+    .job-top { display: flex; justify-content: space-between; margin-bottom: 6px; padding-left: 10px; }
+    .client-name { font-size: 1rem; font-weight: 800; color: #222; }
+    .job-time { background: #f3f4f6; color: #555; font-size: 0.7rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+    
+    .job-desc { color: #666; font-size: 0.85rem; margin-bottom: 10px; padding-left: 10px; line-height: 1.3; }
+    .job-footer { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #888; border-top: 1px solid #f0f0f0; padding-top: 8px; padding-left: 10px; }
 
-    .job-desc {
-        color: #666; font-size: 0.95rem; line-height: 1.4;
-        margin-bottom: 12px; padding-left: 10px;
-        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-    }
-
-    .job-location {
-        display: flex; align-items: center; gap: 8px;
-        font-size: 0.85rem; color: #888; font-weight: 500;
-        border-top: 1px solid #f0f0f0;
-        padding-top: 10px; padding-left: 10px;
-    }
-
-    /* Empty State */
     .empty-state { text-align: center; padding: 40px; color: #aaa; }
 </style>
 
-    <header class="dashboard-header">
+    <div class="dashboard-header">
         <div class="header-top">
-            
-            <div class="d-flex align-items-center gap-3">
-                {% if logo_url %}
-                    <img src="{{ logo_url }}" alt="Company Logo" class="header-logo">
-                {% endif %}
-
-                <div class="status-pill">
-                    {% if active_job %}
-                        <span class="status-dot dot-green"></span> <span>ON JOB</span>
-                    {% elif is_at_work %}
-                        <span class="status-dot dot-green"></span> <span>ONLINE</span>
-                    {% else %}
-                        <span class="status-dot dot-grey"></span> <span>OFFLINE</span>
-                    {% endif %}
+            {% if logo_url %}
+                <div class="logo-container">
+                    <img src="{{ logo_url }}" alt="Logo" class="header-logo">
                 </div>
-            </div>
+            {% else %}
+                <div class="fw-bold" style="font-size:1.2rem; letter-spacing: -0.5px;">SITE HUB</div>
+            {% endif %}
 
             <a href="/logout" class="text-decoration-none">
                 <div class="user-avatar">
                     {% if my_profile and my_profile.profile_pic %}
-                        <img src="{{ my_profile.profile_pic }}" alt="{{ staff_name }}">
+                        <img src="{{ my_profile.profile_pic }}">
                     {% else %}
                         {{ staff_name[0] }}
                     {% endif %}
@@ -220,10 +170,22 @@
         </div>
 
         <div class="greeting-block">
-            <h1 class="greeting-title">Hello, {{ staff_name.split(' ')[0] }}</h1>
-            <p class="date-subtitle">{{ now_ymd }}</p>
+            <div>
+                <h1 class="greeting-title">Hello, {{ staff_name.split(' ')[0] }}</h1>
+                <p class="date-subtitle">{{ now_ymd }}</p>
+            </div>
+            
+            <div class="status-pill">
+                {% if active_job %}
+                    <span class="status-dot" style="background:#00e676; box-shadow:0 0 5px #00e676;"></span> ON JOB
+                {% elif is_at_work %}
+                    <span class="status-dot"></span> ONLINE
+                {% else %}
+                    <span class="status-dot" style="background:#999; box-shadow:none;"></span> OFFLINE
+                {% endif %}
+            </div>
         </div>
-    </header>
+    </div>
 
     <div class="tiles-grid">
         <a href="/site/van-check" class="tile-card">
@@ -236,23 +198,19 @@
         </a>
     </div>
 
-    <div class="job-stream">
-        
+    <div class="stream-container">
         {% if jobs %}
             {% set ns = namespace(last_date=None) %}
             
             {% for job in jobs %}
-                
-                {# DETERMINE DATE #}
                 {% if job.raw_date %}
                     {% set compare_date = job.raw_date %}
                     {% set display_text = 'TODAY' if compare_date == now_ymd else job.display_date %}
                 {% else %}
                     {% set compare_date = 'TBC' %}
-                    {% set display_text = 'UNSCHEDULED TASKS' %}
+                    {% set display_text = 'UNSCHEDULED' %}
                 {% endif %}
 
-                {# RENDER DATE HEADER IF CHANGED #}
                 {% if ns.last_date != compare_date %}
                     <div class="date-separator">
                         <span>{{ display_text }}</span>
@@ -263,37 +221,24 @@
 
                 <a href="/site/job/{{ job.id }}" class="job-card status-{{ job.status|replace(' ', '') }}">
                     <div class="status-strip strip-{{ job.status|replace(' ', '') }}"></div>
-                    
-                    <div class="job-header">
-                        <div class="client-name">{{ job.client or 'Unknown Client' }}</div>
+                    <div class="job-top">
+                        <div class="client-name">{{ job.client or 'Client' }}</div>
                         <div class="job-time">
-                            {% if job.status == 'Completed' %}
-                                <i class="fas fa-check text-success"></i> DONE
-                            {% elif job.status == 'In Progress' %}
-                                <i class="fas fa-sync fa-spin text-warning"></i> ACTIVE
-                            {% else %}
-                                {{ job.start_time or '09:00' }}
-                            {% endif %}
+                            {% if job.status == 'Completed' %} <i class="fas fa-check"></i> {% else %} {{ job.start_time or '09:00' }} {% endif %}
                         </div>
                     </div>
-
                     <div class="job-desc">{{ job.desc }}</div>
-
-                    <div class="job-location">
-                        <i class="fas fa-map-marker-alt text-danger"></i>
-                        <span class="text-truncate">{{ job.address }}</span>
+                    <div class="job-footer">
+                        <i class="fas fa-map-marker-alt text-danger"></i> <span class="text-truncate">{{ job.address }}</span>
                     </div>
                 </a>
-
             {% endfor %}
-        
         {% else %}
             <div class="empty-state">
-                <i class="fas fa-coffee fa-3x mb-3"></i>
-                <p>All caught up! No jobs scheduled.</p>
+                <i class="fas fa-calendar-check fa-3x mb-3 text-secondary"></i>
+                <p>No jobs scheduled.</p>
             </div>
         {% endif %}
-
     </div>
 
 {% endblock %}
