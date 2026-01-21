@@ -3,130 +3,80 @@
 {% block title %}Pricing | Business Better{% endblock %}
 
 {% block content %}
-<header class="bg-dark text-white py-5 text-center">
+<header class="py-5 text-center" style="background-color: var(--bb-bg);">
     <div class="container py-4">
-        <h1 class="fw-bold display-4">Choose your fleet size</h1>
-        <p class="lead opacity-75">No hidden fees. Cancel anytime. Scale as you grow.</p>
+        <h1 class="fw-bold display-4 text-white">Choose your fleet size</h1>
+        <p class="lead text-secondary">No hidden fees. Cancel anytime. Scale as you grow.</p>
     </div>
 </header>
 
-<section class="py-5 bg-light">
+<section class="py-5" style="background-color: var(--bb-bg);">
     <div class="container">
-        <div class="text-center mb-5">
+        <div class="text-center mb-5 text-white">
             <span class="fw-bold me-3">Monthly</span>
             <div class="form-check form-switch d-inline-block">
-                <input class="form-check-input" type="checkbox" role="switch" checked>
+                <input class="form-check-input bg-gold border-0" type="checkbox" role="switch" checked>
             </div>
-            <span class="text-muted ms-2">Yearly (Save 20%)</span>
+            <span class="text-gold ms-2">Yearly (Save 20%)</span>
         </div>
 
         <div class="row g-4 align-items-center">
             
             <div class="col-lg-4">
-                <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card h-100 border-secondary bg-dark text-white rounded-4">
                     <div class="card-body p-5 text-center">
-                        <h4 class="fw-bold text-muted mb-3">Sole Trader</h4>
-                        <div class="display-4 fw-bold mb-3">£29<span class="fs-6 text-muted fw-normal">/mo</span></div>
-                        <p class="text-muted small mb-4">Perfect for getting organized.</p>
-                        
+                        <h4 class="fw-bold text-secondary mb-3">Sole Trader</h4>
+                        <div class="display-4 fw-bold mb-3 text-white">£29<span class="fs-6 text-secondary fw-normal">/mo</span></div>
+                        <p class="text-secondary small mb-4">Perfect for getting organized.</p>
                         <div class="d-grid mb-4">
-                            <a href="/contact" class="btn btn-outline-dark fw-bold rounded-pill">Start Free Trial</a>
+                            <a href="/contact" class="btn btn-outline-light rounded-pill">Start Free Trial</a>
                         </div>
-                        
-                        <ul class="list-unstyled text-start small mx-auto" style="max-width: 260px;">
-                            <li class="mb-3"><i class="fas fa-check text-success me-2"></i> Unlimited Quotes & Invoices</li>
-                            <li class="mb-3"><i class="fas fa-check text-success me-2"></i> Client Database (CRM)</li>
-                            <li class="mb-3"><i class="fas fa-check text-success me-2"></i> 1 Admin User</li>
-                            <li class="mb-3 text-muted opacity-50"><i class="fas fa-times me-2"></i> Site Companion App</li>
-                            <li class="mb-3 text-muted opacity-50"><i class="fas fa-times me-2"></i> Fleet Management</li>
+                        <ul class="list-unstyled text-start small mx-auto text-secondary" style="max-width: 260px;">
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Unlimited Quotes & Invoices</li>
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Client Database (CRM)</li>
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> 1 Admin User</li>
                         </ul>
                     </div>
                 </div>
             </div>
 
             <div class="col-lg-4">
-                <div class="card h-100 border-primary border-2 shadow-lg rounded-4 overflow-hidden position-relative">
-                    <div class="bg-primary text-white text-center py-1 small fw-bold text-uppercase">Most Popular</div>
+                <div class="card h-100 border-warning shadow-lg bg-dark text-white rounded-4 position-relative" style="box-shadow: 0 0 30px rgba(212,175,55,0.15) !important;">
+                    <div class="bg-gradient-gold text-black text-center py-1 small fw-bold text-uppercase" style="background: var(--bb-gold);">Most Popular</div>
                     <div class="card-body p-5 text-center">
-                        <h4 class="fw-bold text-primary mb-3">Growing Team</h4>
-                        <div class="display-4 fw-bold mb-3">£79<span class="fs-6 text-muted fw-normal">/mo</span></div>
-                        <p class="text-muted small mb-4">Connect the office to the van.</p>
-                        
+                        <h4 class="fw-bold text-gold mb-3">Growing Team</h4>
+                        <div class="display-4 fw-bold mb-3 text-white">£79<span class="fs-6 text-secondary fw-normal">/mo</span></div>
+                        <p class="text-secondary small mb-4">Connect the office to the van.</p>
                         <div class="d-grid mb-4">
-                            <a href="/contact" class="btn btn-primary fw-bold rounded-pill shadow-sm">Start Free Trial</a>
+                            <a href="/contact" class="btn btn-brand rounded-pill">Start Free Trial</a>
                         </div>
-                        
-                        <ul class="list-unstyled text-start small mx-auto" style="max-width: 260px;">
-                            <li class="mb-3"><i class="fas fa-check text-primary me-2"></i> <strong>Everything in Starter</strong></li>
-                            <li class="mb-3"><i class="fas fa-check text-primary me-2"></i> <strong>Site Companion App</strong> (5 Users)</li>
-                            <li class="mb-3"><i class="fas fa-check text-primary me-2"></i> Job Scheduling & Calendar</li>
-                            <li class="mb-3"><i class="fas fa-check text-primary me-2"></i> Live Job Status Updates</li>
-                            <li class="mb-3"><i class="fas fa-check text-primary me-2"></i> Photo Uploads & Snagging</li>
+                        <ul class="list-unstyled text-start small mx-auto text-secondary" style="max-width: 260px;">
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>Everything in Starter</strong></li>
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>Site App</strong> (5 Users)</li>
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Live Job Status Updates</li>
                         </ul>
                     </div>
                 </div>
             </div>
 
             <div class="col-lg-4">
-                <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card h-100 border-secondary bg-dark text-white rounded-4">
                     <div class="card-body p-5 text-center">
-                        <h4 class="fw-bold text-muted mb-3">Fleet Command</h4>
-                        <div class="display-4 fw-bold mb-3">£149<span class="fs-6 text-muted fw-normal">/mo</span></div>
-                        <p class="text-muted small mb-4">Total control for larger firms.</p>
-                        
+                        <h4 class="fw-bold text-secondary mb-3">Fleet Command</h4>
+                        <div class="display-4 fw-bold mb-3 text-white">£149<span class="fs-6 text-secondary fw-normal">/mo</span></div>
+                        <p class="text-secondary small mb-4">Total control for larger firms.</p>
                         <div class="d-grid mb-4">
-                            <a href="/contact" class="btn btn-outline-dark fw-bold rounded-pill">Contact Sales</a>
+                            <a href="/contact" class="btn btn-outline-light rounded-pill">Contact Sales</a>
                         </div>
-                        
-                        <ul class="list-unstyled text-start small mx-auto" style="max-width: 260px;">
-                            <li class="mb-3"><i class="fas fa-check text-success me-2"></i> <strong>Everything in Growth</strong></li>
-                            <li class="mb-3"><i class="fas fa-check text-success me-2"></i> <strong>Unlimited</strong> App Users</li>
-                            <li class="mb-3"><i class="fas fa-check text-success me-2"></i> Fleet Mgmt (MOT/Tax Alerts)</li>
-                            <li class="mb-3"><i class="fas fa-check text-success me-2"></i> Daily Van Check Logs</li>
-                            <li class="mb-3"><i class="fas fa-check text-success me-2"></i> Priority Support</li>
+                        <ul class="list-unstyled text-start small mx-auto text-secondary" style="max-width: 260px;">
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>Everything in Growth</strong></li>
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>Unlimited</strong> Users</li>
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Fleet Mgmt (MOT/Tax Alerts)</li>
                         </ul>
                     </div>
                 </div>
             </div>
 
-        </div>
-    </div>
-</section>
-
-<section class="py-5">
-    <div class="container py-4">
-        <h3 class="fw-bold text-center mb-5">Frequently Asked Questions</h3>
-        <div class="row g-4 justify-content-center">
-            <div class="col-lg-8">
-                <div class="accordion" id="pricingFaq">
-                    <div class="accordion-item border-0 border-bottom">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed fw-bold bg-white shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
-                                Can I change plans later?
-                            </button>
-                        </h2>
-                        <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#pricingFaq">
-                            <div class="accordion-body text-muted">
-                                Absolutely. You can upgrade or downgrade your plan at any time from your dashboard.
-                            </div>
-                        </div>
-                    </div>
-                    <div class="accordion-item border-0 border-bottom">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed fw-bold bg-white shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
-                                Do I need to pay for each employee?
-                            </button>
-                        </h2>
-                        <div class="accordion-body text-muted">
-    We don't charge for every single individual license. Instead, we use simple tiers. 
-    The <strong>Growing Team</strong> plan covers small businesses (up to 5 staff). 
-    If you have more than 5, the <strong>Fleet Command</strong> plan allows for 
-    <strong>unlimited staff</strong> at one fixed price.
-</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </section>
