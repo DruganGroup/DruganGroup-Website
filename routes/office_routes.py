@@ -460,16 +460,57 @@ def new_quote():
     cur.execute("SELECT id, name, cost_price FROM materials WHERE company_id=%s ORDER BY name", (comp_id,))
     materials = [{'id': r[0], 'name': r[1], 'price': r[2]} for r in cur.fetchall()]
 
-    # 3. Fetch Vehicles (THIS WAS MISSING)
-    cur.execute("SELECT id, reg_plate, make_model, daily_cost FROM vehicles WHERE company_id=%s AND status='Active'", (comp_id,))
+    # ==============================================================================
+    # 3. FETCH VEHICLES & CALCULATE "TRUE GANG COST" (Matches Finance Logic)
+    # ==============================================================================
+    cur.execute("""
+        SELECT v.id, v.reg_plate, v.make_model, v.daily_cost, v.assigned_driver_id
+        FROM vehicles v
+        WHERE v.company_id = %s AND v.status = 'Active'
+    """, (comp_id,))
+    
+    vehicles_raw = cur.fetchall()
     vehicles = []
-    for r in cur.fetchall():
+
+    for r in vehicles_raw:
+        v_id, reg, model, base_cost, driver_id = r
+        
+        # Start with Base Cost (Lease/Fuel)
+        daily_total = float(base_cost or 0)
+        
+        # A. Add Driver Cost
+        if driver_id:
+            cur.execute("SELECT pay_rate, pay_model FROM staff WHERE id = %s", (driver_id,))
+            d_row = cur.fetchone()
+            if d_row:
+                rate, model_type = float(d_row[0] or 0), d_row[1]
+                if model_type == 'Hour': daily_total += (rate * 8) # Assume 8hr day for quotes
+                elif model_type == 'Day': daily_total += rate
+                elif model_type == 'Year': daily_total += (rate / 260)
+
+        # B. Add Crew Cost (Passengers)
+        cur.execute("""
+            SELECT s.pay_rate, s.pay_model 
+            FROM vehicle_crews vc
+            JOIN staff s ON vc.staff_id = s.id
+            WHERE vc.vehicle_id = %s
+        """, (v_id,))
+        crew_rows = cur.fetchall()
+        
+        for c_row in crew_rows:
+            rate, model_type = float(c_row[0] or 0), c_row[1]
+            if model_type == 'Hour': daily_total += (rate * 8)
+            elif model_type == 'Day': daily_total += rate
+            elif model_type == 'Year': daily_total += (rate / 260)
+
+        # C. Add to List
         vehicles.append({
-            'id': r[0], 
-            'reg_plate': r[1], 
-            'make_model': r[2], 
-            'daily_cost': r[3]
+            'id': v_id, 
+            'reg_plate': reg, 
+            'make_model': model, 
+            'daily_cost': daily_total # <--- NOW ACCURATE
         })
+    # ==============================================================================
 
     # 4. Fetch Settings
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
@@ -478,20 +519,10 @@ def new_quote():
     # 5. LOOKUP SERVICE REQUEST
     request_id = request.args.get('request_id')
     source_request = None
-    
     if request_id:
-        cur.execute("""
-            SELECT issue_description, image_url, property_id 
-            FROM service_requests 
-            WHERE id = %s AND company_id = %s
-        """, (request_id, comp_id))
+        cur.execute("SELECT issue_description, image_url, property_id FROM service_requests WHERE id = %s AND company_id = %s", (request_id, comp_id))
         row = cur.fetchone()
-        if row:
-            source_request = {
-                'desc': row[0],
-                'image': row[1],
-                'prop_id': row[2]
-            }
+        if row: source_request = {'desc': row[0], 'image': row[1], 'prop_id': row[2]}
 
     conn.close()
 
@@ -513,7 +544,7 @@ def new_quote():
     return render_template('office/create_quote.html', 
                            clients=clients, 
                            materials=materials, 
-                           vehicles=vehicles,   # <--- ADDED THIS
+                           vehicles=vehicles,
                            settings=settings, 
                            tax_rate=tax_rate, 
                            pre_selected_client=pre_client,
