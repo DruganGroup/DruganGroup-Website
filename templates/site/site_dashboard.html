@@ -3,334 +3,270 @@
 {% block title %}Hub | Business Better{% endblock %}
 
 {% block head %}
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
 <style>
-    /* --- 1. GLOBAL & RESET --- */
-    :root {
-        --bb-primary: {{ brand_color or '#0f172a' }};
-        --bb-bg: #f8fafc;
-        --bb-card-bg: #ffffff;
-        --bb-text: #1e293b;
-        --bb-muted: #64748b;
-        --bb-radius: 16px;
-        --bb-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
-    }
-
+    /* --- 1. FORCE RESET & BACKGROUND --- */
     body {
-        background-color: var(--bb-bg) !important;
+        background-color: #f3f4f6 !important; /* Premium Off-White */
         font-family: 'Inter', sans-serif !important;
-        color: var(--bb-text);
-        padding-top: 0 !important; /* Reset site_base padding if any */
-    }
-
-    /* Hide the default base header so we can use our modern one */
-    .brand-header { display: none !important; }
-    .container { max-width: 600px; padding: 0 20px; } /* Mobile optimized width */
-
-    /* --- 2. MODERN HEADER --- */
-    .dashboard-header {
-        background: var(--bb-primary);
-        color: white;
-        padding: 60px 25px 90px 25px; /* Extra bottom padding for overlap */
-        border-radius: 0 0 30px 30px;
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        padding-top: 0 !important;
+        margin: 0 !important;
     }
     
-    /* Abstract background shape for flair */
-    .dashboard-header::before {
-        content: '';
-        position: absolute;
-        top: -50%; left: -20%;
-        width: 200%; height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 60%);
-        pointer-events: none;
+    /* Remove default header to use our custom one */
+    .brand-header { display: none !important; }
+    .container { max-width: 100% !important; padding: 0 !important; }
+
+    /* --- 2. LUXURY HEADER (The "Dubai" Look) --- */
+    .hero-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        padding: 40px 25px 80px 25px; /* Bottom padding for overlap */
+        border-radius: 0 0 30px 30px;
+        color: white;
+        position: relative;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        z-index: 1;
     }
 
-    .user-avatar {
+    .hero-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .avatar-circle {
         width: 50px; height: 50px;
-        background: rgba(255,255,255,0.2);
-        backdrop-filter: blur(10px);
-        border: 2px solid rgba(255,255,255,0.3);
+        background: linear-gradient(45deg, #FFD700, #FDB931); /* Gold Gradient */
+        color: #000;
+        font-weight: 800;
         border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        font-size: 1.2rem; font-weight: 700; color: white;
+        font-size: 1.2rem;
+        border: 3px solid rgba(255,255,255,0.2);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
     }
 
-    .status-pill {
-        background: rgba(0, 0, 0, 0.3);
-        backdrop-filter: blur(5px);
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        display: inline-flex; align-items: center; gap: 6px;
-        border: 1px solid rgba(255,255,255,0.1);
-    }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: block; }
-    .status-dot.active { background-color: #4ade80; box-shadow: 0 0 10px #4ade80; }
-    .status-dot.idle { background-color: #94a3b8; }
+    .greeting h1 { font-size: 1.8rem; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
+    .greeting p { color: rgba(255,255,255,0.6); margin: 0; font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
 
-    /* --- 3. FLOATING ACTION GRID --- */
-    .actions-grid {
+    /* --- 3. ACTION TILES (The "Buttons") --- */
+    .tiles-container {
+        padding: 0 20px;
+        margin-top: -50px; /* Pulls tiles up into header */
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 15px;
-        margin-top: -60px; /* Pull up to overlap header */
-        margin-bottom: 30px;
         position: relative;
         z-index: 10;
+        margin-bottom: 30px;
     }
 
-    .action-card {
-        background: var(--bb-card-bg);
-        border-radius: var(--bb-radius);
+    .action-tile {
+        background: #ffffff;
+        border-radius: 20px;
         padding: 20px;
-        text-decoration: none;
-        color: var(--bb-text);
-        box-shadow: var(--bb-shadow);
-        transition: transform 0.2s, box-shadow 0.2s;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
         text-align: center;
-        border: 1px solid rgba(0,0,0,0.02);
+        text-decoration: none;
+        color: #1e293b;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s ease;
+        border: 1px solid rgba(255,255,255,0.5);
     }
-    .action-card:active { transform: scale(0.96); }
-    .action-icon {
-        width: 45px; height: 45px;
-        border-radius: 12px;
+    
+    .action-tile:active { transform: scale(0.96); }
+
+    .tile-icon {
+        width: 50px; height: 50px;
+        background: #f8fafc;
+        border-radius: 15px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 1.2rem;
-        margin-bottom: 12px;
+        margin: 0 auto 12px auto;
+        font-size: 1.4rem;
     }
-    .icon-van { background: #eff6ff; color: #3b82f6; }
-    .icon-fuel { background: #fff7ed; color: #f97316; }
-    .action-label { font-weight: 700; font-size: 0.9rem; letter-spacing: 0.3px; }
+    .icon-blue { color: #3b82f6; background: #eff6ff; }
+    .icon-orange { color: #f97316; background: #fff7ed; }
 
-    /* --- 4. HORIZONTAL DATE STRIP --- */
-    .date-strip-container {
-        overflow-x: auto;
-        white-space: nowrap;
-        padding-bottom: 10px;
-        margin-bottom: 20px;
-        -ms-overflow-style: none;  /* Hide scrollbar IE/Edge */
-        scrollbar-width: none;  /* Hide scrollbar Firefox */
-    }
-    .date-strip-container::-webkit-scrollbar { display: none; } /* Hide scrollbar Chrome */
+    .tile-label { font-weight: 700; font-size: 0.95rem; }
 
-    .date-pill {
-        display: inline-block;
-        padding: 10px 18px;
-        border-radius: 12px;
-        background: white;
-        margin-right: 10px;
-        text-align: center;
-        min-width: 70px;
-        border: 1px solid #e2e8f0;
-        color: var(--bb-muted);
-        text-decoration: none;
-        transition: all 0.2s;
+    /* --- 4. TIMELINE & CARDS --- */
+    .timeline-wrapper {
+        padding: 0 20px 40px 20px;
+        position: relative;
     }
-    .date-pill.active {
-        background: var(--bb-primary);
-        color: white;
-        border-color: var(--bb-primary);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    }
-    .date-pill .day { font-size: 0.75rem; text-transform: uppercase; font-weight: 600; display: block; }
-    .date-pill .num { font-size: 1.1rem; font-weight: 800; display: block; line-height: 1.2; }
-
-    /* --- 5. TIMELINE JOBS --- */
-    .timeline-section { position: relative; padding-left: 20px; }
-    .timeline-section::before {
-        content: '';
+    
+    /* The vertical line */
+    .timeline-line {
         position: absolute;
-        left: 0; top: 10px; bottom: 0;
+        left: 35px; /* Align with dots */
+        top: 0; bottom: 0;
         width: 2px;
         background: #e2e8f0;
-        border-radius: 2px;
+        z-index: 0;
     }
 
-    .date-header-sticky {
-        position: sticky;
-        top: 10px;
-        background: var(--bb-bg); /* Mask timeline line behind text */
-        z-index: 5;
-        display: inline-block;
+    .timeline-group { margin-bottom: 25px; position: relative; z-index: 1; }
+
+    .date-marker {
+        display: flex;
+        align-items: center;
+        gap: 15px;
         margin-bottom: 15px;
-        padding: 5px 0;
     }
-    .date-header-text {
-        font-size: 0.85rem;
+    
+    .date-dot {
+        width: 12px; height: 12px;
+        background: #94a3b8;
+        border-radius: 50%;
+        margin-left: 10px; /* Aligns with line */
+        border: 3px solid #f3f4f6; /* Masks line behind it */
+    }
+    .date-dot.today { background: #10b981; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2); }
+
+    .date-text {
         font-weight: 800;
+        color: #64748b;
+        font-size: 0.85rem;
         text-transform: uppercase;
-        color: var(--bb-muted);
         letter-spacing: 1px;
     }
 
-    .job-card-modern {
+    /* THE JOB CARD ITSELF */
+    .job-card-premium {
         background: white;
-        border-radius: var(--bb-radius);
+        border-radius: 18px;
         padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: var(--bb-shadow);
-        border: 1px solid rgba(0,0,0,0.03);
-        position: relative;
+        margin-left: 30px; /* Space for timeline */
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        border-left: 5px solid transparent; /* Status strip */
         text-decoration: none;
         display: block;
-        transition: transform 0.2s;
-        margin-left: 10px; /* Space from timeline */
+        transition: transform 0.1s;
     }
-    .job-card-modern::before {
-        /* Timeline Dot */
-        content: '';
-        position: absolute;
-        left: -35px; top: 25px;
-        width: 12px; height: 12px;
-        background: white;
-        border: 3px solid var(--bb-primary);
-        border-radius: 50%;
-        z-index: 2;
+    .job-card-premium:active { transform: scale(0.98); background: #fafafa; }
+
+    /* Status Colors */
+    .status-InProgress { border-left-color: #f59e0b; } /* Amber */
+    .status-Completed { border-left-color: #10b981; } /* Green */
+    .status-Scheduled { border-left-color: #3b82f6; } /* Blue */
+
+    .job-client {
+        color: #0f172a;
+        font-weight: 800;
+        font-size: 1.1rem;
+        margin-bottom: 4px;
     }
-    .job-card-modern:active { transform: scale(0.98); }
-
-    .job-meta { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--bb-muted); margin-top: 12px; }
-    .status-badge {
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 0.7rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+    .job-desc {
+        color: #64748b;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        margin-bottom: 12px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
-    .status-active { background: #fef3c7; color: #d97706; }
-    .status-scheduled { background: #f1f5f9; color: #475569; }
-    .status-done { background: #dcfce7; color: #166534; }
+    .job-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid #f1f5f9;
+        padding-top: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #94a3b8;
+    }
+    .job-time { background: #f1f5f9; padding: 4px 8px; border-radius: 6px; color: #475569; }
 
-    .client-name { font-size: 1.1rem; font-weight: 800; color: var(--bb-text); margin-bottom: 4px; }
-    .job-desc { font-size: 0.9rem; color: #475569; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-
-    /* Empty State */
-    .empty-state { text-align: center; padding: 40px 20px; opacity: 0.6; }
 </style>
 {% endblock %}
 
 {% block content %}
 
-    <header class="dashboard-header">
-        <div class="d-flex justify-content-between align-items-start">
-            <div>
-                <div class="status-pill mb-3">
-                    {% if active_job %}
-                        <span class="status-dot active"></span> <span>ON JOB</span>
-                    {% elif is_at_work %}
-                        <span class="status-dot active"></span> <span>ONLINE</span>
-                    {% else %}
-                        <span class="status-dot idle"></span> <span>OFFLINE</span>
-                    {% endif %}
-                </div>
-                <h1 class="fw-bold mb-0" style="font-size: 1.75rem;">{{ staff_name.split(' ')[0] }}'s Hub</h1>
-                <p class="mb-0 opacity-75 small">{{ now_ymd }}</p>
+    <header class="hero-header">
+        <div class="hero-top">
+            <a href="/logout" class="text-white opacity-50"><i class="fas fa-sign-out-alt fa-lg"></i></a>
+            <div class="avatar-circle">
+                {{ staff_name[0] }}
             </div>
-            
-            <a href="/logout" class="text-decoration-none">
-                <div class="user-avatar">
-                    {{ staff_name[0] }}
-                </div>
-            </a>
+        </div>
+        <div class="greeting">
+            <p>{{ now_ymd }}</p>
+            <h1>{{ staff_name.split(' ')[0] }}'s Hub</h1>
         </div>
     </header>
 
-    <div class="container">
-        
-        <div class="actions-grid">
-            <a href="/site/van-check" class="action-card">
-                <div class="action-icon icon-van">
-                    <i class="fas fa-check"></i>
-                </div>
-                <div class="action-label">Check Van</div>
-            </a>
-            <a href="/site/log-fuel" class="action-card">
-                <div class="action-icon icon-fuel">
-                    <i class="fas fa-gas-pump"></i>
-                </div>
-                <div class="action-label">Log Fuel</div>
-            </a>
-        </div>
-
-        <div class="date-strip-container">
-            <a href="#" class="date-pill" style="opacity: 0.5;">
-                <span class="day">Yest</span>
-                <span class="num">Prev</span>
-            </a>
-            <a href="#" class="date-pill active">
-                <span class="day">Today</span>
-                <span class="num">{{ now_ymd.split('-')[-1] if '-' in now_ymd else 'Now' }}</span>
-            </a>
-            <a href="#" class="date-pill">
-                <span class="day">Next</span>
-                <span class="num">Job</span>
-            </a>
-            <a href="#" class="date-pill">
-                <span class="day">Plan</span>
-                <span class="num">All</span>
-            </a>
-        </div>
-
-        <div class="timeline-section">
-            {% if jobs %}
-                {% set ns = namespace(last_date=None) %}
-                
-                {% for job in jobs %}
-                    {# Logic to handle headers #}
-                    {% if job.raw_date %}
-                        {% set compare_date = job.raw_date %}
-                        {% set display_date_text = 'Today' if compare_date == now_ymd else job.display_date %}
-                    {% else %}
-                        {% set compare_date = 'TBC' %}
-                        {% set display_date_text = 'Unscheduled' %}
-                    {% endif %}
-
-                    {% if ns.last_date != compare_date %}
-                        <div class="date-header-sticky">
-                            <span class="date-header-text">{{ display_date_text }}</span>
-                        </div>
-                        {% set ns.last_date = compare_date %}
-                    {% endif %}
-
-                    <a href="/site/job/{{ job.id }}" class="job-card-modern">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div class="client-name">{{ job.client or 'Unknown Client' }}</div>
-                            
-                            {% if job.status == 'In Progress' %}
-                                <span class="status-badge status-active">Active</span>
-                            {% elif job.status == 'Completed' %}
-                                <span class="status-badge status-done">Done</span>
-                            {% else %}
-                                <span class="status-badge status-scheduled">{{ job.start_time or '09:00' }}</span>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="job-desc">{{ job.desc }}</div>
-                        
-                        <div class="job-meta">
-                            <i class="fas fa-map-marker-alt text-danger"></i> 
-                            <span class="text-truncate">{{ job.address }}</span>
-                        </div>
-                    </a>
-                {% endfor %}
-            {% else %}
-                <div class="empty-state">
-                    <i class="fas fa-mug-hot fa-3x mb-3 text-secondary"></i>
-                    <h5>All Caught Up</h5>
-                    <p class="small text-muted">No jobs scheduled for today.</p>
-                </div>
-            {% endif %}
-        </div>
-
+    <div class="tiles-container">
+        <a href="/site/van-check" class="action-tile">
+            <div class="tile-icon icon-blue">
+                <i class="fas fa-shuttle-van"></i>
+            </div>
+            <div class="tile-label">Check Van</div>
+        </a>
+        <a href="/site/log-fuel" class="action-tile">
+            <div class="tile-icon icon-orange">
+                <i class="fas fa-gas-pump"></i>
+            </div>
+            <div class="tile-label">Log Fuel</div>
+        </a>
     </div>
 
-    <div style="height: 40px;"></div>
+    <div class="timeline-wrapper">
+        <div class="timeline-line"></div>
+
+        {% if jobs %}
+            {% set ns = namespace(last_date=None) %}
+            
+            {% for job in jobs %}
+                
+                {# DATE LOGIC #}
+                {% if job.raw_date %}
+                    {% set compare_date = job.raw_date %}
+                    {% set display_text = 'TODAY' if compare_date == now_ymd else job.display_date %}
+                {% else %}
+                    {% set compare_date = 'TBC' %}
+                    {% set display_text = 'UNSCHEDULED' %}
+                {% endif %}
+
+                {# DATE HEADER (Only show if date changed) #}
+                {% if ns.last_date != compare_date %}
+                    <div class="timeline-group">
+                        <div class="date-marker">
+                            <div class="date-dot {{ 'today' if compare_date == now_ymd else '' }}"></div>
+                            <div class="date-text {{ 'text-dark' if compare_date == now_ymd else '' }}">{{ display_text }}</div>
+                        </div>
+                    </div>
+                    {% set ns.last_date = compare_date %}
+                {% endif %}
+
+                <div class="timeline-group">
+                    <a href="/site/job/{{ job.id }}" class="job-card-premium status-{{ job.status|replace(' ', '') }}">
+                        <div class="job-client">{{ job.client or 'Unknown Client' }}</div>
+                        <div class="job-desc">{{ job.desc }}</div>
+                        
+                        <div class="job-footer">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="fas fa-map-marker-alt text-danger"></i>
+                                <span class="text-truncate" style="max-width: 120px;">{{ job.address }}</span>
+                            </div>
+                            <div class="job-time">
+                                <i class="far fa-clock me-1"></i> {{ job.start_time or '09:00' }}
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+            {% endfor %}
+        
+        {% else %}
+            <div class="text-center pt-5" style="opacity: 0.5;">
+                <i class="fas fa-calendar-check fa-4x mb-3 text-secondary"></i>
+                <h3 class="fw-bold text-dark">All Clear</h3>
+                <p>No jobs scheduled right now.</p>
+            </div>
+        {% endif %}
+
+    </div>
 
 {% endblock %}
