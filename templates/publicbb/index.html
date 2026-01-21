@@ -1,168 +1,323 @@
 {% extends "publicbb/base.html" %}
 
-{% block title %}Business Better | The Trade OS{% endblock %}
+{% block title %}Business Better | The Executive OS{% endblock %}
+
+{% block head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+<style>
+    :root {
+        --bb-black: #050505;
+        --bb-dark: #0f1014;
+        --bb-gold: #d4af37;
+        --bb-gold-light: #f3cf55;
+        --bb-gold-gradient: linear-gradient(135deg, #d4af37 0%, #aa8a29 100%);
+        --bb-glass: rgba(255, 255, 255, 0.03);
+    }
+
+    body {
+        background-color: var(--bb-black);
+        color: #e0e0e0;
+        font-family: 'Montserrat', sans-serif;
+    }
+
+    h1, h2, h3 {
+        font-family: 'Montserrat', sans-serif; /* Clean, architectural */
+        letter-spacing: -1px;
+    }
+
+    .text-gold {
+        color: var(--bb-gold);
+        background: linear-gradient(to right, #f3cf55, #d4af37, #f3cf55);
+        -webkit-background-clip: text;
+        background-clip: text;
+        background-size: 200% auto;
+        animation: shine 5s linear infinite;
+        color: transparent; /* Fallback */
+    }
+
+    @keyframes shine {
+        to { background-position: 200% center; }
+    }
+
+    /* Premium Button */
+    .btn-gold {
+        background: var(--bb-gold-gradient);
+        border: none;
+        color: #000;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 15px 40px;
+        border-radius: 2px; /* Sharp angles like the skyscraper */
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-gold:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3);
+        color: #000;
+    }
+
+    /* Glass Cards */
+    .feature-card {
+        background: var(--bb-glass);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 40px;
+        border-radius: 4px;
+        transition: all 0.4s ease;
+    }
+
+    .feature-card:hover {
+        border-color: var(--bb-gold);
+        transform: translateY(-5px);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .stat-number {
+        font-family: 'Playfair Display', serif;
+        font-size: 3rem;
+        color: var(--bb-gold);
+    }
+
+    /* Hero Glow */
+    .hero-glow {
+        position: absolute;
+        top: -20%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 800px;
+        height: 800px;
+        background: radial-gradient(circle, rgba(212, 175, 55, 0.1) 0%, rgba(0,0,0,0) 70%);
+        z-index: 0;
+        pointer-events: none;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<header class="position-relative overflow-hidden pt-5 pb-0">
-    <div style="position: absolute; top: -20%; left: 50%; transform: translateX(-50%); width: 800px; height: 800px; background: radial-gradient(circle, rgba(212, 175, 55, 0.15) 0%, rgba(0,0,0,0) 70%); border-radius: 50%; z-index: 0;"></div>
 
-    <div class="container text-center position-relative" style="z-index: 2;">
-        <h1 class="display-3 fw-bold mb-4">
-            Construction Management.<br>
-            <span style="color: var(--bb-gold);">Done Better.</span>
-        </h1>
-        <p class="lead text-muted mx-auto mb-5" style="max-width: 600px;">
-            Stop drowning in paperwork. Connect your office to your site in real-time. Estimates, Scheduling, Safety, and Invoicing—all in one place.
-        </p>
-        <div class="d-flex justify-content-center gap-3 mb-5">
-            <a href="/pricing" class="btn btn-primary shadow-lg">View Pricing</a>
-            <a href="/features" class="btn btn-outline-dark">How it Works</a>
-        </div>
+<header class="position-relative overflow-hidden" style="padding-top: 120px; padding-bottom: 100px;">
+    <div class="hero-glow"></div>
 
-        <div class="mx-auto mt-5 position-relative" style="max-width: 1000px; perspective: 1000px;" data-aos="fade-up">
-            <div class="bg-dark rounded-top-4 border border-secondary border-bottom-0 shadow-lg" style="height: 30px; display: flex; align-items: center; padding: 0 15px; background: #1e293b;">
-                <div class="d-flex gap-2">
-                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+    <div class="container position-relative" style="z-index: 2;">
+        <div class="row justify-content-center text-center">
+            <div class="col-lg-10">
+                <div class="mb-4" data-aos="fade-down">
+                    <span class="text-uppercase tracking-wide small text-muted border border-secondary px-3 py-1 rounded-pill">
+                        Enterprise Edition 2.0
+                    </span>
+                </div>
+                
+                <h1 class="display-2 fw-bold mb-4 text-white">
+                    The Operating System for <br>
+                    <span class="text-gold">The Top 1%.</span>
+                </h1>
+                
+                <p class="lead text-secondary mx-auto mb-5" style="max-width: 700px; font-weight: 300;">
+                    Most software tracks your invoices. <strong>Business Better</strong> tracks your empire. 
+                    From forensic audit logs to real-time profit analysis—this is construction management at an executive level.
+                </p>
+
+                <div class="d-flex justify-content-center gap-3 mb-5" data-aos="fade-up" data-aos-delay="100">
+                    <a href="/login" class="btn btn-gold shadow-lg">Enter Dashboard</a>
+                    <a href="/features" class="btn btn-outline-light rounded-0 px-4 py-3 text-uppercase small fw-bold" style="letter-spacing: 1px;">Explore Features</a>
                 </div>
             </div>
+        </div>
+
+        <div class="mx-auto mt-4 position-relative" style="max-width: 1100px; perspective: 1500px;" data-aos="fade-up" data-aos-delay="200">
+            <div style="position: absolute; top: -1px; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--bb-gold), transparent);"></div>
             
-            <div class="bg-dark border border-secondary rounded-bottom-4 overflow-hidden shadow-lg text-start p-0" style="min-height: 500px; background: #0f172a;">
-                <div class="row g-0 h-100">
-                    <section class="py-5">
-    <div class="container">
-        <div class="text-center mb-5">
-            <h2 class="fw-bold display-5">See it in action.</h2>
-            <p class="text-muted">Everything you need to run your business.</p>
-        </div>
-
-        <div class="row">
-            <div class="col-md-4 mb-4">
-                <div class="nav flex-column nav-pills me-3" id="v-pills-tab" role="tablist" aria-orientation="vertical">
-                    
-                    <button class="nav-link active text-start p-4 mb-3 border rounded-3 shadow-sm" id="v-pills-home-tab" data-bs-toggle="pill" data-bs-target="#v-pills-home" type="button" role="tab" aria-selected="true">
-                        <div class="d-flex align-items-center">
-                            <div class="bg-primary bg-opacity-10 p-3 rounded me-3 text-primary">
-                                <i class="fas fa-rocket fa-lg"></i>
-                            </div>
-                            <div>
-                                <h5 class="fw-bold mb-1">The Launcher</h5>
-                                <small class="text-muted">Your daily command center.</small>
-                            </div>
-                        </div>
-                    </button>
-
-                    <button class="nav-link text-start p-4 mb-3 border rounded-3 shadow-sm" id="v-pills-finance-tab" data-bs-toggle="pill" data-bs-target="#v-pills-finance" type="button" role="tab" aria-selected="false">
-                        <div class="d-flex align-items-center">
-                            <div class="bg-success bg-opacity-10 p-3 rounded me-3 text-success">
-                                <i class="fas fa-file-invoice-dollar fa-lg"></i>
-                            </div>
-                            <div>
-                                <h5 class="fw-bold mb-1">Smart Finance</h5>
-                                <small class="text-muted">Quotes, Invoices & Profit.</small>
-                            </div>
-                        </div>
-                    </button>
-
-                    <button class="nav-link text-start p-4 border rounded-3 shadow-sm" id="v-pills-mobile-tab" data-bs-toggle="pill" data-bs-target="#v-pills-mobile" type="button" role="tab" aria-selected="false">
-                        <div class="d-flex align-items-center">
-                            <div class="bg-warning bg-opacity-10 p-3 rounded me-3 text-warning">
-                                <i class="fas fa-mobile-alt fa-lg"></i>
-                            </div>
-                            <div>
-                                <h5 class="fw-bold mb-1">Site Companion</h5>
-                                <small class="text-muted">The view for your engineers.</small>
-                            </div>
-                        </div>
-                    </button>
-                    
-                </div>
-            </div>
-
-            <div class="col-md-8">
-                <div class="tab-content" id="v-pills-tabContent">
-                    
-                    <div class="tab-pane fade show active" id="v-pills-home" role="tabpanel">
-                        <img src="{{ url_for('static', filename='images/dashboard-main.png') }}" class="img-fluid rounded-4 shadow-lg border border-secondary" alt="Main Dashboard">
-                    </div>
-
-                    <div class="tab-pane fade" id="v-pills-finance" role="tabpanel">
-                        <img src="{{ url_for('static', filename='images/finance-view.png') }}" class="img-fluid rounded-4 shadow-lg border border-secondary" alt="Finance Dashboard">
-                    </div>
-
-                    <div class="tab-pane fade" id="v-pills-mobile" role="tabpanel">
-                        <div class="text-center bg-dark rounded-4 p-5 border border-secondary">
-                            <img src="{{ url_for('static', filename='images/mobile-site.png') }}" class="rounded-4 shadow-lg border border-white" style="max-height: 500px;" alt="Mobile App View">
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-                    <div class="col-md-10 col-12 p-4">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h5 class="fw-bold text-white m-0">Project Overview</h5>
-                            <button class="btn btn-sm btn-primary">+ New Job</button>
-                        </div>
-                        <div class="row g-3 mb-4">
-                            <div class="col-4">
-                                <div class="p-3 rounded border border-secondary bg-opacity-10 bg-white">
-                                    <small class="text-muted">Revenue (Feb)</small>
-                                    <h4 class="fw-bold text-white m-0">£12,450</h4>
-                                </div>
-                            </div>
-                            <div class="col-4">
-                                <div class="p-3 rounded border border-secondary bg-opacity-10 bg-white">
-                                    <small class="text-muted">Active Jobs</small>
-                                    <h4 class="fw-bold text-warning m-0">8 Active</h4>
-                                </div>
-                            </div>
-                            <div class="col-4">
-                                <div class="p-3 rounded border border-secondary bg-opacity-10 bg-white">
-                                    <small class="text-muted">Pending Invoices</small>
-                                    <h4 class="fw-bold text-danger m-0">3 Overdue</h4>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="rounded border border-secondary bg-opacity-10 bg-white overflow-hidden">
-                            <table class="table table-dark table-hover mb-0 small">
-                                <thead>
-                                    <tr>
-                                        <th class="text-muted fw-normal ps-4">Job Ref</th>
-                                        <th class="text-muted fw-normal">Client</th>
-                                        <th class="text-muted fw-normal">Status</th>
-                                        <th class="text-muted fw-normal">Value</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td class="ps-4">#JB-1024</td>
-                                        <td>Oakwood Estate Agents</td>
-                                        <td><span class="badge bg-success bg-opacity-25 text-success">Complete</span></td>
-                                        <td>£450.00</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="ps-4">#JB-1025</td>
-                                        <td>Mr. John Smith</td>
-                                        <td><span class="badge bg-warning bg-opacity-25 text-warning">In Progress</span></td>
-                                        <td>£2,100.00</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="ps-4">#JB-1026</td>
-                                        <td>Highfield Management</td>
-                                        <td><span class="badge bg-primary bg-opacity-25 text-primary">Scheduled</span></td>
-                                        <td>£85.00</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+            <div class="rounded-3 overflow-hidden shadow-lg border border-secondary bg-dark">
+                <img src="{{ url_for('static', filename='images/dashboard-main.png') }}" class="img-fluid opacity-75" alt="Executive Dashboard" style="filter: contrast(1.1) saturate(1.1);">
+                
+                <div class="position-absolute top-50 start-50 translate-middle text-center">
+                    <div class="d-inline-flex align-items-center gap-2 bg-black border border-warning px-4 py-2 rounded-pill shadow-lg text-gold">
+                        <i class="fas fa-check-circle"></i>
+                        <span>System Online: Global Mode</span>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </header>
+
+<section class="py-5" style="background: linear-gradient(to bottom, var(--bb-black), var(--bb-dark));">
+    <div class="container py-5">
+        <div class="row align-items-center">
+            <div class="col-md-6 mb-5 mb-md-0" data-aos="fade-right">
+                <h6 class="text-gold text-uppercase mb-3">Financial Precision</h6>
+                <h2 class="display-5 fw-bold text-white mb-4">Revenue is Vanity.<br>Profit is Sanity.</h2>
+                <p class="text-secondary mb-4 lead" style="font-weight: 300;">
+                    Stop guessing your margins. Our <strong>Profit Engine</strong> doesn't just track what you bill. 
+                    It automatically deducts materials, labor hours, and vehicle daily costs to show you the 
+                    <em>exact</em> net profit on every single job.
+                </p>
+                <ul class="list-unstyled text-secondary">
+                    <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Real-time margin analysis per project</li>
+                    <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Automatic "Daily Run Cost" deduction</li>
+                    <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Tax & VAT forecasting (Global Support)</li>
+                </ul>
+            </div>
+            <div class="col-md-6 ps-md-5" data-aos="fade-left">
+                <div class="feature-card">
+                    <div class="d-flex justify-content-between mb-4 border-bottom border-secondary pb-3">
+                        <span class="text-muted">Job Ref: #JB-4492</span>
+                        <span class="text-white">Status: <span class="text-success">Complete</span></span>
+                    </div>
+                    <div class="row text-center mb-4">
+                        <div class="col-4 border-end border-secondary">
+                            <small class="text-muted d-block mb-1">Invoiced</small>
+                            <span class="h4 text-white">£12,500</span>
+                        </div>
+                        <div class="col-4 border-end border-secondary">
+                            <small class="text-muted d-block mb-1">True Cost</small>
+                            <span class="h4 text-danger">£8,240</span>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-gold d-block mb-1">Net Profit</small>
+                            <span class="h4 text-gold">+£4,260</span>
+                        </div>
+                    </div>
+                    <div class="progress" style="height: 6px; background: #333;">
+                        <div class="progress-bar bg-gold" role="progressbar" style="width: 34%; background-color: var(--bb-gold);" aria-valuenow="34" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <small class="text-end d-block mt-2 text-gold">34% Margin Achieved</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="py-5 bg-dark position-relative">
+    <div class="container py-5">
+        <div class="text-center mb-5" data-aos="fade-up">
+            <h6 class="text-gold text-uppercase">Enterprise Ready</h6>
+            <h2 class="display-5 fw-bold text-white">Your Brand. Your Empire.</h2>
+            <p class="text-secondary mx-auto" style="max-width: 600px;">
+                Built for franchises, agencies, and holding companies. 
+                Upload your logo, set your currency, and own the platform.
+            </p>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                <div class="feature-card h-100">
+                    <div class="mb-4 text-gold"><i class="fas fa-globe-americas fa-2x"></i></div>
+                    <h4 class="text-white mb-3">Global Infrastructure</h4>
+                    <p class="text-secondary">
+                        Whether you operate in London, New York, or Dubai, our system adapts. 
+                        Multi-currency support (GBP, USD, EUR) and dynamic tax engines handle the math.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                <div class="feature-card h-100" style="border-color: var(--bb-gold);">
+                    <div class="mb-4 text-gold"><i class="fas fa-paint-brush fa-2x"></i></div>
+                    <h4 class="text-white mb-3">True White-Label</h4>
+                    <p class="text-secondary">
+                        Don't build your own software. Lease ours. Your domain, your colors, your logo. 
+                        Your clients will never know we exist.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
+                <div class="feature-card h-100">
+                    <div class="mb-4 text-gold"><i class="fas fa-shield-alt fa-2x"></i></div>
+                    <h4 class="text-white mb-3">Forensic Security</h4>
+                    <p class="text-secondary">
+                        Every action is logged. IP addresses, timestamps, and user IDs are tracked in our 
+                        forensic audit logs. Total accountability for your staff.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="py-5" style="background-color: var(--bb-black);">
+    <div class="container py-5">
+        <div class="row align-items-center flex-md-row-reverse">
+            <div class="col-md-6 mb-5 mb-md-0 ps-md-5" data-aos="fade-left">
+                <h6 class="text-gold text-uppercase mb-3">Logistics & Safety</h6>
+                <h2 class="display-5 fw-bold text-white mb-4">Command Your Fleet.</h2>
+                <p class="text-secondary mb-4 lead" style="font-weight: 300;">
+                    Assets are liabilities if not managed. Track MOTs, Service dates, and Insurance expiry automatically.
+                    Enforce daily walkaround checks via the mobile app before a wheel turns.
+                </p>
+                <div class="d-flex gap-4 text-white">
+                    <div>
+                        <div class="stat-number">100%</div>
+                        <small class="text-uppercase tracking-wide text-muted">Compliance</small>
+                    </div>
+                    <div>
+                        <div class="stat-number">0</div>
+                        <small class="text-uppercase tracking-wide text-muted">Paper Forms</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6" data-aos="fade-right">
+                <div class="feature-card p-0 overflow-hidden">
+                    <div class="bg-dark p-3 border-bottom border-secondary d-flex justify-content-between align-items-center">
+                        <span class="text-white fw-bold"><i class="fas fa-truck text-gold me-2"></i> Fleet Status</span>
+                        <span class="badge bg-success text-black">Live</span>
+                    </div>
+                    <div class="p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="flex-grow-1">
+                                <h6 class="text-white m-0">Ford Transit Custom</h6>
+                                <small class="text-muted">Reg: KM24 LPO • Driver: M. Davis</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="d-block text-success small"><i class="fas fa-check-circle"></i> Check Passed</span>
+                                <small class="text-muted">Today, 07:45 AM</small>
+                            </div>
+                        </div>
+                        <hr class="border-secondary">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-grow-1">
+                                <h6 class="text-white m-0">Mercedes Sprinter</h6>
+                                <small class="text-muted">Reg: EX19 BNN • Driver: Unassigned</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="d-block text-warning small"><i class="fas fa-exclamation-triangle"></i> Service Due</span>
+                                <small class="text-warning">In 3 Days</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="py-5 text-center position-relative overflow-hidden">
+    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, rgba(212, 175, 55, 0.15), transparent 70%);"></div>
+    <div class="container position-relative py-5">
+        <h2 class="display-4 fw-bold text-white mb-4" data-aos="fade-up">Ready to upgrade your standard?</h2>
+        <p class="lead text-secondary mb-5 mx-auto" style="max-width: 600px;" data-aos="fade-up" data-aos-delay="100">
+            Join the elite trade businesses running on <strong>Business Better</strong>.
+        </p>
+        <div data-aos="fade-up" data-aos-delay="200">
+            <a href="/login" class="btn btn-gold btn-lg shadow-lg">Access System</a>
+            <p class="mt-4 text-muted small">Full setup provided. Data migration assistance included.</p>
+        </div>
+    </div>
+</section>
+
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>
+  AOS.init({
+    duration: 1000,
+    once: true
+  });
+</script>
+
 {% endblock %}

@@ -3,20 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Business Better | Trade Software{% endblock %}</title>
+    <title>{% block title %}Business Better | The Trade OS{% endblock %}</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
-<style>
-        /* BRAND IDENTITY: DRUGAN GOLD & DARK */
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        /* BRAND IDENTITY: DUBAI GOLD & MIDNIGHT BLACK */
         :root { 
-            --bb-bg: #0f172a;       /* Deep Dark Blue/Black */
-            --bb-card: #1e293b;     /* Lighter Dark for cards */
-            --bb-gold: #d4af37;     /* Drugan Gold */
+            --bb-bg: #050505;       /* Pure Black Background */
+            --bb-card: #0f1014;     /* Slightly lighter for cards */
+            --bb-gold: #d4af37;     /* The Core Gold Color */
             --bb-gold-hover: #b5952f;
-            --bb-text: #f8fafc;     /* Off-white text */
-            --bb-muted: #94a3b8;    /* Muted text */
+            --bb-text: #e0e0e0;     /* Soft White Text */
+            --bb-muted: #94a3b8;    /* Muted Grey Text */
+            --bb-border: rgba(255, 255, 255, 0.1);
         }
         
         body { 
@@ -28,7 +33,9 @@
             min-height: 100vh;
         }
 
-        h1, h2, h3, h4, h5, h6 { font-family: 'Montserrat', sans-serif; font-weight: 700; }
+        h1, h2, h3, h4, h5, h6, .navbar-brand, .btn { 
+            font-family: 'Montserrat', sans-serif; 
+        }
 
         /* OVERRIDE BOOTSTRAP DEFAULTS */
         .bg-light { background-color: var(--bb-bg) !important; }
@@ -36,97 +43,115 @@
         .text-dark { color: var(--bb-text) !important; }
         .text-muted { color: var(--bb-muted) !important; }
         
-        /* Navbar Styling */
-        .navbar { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .navbar-brand { color: white !important; font-family: 'Montserrat', sans-serif; letter-spacing: -1px; }
-        .nav-link { font-weight: 500; color: var(--bb-muted) !important; margin: 0 10px; transition: 0.3s; }
-        .nav-link:hover, .nav-link.active { color: var(--bb-gold) !important; }
+        /* NAVBAR STYLING */
+        .navbar { 
+            background: rgba(5, 5, 5, 0.85); /* Glassy Black */
+            backdrop-filter: blur(12px); 
+            border-bottom: 1px solid var(--bb-border); 
+            padding: 15px 0;
+        }
         
-        /* Buttons - THE GOLD STANDARD */
-        .btn-primary, .btn-brand { 
-            background-color: var(--bb-gold); 
+        .navbar-brand img {
+            height: 45px; /* Adjust size of logo here */
+            width: auto;
+        }
+
+        .nav-link { 
+            font-weight: 500; 
+            color: var(--bb-muted) !important; 
+            margin: 0 12px; 
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link:hover, .nav-link.active { 
+            color: var(--bb-gold) !important; 
+        }
+        
+        /* BUTTONS */
+        .btn-brand { 
+            background: linear-gradient(135deg, #d4af37 0%, #aa8a29 100%); /* Gold Gradient */
             color: #000; 
             border: none; 
-            font-weight: 700; 
-            padding: 12px 30px;
-            border-radius: 6px;
+            font-weight: 600; 
+            padding: 10px 25px;
+            border-radius: 4px;
+            transition: transform 0.2s;
         }
-        .btn-primary:hover, .btn-brand:hover { 
-            background-color: var(--bb-gold-hover); 
+        
+        .btn-brand:hover { 
+            background: #f3cf55; 
             color: #000; 
-        }
-        
-        .btn-outline-dark, .btn-light {
-            background: transparent;
-            border: 1px solid rgba(255,255,255,0.2);
-            color: white;
-        }
-        .btn-outline-dark:hover {
-            border-color: var(--bb-gold);
-            color: var(--bb-gold);
-            background: transparent;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
         }
 
-        /* Card Styling */
-        .card {
-            background-color: var(--bb-card);
-            border: 1px solid rgba(255,255,255,0.05);
-            color: white;
-        }
-		/* FIX FOR INPUT FIELDS (Make them readable) */
-        .form-control, .form-select {
-            background-color: rgba(255, 255, 255, 0.05) !important; /* Slightly lighter than background */
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: white !important; /* White Text */
-        }
-        
-        .form-control:focus, .form-select:focus {
-            background-color: rgba(255, 255, 255, 0.1) !important;
+        .btn-primary {
+            background-color: var(--bb-gold);
             border-color: var(--bb-gold);
-            color: white !important;
-            box-shadow: 0 0 0 0.25rem rgba(212, 175, 55, 0.25); /* Gold Glow */
-        }
-
-        /* Make the placeholder text (e.g. "name@email.com") visible but grey */
-        .form-control::placeholder {
-            color: #94a3b8 !important;
-            opacity: 1;
+            color: #000;
         }
         
-        /* Footer Styling */
-        footer { margin-top: auto; background-color: #020617; border-top: 1px solid rgba(255,255,255,0.05); padding: 80px 0 40px; }
+        .btn-primary:hover {
+            background-color: var(--bb-gold-hover);
+            border-color: var(--bb-gold-hover);
+            color: #000;
+        }
+        
+        /* FOOTER STYLING */
+        footer { 
+            margin-top: auto; 
+            background-color: #000; 
+            border-top: 1px solid var(--bb-border); 
+            padding: 80px 0 40px; 
+        }
+        
         footer a { color: var(--bb-muted); text-decoration: none; transition: 0.2s; }
         footer a:hover { color: var(--bb-gold); }
+
+        /* FORM INPUTS (Dark Mode Fix) */
+        .form-control {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--bb-border);
+            color: white;
+        }
+        .form-control:focus {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: var(--bb-gold);
+            color: white;
+            box-shadow: none;
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm">
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
         <div class="container">
-            <a class="navbar-brand fw-bold fs-4 text-dark" href="/">
-                <i class="fas fa-layer-group text-primary me-2"></i>Business Better
+            <a class="navbar-brand" href="/">
+                <img src="{{ url_for('static', filename='images/logobb.png') }}" alt="Business Better">
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
+            
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/about">About Us</a></li>
                     <li class="nav-item"><a class="nav-link" href="/features">Features</a></li>
                     <li class="nav-item"><a class="nav-link" href="/pricing">Pricing</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/help">Help Center</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/about">About</a></li>
                     <li class="nav-item"><a class="nav-link" href="/contact">Contact</a></li>
                     <li class="nav-item ms-3">
-                        <a href="/login" class="btn btn-brand">Customer Login</a>
+                        <a href="/login" class="btn btn-brand">Client Portal</a>
                     </li>
                 </ul>
             </div>
         </div>
     </nav>
     
-    <div style="height: 80px;"></div>
+    <div style="height: 0px;"></div>
 
     {% block content %}{% endblock %}
 
@@ -134,35 +159,35 @@
         <div class="container">
             <div class="row g-4 mb-5">
                 <div class="col-lg-4">
-                    <h5 class="fw-bold text-white mb-3">Business Better</h5>
-                    <p class="text-white-50">The all-in-one operating system for modern trade businesses. Built by tradesmen, for tradesmen.</p>
+                    <h5 class="fw-bold text-white mb-3" style="font-family: 'Montserrat', sans-serif;">Business Better</h5>
+                    <p class="text-white-50">The operating system for modern trade businesses. Executive control, forensic compliance, and real-time profit analysis.</p>
                 </div>
                 <div class="col-lg-2 col-6">
-                    <h6 class="fw-bold text-white mb-3">Product</h6>
+                    <h6 class="fw-bold text-white mb-3 text-uppercase small" style="letter-spacing: 1px; color: var(--bb-gold);">Platform</h6>
                     <ul class="list-unstyled">
                         <li class="mb-2"><a href="/features">Features</a></li>
                         <li class="mb-2"><a href="/pricing">Pricing</a></li>
-                        <li class="mb-2"><a href="/login">Portal Login</a></li>
+                        <li class="mb-2"><a href="/login">Login</a></li>
                     </ul>
                 </div>
                 <div class="col-lg-2 col-6">
-                    <h6 class="fw-bold text-white mb-3">Support</h6>
+                    <h6 class="fw-bold text-white mb-3 text-uppercase small" style="letter-spacing: 1px; color: var(--bb-gold);">Support</h6>
                     <ul class="list-unstyled">
                         <li class="mb-2"><a href="/help">Help Center</a></li>
-                        <li class="mb-2"><a href="/contact">Contact Support</a></li>
+                        <li class="mb-2"><a href="/contact">Contact Us</a></li>
                         <li class="mb-2"><a href="#">System Status</a></li>
                     </ul>
                 </div>
                 <div class="col-lg-4">
-                    <h6 class="fw-bold text-white mb-3">Subscribe to Updates</h6>
+                    <h6 class="fw-bold text-white mb-3 text-uppercase small" style="letter-spacing: 1px; color: var(--bb-gold);">Stay Ahead</h6>
                     <div class="input-group">
-                        <input type="text" class="form-control border-0" placeholder="Email address...">
-                        <button class="btn btn-primary">Join</button>
+                        <input type="text" class="form-control" placeholder="Email address...">
+                        <button class="btn btn-brand">Join</button>
                     </div>
                 </div>
             </div>
             <div class="border-top border-white border-opacity-10 pt-4 text-center">
-                <p class="small text-white-50 mb-0">&copy; 2024 Business Better Ltd. All rights reserved.</p>
+                <p class="small text-muted mb-0">&copy; 2024 Business Better Ltd. All rights reserved.</p>
             </div>
         </div>
     </footer>
