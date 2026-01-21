@@ -135,6 +135,12 @@ def inject_currency():
         
     except Exception:
         return dict(currency_symbol=default_sym)
+        
+# --- ERROR HANDLERS ---
+@app.errorhandler(404)
+def page_not_found(e):
+    # This tells Flask to render your new template when a 404 occurs
+    return render_template('publicbb/404.html'), 404
 
 # --- GLOBAL BRANDING INJECTOR ---
 @app.context_processor

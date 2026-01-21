@@ -1,0 +1,25 @@
+{% extends "publicbb/base.html" %}
+
+{% block title %}Page Not Found | Business Better{% endblock %}
+
+{% block content %}
+<section class="d-flex align-items-center justify-content-center" style="min-height: 80vh; background-color: var(--bb-bg);">
+    <div class="container text-center">
+        
+        <h1 class="display-1 fw-bold mb-0" style="font-size: 10rem; background: linear-gradient(135deg, #d4af37 0%, #aa8a29 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            404
+        </h1>
+        
+        <h2 class="fw-bold text-white mb-3">Off The Map.</h2>
+        <p class="lead text-secondary mx-auto mb-5" style="max-width: 500px;">
+            The page you are looking for has been moved, deleted, or never existed. Let's get you back to work.
+        </p>
+
+        <div class="d-flex justify-content-center gap-3">
+            <a href="/" class="btn btn-brand px-4 py-2">Return Home</a>
+            <a href="/contact" class="btn btn-outline-light px-4 py-2">Report Issue</a>
+        </div>
+
+    </div>
+</section>
+{% endblock %}

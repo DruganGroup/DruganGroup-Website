@@ -96,6 +96,10 @@ def business_better():
 @public_bp.route('/forensics.html')
 def forensics():
     return render_template('public/forensics.html')
+    
+@public_bp.route('/legal')
+def legal():
+    return render_template('publicbb/legal.html')
 
 @public_bp.route('/login')
 @public_bp.route('/login.html')

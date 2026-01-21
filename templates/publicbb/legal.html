@@ -1,0 +1,80 @@
+{% extends "publicbb/base.html" %}
+
+{% block title %}Legal Center | Business Better{% endblock %}
+
+{% block content %}
+<header class="py-5 text-center" style="background-color: var(--bb-bg);">
+    <div class="container py-4">
+        <h1 class="fw-bold display-5 text-white">Legal Center</h1>
+        <p class="lead text-secondary">Transparency, Security, and Trust.</p>
+    </div>
+</header>
+
+<section class="py-5" style="background-color: var(--bb-card);">
+    <div class="container">
+        <div class="row">
+            
+            <div class="col-lg-3 mb-5 mb-lg-0">
+                <div class="sticky-top" style="top: 100px;">
+                    <div class="list-group list-group-flush rounded-3 overflow-hidden border border-secondary">
+                        <a href="#terms" class="list-group-item list-group-item-action bg-dark text-white border-secondary p-3">
+                            <i class="fas fa-gavel text-gold me-2"></i> Terms of Service
+                        </a>
+                        <a href="#privacy" class="list-group-item list-group-item-action bg-dark text-white border-secondary p-3">
+                            <i class="fas fa-user-shield text-gold me-2"></i> Privacy Policy
+                        </a>
+                        <a href="#data" class="list-group-item list-group-item-action bg-dark text-white border-secondary p-3">
+                            <i class="fas fa-database text-gold me-2"></i> Data & GDPR
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-9">
+                
+                <div id="terms" class="mb-5 p-5 rounded-4 border border-secondary bg-black">
+                    <h3 class="fw-bold text-white mb-4">Terms of Service</h3>
+                    <p class="text-secondary">Last Updated: January 2024</p>
+                    
+                    <h5 class="text-white mt-4">1. Acceptance of Terms</h5>
+                    <p class="text-secondary">By accessing and using Business Better ("The Platform"), you accept and agree to be bound by the terms and provision of this agreement.</p>
+                    
+                    <h5 class="text-white mt-4">2. Service Description</h5>
+                    <p class="text-secondary">Business Better provides SaaS (Software as a Service) solutions for trade businesses, including but not limited to invoicing, fleet tracking, and HR management. We guarantee 99.9% uptime on our Enterprise plans.</p>
+                    
+                    <h5 class="text-white mt-4">3. Payment & Subscriptions</h5>
+                    <p class="text-secondary">Services are billed on a subscription basis (Monthly or Yearly). You may cancel your subscription at any time via the dashboard. Refunds are processed on a pro-rata basis for annual plans only.</p>
+                </div>
+
+                <div id="privacy" class="mb-5 p-5 rounded-4 border border-secondary bg-black">
+                    <h3 class="fw-bold text-white mb-4">Privacy Policy</h3>
+                    
+                    <h5 class="text-white mt-4">1. Information We Collect</h5>
+                    <p class="text-secondary">We collect information to provide better services to our users. This includes:</p>
+                    <ul class="text-secondary">
+                        <li>Account Information (Name, Email, Company Details)</li>
+                        <li>Operational Data (Client lists, Job details, Fleet data)</li>
+                        <li>Usage Data (IP Addresses, Login timestamps for security auditing)</li>
+                    </ul>
+
+                    <h5 class="text-white mt-4">2. How We Use Information</h5>
+                    <p class="text-secondary">Your data is used solely for the operation of your business systems. We <strong>never</strong> sell your client data or trade secrets to third parties.</p>
+                </div>
+
+                <div id="data" class="p-5 rounded-4 border border-secondary bg-black">
+                    <h3 class="fw-bold text-white mb-4">Data Protection (GDPR)</h3>
+                    <p class="text-secondary">We act as both a Data Controller (for your account info) and a Data Processor (for your client info).</p>
+                    
+                    <div class="alert bg-dark border-gold text-white mt-4">
+                        <i class="fas fa-lock text-gold me-2"></i> <strong>Security Notice:</strong> All data is encrypted at rest using AES-256 standards. Our servers are located in secure data centers within the UK/EU.
+                    </div>
+
+                    <h5 class="text-white mt-4">Your Rights</h5>
+                    <p class="text-secondary">Under GDPR, you have the right to request a full export of your data or the "Right to be Forgotten". Please contact <a href="mailto:dpo@businessbetter.co.uk" class="text-gold">dpo@businessbetter.co.uk</a> for requests.</p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
