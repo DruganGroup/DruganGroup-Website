@@ -68,18 +68,20 @@
                     <input type="number" step="0.5" name="estimated_days" id="daysInput" class="form-control mb-3" value="1" oninput="calcTotal()" required>
 
                     <label class="form-label fw-bold small text-muted">Preferred Gang / Van</label>
-					<select name="preferred_vehicle_id" id="vehicleSelect" class="form-select" onchange="calcTotal()">
-					<option value="" data-cost="0">-- No Vehicle Cost --</option>
-					{% set vehicle_list = fleet if fleet is defined else vehicles %}
-					{% for v in vehicle_list %}
-					<option value="{{ v.id }}" data-cost="{{ v.daily_cost or 0 }}">
-					{{ v.reg_plate }} - {{ v.make_model }}
-					{% if v.daily_cost and v.daily_cost > 0 %}
-					(+£{{ "%.2f"|format(v.daily_cost) }}/day)
-					{% endif %}
-					</option>
-					{% endfor %}
-					</select>
+<select name="preferred_vehicle_id" id="vehicleSelect" class="form-select" onchange="calcTotal()">
+    <option value="" data-cost="0">-- No Vehicle Cost --</option>
+    
+    {% for v in vehicles %}
+        <option value="{{ v.id }}" data-cost="{{ v.daily_cost or 0 }}">
+            {{ v.reg_plate }} 
+            {% if v.make_model %} - {{ v.make_model }}{% endif %}
+            
+            {% if v.daily_cost and v.daily_cost > 0 %}
+                (+£{{ "%.2f"|format(v.daily_cost) }}/day)
+            {% endif %}
+        </option>
+    {% endfor %}
+</select>
                     <div class="small text-muted mt-1" id="resourceCostDisplay">Resource Cost: £0.00</div>
                 </div>
             </div>
