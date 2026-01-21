@@ -25,6 +25,8 @@
                     {% endwith %}
 
                     <form action="/login" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
                         <div class="mb-4">
                             <label class="form-label small fw-bold text-secondary text-uppercase">Email Address</label>
                             <input type="email" name="email" class="form-control form-control-lg bg-black border-secondary text-white" placeholder="name@company.com" required>
