@@ -285,23 +285,66 @@ def office_calendar():
     
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
-    
     conn = get_db(); cur = conn.cursor()
+
+    # 1. FETCH FLEET
+    cur.execute("""
+        SELECT v.id, v.reg, v.driver_id, 
+               (SELECT json_agg(u.id) FROM users u WHERE u.id = ANY(v.crew_ids)) as crew_json
+        FROM vehicles v 
+        WHERE v.company_id = %s
+    """, (comp_id,))
     
-    # Get Resources for the Modal
-    cur.execute("SELECT id, reg_plate FROM vehicles WHERE company_id=%s AND status='Active'", (comp_id,))
-    vehicles = cur.fetchall()
+    fleet = []
+    for v in cur.fetchall():
+        fleet.append({
+            'id': v[0],
+            'name': v[1],
+            'driver_id': v[2],
+            'crew_ids': v[3] if v[3] else []
+        })
+
+    # 2. FETCH STAFF
+    cur.execute("SELECT id, first_name, last_name, role FROM users WHERE company_id=%s ORDER BY first_name", (comp_id,))
+    staff = [{'id': u[0], 'name': f"{u[1]} {u[2]}", 'role': u[3]} for u in cur.fetchall()]
+
+    # 3. FETCH UNSCHEDULED JOBS (Now with DURATION logic)
+    # Added j.estimated_days to the query
+    cur.execute("""
+        SELECT j.id, j.ref, c.name, j.description, p.postcode, j.vehicle_id, j.estimated_days
+        FROM jobs j
+        JOIN clients c ON j.client_id = c.id
+        LEFT JOIN properties p ON j.property_id = p.id
+        WHERE j.company_id = %s 
+          AND (j.start_date IS NULL OR j.status = 'Pending')
+        ORDER BY j.created_at DESC
+    """, (comp_id,))
     
-    cur.execute("SELECT id, name FROM staff WHERE company_id=%s AND role IN ('Engineer','Manager')", (comp_id,))
-    engineers = cur.fetchall()
-    
+    unscheduled = []
+    for j in cur.fetchall():
+        # Format duration for FullCalendar (e.g., "03:00" for 3 days if dealing with hours, or just days)
+        # Note: FullCalendar expects duration in 'HH:mm' for timegrid or total days. 
+        # We pass simple integer 'days' for the template to handle.
+        days = j[6] if j[6] and j[6] > 0 else 1
+        
+        unscheduled.append({
+            'id': j[0],
+            'ref': j[1],
+            'client': j[2],
+            'desc': (j[3] or "")[:50] + "...", 
+            'postcode': j[4] or "No Address",
+            'pre_vehicle_id': j[5],
+            'days': days,                 # Raw number for text
+            'duration_iso': f"P{days}D"   # ISO format for Calendar (Period 3 Days)
+        })
+
     conn.close()
 
-    return render_template('office/calendar.html',
-                           brand_color=config['color'],
-                           logo_url=config['logo'],
-                           vehicles=vehicles,
-                           engineers=engineers)
+    return render_template('office/office_calendar.html',
+                           config=config,
+                           fleet=fleet,
+                           staff=staff,
+                           unscheduled_jobs=unscheduled)
 
 @office_bp.route('/api/calendar/events')
 def get_calendar_events():

@@ -38,10 +38,12 @@
                     <div id="external-events" class="job-list-container">
                         {% for job in unscheduled_jobs %}
                         <div class="card mb-2 border-0 shadow-sm job-card fc-event" 
-                             data-id="{{ job.id }}" 
-                             data-title="{{ job.client }}" 
-                             data-color="#0d6efd"
-                             data-pre-vehicle="{{ job.pre_vehicle_id or '' }}"> <div class="card-body p-3">
+								data-id="{{ job.id }}" 
+								data-title="{{ job.client }}" 
+								data-color="#0d6efd"
+								data-pre-vehicle="{{ job.pre_vehicle_id or '' }}"
+								data-duration="{{ job.duration_iso }}"> ``` 
+							 <div class="card-body p-3">
                                 <strong class="text-dark small">{{ job.ref }}</strong>
                                 <div class="fw-bold text-primary mt-1">{{ job.client }}</div>
                                 <div class="small text-muted text-truncate">{{ job.desc }}</div>
