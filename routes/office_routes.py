@@ -548,7 +548,7 @@ def office_fleet():
                         
                         fname = secure_filename(f"LOG_{veh_id}_{f.filename}")
                         f.save(os.path.join(save_dir, fname))
-                        file_path = f"company_{comp_id}/fleet/{fname}"
+                        file_path = f"/uploads/company_{comp_id}/fleet/{fname}"
 
                 cur.execute("""
                     INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost, receipt_path)

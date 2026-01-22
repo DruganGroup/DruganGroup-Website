@@ -500,7 +500,7 @@ def update_job(job_id):
                     file.save(os.path.join(save_dir, filename))
                     
                     # DB Path must match app.py bouncer logic
-                    db_path = f"{relative_path}/{filename}"
+                    db_path = f"/uploads/{relative_folder}/{filename}"
                     cur.execute("INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type) VALUES (%s, %s, %s, 'Site Photo')", (job_id, db_path, session['user_id']))
                     flash("📷 Photo Uploaded")
 
@@ -583,7 +583,7 @@ def site_log_fuel():
                     
                     fname = secure_filename(f"FUEL_{date.today()}_{f.filename}")
                     f.save(os.path.join(save_dir, fname))
-                    receipt_path = f"{relative_path}/{fname}"
+                    receipt_path = f"/uploads/{relative_folder}/{fname}"
 
             # Save to Database (Maintenance Logs)
             cur.execute("""

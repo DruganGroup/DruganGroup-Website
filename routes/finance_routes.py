@@ -568,7 +568,7 @@ def settings_general():
                     full_path = os.path.join(save_dir, filename)
                     f.save(full_path)
                     
-                    web_path = f"company_{comp_id}/logos/{filename}"
+                    web_path = f"/uploads/company_{comp_id}/logos/{filename}"
                     cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo', %s) ON CONFLICT (company_id, key) DO UPDATE SET value=EXCLUDED.value", (comp_id, web_path))
                     session['logo'] = web_path
 
@@ -1142,13 +1142,13 @@ def finance_bookkeeping():
 
             elif action == 'assign_job':
                 job_id = request.form.get('job_id')
-                dest_dir = os.path.join(current_app.static_folder, 'uploads', str(comp_id), 'expenses')
+                dest_dir = os.path.join(current_app.static_folder, 'uploads', f"company_{comp_id}", 'expenses')
                 os.makedirs(dest_dir, exist_ok=True)
                 dest_path = os.path.join(dest_dir, filename)
                 shutil.move(src_file, dest_path)
                 
                 # DB Path (Relative)
-                db_path = f"uploads/{comp_id}/expenses/{filename}"
+                db_path = f"uploads/company_{comp_id}/overheads/{filename}"
                 
                 cur.execute("""
                     INSERT INTO job_expenses (company_id, job_id, description, cost, date, receipt_path)
@@ -1158,7 +1158,7 @@ def finance_bookkeeping():
 
             elif action == 'assign_overhead':
                 cat_id = request.form.get('category_id')
-                dest_dir = os.path.join(current_app.static_folder, 'uploads', str(comp_id), 'overheads')
+                dest_dir = os.path.join(current_app.static_folder, 'uploads', f"company_{comp_id}", 'overheads')
                 os.makedirs(dest_dir, exist_ok=True)
                 dest_path = os.path.join(dest_dir, filename)
                 shutil.move(src_file, dest_path)
@@ -1182,7 +1182,7 @@ def finance_bookkeeping():
         for f in os.listdir(inbox_path):
             if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
                 # Structure: (ID, Description, Cost, DisplayName, FilePath)
-                full_web_path = f"static/uploads/{comp_id}/inbox/{f}"
+                full_web_path = f"static/uploads/company_{comp_id}/inbox/{f}"
                 unsorted_files.append((f, "Scanned Receipt", 0.00, f, full_web_path))
 
     # 4. FETCH DROPDOWNS

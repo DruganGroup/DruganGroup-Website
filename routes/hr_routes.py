@@ -190,7 +190,7 @@ def save_staff():
                 os.makedirs(save_dir, exist_ok=True)
                 filename = secure_filename(f"license_{int(datetime.now().timestamp())}_{f.filename}")
                 f.save(os.path.join(save_dir, filename))
-                license_path = f"company_{comp_id}/licenses/{filename}"
+                license_path = f"/uploads/company_{comp_id}/licenses/{filename}"
 
         # 2. Profile Photo (NEW)
         if 'profile_photo' in request.files:
@@ -200,7 +200,7 @@ def save_staff():
                 os.makedirs(save_dir, exist_ok=True)
                 filename = secure_filename(f"photo_{int(datetime.now().timestamp())}_{f.filename}")
                 f.save(os.path.join(save_dir, filename))
-                photo_path = f"company_{comp_id}/profiles/{filename}"
+                photo_path = f"/uploads/company_{comp_id}/profiles/{filename}"
 
         if staff_id:
             # UPDATE
