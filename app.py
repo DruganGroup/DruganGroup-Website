@@ -151,45 +151,35 @@ def inject_branding():
     
 @app.route('/uploads/<path:filename>')
 def serve_uploads(filename):
-    # 1. GLOBAL AUTH CHECK (Must be logged in)
-    if 'user_id' not in session and 'portal_client_id' not in session:
-        abort(403) # Not logged in = No Access
-    
-    # 2. IDENTIFY THE USER'S COMPANY
-    # We get the ID from the session (secure server-side storage)
-    user_comp_id = session.get('company_id') or session.get('portal_company_id')
-    if not user_comp_id:
-        abort(403) # No valid company ID found
+    # 1. SECURITY: Check for ANY valid session ID
+    # This covers Office Staff, Admins, and Portal Clients
+    if not any(k in session for k in ['user_id', 'portal_client_id']):
+        return "Access Denied", 403 
 
-    # 3. STRICT ISOLATION CHECK
-    # We expect filenames to look like: "company_15/job_evidence/photo.jpg"
-    # We split the filename to look at the first folder.
-    parts = filename.split('/')
+    # 2. IDENTIFY THE COMPANY ID
+    # Check all possible session keys for the company ID
+    user_comp_id = session.get('company_id') or session.get('portal_company_id')
     
+    if not user_comp_id:
+        return "Company Identity Not Found", 403
+
+    # 3. VERIFY TENANT ISOLATION
+    # The URL looks like: /uploads/company_1/logos/logo.png
+    parts = filename.split('/')
     if parts[0].startswith('company_'):
         try:
-            # Extract the Company ID from the folder name "company_15" -> 15
             target_comp_id = int(parts[0].replace('company_', ''))
-            
-            # THE WALL: If User's Company != Folder's Company -> BLOCK THEM
-            if int(user_comp_id) != target_comp_id:
-                # Exception: SuperAdmins can view all files
-                if session.get('role') != 'SuperAdmin':
-                    print(f"⛔ SECURITY ALERT: Company {user_comp_id} tried to access Company {target_comp_id}'s files.")
-                    abort(403) 
-                    
+            # Block if IDs don't match (unless SuperAdmin)
+            if int(user_comp_id) != target_comp_id and session.get('role') != 'SuperAdmin':
+                return "Unauthorized Tenant Access", 403
         except ValueError:
-            # If folder name is malformed, block just in case
-            abort(404)
+            return "Invalid Path Structure", 400
 
-    # 4. SERVE THE FILE (Only if they passed the checks)
-    root_dir = os.path.dirname(os.path.abspath(__file__))
-    upload_dir = os.path.join(root_dir, 'uploads')
+    # 4. LOCATE AND SERVE
+    # Path: /opt/render/project/src/static/uploads
+    upload_dir = os.path.join(app.root_path, 'static', 'uploads')
     
-    try:
-        return send_from_directory(upload_dir, filename)
-    except FileNotFoundError:
-        return "File not found", 404
+    return send_from_directory(upload_dir, filename)
 
 # --- ERROR HANDLERS ---
 @app.errorhandler(404)
