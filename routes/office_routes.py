@@ -54,7 +54,7 @@ def office_dashboard():
     cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id=%s AND status='Pending'", (comp_id,))
     leads_count = cur.fetchone()[0]
     
-    cur.execute("SELECT COUNT(*) FROM quotes WHERE company_id=%s AND status IN ('Draft', 'Sent', 'Pending')", (comp_id,))
+    cur.execute("""SELECT COUNT(*) FROM quotes WHERE company_id=%s AND status IN ('Draft', 'Sent', 'Pending', 'Accepted')""", (comp_id,))
     pending_quotes = cur.fetchone()[0]
     
     cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id=%s AND status='Scheduled'", (comp_id,))
@@ -91,7 +91,7 @@ def office_dashboard():
         SELECT q.id, q.reference, c.name, q.total, q.status, q.date
         FROM quotes q
         JOIN clients c ON q.client_id = c.id
-        WHERE q.company_id = %s AND q.status IN ('Draft', 'Sent', 'Pending')
+        WHERE q.company_id = %s AND q.status IN ('Draft', 'Sent', 'Pending', 'Accepted')
         ORDER BY q.date DESC LIMIT 5
     """, (comp_id,))
     

@@ -374,24 +374,62 @@ def portal_view_quote(quote_id):
                            quote=quote,
                            items=items)
 
-# C. ACCEPT QUOTE ACTION
 @portal_bp.route('/portal/quote/<int:quote_id>/accept')
 def portal_accept_quote(quote_id):
     if not check_portal_access(): return redirect(get_login_url())
     
     client_id = session['portal_client_id']
+    comp_id = session['portal_company_id']
     conn = get_db(); cur = conn.cursor()
     
     try:
-        # Update status to 'Accepted'
+        # 1. MARK QUOTE AS ACCEPTED
         cur.execute("""
             UPDATE quotes 
             SET status = 'Accepted' 
             WHERE id = %s AND client_id = %s
+            RETURNING reference, job_title, job_description, property_id, estimated_days, total, preferred_vehicle_id
         """, (quote_id, client_id))
         
+        quote_row = cur.fetchone()
+        
+        if quote_row:
+            # Unpack quote details
+            q_ref, title, desc, prop_id, days, total, van_id = quote_row
+            
+            # 2. GENERATE JOB REFERENCE (e.g., Q-1001 -> JOB-1001)
+            job_ref = q_ref.replace('Q-', 'JOB-')
+            
+            # Check if job already exists to prevent duplicates (Double Click Safety)
+            cur.execute("SELECT id FROM jobs WHERE quote_id = %s", (quote_id,))
+            existing_job = cur.fetchone()
+            
+            if not existing_job:
+                # 3. INSERT INTO JOBS TABLE (Status 'Pending' puts it in the Calendar Sidebar)
+                cur.execute("""
+                    INSERT INTO jobs (
+                        company_id, client_id, property_id, quote_id, 
+                        ref, description, status, quote_total, 
+                        estimated_days, vehicle_id, created_at
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, 'Pending', %s, %s, %s, NOW())
+                    RETURNING id
+                """, (comp_id, client_id, prop_id, quote_id, job_ref, title or desc, total, days, van_id))
+                
+                new_job_id = cur.fetchone()[0]
+
+                # 4. COPY MATERIALS (So your Material List is ready)
+                cur.execute("""
+                    INSERT INTO job_materials (job_id, description, quantity, unit_price)
+                    SELECT %s, description, quantity, unit_price 
+                    FROM quote_items WHERE quote_id = %s
+                """, (new_job_id, quote_id))
+                
+                flash("✅ Quote accepted! A new job has been created.", "success")
+            else:
+                flash("✅ Quote already accepted.", "info")
+        
         conn.commit()
-        flash("✅ Quote accepted! We have been notified and will be in touch.", "success")
         
     except Exception as e:
         conn.rollback()
