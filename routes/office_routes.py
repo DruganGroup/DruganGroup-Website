@@ -393,6 +393,118 @@ def get_calendar_events():
     conn.close()
     return jsonify(events)
     
+# =========================================================
+# 4. CALENDAR API ENDPOINTS (The "Engine" Room)
+# =========================================================
+
+# A. SAVE THE SCHEDULE (Handle the "Confirm" Button)
+@office_bp.route('/office/calendar/schedule-job', methods=['POST'])
+def schedule_job():
+    if not check_office_access(): return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    comp_id = session.get('company_id')
+    
+    job_id = data.get('job_id')
+    date_str = data.get('date')      # '2026-01-23'
+    vehicle_id = data.get('vehicle_id')
+    lead_id = data.get('lead_id')    # The Engineer/Driver
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    try:
+        # Update the Job Status and Assignments
+        # Note: We use 'engineer_id' for the Lead Staff Member
+        cur.execute("""
+            UPDATE jobs 
+            SET start_date = %s, 
+                vehicle_id = %s, 
+                engineer_id = %s, 
+                status = 'Scheduled'
+            WHERE id = %s AND company_id = %s
+        """, (date_str, vehicle_id, lead_id, job_id, comp_id))
+        
+        conn.commit()
+        return jsonify({'status': 'success'})
+        
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        conn.close()
+
+# B. LOAD CALENDAR DATA (Show the bars on the calendar)
+@office_bp.route('/office/calendar/data')
+def calendar_data():
+    if not check_office_access(): return jsonify([])
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    
+    # Fetch Scheduled Jobs
+    # We fetch estimated_days to make the bar stretch across multiple days
+    cur.execute("""
+        SELECT j.id, j.ref, c.name, j.start_date, j.estimated_days, v.reg_plate, j.status
+        FROM jobs j
+        JOIN clients c ON j.client_id = c.id
+        LEFT JOIN vehicles v ON j.vehicle_id = v.id
+        WHERE j.company_id = %s 
+          AND j.status IN ('Scheduled', 'In Progress', 'Completed')
+          AND j.start_date IS NOT NULL
+    """, (comp_id,))
+    
+    events = []
+    for row in cur.fetchall():
+        # Logic to handle Multi-Day Jobs
+        start_date = row[3] # '2026-01-23'
+        days = row[4] if row[4] and row[4] > 0 else 1
+        
+        # Calculate End Date for FullCalendar (Start + Days)
+        try:
+            dt_start = datetime.strptime(start_date, '%Y-%m-%d')
+            dt_end = dt_start + timedelta(days=int(days))
+            end_date = dt_end.strftime('%Y-%m-%d')
+        except:
+            end_date = start_date # Fallback if date is invalid
+
+        # Color Coding
+        color = '#0d6efd' # Blue (Scheduled)
+        if row[6] == 'In Progress': color = '#ffc107' # Orange
+        if row[6] == 'Completed': color = '#198754' # Green
+
+        events.append({
+            'id': row[0],
+            'title': f"{row[1]} - {row[2]} ({row[5] or 'No Van'})",
+            'start': start_date,
+            'end': end_date,
+            'color': color,
+            'allDay': True,
+            'url': f"/office/job/{row[0]}" # Click to open job
+        })
+        
+    conn.close()
+    return jsonify(events)
+
+# C. HANDLE DRAG-TO-MOVE (Reschedule logic)
+@office_bp.route('/office/calendar/reschedule-job', methods=['POST'])
+def reschedule_job_drag():
+    if not check_office_access(): return jsonify({'status': 'error'}), 401
+    
+    data = request.get_json()
+    job_id = data.get('job_id')
+    new_date = data.get('date') # '2026-01-25'
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("UPDATE jobs SET start_date = %s WHERE id = %s AND company_id = %s", 
+                   (new_date, job_id, session.get('company_id')))
+        conn.commit()
+        return jsonify({'status': 'success'})
+    except:
+        return jsonify({'status': 'error'})
+    finally:
+        conn.close()
+
     # =========================================================
 # FLEET MANAGEMENT (Office Side)
 # =========================================================
