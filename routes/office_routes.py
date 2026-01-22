@@ -352,7 +352,7 @@ def office_calendar():
 
     conn.close()
 
-    return render_template('office/office_calendar.html',
+    return render_template('office/calendar.html',
                            config=config,
                            fleet=fleet,
                            staff=staff,
