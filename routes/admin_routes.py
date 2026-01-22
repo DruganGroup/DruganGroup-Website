@@ -692,62 +692,53 @@ def view_system_logs():
 
     return render_template('admin/system_logs.html', logs=logs)
 
-@admin_bp.route('/admin/system/nuclear-reset')
-def nuclear_reset():
+# =========================================================
+# GLOBAL NUCLEAR RESET (Wipes ALL Tenants' Transaction Data)
+# =========================================================
+@admin_bp.route('/admin/system/global-nuclear-reset')
+def global_nuclear_reset():
     # 1. SECURITY CHECK (SuperAdmin Only)
     if session.get('role') != 'SuperAdmin': 
         return "❌ ACCESS DENIED: Only SuperAdmins can press the red button."
     
-    comp_id = session.get('company_id')
     conn = get_db()
     cur = conn.cursor()
     
     try:
-        # --- PHASE 1: FINANCE (Invoices) ---
-        # Delete Invoice Items first (Foreign Key dependency)
-        cur.execute("""
-            DELETE FROM invoice_items 
-            WHERE invoice_id IN (SELECT id FROM invoices WHERE company_id = %s)
-        """, (comp_id,))
-        # Delete Invoices
-        cur.execute("DELETE FROM invoices WHERE company_id = %s", (comp_id,))
+        # --- PHASE 1: FINANCE ---
+        # Clear Invoicing Data
+        cur.execute("DELETE FROM invoice_items")
+        cur.execute("DELETE FROM invoices")
         
-        # --- PHASE 2: OPERATIONS (Jobs & RAMS) ---
-        # Delete Job Materials
-        cur.execute("""
-            DELETE FROM job_materials 
-            WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)
-        """, (comp_id,))
+        # --- PHASE 2: OPERATIONS ---
+        # Clear Job Data (Dependencies first)
+        cur.execute("DELETE FROM job_materials")
         
-        # Delete Certificates (RAMS, EICR, CP12)
-        cur.execute("DELETE FROM certificates WHERE company_id = %s", (comp_id,))
+        # Clear Compliance/RAMS (Safely check if table exists)
+        try: cur.execute("DELETE FROM certificates") 
+        except: pass 
         
-        # Delete Jobs (must be deleted before Quotes because Jobs link to Quotes)
-        cur.execute("DELETE FROM jobs WHERE company_id = %s", (comp_id,))
+        # Clear Jobs (This clears the Calendar)
+        cur.execute("DELETE FROM jobs")
         
-        # --- PHASE 3: SALES (Quotes & Requests) ---
-        # Delete Quote Items
-        cur.execute("""
-            DELETE FROM quote_items 
-            WHERE quote_id IN (SELECT id FROM quotes WHERE company_id = %s)
-        """, (comp_id,))
+        # --- PHASE 3: SALES & SERVICE ---
+        # Clear Quotes
+        cur.execute("DELETE FROM quote_items")
+        cur.execute("DELETE FROM quotes")
         
-        # Delete Quotes
-        cur.execute("DELETE FROM quotes WHERE company_id = %s", (comp_id,))
-        
-        # Delete Service Desk Requests (Added as per your request)
-        cur.execute("DELETE FROM service_requests WHERE company_id = %s", (comp_id,))
+        # Clear Service Desk
+        cur.execute("DELETE FROM service_requests")
 
         conn.commit()
-        flash("☢️ NUCLEAR RESET COMPLETE: All Jobs, Quotes, Invoices, RAMS, and Requests have been wiped.", "success")
+        flash("🌍 GLOBAL RESET SUCCESSFUL: All Jobs, Quotes, and Invoices have been wiped system-wide.", "success")
         
     except Exception as e:
         conn.rollback()
         flash(f"❌ Reset Failed: {e}", "error")
-        return f"Error: {e}"
+        return f"Error executing reset: {e}"
         
     finally:
         conn.close()
 
-    # Redirect back to Office Dashboard to see the clean slate
+    # Redirect to Dashboard (which should now be empty)
     return redirect(url_for('office.office_dashboard'))
