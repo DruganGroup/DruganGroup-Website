@@ -15,7 +15,7 @@
         <div class="card p-3 bg-white border-dashed">
             <h6 class="fw-bold small text-uppercase mb-2 text-dark">Add New Category</h6>
             <form method="POST">
-                <input type="hidden" name="action" value="add_category">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <input type="hidden" name="action" value="add_category">
                 <div class="input-group">
                     <input type="text" name="category_name" class="form-control" placeholder="e.g. Rent, Software..." required>
                     <button type="submit" class="btn btn-dark"><i class="fas fa-plus"></i></button>
@@ -32,7 +32,7 @@
                 <div>
                     <span class="badge bg-secondary me-2">{{ currency_symbol }}{{ "%.2f"|format(cat.total) }}</span>
                     <form method="POST" style="display:inline;" onsubmit="return confirm('Delete Category?');">
-                        <input type="hidden" name="action" value="delete_category">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <input type="hidden" name="action" value="delete_category">
                         <input type="hidden" name="category_id" value="{{ cat.id }}">
                         <button type="submit" class="btn btn-sm text-danger border-0"><i class="fas fa-times"></i></button>
                     </form>
@@ -46,7 +46,7 @@
                         <td class="fw-bold text-end" style="width:120px;">{{ currency_symbol }}{{ item[2] }}</td>
                         <td style="width:40px;">
                             <form method="POST">
-                                <input type="hidden" name="action" value="delete_item">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <input type="hidden" name="action" value="delete_item">
                                 <input type="hidden" name="item_id" value="{{ item[0] }}">
                                 <button type="submit" class="btn btn-sm text-danger p-0"><i class="fas fa-trash"></i></button>
                             </form>
@@ -56,7 +56,7 @@
                 </table>
                 <div class="p-2 border-top bg-light">
                     <form method="POST" class="row g-1">
-                        <input type="hidden" name="action" value="add_item">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <input type="hidden" name="action" value="add_item">
                         <input type="hidden" name="category_id" value="{{ cat.id }}">
                         <div class="col-7"><input type="text" name="item_name" class="form-control form-control-sm" placeholder="Item Name" required></div>
                         <div class="col-3"><input type="number" step="0.01" name="item_cost" class="form-control form-control-sm" placeholder="Cost" required></div>

@@ -83,6 +83,7 @@
 			<div class="modal-dialog modal-lg">
 				<div class="modal-content">
                     <form method="POST" action="/hr/add" id="staffForm" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 						<div class="modal-header">
 							<h5 class="modal-title fw-bold" id="modalTitle">New Employee Record</h5>
 							<button type="button" class="btn-close" data-bs-dismiss="modal"></button>

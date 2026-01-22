@@ -25,6 +25,7 @@
                 <div class="tab-content">
                     <div class="tab-pane fade show active" id="tabClients">
                         <form method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="type" value="clients">
                             <div class="alert alert-info small border-0 bg-info bg-opacity-10">
                                 <strong>Required Columns:</strong> Name, Email, Phone, Address
@@ -37,6 +38,7 @@
 
                     <div class="tab-pane fade" id="tabStaff">
                         <form method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="type" value="staff">
                             <div class="alert alert-warning small border-0 bg-warning bg-opacity-10">
                                 <strong>Required Columns:</strong> Name, Email, Role (e.g. Engineer), Rate
@@ -49,6 +51,7 @@
 
                     <div class="tab-pane fade" id="tabVehicles">
                         <form method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="type" value="vehicles">
                             <div class="alert alert-success small border-0 bg-success bg-opacity-10">
                                 <strong>Required Columns:</strong> Reg Plate, Make/Model, Daily Cost
