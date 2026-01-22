@@ -1112,16 +1112,15 @@ def finance_bookkeeping():
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
     
-    # 1. DEFINE INBOX PATH
+    # 1. DEFINE INBOX PATH (Server-side disk path)
     inbox_path = os.path.join(current_app.static_folder, 'uploads', f"company_{comp_id}", 'inbox')
     os.makedirs(inbox_path, exist_ok=True)
 
-    # 2. HANDLE ACTIONS (Sort the file)
+    # 2. HANDLE ACTIONS
     if request.method == 'POST':
         action = request.form.get('action')
-        
-        # --- SECURITY FIX: Sanitize the Filename ---
         raw_filename = request.form.get('file_id')
+        
         if not raw_filename:
             flash("❌ No file selected.", "error")
             return redirect(url_for('finance.finance_bookkeeping'))
@@ -1129,7 +1128,6 @@ def finance_bookkeeping():
         filename = secure_filename(raw_filename) 
         cost = request.form.get('cost') or 0
         desc = request.form.get('description') or "Unsorted Receipt"
-        
         src_file = os.path.join(inbox_path, filename)
         
         try:
@@ -1147,8 +1145,8 @@ def finance_bookkeeping():
                 dest_path = os.path.join(dest_dir, filename)
                 shutil.move(src_file, dest_path)
                 
-                # DB Path (Relative)
-                db_path = f"uploads/company_{comp_id}/overheads/{filename}"
+                # FIXED DB PATH: Must match Bouncer prefix and correct subfolder
+                db_path = f"/uploads/company_{comp_id}/expenses/{filename}"
                 
                 cur.execute("""
                     INSERT INTO job_expenses (company_id, job_id, description, cost, date, receipt_path)
@@ -1163,7 +1161,8 @@ def finance_bookkeeping():
                 dest_path = os.path.join(dest_dir, filename)
                 shutil.move(src_file, dest_path)
                 
-                db_path = f"uploads/{comp_id}/overheads/{filename}"
+                # FIXED DB PATH: Added leading slash and company_ prefix
+                db_path = f"/uploads/company_{comp_id}/overheads/{filename}"
                 
                 cur.execute("""
                     INSERT INTO overhead_items (category_id, name, amount, date_incurred, receipt_path)
@@ -1176,26 +1175,20 @@ def finance_bookkeeping():
             conn.rollback()
             flash(f"Error: {e}", "error")
 
-    # 3. FETCH UNSORTED FILES
+    # 3. FETCH UNSORTED FILES (For Web Display)
     unsorted_files = []
     if os.path.exists(inbox_path):
         for f in os.listdir(inbox_path):
             if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-                # Structure: (ID, Description, Cost, DisplayName, FilePath)
-                full_web_path = f"static/uploads/company_{comp_id}/inbox/{f}"
+                # FIXED WEB PATH: Leading slash and /uploads/ prefix for bouncer
+                full_web_path = f"/uploads/company_{comp_id}/inbox/{f}"
                 unsorted_files.append((f, "Scanned Receipt", 0.00, f, full_web_path))
 
     # 4. FETCH DROPDOWNS
     cur.execute("SELECT id, ref, description FROM jobs WHERE company_id=%s AND status!='Completed'", (comp_id,))
     jobs = cur.fetchall()
-    
     cur.execute("SELECT id, name FROM overhead_categories WHERE company_id=%s", (comp_id,))
     categories = cur.fetchall()
-    
     conn.close()
 
-    # 5. RENDER TEMPLATE
-    return render_template('finance/bookkeeping_inbox.html', 
-                           unsorted=unsorted_files, 
-                           jobs=jobs, 
-                           categories=categories)
+    return render_template('finance/bookkeeping_inbox.html', unsorted=unsorted_files, jobs=jobs, categories=categories)
