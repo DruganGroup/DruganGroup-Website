@@ -561,14 +561,14 @@ def settings_general():
             if 'logo' in request.files:
                 f = request.files['logo']
                 if f and f.filename != '':
-                    save_dir = os.path.join(current_app.static_folder, 'uploads', str(comp_id))
+                    save_dir = os.path.join(current_app.static_folder, 'uploads', f"company_{comp_id}", 'logos')
                     os.makedirs(save_dir, exist_ok=True)
                     
                     filename = secure_filename(f"logo_{int(datetime.now().timestamp())}.png")
                     full_path = os.path.join(save_dir, filename)
                     f.save(full_path)
                     
-                    web_path = f"/static/uploads/{comp_id}/{filename}"
+                    web_path = f"company_{comp_id}/logos/{filename}"
                     cur.execute("INSERT INTO settings (company_id, key, value) VALUES (%s, 'logo', %s) ON CONFLICT (company_id, key) DO UPDATE SET value=EXCLUDED.value", (comp_id, web_path))
                     session['logo'] = web_path
 
@@ -1113,7 +1113,7 @@ def finance_bookkeeping():
     conn = get_db(); cur = conn.cursor()
     
     # 1. DEFINE INBOX PATH
-    inbox_path = os.path.join(current_app.static_folder, 'uploads', str(comp_id), 'inbox')
+    inbox_path = os.path.join(current_app.static_folder, 'uploads', f"company_{comp_id}", 'inbox')
     os.makedirs(inbox_path, exist_ok=True)
 
     # 2. HANDLE ACTIONS (Sort the file)

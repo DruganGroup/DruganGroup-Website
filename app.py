@@ -1,7 +1,7 @@
 import os
 import traceback
 from datetime import timedelta
-from flask import Flask, render_template, request, session
+from flask import Flask, render_template, request, session, send_from_directory, abort
 from werkzeug.exceptions import HTTPException
 from db import get_db
 from flask_wtf.csrf import CSRFProtect
@@ -148,6 +148,48 @@ def inject_branding():
             session['brand_color'] = color; session['logo'] = logo
         except: pass
     return dict(brand_color=color or default_color, logo=logo)
+    
+@app.route('/uploads/<path:filename>')
+def serve_uploads(filename):
+    # 1. GLOBAL AUTH CHECK (Must be logged in)
+    if 'user_id' not in session and 'portal_client_id' not in session:
+        abort(403) # Not logged in = No Access
+    
+    # 2. IDENTIFY THE USER'S COMPANY
+    # We get the ID from the session (secure server-side storage)
+    user_comp_id = session.get('company_id') or session.get('portal_company_id')
+    if not user_comp_id:
+        abort(403) # No valid company ID found
+
+    # 3. STRICT ISOLATION CHECK
+    # We expect filenames to look like: "company_15/job_evidence/photo.jpg"
+    # We split the filename to look at the first folder.
+    parts = filename.split('/')
+    
+    if parts[0].startswith('company_'):
+        try:
+            # Extract the Company ID from the folder name "company_15" -> 15
+            target_comp_id = int(parts[0].replace('company_', ''))
+            
+            # THE WALL: If User's Company != Folder's Company -> BLOCK THEM
+            if int(user_comp_id) != target_comp_id:
+                # Exception: SuperAdmins can view all files
+                if session.get('role') != 'SuperAdmin':
+                    print(f"⛔ SECURITY ALERT: Company {user_comp_id} tried to access Company {target_comp_id}'s files.")
+                    abort(403) 
+                    
+        except ValueError:
+            # If folder name is malformed, block just in case
+            abort(404)
+
+    # 4. SERVE THE FILE (Only if they passed the checks)
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    upload_dir = os.path.join(root_dir, 'uploads')
+    
+    try:
+        return send_from_directory(upload_dir, filename)
+    except FileNotFoundError:
+        return "File not found", 404
 
 # --- ERROR HANDLERS ---
 @app.errorhandler(404)

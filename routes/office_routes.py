@@ -543,12 +543,12 @@ def office_fleet():
                         from werkzeug.utils import secure_filename
                         import os
                         # Ensure folder exists
-                        save_dir = os.path.join('static', 'uploads', str(comp_id), 'fleet')
+                        save_dir = os.path.join('static', 'uploads', f"company_{comp_id}", 'fleet')
                         os.makedirs(save_dir, exist_ok=True)
                         
                         fname = secure_filename(f"LOG_{veh_id}_{f.filename}")
                         f.save(os.path.join(save_dir, fname))
-                        file_path = f"uploads/{comp_id}/fleet/{fname}"
+                        file_path = f"company_{comp_id}/fleet/{fname}"
 
                 cur.execute("""
                     INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost, receipt_path)

@@ -285,9 +285,11 @@ def van_check_page():
         if 'photo' in request.files:
             file = request.files['photo']
             if file.filename != '':
-                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                # SECURITY UPDATE
+                save_dir = os.path.join(current_app.static_folder, 'uploads', f"company_{comp_id}", 'van_checks')
+                os.makedirs(save_dir, exist_ok=True)
                 filename = secure_filename(f"{date.today()}_{reg}_{file.filename}")
-                file.save(os.path.join(UPLOAD_FOLDER, filename))
+                file.save(os.path.join(save_dir, filename))
 
         try:
             # Re-verify ID
@@ -489,10 +491,16 @@ def update_job(job_id):
             if 'photo' in request.files:
                 file = request.files['photo']
                 if file.filename != '':
-                    os.makedirs(JOB_EVIDENCE_FOLDER, exist_ok=True)
+                    # SECURITY UPDATE: Use company_{id} folder
+                    relative_path = f"company_{comp_id}/job_evidence"
+                    save_dir = os.path.join(current_app.static_folder, 'uploads', relative_path)
+                    os.makedirs(save_dir, exist_ok=True)
+                    
                     filename = secure_filename(f"JOB_{job_id}_{int(datetime.now().timestamp())}_{file.filename}")
-                    db_path = f"uploads/job_evidence/{filename}"
-                    file.save(os.path.join(JOB_EVIDENCE_FOLDER, filename))
+                    file.save(os.path.join(save_dir, filename))
+                    
+                    # DB Path must match app.py bouncer logic
+                    db_path = f"{relative_path}/{filename}"
                     cur.execute("INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type) VALUES (%s, %s, %s, 'Site Photo')", (job_id, db_path, session['user_id']))
                     flash("📷 Photo Uploaded")
 
@@ -568,13 +576,14 @@ def site_log_fuel():
                 if f and f.filename != '':
                     from werkzeug.utils import secure_filename
                     import os
-                    # Ensure folder exists
-                    save_dir = os.path.join('static', 'uploads', str(comp_id), 'fuel')
+                    # SECURITY UPDATE
+                    relative_path = f"company_{comp_id}/fuel"
+                    save_dir = os.path.join('static', 'uploads', relative_path)
                     os.makedirs(save_dir, exist_ok=True)
                     
                     fname = secure_filename(f"FUEL_{date.today()}_{f.filename}")
                     f.save(os.path.join(save_dir, fname))
-                    receipt_path = f"uploads/{comp_id}/fuel/{fname}"
+                    receipt_path = f"{relative_path}/{fname}"
 
             # Save to Database (Maintenance Logs)
             cur.execute("""
