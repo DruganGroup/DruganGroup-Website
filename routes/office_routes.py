@@ -287,10 +287,17 @@ def office_calendar():
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
 
-    # 1. FETCH FLEET (FIXED: Changed v.reg to v.reg_plate)
+    # 1. FETCH FLEET (Corrected for your Schema)
+    # - Uses 'reg_plate' instead of 'reg'
+    # - Uses 'assigned_driver_id' instead of 'driver_id'
+    # - Sub-queries 'vehicle_crews' table to get the gang
     cur.execute("""
-        SELECT v.id, v.reg_plate, v.driver_id, 
-               (SELECT json_agg(u.id) FROM users u WHERE u.id = ANY(v.crew_ids)) as crew_json
+        SELECT v.id, v.reg_plate, v.assigned_driver_id, 
+               (
+                   SELECT json_agg(vc.staff_id) 
+                   FROM vehicle_crews vc 
+                   WHERE vc.vehicle_id = v.id
+               ) as crew_json
         FROM vehicles v 
         WHERE v.company_id = %s
     """, (comp_id,))
@@ -299,16 +306,24 @@ def office_calendar():
     for v in cur.fetchall():
         fleet.append({
             'id': v[0],
-            'name': v[1],   # reg_plate
-            'driver_id': v[2],
-            'crew_ids': v[3] if v[3] else []
+            'name': v[1],           # reg_plate
+            'driver_id': v[2],      # assigned_driver_id
+            'crew_ids': v[3] if v[3] else [] # List of staff_ids from join table
         })
 
-    # 2. FETCH STAFF
-    cur.execute("SELECT id, first_name, last_name, role FROM users WHERE company_id=%s ORDER BY first_name", (comp_id,))
-    staff = [{'id': u[0], 'name': f"{u[1]} {u[2]}", 'role': u[3]} for u in cur.fetchall()]
+    # 2. FETCH STAFF (Switched to 'staff' table)
+    # Your 'users' table is for login. 'staff' is for engineers.
+    cur.execute("""
+        SELECT id, name, role 
+        FROM staff 
+        WHERE company_id=%s AND status='Active' 
+        ORDER BY name
+    """, (comp_id,))
+    
+    staff = [{'id': s[0], 'name': s[1], 'role': s[2]} for s in cur.fetchall()]
 
     # 3. FETCH UNSCHEDULED JOBS
+    # Explicitly fetching 'estimated_days' for the drag-duration logic
     cur.execute("""
         SELECT j.id, j.ref, c.name, j.description, p.postcode, j.vehicle_id, j.estimated_days
         FROM jobs j
@@ -321,7 +336,7 @@ def office_calendar():
     
     unscheduled = []
     for j in cur.fetchall():
-        # Duration Logic: Default to 1 day if missing
+        # Duration Logic: Default to 1 day if NULL or 0
         days = j[6] if j[6] and j[6] > 0 else 1
         
         unscheduled.append({
@@ -332,7 +347,7 @@ def office_calendar():
             'postcode': j[4] or "No Address",
             'pre_vehicle_id': j[5],
             'days': days,
-            'duration_iso': f"P{days}D" # 'P3D' = Period 3 Days
+            'duration_iso': f"P{days}D" # ISO format for Calendar (e.g., P3D)
         })
 
     conn.close()
