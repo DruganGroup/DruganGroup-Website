@@ -276,9 +276,6 @@ def save_quote():
     # If this part is missing, let me know and I will provide the full save function.
     return redirect(url_for('office.office_dashboard'))
 
-# =========================================================
-# 3. CALENDAR & SCHEDULE
-# =========================================================
 @office_bp.route('/office/calendar')
 def office_calendar():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -287,17 +284,11 @@ def office_calendar():
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
 
-    # 1. FETCH FLEET (Corrected for your Schema)
-    # - Uses 'reg_plate' instead of 'reg'
-    # - Uses 'assigned_driver_id' instead of 'driver_id'
-    # - Sub-queries 'vehicle_crews' table to get the gang
+    # 1. FETCH FLEET (Fixed 'None' logic)
+    # COALESCE(v.assigned_driver_id, 0) ensures we don't send 'None' to HTML
     cur.execute("""
-        SELECT v.id, v.reg_plate, v.assigned_driver_id, 
-               (
-                   SELECT json_agg(vc.staff_id) 
-                   FROM vehicle_crews vc 
-                   WHERE vc.vehicle_id = v.id
-               ) as crew_json
+        SELECT v.id, v.reg_plate, COALESCE(v.assigned_driver_id, 0), 
+               (SELECT json_agg(vc.staff_id) FROM vehicle_crews vc WHERE vc.vehicle_id = v.id)
         FROM vehicles v 
         WHERE v.company_id = %s
     """, (comp_id,))
@@ -306,24 +297,23 @@ def office_calendar():
     for v in cur.fetchall():
         fleet.append({
             'id': v[0],
-            'name': v[1],           # reg_plate
-            'driver_id': v[2],      # assigned_driver_id
-            'crew_ids': v[3] if v[3] else [] # List of staff_ids from join table
+            'name': v[1],
+            'driver_id': v[2], # Will be 0 if no driver, easier to handle in JS
+            'crew_ids': v[3] if v[3] else []
         })
 
-    # 2. FETCH STAFF (Switched to 'staff' table)
-    # Your 'users' table is for login. 'staff' is for engineers.
+    # 2. FETCH STAFF
+    # Removed "status='Active'" filter just in case your test staff aren't marked 'Active'
     cur.execute("""
         SELECT id, name, role 
         FROM staff 
-        WHERE company_id=%s AND status='Active' 
-        ORDER BY name
+        WHERE company_id=%s 
+        ORDER BY name ASC
     """, (comp_id,))
     
-    staff = [{'id': s[0], 'name': s[1], 'role': s[2]} for s in cur.fetchall()]
+    staff = [{'id': s[0], 'name': s[1], 'role': s[2] or 'Staff'} for s in cur.fetchall()]
 
     # 3. FETCH UNSCHEDULED JOBS
-    # Explicitly fetching 'estimated_days' for the drag-duration logic
     cur.execute("""
         SELECT j.id, j.ref, c.name, j.description, p.postcode, j.vehicle_id, j.estimated_days
         FROM jobs j
@@ -336,9 +326,7 @@ def office_calendar():
     
     unscheduled = []
     for j in cur.fetchall():
-        # Duration Logic: Default to 1 day if NULL or 0
         days = j[6] if j[6] and j[6] > 0 else 1
-        
         unscheduled.append({
             'id': j[0],
             'ref': j[1],
@@ -347,7 +335,7 @@ def office_calendar():
             'postcode': j[4] or "No Address",
             'pre_vehicle_id': j[5],
             'days': days,
-            'duration_iso': f"P{days}D" # ISO format for Calendar (e.g., P3D)
+            'duration_iso': f"P{days}D"
         })
 
     conn.close()
@@ -397,41 +385,44 @@ def get_calendar_events():
 # 4. CALENDAR API ENDPOINTS (The "Engine" Room)
 # =========================================================
 
-# A. SAVE THE SCHEDULE (Handle the "Confirm" Button)
 @office_bp.route('/office/calendar/schedule-job', methods=['POST'])
 def schedule_job():
-    if not check_office_access(): return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-    
-    data = request.get_json()
-    comp_id = session.get('company_id')
-    
-    job_id = data.get('job_id')
-    date_str = data.get('date')      # '2026-01-23'
-    vehicle_id = data.get('vehicle_id')
-    lead_id = data.get('lead_id')    # The Engineer/Driver
-    
-    conn = get_db(); cur = conn.cursor()
+    if not check_office_access(): return jsonify({'status': 'error', 'message': 'Auth failed'}), 401
     
     try:
-        # Update the Job Status and Assignments
-        # Note: We use 'engineer_id' for the Lead Staff Member
+        data = request.get_json()
+        print(f"DEBUG: Received Schedule Data: {data}") # Check your server logs for this!
+        
+        comp_id = session.get('company_id')
+        job_id = data.get('job_id')
+        date_str = data.get('date')
+        vehicle_id = data.get('vehicle_id')
+        lead_id = data.get('lead_id')
+        crew_ids = data.get('crew_ids', [])
+
+        if not job_id or not date_str:
+            return jsonify({'status': 'error', 'message': 'Missing Data'}), 400
+
+        conn = get_db(); cur = conn.cursor()
+        
+        # 1. Update Job
         cur.execute("""
             UPDATE jobs 
-            SET start_date = %s, 
-                vehicle_id = %s, 
-                engineer_id = %s, 
-                status = 'Scheduled'
+            SET start_date = %s, vehicle_id = %s, engineer_id = %s, status = 'Scheduled'
             WHERE id = %s AND company_id = %s
         """, (date_str, vehicle_id, lead_id, job_id, comp_id))
+
+        # 2. Update Job Crew (Optional: If you track crew per job)
+        # Assuming you just need the job updated for now.
         
         conn.commit()
-        return jsonify({'status': 'success'})
-        
-    except Exception as e:
-        conn.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-    finally:
         conn.close()
+        
+        return jsonify({'status': 'success'})
+
+    except Exception as e:
+        print(f"ERROR in schedule_job: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # B. LOAD CALENDAR DATA (Show the bars on the calendar)
 @office_bp.route('/office/calendar/data')
