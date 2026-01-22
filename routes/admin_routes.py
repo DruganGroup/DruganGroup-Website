@@ -692,91 +692,62 @@ def view_system_logs():
 
     return render_template('admin/system_logs.html', logs=logs)
 
-# --- TEMP DATABASE CHECKER ---
-@admin_bp.route('/admin/debug/db-schema')
-def debug_db_schema():
+@admin_bp.route('/admin/system/nuclear-reset')
+def nuclear_reset():
+    # 1. SECURITY CHECK (SuperAdmin Only)
     if session.get('role') != 'SuperAdmin': 
-        return "Login as SuperAdmin to see this.", 403
-
+        return "❌ ACCESS DENIED: Only SuperAdmins can press the red button."
+    
+    comp_id = session.get('company_id')
     conn = get_db()
-    if not conn: return "Database connection failed."
-    
     cur = conn.cursor()
-    output = "<h1>Database Schema</h1><hr>"
     
-    # Get all tables
-    cur.execute("""
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        ORDER BY table_name;
-    """)
-    tables = cur.fetchall()
-    
-    output += f"<h3>FOUND {len(tables)} TABLES:</h3>"
-    
-    for t in tables:
-        table_name = t[0]
-        output += f"<div style='background:#f4f4f4; padding:10px; margin-bottom:10px; border:1px solid #ccc;'>"
-        output += f"<strong>TABLE: {table_name}</strong><br><ul>"
-        
-        # Get columns
-        cur.execute("""
-            SELECT column_name, data_type 
-            FROM information_schema.columns 
-            WHERE table_name = %s 
-            ORDER BY ordinal_position;
-        """, (table_name,))
-        
-        columns = cur.fetchall()
-        for col in columns:
-            output += f"<li>{col[0]} <span style='color:#888;'>({col[1]})</span></li>"
-            
-        output += "</ul></div>"
-
-    conn.close()
-    return output
-    
-@admin_bp.route('/admin/fix-db-schema')
-def fix_db_schema():
-    if session.get('role') != 'SuperAdmin': return "⛔ Access Denied"
-    conn = get_db(); cur = conn.cursor()
-    messages = []
-
     try:
-        # 1. MIGRATE CREWS (Old -> New)
-        cur.execute("SELECT to_regclass('public.vehicle_crew')")
-        if cur.fetchone()[0]:
-            cur.execute("""
-                INSERT INTO vehicle_crews (company_id, vehicle_id, staff_id, created_at)
-                SELECT v.company_id, vc.vehicle_id, vc.staff_id, NOW()
-                FROM vehicle_crew vc JOIN vehicles v ON vc.vehicle_id = v.id
-                WHERE NOT EXISTS (SELECT 1 FROM vehicle_crews WHERE vehicle_id = vc.vehicle_id AND staff_id = vc.staff_id)
-            """)
-            messages.append("✅ Migrated Crew Data")
-
-        # 2. ADD MISSING DATE COLUMNS (The 4 Pillars)
-        # We ensure all 4 exist as proper DATE types
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS mot_expiry DATE")
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tax_expiry DATE")
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS ins_expiry DATE")     # Insurance
-        cur.execute("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS service_expiry DATE") # Service (New)
+        # --- PHASE 1: FINANCE (Invoices) ---
+        # Delete Invoice Items first (Foreign Key dependency)
+        cur.execute("""
+            DELETE FROM invoice_items 
+            WHERE invoice_id IN (SELECT id FROM invoices WHERE company_id = %s)
+        """, (comp_id,))
+        # Delete Invoices
+        cur.execute("DELETE FROM invoices WHERE company_id = %s", (comp_id,))
         
-        messages.append("✅ Verified Date Columns: MOT, Tax, Ins, Service")
-
-        # 3. DROP LEGACY TABLES & COLUMNS
-        # Drops the singular 'vehicle_crew' and the text-based dates
-        cur.execute("DROP TABLE IF EXISTS vehicle_crew, teams, team_members, timesheets CASCADE")
+        # --- PHASE 2: OPERATIONS (Jobs & RAMS) ---
+        # Delete Job Materials
+        cur.execute("""
+            DELETE FROM job_materials 
+            WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)
+        """, (comp_id,))
         
-        cols_drop = ['mot_due', 'tax_due', 'service_due', 'insurance_due', 'current_mileage', 'defect_image']
-        for col in cols_drop:
-            cur.execute(f"ALTER TABLE vehicles DROP COLUMN IF EXISTS {col}")
+        # Delete Certificates (RAMS, EICR, CP12)
+        cur.execute("DELETE FROM certificates WHERE company_id = %s", (comp_id,))
+        
+        # Delete Jobs (must be deleted before Quotes because Jobs link to Quotes)
+        cur.execute("DELETE FROM jobs WHERE company_id = %s", (comp_id,))
+        
+        # --- PHASE 3: SALES (Quotes & Requests) ---
+        # Delete Quote Items
+        cur.execute("""
+            DELETE FROM quote_items 
+            WHERE quote_id IN (SELECT id FROM quotes WHERE company_id = %s)
+        """, (comp_id,))
+        
+        # Delete Quotes
+        cur.execute("DELETE FROM quotes WHERE company_id = %s", (comp_id,))
+        
+        # Delete Service Desk Requests (Added as per your request)
+        cur.execute("DELETE FROM service_requests WHERE company_id = %s", (comp_id,))
 
         conn.commit()
-        return f"<h1>Cleanup Success 🚀</h1><ul>{''.join(f'<li>{m}</li>' for m in messages)}</ul><br><a href='/finance/fleet'>Go to Fleet Manager</a>"
-
+        flash("☢️ NUCLEAR RESET COMPLETE: All Jobs, Quotes, Invoices, RAMS, and Requests have been wiped.", "success")
+        
     except Exception as e:
         conn.rollback()
-        return f"<h1>Error</h1><p>{str(e)}</p>"
+        flash(f"❌ Reset Failed: {e}", "error")
+        return f"Error: {e}"
+        
     finally:
         conn.close()
+
+    # Redirect back to Office Dashboard to see the clean slate
+    return redirect(url_for('office.office_dashboard'))
