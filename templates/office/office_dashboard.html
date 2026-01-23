@@ -196,6 +196,7 @@
     <div class="modal fade" id="createJobModal" tabindex="-1">
         <div class="modal-dialog">
             <form class="modal-content" method="POST" action="/office/job/create">
+			<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-header">
                     <h5 class="modal-title fw-bold">Schedule New Job</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

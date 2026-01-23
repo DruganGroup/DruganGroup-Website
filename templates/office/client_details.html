@@ -185,6 +185,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form action="/office/client/{{ client.id }}/add-property" method="POST">
+			<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <div class="modal-body">
                 <div class="modal-body">
                     <div class="mb-2"><input type="text" name="address" class="form-control" placeholder="Address Line 1" required></div>
                     <div class="mb-3"><input type="text" name="postcode" class="form-control" placeholder="Postcode" required></div>

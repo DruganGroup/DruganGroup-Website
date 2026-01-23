@@ -182,6 +182,7 @@
                     
                     <div class="tab-pane fade show active" id="tab-upload">
                         <form action="/office/upload-center" method="POST" enctype="multipart/form-data">
+						<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="job_ref" value="{{ job.ref }}">
                             <label class="small fw-bold mb-2">Upload File / Photo</label>
                             <input type="file" name="file" class="form-control form-control-sm mb-3" required>
@@ -191,6 +192,7 @@
 
                     <div class="tab-pane fade" id="tab-cost">
                         <form action="/office/job/{{ job.ref }}/add-manual-cost" method="POST">
+						<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <label class="small fw-bold">Description</label>
                             <input type="text" name="description" class="form-control form-control-sm mb-2" required>
                             <label class="small fw-bold">Amount (£)</label>
@@ -201,6 +203,7 @@
 
                     <div class="tab-pane fade" id="tab-time">
                         <form action="/office/job/{{ job.id }}/log-hours" method="POST">
+						<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <label class="small fw-bold">Staff</label>
                             <select name="staff_id" class="form-select form-select-sm mb-2">
                                 {% for s in staff %}

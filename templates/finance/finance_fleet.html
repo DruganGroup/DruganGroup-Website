@@ -89,6 +89,7 @@
                     <div class="modal-dialog modal-xl">
                         <div class="modal-content">
                             <form method="POST" action="/finance/fleet">
+							<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <input type="hidden" name="action" value="assign_crew">
                                 <input type="hidden" name="action" value="assign_crew">
                                 <input type="hidden" name="vehicle_id" value="{{ v.id }}">
                                 
@@ -220,6 +221,7 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <form method="POST" action="/finance/fleet">
+				<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <input type="hidden" name="action" value="add_vehicle">
                     <input type="hidden" name="action" value="add_vehicle">
                     <div class="modal-header">
                         <h5 class="modal-title fw-bold">Add New Vehicle</h5>

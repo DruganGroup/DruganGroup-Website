@@ -158,6 +158,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form action="/portal/property/add" method="POST">
+				<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <div class="modal-body p-4">
                     <div class="modal-body p-4">
                         <h6 class="text-uppercase text-muted small fw-bold mb-3">Location Details</h6>
                         <div class="row g-3 mb-4">

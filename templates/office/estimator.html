@@ -17,6 +17,7 @@
                 </div>
                 <div class="card-body">
                     <form method="POST">
+					<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-3">
                             <label class="form-label fw-bold">Select Trade</label>
                             <select name="tool_type" class="form-select" onchange="this.form.submit()">

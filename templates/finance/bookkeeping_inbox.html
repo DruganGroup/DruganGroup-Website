@@ -40,7 +40,9 @@
         </div>
 
         <div class="bg-white p-4 border-top shadow-sm" id="action-panel" style="display:none;">
+		<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <input type="hidden" name="file_id" id="selected-id">
             <form method="POST">
+			<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="file_id" id="selected-id">
                 
                 <div class="row g-3">
