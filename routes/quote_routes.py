@@ -348,7 +348,7 @@ def convert_to_job(quote_id):
         # 4. COPY MATERIALS (THE FIX: Sync Quote Items to Job Materials)
         cur.execute("""
             INSERT INTO job_materials (job_id, description, quantity, unit_price)
-            SELECT %s, description, quantity, unit_price 
+            SELECT %s, description, quantity, 0 
             FROM quote_items WHERE quote_id = %s
         """, (job_id, quote_id))
         
