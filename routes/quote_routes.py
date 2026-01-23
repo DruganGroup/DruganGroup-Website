@@ -477,16 +477,16 @@ def email_quote(quote_id):
     
     if config.get('logo'):
     # Convert web path to the actual disk path
-    clean_path = config['logo'].replace('/uploads/', '').replace('uploads/', '').replace('/static/', '').replace('static/', '')
-    local_path = os.path.join(current_app.static_folder, 'uploads', clean_path)
+        clean_path = config['logo'].replace('/uploads/', '').replace('uploads/', '').replace('/static/', '').replace('static/', '')
+        local_path = os.path.join(current_app.static_folder, 'uploads', clean_path)
 
-    if os.path.exists(local_path):
-        config['logo'] = local_path
+        if os.path.exists(local_path):
+            config['logo'] = local_path
 
     # 5. Date & Context
-    country = settings.get('country_code', 'UK')
-    date_fmt = '%m/%d/%Y' if country == 'US' else '%d/%m/%Y'
-    formatted_date = q_date.strftime(date_fmt) if q_date else datetime.now().strftime(date_fmt)
+        country = settings.get('country_code', 'UK')
+        date_fmt = '%m/%d/%Y' if country == 'US' else '%d/%m/%Y'
+        formatted_date = q_date.strftime(date_fmt) if q_date else datetime.now().strftime(date_fmt)
 
     context = {
         'invoice': {
