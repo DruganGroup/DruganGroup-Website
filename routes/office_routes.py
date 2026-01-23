@@ -689,36 +689,25 @@ def job_materials_pdf(job_id):
     job = cur.fetchone()
     if not job: return "Job not found", 404
     
-    # 2. Fetch Materials from DB (job_materials table)
-    cur.execute("""
-        SELECT description, quantity 
-        FROM job_materials 
-        WHERE job_id = %s
-    """, (job_id,))
-    
+    # 2. Fetch Materials
+    cur.execute("SELECT description, quantity FROM job_materials WHERE job_id = %s", (job_id,))
     rows = cur.fetchall()
     
-    # 3. Format for PDF
-    # (Since job_materials is simple, we might not have supplier data stored there yet unless we updated the table. 
-    # We will assume a simple list for now.)
+    # 3. Format items
     items = [{'desc': r[0], 'qty': r[1], 'supplier': 'General'} for r in rows]
-    
     conn.close()
     
-    # 4. Generate PDF
-    html = render_template('office/pdf_materials.html',
-                           config=config,
-                           ref=job[0],
-                           date=date.today().strftime('%d/%m/%Y'),
-                           address=job[1],
-                           items=items,
-                           grouped_items=None) # Flat list for stored jobs
-                           
-    from services.pdf_generator import generate_pdf_from_html
-    pdf = generate_pdf_from_html(html)
+    # 4. Prepare Data for PDF
+    context = {
+        'config': config,
+        'ref': job[0],
+        'date': date.today().strftime('%d/%m/%Y'),
+        'address': job[1],
+        'items': items,
+        'grouped_items': None
+    }
     
-    from flask import make_response
-    response = make_response(pdf)
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'inline; filename=Materials_{job[0]}.pdf'
-    return response
+    # 5. Generate and Return (The One-Line Fix)
+    from services.pdf_generator import generate_pdf
+    # Note: 'office/pdf_materials.html' must exist in your templates folder
+    return generate_pdf('office/pdf_materials.html', context, f"Materials_{job[0]}.pdf")
