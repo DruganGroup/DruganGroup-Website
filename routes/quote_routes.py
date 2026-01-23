@@ -7,7 +7,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 from services.pdf_generator import generate_pdf
-from services.calculators import get_calculator
+from services.calculators import AVAILABLE_CALCS, get_calculator
 
 quote_bp = Blueprint('quote', __name__)
 
@@ -594,67 +594,65 @@ def pdf_redirect(quote_id):
     # This catches the old link and sends it to the new PDF engine
     return redirect(url_for('pdf.download_quote_pdf', quote_id=quote_id))
     
+@quote_bp.route('/api/calculators/meta', methods=['GET'])
+def get_calculator_meta():
+    """
+    Returns the list of all calculators and their required form fields.
+    Frontend uses this to build the dropdown and inputs dynamically.
+    """
+    if not check_access(): return jsonify([]), 401
+    
+    # Loop through our registry and ask each calc for its config
+    meta_data = [calc.get_config() for calc in AVAILABLE_CALCS.values()]
+    
+    return jsonify(meta_data)
+
 @quote_bp.route('/api/calculate/<trade_type>', methods=['POST'])
 def smart_calculate(trade_type):
-    """
-    Universal endpoint for trade calculations.
-    Frontend sends: { 'length': 20, 'height': 1.8 }
-    Backend returns: { 'materials': [...], 'labor_hours': 12, 'total_cost': 500.00 }
-    """
-    if not check_access(): 
-        return jsonify({'error': 'Unauthorized'}), 401
+    if not check_access(): return jsonify({'error': 'Unauthorized'}), 401
     
-    # 1. Get the correct calculator (Factory Pattern)
     calculator = get_calculator(trade_type)
     
     if not calculator:
         return jsonify({'error': f'Trade type "{trade_type}" not supported'}), 400
 
     try:
-        # 2. Run the specific Trade Math
         inputs = request.get_json()
         requirements = calculator.calculate_requirements(inputs)
         
-        # 3. Calculate Financials (Pricing Engine)
-        # We assume no specific van is assigned yet, so resources=[]
+        # Simple Pricing Logic (Or import PricingEngine if you have it)
         comp_id = session.get('company_id')
-        
-        # NOTE: You need to import your PricingEngine here. 
-        # If you haven't saved pricing_engine.py yet, use this simplified logic:
-        # quote_data = PricingEngine.calculate_job_cost(comp_id, requirements, resources=[])
-        
-        # --- SIMPLIFIED PRICING (Until PricingEngine is linked) ---
         conn = get_db(); cur = conn.cursor()
-        materials = requirements.get('materials', [])
-        
-        # Fetch generic markup settings
         cur.execute("SELECT value FROM settings WHERE company_id=%s AND key='material_markup_percent'", (comp_id,))
         row = cur.fetchone()
         markup = 1 + (float(row[0])/100) if row and row[0] else 1.20
+        conn.close()
         
         priced_materials = []
-        for item in materials:
-            # Fake cost lookup for demo (Replace with DB lookup)
-            est_cost = 0.00 
-            if 'Post' in item['name']: est_cost = 15.00
-            elif 'Rail' in item['name']: est_cost = 6.50
-            elif 'Board' in item['name']: est_cost = 1.20
-            elif 'Bag' in item['name']: est_cost = 5.50
-            elif 'Tile' in item['name']: est_cost = 1.10
+        for item in requirements.get('materials', []):
+            # In a real app, you would look up the cost here. 
+            # For now, we assume the calculator provided an estimate or we default it.
+            est_cost = item.get('est_cost', 0.00) 
+            
+            # Temporary: If calc didn't send cost, guess it so the UI isn't empty
+            if est_cost == 0:
+                if 'Post' in item['name']: est_cost = 15.00
+                elif 'Rail' in item['name']: est_cost = 6.50
+                elif 'Board' in item['name']: est_cost = 1.20
+                elif 'Bag' in item['name']: est_cost = 5.50
+                elif 'Tile' in item['name']: est_cost = 1.10
+                elif 'Batten' in item['name']: est_cost = 0.80
             
             sell_price = est_cost * markup
             priced_materials.append({
                 'name': item['name'],
                 'qty': item['qty'],
-                'est_cost': round(sell_price, 2) # Unit Price
+                'est_cost': round(sell_price, 2)
             })
-            
-        conn.close()
-        
+
         return jsonify({
             'status': 'success',
             'trade': trade_type,
-            'summary': requirements.get('summary', ''),
             'materials': priced_materials,
             'labor_hours': requirements.get('labor_hours', 0)
         })
