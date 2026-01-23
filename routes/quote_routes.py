@@ -262,9 +262,6 @@ def save_unified_quote():
     finally:
         conn.close()
 
-# =========================================================
-# 3. VIEW QUOTE (PRESERVED EXACTLY)
-# =========================================================
 @quote_bp.route('/office/quote/<int:quote_id>')
 def view_quote(quote_id):
     if not check_access(): return redirect(url_for('auth.login'))
@@ -273,15 +270,18 @@ def view_quote(quote_id):
         return redirect(url_for('pdf.download_quote_pdf', quote_id=quote_id)) 
 
     comp_id = session.get('company_id')
-config = get_site_config(comp_id)
+    
+    # --- INDENTATION FIX START ---
+    # These lines must be indented to be part of the function
+    config = get_site_config(comp_id)
 
-if config.get('logo') and not config['logo'].startswith('/uploads/'):
-    if config['logo'].startswith('uploads/'):
-        config['logo'] = '/' + config['logo']
-    else:
-        config['logo'] = f"/uploads/company_{comp_id}/logos/{config['logo']}"
+    if config.get('logo') and not config['logo'].startswith('/uploads/'):
+        if config['logo'].startswith('uploads/'):
+            config['logo'] = '/' + config['logo']
+        else:
+            config['logo'] = f"/uploads/company_{comp_id}/logos/{config['logo']}"
 
-conn = get_db(); cur = conn.cursor()
+    conn = get_db(); cur = conn.cursor()
     
     cur.execute("""
         SELECT q.id, c.name, q.reference, q.date, q.total, q.status, q.expiry_date,
@@ -290,6 +290,8 @@ conn = get_db(); cur = conn.cursor()
         LEFT JOIN clients c ON q.client_id = c.id 
         WHERE q.id = %s AND q.company_id = %s
     """, (quote_id, comp_id))
+    # --- INDENTATION FIX END ---
+    
     quote = cur.fetchone()
 
     cur.execute("SELECT value FROM settings WHERE key = 'currency_symbol' AND company_id = %s", (comp_id,))
