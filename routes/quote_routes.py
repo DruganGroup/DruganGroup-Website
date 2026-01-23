@@ -271,8 +271,6 @@ def view_quote(quote_id):
 
     comp_id = session.get('company_id')
     
-    # --- INDENTATION FIX START ---
-    # These lines must be indented to be part of the function
     config = get_site_config(comp_id)
 
     if config.get('logo') and not config['logo'].startswith('/uploads/'):
@@ -283,8 +281,7 @@ def view_quote(quote_id):
 
     conn = get_db(); cur = conn.cursor()
     
-    cur.execute("""
-        SELECT q.id, c.name, q.reference, q.date, q.total, q.status, q.expiry_date,
+    cur.execute("""        SELECT q.id, c.name, q.reference, q.date, q.total, q.status, q.expiry_date,
                q.job_title, q.job_description
         FROM quotes q 
         LEFT JOIN clients c ON q.client_id = c.id 
@@ -478,7 +475,7 @@ def email_quote(quote_id):
     conn.close()
     return redirect(url_for('quote.view_quote', quote_id=quote_id))
     
-if config.get('logo'):
+    if config.get('logo'):
     # Convert web path to the actual disk path
     clean_path = config['logo'].replace('/uploads/', '').replace('uploads/', '').replace('/static/', '').replace('static/', '')
     local_path = os.path.join(current_app.static_folder, 'uploads', clean_path)
