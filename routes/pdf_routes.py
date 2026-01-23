@@ -62,7 +62,10 @@ def download_invoice_pdf(invoice_id):
     if not inv: conn.close(); return "Invoice not found", 404
 
     # 2. Resolve Addresses
+    # BILLING: Always use the client's billing address
     billing_addr = inv[5]
+    
+    # SITE: Check Job then Quote for property_id
     site_address_str = ""
     active_prop_id = inv[11] or inv[12]
     
@@ -73,6 +76,7 @@ def download_invoice_pdf(invoice_id):
             site_address_str = f"Site: {prop[0]}, {prop[1]}"
 
     # 3. Inject Site Address into Description
+    # This keeps 'Bill To' correct but shows the Site clearly in the body
     job_desc = inv[10]
     if site_address_str:
         job_desc = f"{site_address_str}\n{job_desc}"
@@ -86,18 +90,21 @@ def download_invoice_pdf(invoice_id):
     comp_name = get_company_name(cur, comp_id)
     conn.close()
 
-    # --- PDF LOGO FIX START ---
+    # --- THE BULLETPROOF LOGO FIX ---
     config = get_site_config(comp_id)
     if config.get('logo'):
-        # Clean the path strings to get a raw filename/path
-        clean_logo_path = config['logo'].replace('/uploads/', '').replace('uploads/', '').replace('/static/', '').replace('static/', '')
-        # Build the physical disk path
-        local_path = os.path.join(current_app.static_folder, 'uploads', clean_logo_path)
+        # 1. Strip all prefixes to get clean filename
+        clean_path = config['logo']
+        for p in ['/static/', 'static/', '/uploads/', 'uploads/']:
+            clean_path = clean_path.replace(p, '')
+            
+        # 2. Build absolute disk path
+        abs_path = os.path.join(current_app.static_folder, 'uploads', clean_path)
         
-        # If the file exists on disk, update config to use that path
-        if os.path.exists(local_path):
-            config['logo'] = local_path
-    # --- PDF LOGO FIX END ---
+        # 3. Force 'file://' protocol if file exists
+        if os.path.exists(abs_path):
+            config['logo'] = f"file://{abs_path}"
+    # --------------------------------
 
     total_val = float(inv[7] or 0)
     user_rate = get_tax_rate(settings)
@@ -134,7 +141,7 @@ def download_invoice_pdf(invoice_id):
         'items': items,
         'settings': settings,
         'smart_terms': get_smart_terms(settings),
-        'config': config, # <--- IMPORTANT: Uses the patched config variable
+        'config': config, # This now has the correct file:// path
         'is_quote': False 
     }
     
@@ -188,14 +195,21 @@ def download_quote_pdf(quote_id):
     comp_name = get_company_name(cur, comp_id)
     conn.close()
 
-    # --- PDF LOGO FIX START ---
+    # --- THE BULLETPROOF LOGO FIX ---
     config = get_site_config(comp_id)
     if config.get('logo'):
-        clean_logo_path = config['logo'].replace('/uploads/', '').replace('uploads/', '').replace('/static/', '').replace('static/', '')
-        local_path = os.path.join(current_app.static_folder, 'uploads', clean_logo_path)
-        if os.path.exists(local_path):
-            config['logo'] = local_path
-    # --- PDF LOGO FIX END ---
+        # 1. Strip all prefixes to get clean filename
+        clean_path = config['logo']
+        for p in ['/static/', 'static/', '/uploads/', 'uploads/']:
+            clean_path = clean_path.replace(p, '')
+            
+        # 2. Build absolute disk path
+        abs_path = os.path.join(current_app.static_folder, 'uploads', clean_path)
+        
+        # 3. Force 'file://' protocol if file exists
+        if os.path.exists(abs_path):
+            config['logo'] = f"file://{abs_path}"
+    # --------------------------------
 
     total_val = float(quote[7]) if quote[7] else 0
     user_rate = get_tax_rate(settings)
@@ -231,7 +245,7 @@ def download_quote_pdf(quote_id):
         'items': items,
         'settings': settings,
         'smart_terms': get_smart_terms(settings),
-        'config': config, 
+        'config': config, # Using the fixed config with file://
         'is_quote': True 
     }
     
