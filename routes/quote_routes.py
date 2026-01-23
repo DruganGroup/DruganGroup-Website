@@ -378,7 +378,7 @@ def email_quote(quote_id):
     company_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
     
-    # 2. Fetch Quote (UPDATED QUERY: Now grabs c.billing_address)
+    # 2. Fetch Quote
     cur.execute("""
         SELECT q.reference, c.name, c.email, q.job_title, q.job_description, q.date, q.total, c.billing_address
         FROM quotes q JOIN clients c ON q.client_id = c.id
@@ -390,7 +390,7 @@ def email_quote(quote_id):
         conn.close(); flash("❌ Client has no email address.", "error")
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
 
-    # Unpack variables (Added client_addr at the end)
+    # Unpack variables
     ref, client_name, client_email, title, desc, q_date, total_val, client_addr = q[0], q[1], q[2], q[3], q[4], q[5], float(q[6] or 0), q[7]
 
     # 3. Settings
@@ -404,8 +404,78 @@ def email_quote(quote_id):
     cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
     items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
     
+    # 4. CONFIG & LOGO FIX (Use Disk Path for PDF Engine)
     config = get_site_config(company_id)
+    
+    # (This block MUST be indented inside the function)
+    if config.get('logo'):
+        # Convert web path to the actual disk path
+        clean_path = config['logo'].replace('/uploads/', '').replace('uploads/', '').replace('/static/', '').replace('static/', '')
+        local_path = os.path.join(current_app.static_folder, 'uploads', clean_path)
+        
+        if os.path.exists(local_path):
+            config['logo'] = local_path
 
+    # 5. Date & Context
+    country = settings.get('country_code', 'UK')
+    date_fmt = '%m/%d/%Y' if country == 'US' else '%d/%m/%Y'
+    formatted_date = q_date.strftime(date_fmt) if q_date else datetime.now().strftime(date_fmt)
+
+    context = {
+        'invoice': {
+            'ref': ref, 
+            'date': formatted_date,
+            'job_title': title,          
+            'job_description': desc,
+            'total': total_val,
+            'subtotal': total_val, 
+            'tax': 0.0,
+            'client_name': client_name,
+            'client_address': client_addr,
+            'client_email': client_email,
+            'currency_symbol': settings.get('currency_symbol', '£')
+        }, 
+        'items': items, 
+        'settings': settings, 
+        'config': config, 
+        'is_quote': True
+    }
+
+    filename = f"Quote_{ref}.pdf"
+    
+    try:
+        pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
+        
+        # 6. Send Email
+        msg = MIMEMultipart()
+        msg['From'] = settings.get('smtp_email')
+        msg['To'] = client_email
+        msg['Subject'] = f"Quote {ref} - {title or 'Proposal'}"
+        
+        body = f"Dear {client_name},\n\nPlease find attached the quote for {title}.\n\nTotal: {settings.get('currency_symbol','£')}{total_val:.2f}\n\nKind regards,\n{session.get('company_name')}"
+        msg.attach(MIMEText(body, 'plain'))
+        
+        with open(pdf_path, "rb") as f:
+            part = MIMEApplication(f.read(), Name=filename)
+            part['Content-Disposition'] = f'attachment; filename="{filename}"'
+            msg.attach(part)
+
+        server = smtplib.SMTP(settings['smtp_host'], int(settings.get('smtp_port', 587)))
+        server.starttls()
+        server.login(settings['smtp_email'], settings['smtp_password'])
+        server.send_message(msg)
+        server.quit()
+        
+        cur.execute("UPDATE quotes SET status = 'Sent' WHERE id = %s", (quote_id,))
+        conn.commit()
+        flash(f"✅ Quote emailed to {client_email}!", "success")
+
+    except Exception as e:
+        flash(f"❌ Email failed: {e}", "error")
+    
+    conn.close()
+    return redirect(url_for('quote.view_quote', quote_id=quote_id))
+    
 if config.get('logo'):
     # Convert web path to the actual disk path
     clean_path = config['logo'].replace('/uploads/', '').replace('uploads/', '').replace('/static/', '').replace('static/', '')
