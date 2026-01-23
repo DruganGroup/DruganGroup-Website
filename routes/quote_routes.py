@@ -7,6 +7,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 from services.pdf_generator import generate_pdf
+from services.calculators import get_calculator
 
 quote_bp = Blueprint('quote', __name__)
 
@@ -592,3 +593,71 @@ def convert_to_invoice(quote_id):
 def pdf_redirect(quote_id):
     # This catches the old link and sends it to the new PDF engine
     return redirect(url_for('pdf.download_quote_pdf', quote_id=quote_id))
+    
+@quote_bp.route('/api/calculate/<trade_type>', methods=['POST'])
+def smart_calculate(trade_type):
+    """
+    Universal endpoint for trade calculations.
+    Frontend sends: { 'length': 20, 'height': 1.8 }
+    Backend returns: { 'materials': [...], 'labor_hours': 12, 'total_cost': 500.00 }
+    """
+    if not check_access(): 
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    # 1. Get the correct calculator (Factory Pattern)
+    calculator = get_calculator(trade_type)
+    
+    if not calculator:
+        return jsonify({'error': f'Trade type "{trade_type}" not supported'}), 400
+
+    try:
+        # 2. Run the specific Trade Math
+        inputs = request.get_json()
+        requirements = calculator.calculate_requirements(inputs)
+        
+        # 3. Calculate Financials (Pricing Engine)
+        # We assume no specific van is assigned yet, so resources=[]
+        comp_id = session.get('company_id')
+        
+        # NOTE: You need to import your PricingEngine here. 
+        # If you haven't saved pricing_engine.py yet, use this simplified logic:
+        # quote_data = PricingEngine.calculate_job_cost(comp_id, requirements, resources=[])
+        
+        # --- SIMPLIFIED PRICING (Until PricingEngine is linked) ---
+        conn = get_db(); cur = conn.cursor()
+        materials = requirements.get('materials', [])
+        
+        # Fetch generic markup settings
+        cur.execute("SELECT value FROM settings WHERE company_id=%s AND key='material_markup_percent'", (comp_id,))
+        row = cur.fetchone()
+        markup = 1 + (float(row[0])/100) if row and row[0] else 1.20
+        
+        priced_materials = []
+        for item in materials:
+            # Fake cost lookup for demo (Replace with DB lookup)
+            est_cost = 0.00 
+            if 'Post' in item['name']: est_cost = 15.00
+            elif 'Rail' in item['name']: est_cost = 6.50
+            elif 'Board' in item['name']: est_cost = 1.20
+            elif 'Bag' in item['name']: est_cost = 5.50
+            elif 'Tile' in item['name']: est_cost = 1.10
+            
+            sell_price = est_cost * markup
+            priced_materials.append({
+                'name': item['name'],
+                'qty': item['qty'],
+                'est_cost': round(sell_price, 2) # Unit Price
+            })
+            
+        conn.close()
+        
+        return jsonify({
+            'status': 'success',
+            'trade': trade_type,
+            'summary': requirements.get('summary', ''),
+            'materials': priced_materials,
+            'labor_hours': requirements.get('labor_hours', 0)
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
