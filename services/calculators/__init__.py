@@ -1,8 +1,9 @@
-
+# services/calculators/__init__.py
 from .fencing import FencingCalculator
 from .roofing import RoofingCalculator
 
-
+# Register available calculators here
+# If you add patio.py later, import it here and add to the dict.
 AVAILABLE_CALCS = {
     'fencing': FencingCalculator(),
     'roofing': RoofingCalculator(),
@@ -10,7 +11,6 @@ AVAILABLE_CALCS = {
 
 def get_calculator(trade_type):
     """
-    Factory: Returns the specific calculator class instance 
-    based on the trade_type string.
+    Factory function to retrieve the correct calculator class.
     """
     return AVAILABLE_CALCS.get(trade_type)

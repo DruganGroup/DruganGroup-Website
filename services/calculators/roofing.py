@@ -1,10 +1,25 @@
+# services/calculators/roofing.py
 import math
 from .base import BaseCalculator
 
 class RoofingCalculator(BaseCalculator):
     def __init__(self):
-        self.name = "Pitched Roof (Tiling)"
-        self.id = "roofing_tiled"
+        self.name = "🏠 Roofing (Pitched/Tiled)"
+        self.id = "roofing"
+
+    def get_config(self):
+        # This tells the frontend exactly what to ask the user
+        return {
+            'id': self.id,
+            'name': self.name,
+            'fields': [
+                {'id': 'area', 'label': 'Roof Area (m²)', 'type': 'number', 'default': 50, 'placeholder': 'e.g. 50'},
+                {'id': 'pitch', 'label': 'Roof Pitch', 'type': 'select', 'options': [
+                    {'value': 'standard', 'label': 'Standard (< 35°)'},
+                    {'value': 'steep', 'label': 'Steep (> 35°)'}
+                ]}
+            ]
+        }
 
     def calculate_requirements(self, inputs):
         # 1. Parse Inputs

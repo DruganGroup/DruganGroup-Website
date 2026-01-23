@@ -141,40 +141,13 @@
             </div>
             <div class="modal-body">
                 <label class="form-label fw-bold">Select Trade</label>
-                <select id="calcType" class="form-select mb-3" onchange="toggleCalcInputs()">
-                    <option value="fencing" selected>🚧 Fencing (Closeboard)</option>
-                    <option value="roofing">🏠 Roofing (Pitched/Tiled)</option>
-                    </select>
+                <select id="calcType" class="form-select mb-3" onchange="renderDynamicForm()">
+                    <option value="" disabled selected>Loading trades...</option>
+                </select>
 
-                <div id="fencingInputs" class="calc-group">
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <label class="small">Length (m)</label>
-                            <input type="number" id="calcLength" class="form-control" placeholder="e.g. 20">
-                        </div>
-                        <div class="col-6">
-                            <label class="small">Height (m)</label>
-                            <input type="number" id="calcHeight" class="form-control" value="1.8">
-                        </div>
-                    </div>
+                <div id="dynamicFormContainer" class="p-2 border rounded bg-light">
+                    <p class="text-center text-muted small my-3">Select a trade to load inputs.</p>
                 </div>
-
-                <div id="roofingInputs" class="calc-group d-none">
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <label class="small">Roof Area (m²)</label>
-                            <input type="number" id="calcArea" class="form-control" placeholder="e.g. 50">
-                        </div>
-                        <div class="col-6">
-                            <label class="small">Pitch</label>
-                            <select id="calcPitch" class="form-select">
-                                <option value="standard">Standard (< 35°)</option>
-                                <option value="steep">Steep (> 35°)</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-dark w-100" onclick="runSmartCalc()">
@@ -201,6 +174,7 @@
     const TAX_RATE = {{ tax_rate }};
     const storedMarkup = {{ settings.get('default_markup', 20) }};
     const MARKUP = 1 + (parseFloat(storedMarkup) / 100);
+    let CALCULATORS = []; // Store definitions from backend
 
     // 2. PREVENT ENTER KEY SUBMIT
     document.addEventListener('keydown', function(event) {
@@ -217,54 +191,99 @@
         document.getElementById('newClientDiv').classList.toggle('d-none', !isNew);
     }
 
-    // 4. TOGGLE CALCULATOR INPUTS (Fencing vs Roofing)
-    function toggleCalcInputs() {
-        const type = document.getElementById('calcType').value;
-        // Hide all inputs
-        document.querySelectorAll('.calc-group').forEach(el => el.classList.add('d-none'));
-        // Show selected inputs
-        const activeDiv = document.getElementById(type + 'Inputs');
-        if(activeDiv) activeDiv.classList.remove('d-none');
-    }
-
-    // 5. ADD ROW (Used manually AND by the calculator)
-    function addRow(desc='', qty=1, price='') {
-        const tbody = document.getElementById('itemsBody');
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td class="ps-4 position-relative">
-                <input type="text" name="desc[]" class="form-control item-search" 
-                       value="${desc}" placeholder="Start typing item..." autocomplete="off" onkeyup="searchMaterials(this)">
-                <div class="suggestions-box d-none"></div>
-            </td>
-            <td><input type="number" name="qty[]" class="form-control text-center" value="${qty}" min="0.1" step="0.1" oninput="calcTotal()"></td>
-            <td><input type="number" name="price[]" class="form-control" value="${price}" placeholder="0.00" step="0.01" oninput="calcTotal()"></td>
-            <td class="text-end pe-4 fw-bold row-total">0.00</td>
-            <td><button type="button" class="btn btn-link text-danger p-0" onclick="this.closest('tr').remove(); calcTotal()"><i class="fas fa-times"></i></button></td>
-        `;
-        tbody.appendChild(row);
-        calcTotal();
-    }
-
-    // 6. RUN SMART CALC (The Modular API Call)
-    function runSmartCalc() {
-        const tradeType = document.getElementById('calcType').value;
-        let payload = {};
-
-        // Build Payload based on Trade selection
-        if (tradeType === 'fencing') {
-            payload = {
-                length: document.getElementById('calcLength').value,
-                height: document.getElementById('calcHeight').value
-            };
-        } else if (tradeType === 'roofing') {
-            payload = {
-                area: document.getElementById('calcArea').value,
-                pitch: document.getElementById('calcPitch').value
-            };
+    // 4. LOAD CALCULATORS (ON PAGE LOAD)
+    document.addEventListener('DOMContentLoaded', function() {
+        // A. Load Rows & Clients
+        addRow(); 
+        const clientSelect = document.querySelector('select[name="client_id"]');
+        if (clientSelect) {
+            clientSelect.addEventListener('change', function() { loadProperties(this.value); });
+            if (clientSelect.value) loadProperties(clientSelect.value);
         }
 
-        // Send to Modular Backend
+        // B. Fetch Calculator Definitions from Python
+        fetch('/api/calculators/meta')
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to load calculators");
+                return res.json();
+            })
+            .then(data => {
+                CALCULATORS = data;
+                const dropdown = document.getElementById('calcType');
+                dropdown.innerHTML = '<option value="" disabled selected>-- Select Trade --</option>';
+                
+                // Populate Dropdown Dynamically
+                data.forEach(calc => {
+                    const opt = document.createElement('option');
+                    opt.value = calc.id;
+                    opt.text = calc.name;
+                    dropdown.appendChild(opt);
+                });
+            })
+            .catch(err => console.error("Calculator Error:", err));
+    });
+
+    // 5. RENDER DYNAMIC FORM (The Magic Part)
+    function renderDynamicForm() {
+        const type = document.getElementById('calcType').value;
+        const calc = CALCULATORS.find(c => c.id === type);
+        const container = document.getElementById('dynamicFormContainer');
+        
+        container.innerHTML = ''; // Clear previous inputs
+
+        if (!calc || !calc.fields) return;
+
+        // Loop through the fields defined in Python
+        calc.fields.forEach(field => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'mb-3';
+            
+            // Label
+            const label = document.createElement('label');
+            label.className = 'small fw-bold text-muted mb-1';
+            label.innerText = field.label;
+            wrapper.appendChild(label);
+
+            // Input Logic
+            let input;
+            if (field.type === 'select') {
+                input = document.createElement('select');
+                input.className = 'form-select';
+                field.options.forEach(opt => {
+                    const o = document.createElement('option');
+                    o.value = opt.value;
+                    o.text = opt.label;
+                    input.appendChild(o);
+                });
+            } else {
+                input = document.createElement('input');
+                input.type = field.type || 'text'; // 'number' or 'text'
+                input.className = 'form-control';
+                if (field.default) input.value = field.default;
+                if (field.placeholder) input.placeholder = field.placeholder;
+            }
+            
+            input.dataset.key = field.id;   // Store the key name for retrieval
+            
+            wrapper.appendChild(input);
+            container.appendChild(wrapper);
+        });
+    }
+
+    // 6. RUN SMART CALC (Reads dynamic inputs)
+    function runSmartCalc() {
+        const tradeType = document.getElementById('calcType').value;
+        const container = document.getElementById('dynamicFormContainer');
+        const inputs = container.querySelectorAll('input, select');
+        
+        let payload = {};
+        
+        // Auto-harvest values based on Python's definition
+        inputs.forEach(el => {
+            payload[el.dataset.key] = el.value;
+        });
+
+        // Send to Backend
         fetch(`/api/calculate/${tradeType}`, {
             method: 'POST',
             headers: {
@@ -309,7 +328,26 @@
         .catch(err => alert("Error: " + err));
     }
 
-    // 7. CALCULATE TOTALS (Standard Logic)
+    // 7. ADD ROW (Manual & Auto)
+    function addRow(desc='', qty=1, price='') {
+        const tbody = document.getElementById('itemsBody');
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="ps-4 position-relative">
+                <input type="text" name="desc[]" class="form-control item-search" 
+                       value="${desc}" placeholder="Start typing item..." autocomplete="off" onkeyup="searchMaterials(this)">
+                <div class="suggestions-box d-none"></div>
+            </td>
+            <td><input type="number" name="qty[]" class="form-control text-center" value="${qty}" min="0.1" step="0.1" oninput="calcTotal()"></td>
+            <td><input type="number" name="price[]" class="form-control" value="${price}" placeholder="0.00" step="0.01" oninput="calcTotal()"></td>
+            <td class="text-end pe-4 fw-bold row-total">0.00</td>
+            <td><button type="button" class="btn btn-link text-danger p-0" onclick="this.closest('tr').remove(); calcTotal()"><i class="fas fa-times"></i></button></td>
+        `;
+        tbody.appendChild(row);
+        calcTotal();
+    }
+
+    // 8. CALCULATE TOTALS (Standard Logic)
     function calcTotal() {
         // A. Material Total
         let matTotal = 0;
@@ -347,7 +385,7 @@
         document.getElementById('headerTotal').innerText = '£' + grand.toFixed(2);
     }
 
-    // 8. AUTO-COMPLETE (Preserved)
+    // 9. AUTO-COMPLETE (Preserved)
     function searchMaterials(input) {
         const box = input.nextElementSibling;
         const query = input.value;
@@ -386,36 +424,25 @@
         }
     });
 
-    // 9. CLIENT/PROPERTY LOADING (Preserved)
-    document.addEventListener('DOMContentLoaded', function() {
-        addRow(); // Start with one empty row
-        
-        const clientSelect = document.querySelector('select[name="client_id"]');
+    // 10. CLIENT/PROPERTY LOADER
+    function loadProperties(clientId) {
         const propSelect = document.getElementById('propertySelect');
+        if (!clientId) return;
+        propSelect.innerHTML = '<option value="">Loading sites...</option>';
+        propSelect.disabled = true;
 
-        function loadProperties(clientId) {
-            if (!clientId) return;
-            propSelect.innerHTML = '<option value="">Loading sites...</option>';
-            propSelect.disabled = true;
-
-            fetch(`/api/client/${clientId}/properties`)
-                .then(res => res.json())
-                .then(data => {
-                    propSelect.disabled = false;
-                    propSelect.innerHTML = data.length ? '<option value="">-- Select Site Address --</option>' : '<option value="">-- Use Billing Address --</option>';
-                    data.forEach(prop => {
-                        const opt = document.createElement('option');
-                        opt.value = prop.id;
-                        opt.text = prop.address;
-                        propSelect.appendChild(opt);
-                    });
+        fetch(`/api/client/${clientId}/properties`)
+            .then(res => res.json())
+            .then(data => {
+                propSelect.disabled = false;
+                propSelect.innerHTML = data.length ? '<option value="">-- Select Site Address --</option>' : '<option value="">-- Use Billing Address --</option>';
+                data.forEach(prop => {
+                    const opt = document.createElement('option');
+                    opt.value = prop.id;
+                    opt.text = prop.address;
+                    propSelect.appendChild(opt);
                 });
-        }
-
-        if (clientSelect) {
-            clientSelect.addEventListener('change', function() { loadProperties(this.value); });
-            if (clientSelect.value) loadProperties(clientSelect.value);
-        }
-    });
+            });
+    }
 </script>
 {% endblock %}

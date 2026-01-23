@@ -4,8 +4,19 @@ from .base import BaseCalculator
 
 class FencingCalculator(BaseCalculator):
     def __init__(self):
-        self.name = "Closeboard Fencing"
-        self.id = "fencing_closeboard"
+        self.name = "🚧 Fencing (Closeboard)"
+        self.id = "fencing"
+
+    def get_config(self):
+        # Defines inputs for Fencing
+        return {
+            'id': self.id,
+            'name': self.name,
+            'fields': [
+                {'id': 'length', 'label': 'Length (m)', 'type': 'number', 'default': 20, 'placeholder': 'e.g. 20'},
+                {'id': 'height', 'label': 'Height (m)', 'type': 'number', 'default': 1.8, 'placeholder': 'e.g. 1.8'}
+            ]
+        }
 
     def calculate_requirements(self, inputs):
         # 1. Parse Inputs (with defaults)
