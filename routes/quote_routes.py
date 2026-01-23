@@ -344,8 +344,7 @@ def convert_to_job(quote_id):
             RETURNING id
         """, (comp_id, client_id, prop_id, job_ref, desc, quote_id, total, van_id, days))
         job_id = cur.fetchone()[0]
-
-        # 4. COPY MATERIALS (THE FIX: Sync Quote Items to Job Materials)
+        
         cur.execute("""
             INSERT INTO job_materials (job_id, description, quantity, unit_price)
             SELECT %s, description, quantity, 0 

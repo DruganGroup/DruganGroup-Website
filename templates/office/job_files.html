@@ -34,18 +34,23 @@
         </div>
 
         <div class="btn-group shadow-sm">
-            {% if quote_id %}
-                <a href="/office/quote/{{ quote_id }}" class="btn btn-outline-dark fw-bold">
-                    <i class="fas fa-file-contract me-2"></i>Quote
-                </a>
-                <a href="/office/quote/{{ quote_id }}/convert" class="btn btn-outline-dark fw-bold" onclick="return confirm('Create Invoice?')">
-                    <i class="fas fa-file-invoice-dollar me-2"></i>Invoice
-                </a>
-            {% endif %}
-            <a href="/office/job/{{ job.id }}/files" class="btn btn-dark fw-bold">
-                <i class="fas fa-sync-alt"></i>
-            </a>
-        </div>
+    {% if quote_id %}
+        <a href="/office/quote/{{ quote_id }}" class="btn btn-outline-dark fw-bold">
+            <i class="fas fa-file-contract me-2"></i>Quote
+        </a>
+        <a href="/office/quote/{{ quote_id }}/convert" class="btn btn-outline-dark fw-bold" onclick="return confirm('Create Invoice?')">
+            <i class="fas fa-file-invoice-dollar me-2"></i>Invoice
+        </a>
+    {% endif %}
+    
+    <a href="/office/job/{{ job.id }}/rams/create" class="btn btn-warning fw-bold text-dark">
+        <i class="fas fa-clipboard-check me-2"></i>RAMS
+    </a>
+
+    <a href="/office/job/{{ job.id }}/files" class="btn btn-dark fw-bold">
+        <i class="fas fa-sync-alt"></i>
+    </a>
+</div>
     </div>
 
     <div class="row g-3 mb-4">
@@ -114,8 +119,12 @@
 
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-list-ul me-2 text-dark"></i> Project Timeline</span>
-                </div>
+    <span><i class="fas fa-list-ul me-2 text-dark"></i> Project Timeline</span>
+    
+    <a href="/office/job/{{ job.id }}/material-list" class="btn btn-sm btn-outline-dark fw-bold">
+        <i class="fas fa-file-pdf me-2"></i> Merchant List
+    </a>
+</div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0 small">
                         <thead class="bg-light text-muted text-uppercase">

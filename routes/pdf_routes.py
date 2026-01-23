@@ -256,3 +256,114 @@ def download_quote_pdf(quote_id):
         return send_file(pdf_path, as_attachment=False, download_name=filename)
     except Exception as e:
         return f"PDF Error: {e}", 500
+        
+@pdf_bp.route('/office/job/<int:job_id>/material-list')
+def download_material_list(job_id):
+    if not check_access(): return redirect(url_for('auth.login'))
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. Fetch Job Details
+    cur.execute("SELECT ref, address_line1 FROM jobs JOIN properties ON jobs.property_id = properties.id WHERE jobs.id = %s", (job_id,))
+    job = cur.fetchone()
+    
+    # 2. Fetch Materials (Grouped by Supplier if you track that, or just a list)
+    cur.execute("SELECT description, quantity FROM job_materials WHERE job_id = %s", (job_id,))
+    items = [{'desc': r[0], 'qty': r[1]} for r in cur.fetchall()]
+    
+    conn.close()
+    
+    # 3. Generate PDF
+    context = {
+        'ref': job[0],
+        'address': job[1],
+        'items': items,
+        'config': get_site_config(session.get('company_id'))
+    }
+    
+    return generate_pdf('finance/pdf_materials.html', context, f"Materials_{job[0]}.pdf")
+    
+@pdf_bp.route('/office/job/<int:job_id>/rams/create')
+def create_rams_form(job_id):
+    if not check_access(): return redirect(url_for('auth.login'))
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. Fetch Job Info
+    cur.execute("""
+        SELECT j.ref, j.description, c.name, p.address_line1 
+        FROM jobs j
+        JOIN clients c ON j.client_id = c.id
+        JOIN properties p ON j.property_id = p.id
+        WHERE j.id = %s
+    """, (job_id,))
+    job = cur.fetchone()
+    conn.close()
+
+    if not job: return "Job not found", 404
+
+    # 2. "Smart" Hazard Detection (Auto-ticks boxes for you)
+    desc_lower = job[1].lower()
+    hazards = []
+    
+    # Basic logic to save you typing
+    if 'roof' in desc_lower or 'gutter' in desc_lower: hazards.append('Working at Height')
+    if 'electr' in desc_lower or 'light' in desc_lower: hazards.append('Electricity')
+    if 'garden' in desc_lower or 'dig' in desc_lower: hazards.append('Manual Handling')
+    if 'paint' in desc_lower: hazards.append('Dust & Fumes')
+    
+    # Default PPE
+    ppe = ['Safety Boots', 'Hi-Vis Vest']
+
+    # 3. Default Method Statement (Generic template)
+    method_template = (
+        "1. Arrive on site and report to client.\n"
+        "2. Assess work area for immediate hazards.\n"
+        "3. Don appropriate PPE.\n"
+        "4. Carry out works: " + job[1] + ".\n"
+        "5. Clear away waste and tools.\n"
+        "6. Final inspection and sign-off."
+    )
+
+    data = {
+        'job_id': job_id,
+        'ref': job[0],
+        'client': job[2],
+        'address': job[3],
+        'hazards': hazards,
+        'ppe': ppe,
+        'method': method_template
+    }
+
+    return render_template('office/create_rams.html', data=data)
+
+
+# --- ROUTE 2: SAVE & GENERATE THE PDF ---
+@pdf_bp.route('/office/job/<int:job_id>/rams/save', methods=['POST'])
+def save_and_download_rams(job_id):
+    if not check_access(): return redirect(url_for('auth.login'))
+
+    # 1. Get Data from Form
+    ref = request.form.get('ref')
+    client = request.form.get('client')
+    address = request.form.get('address')
+    method = request.form.get('method_statement')
+    
+    # Get checkboxes (returns a list)
+    hazards = request.form.getlist('hazards')
+    ppe = request.form.getlist('ppe')
+
+    # 2. Prepare Context for PDF
+    context = {
+        'ref': ref,
+        'date': datetime.now().strftime('%d/%m/%Y'),
+        'client_name': client,
+        'site_address': address,
+        'description': method, # Using the method statement as the main body
+        'risks': hazards,
+        'ppe': ppe,
+        'config': get_site_config(session.get('company_id'))
+    }
+
+    # 3. Generate PDF (Uses the template we made earlier)
+    return generate_pdf('finance/pdf_rams.html', context, f"RAMS_{ref}.pdf")
