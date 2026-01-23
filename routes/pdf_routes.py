@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, send_file, flash
-from services.db import get_db
+from db import get_db, get_site_config
 from services.pdf_generator import generate_pdf
 from utils.helpers import check_access, get_site_config
 from datetime import datetime
