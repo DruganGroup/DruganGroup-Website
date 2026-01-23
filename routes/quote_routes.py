@@ -596,23 +596,23 @@ def pdf_redirect(quote_id):
     
 @quote_bp.route('/api/calculators/meta', methods=['GET'])
 def get_calculator_meta():
-    """
-    Returns the list of all calculators and their required form fields.
-    Frontend uses this to build the dropdown and inputs dynamically.
-    """
+    """Returns the schema for the frontend dropdown."""
     if not check_access(): return jsonify([]), 401
     
-    # Loop through our registry and ask each calc for its config
-    meta_data = [calc.get_config() for calc in AVAILABLE_CALCS.values()]
-    
-    return jsonify(meta_data)
+    try:
+        # Loop through registry and ask each calc for its config
+        meta_data = [calc.get_config() for calc in AVAILABLE_CALCS.values()]
+        return jsonify(meta_data)
+    except Exception as e:
+        print(f"ERROR fetching metadata: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @quote_bp.route('/api/calculate/<trade_type>', methods=['POST'])
 def smart_calculate(trade_type):
+    """Executes the calculation logic dynamically."""
     if not check_access(): return jsonify({'error': 'Unauthorized'}), 401
     
     calculator = get_calculator(trade_type)
-    
     if not calculator:
         return jsonify({'error': f'Trade type "{trade_type}" not supported'}), 400
 
@@ -620,34 +620,33 @@ def smart_calculate(trade_type):
         inputs = request.get_json()
         requirements = calculator.calculate_requirements(inputs)
         
-        # Simple Pricing Logic (Or import PricingEngine if you have it)
+        # Simple Pricing Lookup (Trade Price)
         comp_id = session.get('company_id')
         conn = get_db(); cur = conn.cursor()
         cur.execute("SELECT value FROM settings WHERE company_id=%s AND key='material_markup_percent'", (comp_id,))
         row = cur.fetchone()
         markup = 1 + (float(row[0])/100) if row and row[0] else 1.20
         conn.close()
-        
+
         priced_materials = []
         for item in requirements.get('materials', []):
-            # In a real app, you would look up the cost here. 
-            # For now, we assume the calculator provided an estimate or we default it.
             est_cost = item.get('est_cost', 0.00) 
             
-            # Temporary: If calc didn't send cost, guess it so the UI isn't empty
+            # Temporary fallback if calculator didn't set cost
             if est_cost == 0:
-                if 'Post' in item['name']: est_cost = 15.00
-                elif 'Rail' in item['name']: est_cost = 6.50
-                elif 'Board' in item['name']: est_cost = 1.20
-                elif 'Bag' in item['name']: est_cost = 5.50
-                elif 'Tile' in item['name']: est_cost = 1.10
-                elif 'Batten' in item['name']: est_cost = 0.80
+                name_lower = item['name'].lower()
+                if 'post' in name_lower: est_cost = 15.00
+                elif 'rail' in name_lower: est_cost = 6.50
+                elif 'board' in name_lower: est_cost = 1.20
+                elif 'bag' in name_lower: est_cost = 5.50
+                elif 'tile' in name_lower: est_cost = 1.10
+                elif 'batten' in name_lower: est_cost = 0.80
+                elif 'membrane' in name_lower: est_cost = 45.00
             
-            sell_price = est_cost * markup
             priced_materials.append({
                 'name': item['name'],
                 'qty': item['qty'],
-                'est_cost': round(sell_price, 2)
+                'est_cost': est_cost 
             })
 
         return jsonify({
