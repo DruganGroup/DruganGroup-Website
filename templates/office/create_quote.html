@@ -41,6 +41,7 @@
                             {% endfor %}
                         </select>
                     </div>
+                    
                     <div id="newClientDiv" class="d-none mb-3">
                         <input type="text" name="new_client_name" class="form-control mb-2" placeholder="Client Name">
                         <input type="email" name="new_client_email" class="form-control mb-2" placeholder="Email">
@@ -68,20 +69,18 @@
                     <input type="number" step="0.5" name="estimated_days" id="daysInput" class="form-control mb-3" value="1" oninput="calcTotal()" required>
 
                     <label class="form-label fw-bold small text-muted">Preferred Gang / Van</label>
-<select name="preferred_vehicle_id" id="vehicleSelect" class="form-select" onchange="calcTotal()">
-    <option value="" data-cost="0">-- No Vehicle Cost --</option>
-    
-    {% for v in vehicles %}
-        <option value="{{ v.id }}" data-cost="{{ v.daily_cost or 0 }}">
-            {{ v.reg_plate }} 
-            {% if v.make_model %} - {{ v.make_model }}{% endif %}
-            
-            {% if v.daily_cost and v.daily_cost > 0 %}
-                (+£{{ "%.2f"|format(v.daily_cost) }}/day)
-            {% endif %}
-        </option>
-    {% endfor %}
-</select>
+                    <select name="preferred_vehicle_id" id="vehicleSelect" class="form-select" onchange="calcTotal()">
+                        <option value="" data-cost="0">-- No Vehicle Cost --</option>
+                        {% for v in vehicles %}
+                            <option value="{{ v.id }}" data-cost="{{ v.daily_cost or 0 }}">
+                                {{ v.reg_plate }} 
+                                {% if v.make_model %} - {{ v.make_model }}{% endif %}
+                                {% if v.daily_cost and v.daily_cost > 0 %}
+                                    (+£{{ "%.2f"|format(v.daily_cost) }}/day)
+                                {% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
                     <div class="small text-muted mt-1" id="resourceCostDisplay">Resource Cost: £0.00</div>
                 </div>
             </div>
@@ -119,6 +118,7 @@
                         <button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="addRow()">
                             <i class="fas fa-plus me-1"></i> Add Line
                         </button>
+                        
                         <div class="text-end">
                             <div class="small text-muted">Materials: <span id="matTotal">0.00</span></div>
                             <div class="small text-muted">Resources (Van/Gang): <span id="resTotal">0.00</span></div>
@@ -141,12 +141,12 @@
             </div>
             <div class="modal-body">
                 <label class="form-label fw-bold">Select Trade</label>
-                <select id="calcType" class="form-select mb-3">
-                    <option value="fencing">Fencing (Closeboard)</option>
-                    <option value="patio">Patio (Paving)</option>
-                </select>
+                <select id="calcType" class="form-select mb-3" onchange="toggleCalcInputs()">
+                    <option value="fencing" selected>🚧 Fencing (Closeboard)</option>
+                    <option value="roofing">🏠 Roofing (Pitched/Tiled)</option>
+                    </select>
 
-                <div id="fencingInputs">
+                <div id="fencingInputs" class="calc-group">
                     <div class="row g-2">
                         <div class="col-6">
                             <label class="small">Length (m)</label>
@@ -158,6 +158,23 @@
                         </div>
                     </div>
                 </div>
+
+                <div id="roofingInputs" class="calc-group d-none">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="small">Roof Area (m²)</label>
+                            <input type="number" id="calcArea" class="form-control" placeholder="e.g. 50">
+                        </div>
+                        <div class="col-6">
+                            <label class="small">Pitch</label>
+                            <select id="calcPitch" class="form-select">
+                                <option value="standard">Standard (< 35°)</option>
+                                <option value="steep">Steep (> 35°)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-dark w-100" onclick="runSmartCalc()">
@@ -180,7 +197,7 @@
 </style>
 
 <script>
-    // 1. SETTINGS
+    // 1. CONFIGURATION
     const TAX_RATE = {{ tax_rate }};
     const storedMarkup = {{ settings.get('default_markup', 20) }};
     const MARKUP = 1 + (parseFloat(storedMarkup) / 100);
@@ -193,14 +210,24 @@
         }
     });
 
-    // 3. TOGGLE CLIENT MODE
+    // 3. TOGGLE CLIENT (New vs Existing)
     function toggleClientMode() {
         const isNew = document.getElementById('newClientToggle').checked;
         document.getElementById('existingClientDiv').classList.toggle('d-none', isNew);
         document.getElementById('newClientDiv').classList.toggle('d-none', !isNew);
     }
 
-    // 4. ADD NEW ROW (Updated to accept args from Smart Calc)
+    // 4. TOGGLE CALCULATOR INPUTS (Fencing vs Roofing)
+    function toggleCalcInputs() {
+        const type = document.getElementById('calcType').value;
+        // Hide all inputs
+        document.querySelectorAll('.calc-group').forEach(el => el.classList.add('d-none'));
+        // Show selected inputs
+        const activeDiv = document.getElementById(type + 'Inputs');
+        if(activeDiv) activeDiv.classList.remove('d-none');
+    }
+
+    // 5. ADD ROW (Used manually AND by the calculator)
     function addRow(desc='', qty=1, price='') {
         const tbody = document.getElementById('itemsBody');
         const row = document.createElement('tr');
@@ -210,7 +237,7 @@
                        value="${desc}" placeholder="Start typing item..." autocomplete="off" onkeyup="searchMaterials(this)">
                 <div class="suggestions-box d-none"></div>
             </td>
-            <td><input type="number" name="qty[]" class="form-control text-center" value="${qty}" min="1" oninput="calcTotal()"></td>
+            <td><input type="number" name="qty[]" class="form-control text-center" value="${qty}" min="0.1" step="0.1" oninput="calcTotal()"></td>
             <td><input type="number" name="price[]" class="form-control" value="${price}" placeholder="0.00" step="0.01" oninput="calcTotal()"></td>
             <td class="text-end pe-4 fw-bold row-total">0.00</td>
             <td><button type="button" class="btn btn-link text-danger p-0" onclick="this.closest('tr').remove(); calcTotal()"><i class="fas fa-times"></i></button></td>
@@ -219,45 +246,70 @@
         calcTotal();
     }
 
-    // 5. SMART CALCULATOR LOGIC (The New Brain)
+    // 6. RUN SMART CALC (The Modular API Call)
     function runSmartCalc() {
-        const length = document.getElementById('calcLength').value;
-        const height = document.getElementById('calcHeight').value;
+        const tradeType = document.getElementById('calcType').value;
+        let payload = {};
 
-        // Fetch from the API you already have
-        fetch('/api/calculate/fencing', {
+        // Build Payload based on Trade selection
+        if (tradeType === 'fencing') {
+            payload = {
+                length: document.getElementById('calcLength').value,
+                height: document.getElementById('calcHeight').value
+            };
+        } else if (tradeType === 'roofing') {
+            payload = {
+                area: document.getElementById('calcArea').value,
+                pitch: document.getElementById('calcPitch').value
+            };
+        }
+
+        // Send to Modular Backend
+        fetch(`/api/calculate/${tradeType}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}' // Uses token for security
+                'X-CSRFToken': '{{ csrf_token() }}'
             },
-            body: JSON.stringify({ length: length, height: height })
+            body: JSON.stringify(payload)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error("Calculation failed");
+            return response.json();
+        })
         .then(data => {
             // Close Modal
             bootstrap.Modal.getInstance(document.getElementById('smartCalcModal')).hide();
             
-            // Loop through results and add rows
+            // A. Populate Rows from 'materials' list
             if(data.materials) {
+                // Optional: Add a separator/header row
+                // addRow(`--- ${data.summary} ---`, 1, 0); 
+
                 data.materials.forEach(item => {
                     const cost = parseFloat(item.est_cost || 0);
+                    // Apply Markup
                     const sellPrice = (cost * MARKUP).toFixed(2);
                     addRow(item.name, item.qty, sellPrice);
                 });
             }
 
-            // Update Days if calculated
+            // B. Update Duration (Days) based on labor_hours
             if(data.labor_hours) {
-                const days = Math.ceil(data.labor_hours / 8);
+                // Convert Hours to Days (round up to nearest 0.5)
+                let days = Math.ceil((data.labor_hours / 8) * 2) / 2;
+                if (days < 0.5) days = 0.5;
+                
                 document.getElementById('daysInput').value = days;
+                
+                // Recalculate Van/Gang costs immediately
+                calcTotal(); 
             }
-            calcTotal();
         })
         .catch(err => alert("Error: " + err));
     }
 
-    // 6. CALC TOTALS (Now includes Van/Gang Cost)
+    // 7. CALCULATE TOTALS (Standard Logic)
     function calcTotal() {
         // A. Material Total
         let matTotal = 0;
@@ -273,7 +325,6 @@
         const days = parseFloat(document.getElementById('daysInput').value) || 0;
         const vehicleSelect = document.getElementById('vehicleSelect');
         
-        // Read the 'data-cost' we added to the dropdown options
         let dailyCost = 0;
         if(vehicleSelect.selectedIndex >= 0) {
             dailyCost = parseFloat(vehicleSelect.options[vehicleSelect.selectedIndex].getAttribute('data-cost')) || 0;
@@ -281,23 +332,22 @@
         
         const resTotal = days * dailyCost;
 
-        // Update Resource Display
+        // C. Update Displays
         document.getElementById('resourceCostDisplay').innerText = `Resource Cost: £${resTotal.toFixed(2)}`;
+        document.getElementById('matTotal').innerText = matTotal.toFixed(2);
+        document.getElementById('resTotal').innerText = resTotal.toFixed(2);
 
-        // C. Final Sums
+        // D. Grand Total
         const subtotal = matTotal + resTotal;
         const tax = subtotal * TAX_RATE;
         const grand = subtotal + tax;
 
-        // D. Update DOM
-        document.getElementById('matTotal').innerText = matTotal.toFixed(2);
-        document.getElementById('resTotal').innerText = resTotal.toFixed(2);
         document.getElementById('taxTotal').innerText = tax.toFixed(2);
         document.getElementById('grandTotal').innerText = grand.toFixed(2);
         document.getElementById('headerTotal').innerText = '£' + grand.toFixed(2);
     }
 
-    // 7. SMART SEARCH (Preserved)
+    // 8. AUTO-COMPLETE (Preserved)
     function searchMaterials(input) {
         const box = input.nextElementSibling;
         const query = input.value;
@@ -329,15 +379,16 @@
             .catch(err => console.error(err));
     }
 
+    // Close suggestions on click outside
     document.addEventListener('click', function(e) {
         if (!e.target.classList.contains('item-search')) {
             document.querySelectorAll('.suggestions-box').forEach(box => box.classList.add('d-none'));
         }
     });
 
-    // 8. PROPERTY LOADER (Preserved)
+    // 9. CLIENT/PROPERTY LOADING (Preserved)
     document.addEventListener('DOMContentLoaded', function() {
-        addRow(); 
+        addRow(); // Start with one empty row
         
         const clientSelect = document.querySelector('select[name="client_id"]');
         const propSelect = document.getElementById('propertySelect');
