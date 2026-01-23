@@ -36,9 +36,6 @@ def get_smart_terms(settings):
     days = settings.get('payment_days', '14')
     return f"Payment is due within {days} days of the invoice date."
 
-# =========================================================
-# 1. DOWNLOAD INVOICE PDF (Billing Addr + Site in Desc)
-# =========================================================
 @pdf_bp.route('/finance/invoice/<int:invoice_id>/download')
 def download_invoice_pdf(invoice_id):
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']:
@@ -65,10 +62,7 @@ def download_invoice_pdf(invoice_id):
     if not inv: conn.close(); return "Invoice not found", 404
 
     # 2. Resolve Addresses
-    # BILLING: Always use the client's billing address
     billing_addr = inv[5]
-    
-    # SITE: Check Job then Quote for property_id
     site_address_str = ""
     active_prop_id = inv[11] or inv[12]
     
@@ -79,7 +73,6 @@ def download_invoice_pdf(invoice_id):
             site_address_str = f"Site: {prop[0]}, {prop[1]}"
 
     # 3. Inject Site Address into Description
-    # This keeps 'Bill To' correct but shows the Site clearly in the body
     job_desc = inv[10]
     if site_address_str:
         job_desc = f"{site_address_str}\n{job_desc}"
@@ -92,6 +85,19 @@ def download_invoice_pdf(invoice_id):
     settings = {row[0]: row[1] for row in cur.fetchall()}
     comp_name = get_company_name(cur, comp_id)
     conn.close()
+
+    # --- PDF LOGO FIX START ---
+    config = get_site_config(comp_id)
+    if config.get('logo'):
+        # Clean the path strings to get a raw filename/path
+        clean_logo_path = config['logo'].replace('/uploads/', '').replace('uploads/', '').replace('/static/', '').replace('static/', '')
+        # Build the physical disk path
+        local_path = os.path.join(current_app.static_folder, 'uploads', clean_logo_path)
+        
+        # If the file exists on disk, update config to use that path
+        if os.path.exists(local_path):
+            config['logo'] = local_path
+    # --- PDF LOGO FIX END ---
 
     total_val = float(inv[7] or 0)
     user_rate = get_tax_rate(settings)
@@ -107,7 +113,7 @@ def download_invoice_pdf(invoice_id):
             'date': format_date_local(inv[2], country),
             'due': format_date_local(inv[3], country),
             'client_name': inv[4], 
-            'client_address': billing_addr, # Correct: Client Billing Addr
+            'client_address': billing_addr, 
             'client_email': inv[6],
             'subtotal': subtotal_val,
             'tax': tax_val,
@@ -116,7 +122,7 @@ def download_invoice_pdf(invoice_id):
             'status': inv[8],
             'currency_symbol': settings.get('currency_symbol', '£'),
             'job_title': inv[9],
-            'job_description': job_desc # Includes Site Address now
+            'job_description': job_desc 
         },
         'company': {
             'name': comp_name,
@@ -128,7 +134,7 @@ def download_invoice_pdf(invoice_id):
         'items': items,
         'settings': settings,
         'smart_terms': get_smart_terms(settings),
-        'config': get_site_config(comp_id),
+        'config': config, # <--- IMPORTANT: Uses the patched config variable
         'is_quote': False 
     }
     
@@ -139,9 +145,6 @@ def download_invoice_pdf(invoice_id):
     except Exception as e:
         return f"PDF Error: {e}", 500
 
-# =========================================================
-# 2. DOWNLOAD QUOTE PDF (Billing Addr + Site in Desc)
-# =========================================================
 @pdf_bp.route('/office/quote/<int:quote_id>/download')
 def download_quote_pdf(quote_id):
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']:
@@ -183,8 +186,16 @@ def download_quote_pdf(quote_id):
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     comp_name = get_company_name(cur, comp_id)
-    config = get_site_config(comp_id)
     conn.close()
+
+    # --- PDF LOGO FIX START ---
+    config = get_site_config(comp_id)
+    if config.get('logo'):
+        clean_logo_path = config['logo'].replace('/uploads/', '').replace('uploads/', '').replace('/static/', '').replace('static/', '')
+        local_path = os.path.join(current_app.static_folder, 'uploads', clean_logo_path)
+        if os.path.exists(local_path):
+            config['logo'] = local_path
+    # --- PDF LOGO FIX END ---
 
     total_val = float(quote[7]) if quote[7] else 0
     user_rate = get_tax_rate(settings)
@@ -199,7 +210,7 @@ def download_quote_pdf(quote_id):
             'date': format_date_local(quote[2], country),
             'due': format_date_local(quote[3], country),
             'client_name': quote[4], 
-            'client_address': billing_addr, # Keep Billing Addr
+            'client_address': billing_addr, 
             'client_email': quote[6],
             'subtotal': subtotal_val,
             'tax': tax_val,
@@ -208,7 +219,7 @@ def download_quote_pdf(quote_id):
             'status': quote[8],
             'currency_symbol': settings.get('currency_symbol', '£'),
             'job_title': quote[9],
-            'job_description': job_desc # Site Addr appended here
+            'job_description': job_desc 
         },
         'company': {
             'name': comp_name,

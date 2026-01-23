@@ -273,8 +273,15 @@ def view_quote(quote_id):
         return redirect(url_for('pdf.download_quote_pdf', quote_id=quote_id)) 
 
     comp_id = session.get('company_id')
-    config = get_site_config(comp_id)
-    conn = get_db(); cur = conn.cursor()
+config = get_site_config(comp_id)
+
+if config.get('logo') and not config['logo'].startswith('/uploads/'):
+    if config['logo'].startswith('uploads/'):
+        config['logo'] = '/' + config['logo']
+    else:
+        config['logo'] = f"/uploads/company_{comp_id}/logos/{config['logo']}"
+
+conn = get_db(); cur = conn.cursor()
     
     cur.execute("""
         SELECT q.id, c.name, q.reference, q.date, q.total, q.status, q.expiry_date,
@@ -397,14 +404,15 @@ def email_quote(quote_id):
     cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
     items = [{'desc': r[0], 'qty': r[1], 'price': r[2], 'total': r[3]} for r in cur.fetchall()]
     
-    # 4. CONFIG & LOGO FIX
     config = get_site_config(company_id)
-    
-    if config.get('logo') and config['logo'].startswith('/'):
-        # Ensure 'import os' and 'current_app' are imported at the top of the file!
-        local_path = os.path.join(current_app.root_path, config['logo'].lstrip('/'))
-        if os.path.exists(local_path):
-            config['logo'] = f"file://{local_path}"
+
+if config.get('logo'):
+    # Convert web path to the actual disk path
+    clean_path = config['logo'].replace('/uploads/', '').replace('uploads/', '').replace('/static/', '').replace('static/', '')
+    local_path = os.path.join(current_app.static_folder, 'uploads', clean_path)
+
+    if os.path.exists(local_path):
+        config['logo'] = local_path
 
     # 5. Date & Context
     country = settings.get('country_code', 'UK')
