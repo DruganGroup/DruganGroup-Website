@@ -1,10 +1,12 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, send_file, flash
 from db import get_db, get_site_config
 from services.pdf_generator import generate_pdf
-from utils.helpers import check_access, get_site_config
 from datetime import datetime
 
 pdf_bp = Blueprint('pdf', __name__)
+
+def check_access():
+    return 'user_id' in session
 
 # --- HELPER: FORMAT DATE BY COUNTRY ---
 def format_date_local(d, country='UK'):
