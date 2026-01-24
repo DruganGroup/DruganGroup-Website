@@ -142,6 +142,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <form action="/office/property/update" method="POST">
+			<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-header bg-dark text-white"><h5 class="modal-title fw-bold">Edit Property</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body">
                     <input type="hidden" name="property_id" value="{{ prop.id }}">

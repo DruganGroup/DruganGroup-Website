@@ -61,29 +61,39 @@ app.register_blueprint(quote_bp)
 # =========================================================
 @app.errorhandler(Exception)
 def handle_exception(e):
-    if isinstance(e, HTTPException):
-        return e
-
-    tb = traceback.format_exc()
-    err_msg = str(e)
+    # 1. Gather Info
+    ip = request.remote_addr
+    user_id = session.get('user_id')
+    company_id = session.get('company_id')
     route = request.path
     
-    print(f"🚨 CRITICAL ERROR at {route}: {err_msg}") 
-    
-    try:
-        conn = get_db()
-        if conn:
-            cur = conn.cursor()
-            cur.execute("""
-                INSERT INTO system_logs (level, message, traceback, route, created_at)
-                VALUES ('CRITICAL', %s, %s, %s, CURRENT_TIMESTAMP)
-            """, (err_msg, tb, route))
-            conn.commit()
-            conn.close()
-    except Exception as db_err:
-        print(f"❌ LOGGING FAILED: {db_err}")
+    # 2. Determine Error Type
+    if isinstance(e, HTTPException):
+        code = e.code
+        msg = f"{e.name}: {e.description}"
+        tb = "HTTP Warning" 
+    else:
+        code = 500
+        msg = str(e)
+        tb = traceback.format_exc()
 
-    return "<h1>500 Internal Server Error</h1><p>The system administrator has been notified.</p>", 500
+    # 3. Log to DB (Now using the new columns)
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO system_logs 
+            (level, message, traceback, route, created_at, ip_address, user_id, company_id, status_code)
+            VALUES (%s, %s, %s, %s, NOW(), %s, %s, %s, %s)
+        """, ('ERROR' if code==500 else 'WARNING', msg, tb, route, ip, user_id, company_id, code))
+        conn.commit()
+    except Exception as db_err:
+        print(f"Failed to log error: {db_err}")
+    finally:
+        conn.close()
+
+    # 4. Return standard error page
+    return render_template('error.html', error=e), code
 
 # --- DEBUG ROUTE ---
 @app.route('/debug-files')
@@ -185,3 +195,38 @@ def serve_uploads(filename):
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('publicbb/404.html'), 404
+    
+@admin_bp.route('/admin/fix-logs-db')
+def fix_logs_db():
+    # Security check (optional, but good practice)
+    if session.get('role') not in ['SuperAdmin', 'Admin']:
+        return "Access Denied", 403
+
+    conn = get_db()
+    cur = conn.cursor()
+    
+    messages = []
+    
+    # List of columns to add to 'system_logs'
+    commands = [
+        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS ip_address TEXT;",
+        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS company_id INTEGER;",
+        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS user_id INTEGER;",
+        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS status_code INTEGER DEFAULT 500;"
+    ]
+    
+    try:
+        for sql in commands:
+            cur.execute(sql)
+            messages.append(f"✅ Executed: {sql}")
+        
+        conn.commit()
+        messages.append("SUCCESS: Database successfully upgraded!")
+        
+    except Exception as e:
+        conn.rollback()
+        messages.append(f"❌ Error: {e}")
+    finally:
+        conn.close()
+        
+    return "<br>".join(messages)

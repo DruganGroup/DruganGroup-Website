@@ -628,69 +628,82 @@ def setup_logs_db():
     finally: conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
 
-@admin_bp.route('/admin/logs/audit')
+@admin_bp.route('/admin/audit-logs')
 def view_audit_logs():
-    if session.get('role') != 'SuperAdmin': return "Access Denied"
-    
     page = request.args.get('page', 1, type=int)
     per_page = 20
     offset = (page - 1) * per_page
     
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     
+    # Get Count
     cur.execute("SELECT COUNT(*) FROM audit_logs")
     total_logs = cur.fetchone()[0]
-    total_pages = (total_logs + per_page - 1) // per_page
+    total_pages = math.ceil(total_logs / per_page)
     
-    # SAFE QUERY: We explicitly select columns so the HTML indices match
-    # 0=Time, 1=Admin, 2=Action, 3=Target, 4=Details, 5=IP
+    # Fetch Logs (Joining Company Name)
     cur.execute("""
-        SELECT created_at, admin_email, action, target, details, ip_address 
-        FROM audit_logs 
-        ORDER BY id DESC LIMIT %s OFFSET %s
+        SELECT 
+            TO_CHAR(a.created_at, 'DD Mon HH24:MI') as time_str,
+            a.admin_email,
+            a.action,
+            a.target,
+            a.details,
+            a.ip_address,
+            c.name as company_name
+        FROM audit_logs a
+        LEFT JOIN companies c ON a.company_id = c.id
+        ORDER BY a.created_at DESC
+        LIMIT %s OFFSET %s
     """, (per_page, offset))
-    
-    rows = cur.fetchall()
+    logs = cur.fetchall()
     conn.close()
-
-    # Pre-format date in Python to prevent HTML crashes
-    logs = []
-    for r in rows:
-        # Check if date exists
-        date_str = r[0].strftime('%d-%b %H:%M') if r[0] else "Unknown"
-        logs.append((date_str, r[1], r[2], r[3], r[4], r[5]))
     
-    return render_template('admin/audit_logs.html', logs=logs, page=page, total_pages=total_pages)
+    return render_template('admin/audit_logs.html', 
+                           logs=logs, 
+                           page=page, 
+                           total_pages=total_pages)
     
-# --- VIEW: SYSTEM ERROR LOGS ---
-@admin_bp.route('/admin/logs/system')
+@admin_bp.route('/admin/system-logs')
 def view_system_logs():
-    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    offset = (page - 1) * per_page
     
     conn = get_db()
     cur = conn.cursor()
     
-    # Fetch logs
-    cur.execute("SELECT * FROM system_logs ORDER BY id DESC LIMIT 50")
-    rows = cur.fetchall()
+    cur.execute("SELECT COUNT(*) FROM system_logs")
+    total_logs = cur.fetchone()[0]
+    total_pages = math.ceil(total_logs / per_page)
+    
+    # Fetch Logs with User/Company Joins
+    cur.execute("""
+        SELECT 
+            s.id,
+            TO_CHAR(s.created_at, 'DD Mon HH24:MI') as time_str,
+            s.level,
+            s.message,
+            s.traceback,
+            s.route,
+            s.ip_address,
+            u.username,
+            c.name as company_name,
+            s.status_code
+        FROM system_logs s
+        LEFT JOIN users u ON s.user_id = u.id
+        LEFT JOIN companies c ON s.company_id = c.id
+        ORDER BY s.created_at DESC
+        LIMIT %s OFFSET %s
+    """, (per_page, offset))
+    logs = cur.fetchall()
     conn.close()
     
-    # Safe Format: Ensure the date is handled correctly before sending to HTML
-    logs = []
-    for r in rows:
-        # Check if r[5] (created_at) is a string or datetime object
-        log_date = r[5]
-        if isinstance(log_date, str):
-            formatted_date = log_date 
-        elif hasattr(log_date, 'strftime'):
-            formatted_date = log_date.strftime('%d-%b %H:%M:%S')
-        else:
-            formatted_date = "Unknown Date"
-
-        # Append safe tuple
-        logs.append((r[0], r[1], r[2], r[3], r[4], formatted_date))
-
-    return render_template('admin/system_logs.html', logs=logs)
+    return render_template('admin/system_logs.html', 
+                           logs=logs, 
+                           page=page, 
+                           total_pages=total_pages)
 
 # =========================================================
 # GLOBAL NUCLEAR RESET (Wipes ALL Tenants' Transaction Data)
