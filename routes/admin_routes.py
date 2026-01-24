@@ -849,9 +849,4 @@ def the_nightmare_trap():
 @admin_bp.route('/admin/trap/<path:junk>')
 def redirect_loop(junk):
     # Keep them in the loop
-    return redirect(f"/admin/trap/{''.join(random.choices(string.ascii_lowercase, k=10))}")    
-
-# Catch-all for the redirect loop
-@admin_bp.route('/admin/trap/<path:junk>')
-def redirect_loop(junk):
     return redirect(f"/admin/trap/{''.join(random.choices(string.ascii_lowercase, k=10))}")
