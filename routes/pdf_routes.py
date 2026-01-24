@@ -9,6 +9,12 @@ pdf_bp = Blueprint('pdf', __name__)
 
 def check_access():
     return 'user_id' in session
+    
+try:
+    from fpdf import FPDF
+except ImportError:
+    # Fallback/Mock if FPDF isn't found directly (rare)
+    class FPDF: pass
 
 # --- HELPER: FORMAT DATE BY COUNTRY ---
 def format_date_local(d, country='UK'):
@@ -346,91 +352,126 @@ def save_and_download_rams(job_id):
     if not check_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
-    config = get_site_config(comp_id) # Load settings (Logo, Date Format, etc.)
+    config = get_site_config(comp_id)
 
-    # 1. Get Data from Form
+    # 1. GET DATA
     ref = request.form.get('ref')
-    client = request.form.get('client')
-    address = request.form.get('address')
-    method = request.form.get('method_statement')
+    client_name = request.form.get('client')
+    site_address = request.form.get('address')
+    method_stmt = request.form.get('method_statement')
     hazards = request.form.getlist('hazards')
     ppe = request.form.getlist('ppe')
+    date_str = datetime.now().strftime('%d/%m/%Y')
 
-    # 2. DATE FORMAT FIX: Use your Company Settings
-    # We check if you have a custom format (e.g., YYYY-MM-DD), otherwise default to dd/mm/yyyy
-    user_fmt = config.get('date_format', '%d/%m/%Y') 
-    
-    # Python's strftime doesn't always like PHP formats (like d/m/Y), so we do a quick safe mapping if needed
-    # (Assuming your settings use standard Python codes like %d/%m/%Y. If not, it defaults safely).
-    try:
-        formatted_date = datetime.now().strftime(user_fmt)
-    except:
-        formatted_date = datetime.now().strftime('%d/%m/%Y')
+    # 2. BUILD PDF MANUALLY (Using FPDF)
+    class RAMSPDF(FPDF):
+        def header(self):
+            self.set_font('Arial', 'B', 16)
+            self.cell(0, 10, 'Risk Assessment & Method Statement', 0, 1, 'R')
+            self.set_font('Arial', '', 10)
+            self.cell(0, 5, f"Ref: {ref} | Date: {date_str}", 0, 1, 'R')
+            self.ln(10)
 
-    # 3. Prepare Context
-    context = {
-        'ref': ref,
-        'date': formatted_date, # Now using YOUR setting
-        'client_name': client,
-        'site_address': address,
-        'description': method, 
-        'risks': hazards,
-        'ppe': ppe,
-        'config': config
-    }
+        def footer(self):
+            self.set_y(-15)
+            self.set_font('Arial', 'I', 8)
+            self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
-    # 4. GENERATE PDF
-    filename = f"RAMS_{ref}_{datetime.now().strftime('%Y%m%d%H%M')}.pdf"
+    pdf = RAMSPDF()
+    pdf.add_page()
     
-    # We call your existing generator.
-    # It seems to return the raw string/bytes in your setup, not a Response object.
-    pdf_content = generate_pdf('office/rams/pdf_rams.html', context, filename)
+    # -- CLIENT DETAILS --
+    pdf.set_font('Arial', 'B', 12)
+    pdf.set_fill_color(240, 240, 240)
+    pdf.cell(0, 10, '1. Job Details', 1, 1, 'L', 1)
     
-    # 5. HANDLE PDF DATA (The Crash Fix)
-    # We check what 'generate_pdf' actually gave us to prevent the "str has no get_data" error
-    if hasattr(pdf_content, 'get_data'):
-        # It IS a Flask Response
-        pdf_bytes = pdf_content.get_data()
-    elif isinstance(pdf_content, str):
-        # It IS a String (Latin-1 encoded PDF)
-        pdf_bytes = pdf_content.encode('latin-1')
+    pdf.set_font('Arial', '', 10)
+    pdf.cell(40, 8, 'Client:', 0, 0)
+    pdf.cell(0, 8, client_name, 0, 1)
+    pdf.cell(40, 8, 'Site Address:', 0, 0)
+    pdf.cell(0, 8, site_address, 0, 1)
+    pdf.ln(5)
+
+    # -- HAZARDS --
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 10, '2. Identified Hazards', 1, 1, 'L', 1)
+    pdf.set_font('Arial', '', 10)
+    
+    if hazards:
+        for h in hazards:
+            pdf.cell(10, 8, '- ', 0, 0)
+            pdf.cell(0, 8, h, 0, 1)
     else:
-        # It IS already Bytes
-        pdf_bytes = pdf_content
+        pdf.cell(0, 8, 'No specific hazards identified.', 0, 1)
+    pdf.ln(5)
 
-    # 6. SAVE TO DISK
+    # -- PPE --
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 10, '3. PPE Required', 1, 1, 'L', 1)
+    pdf.set_font('Arial', '', 10)
+    
+    if ppe:
+        ppe_str = ", ".join(ppe)
+        pdf.multi_cell(0, 8, ppe_str)
+    else:
+        pdf.cell(0, 8, 'Standard PPE only.', 0, 1)
+    pdf.ln(5)
+
+    # -- METHOD STATEMENT --
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 10, '4. Method Statement', 1, 1, 'L', 1)
+    pdf.set_font('Arial', '', 10)
+    pdf.multi_cell(0, 6, method_stmt or "No method statement provided.")
+    pdf.ln(10)
+
+    # -- SIGN OFF --
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 10, '5. Sign-Off', 1, 1, 'L', 1)
+    pdf.set_font('Arial', '', 10)
+    pdf.ln(5)
+    pdf.cell(20, 10, "Engineer:", 0, 0)
+    pdf.cell(80, 10, "_" * 30, 0, 0)
+    pdf.cell(15, 10, "Date:", 0, 0)
+    pdf.cell(0, 10, "_" * 20, 0, 1)
+
+    # 3. SAVE PDF TO STRING (BYTES)
+    # FPDF output(dest='S') returns a latin-1 string we must encode to bytes
+    pdf_content = pdf.output(dest='S').encode('latin-1')
+
+    # 4. SAVE TO DISK
+    filename = f"RAMS_{ref}_{datetime.now().strftime('%Y%m%d%H%M')}.pdf"
     save_dir = os.path.join(current_app.static_folder, 'uploads', 'documents')
     os.makedirs(save_dir, exist_ok=True)
     
     abs_path = os.path.join(save_dir, filename)
     with open(abs_path, 'wb') as f:
-        f.write(pdf_bytes)
+        f.write(pdf_content)
 
-    # 7. INSERT INTO DATABASE
+    # 5. DATABASE LOGGING
     conn = get_db()
     cur = conn.cursor()
     try:
-        # A. Save Data
+        # Save RAMS Data
         cur.execute("""
-            INSERT INTO job_rams (job_id, company_id, hazards, ppe, method_statement, pdf_path)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (job_id, comp_id, json.dumps(hazards), json.dumps(ppe), method, filename))
+            INSERT INTO job_rams (job_id, company_id, hazards, ppe, method_statement, pdf_path, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, NOW())
+        """, (job_id, comp_id, json.dumps(hazards), json.dumps(ppe), method_stmt, filename))
 
-        # B. Log in Evidence Table
+        # Save to Evidence
         db_path = f"static/uploads/documents/{filename}"
-        
         cur.execute("""
             INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type, uploaded_at)
             VALUES (%s, %s, %s, 'RAMS Document', NOW())
         """, (job_id, db_path, session.get('user_id')))
         
         conn.commit()
-        flash("✅ RAMS Created & Saved")
+        flash("✅ RAMS Generated & Saved Successfully")
     except Exception as e:
         conn.rollback()
         print(f"DB Error: {e}")
-        flash("Error saving RAMS to database", "error")
+        flash(f"Error saving to DB: {e}", "error")
     finally:
         conn.close()
 
+    # 6. REDIRECT
     return redirect(url_for('jobs.job_files', job_id=job_id))
