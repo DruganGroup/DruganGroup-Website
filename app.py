@@ -218,3 +218,29 @@ def block_banned_ips():
         pass 
     finally:
         conn.close()
+        
+@app.errorhandler(404)
+def handle_404_security(e):
+    ip = request.remote_addr
+    path = request.path
+    
+    # 1. List of high-risk paths that only bots look for
+    bot_traps = ['/wp-admin', '/wordpress', '/xmlrpc.php', '/setup-config.php', '/.env']
+    
+    # 2. If they hit a trap path, send them to the Nightmare Trap
+    if any(trap in path for trap in bot_traps):
+        # This redirects them to the route that performs the Zip Bomb and DB Ban
+        return redirect(url_for('admin.the_nightmare_trap'))
+
+    # 3. Log "normal" 404s to System Logs so you can see them (Optional)
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO system_logs (level, message, route, ip_address, status_code, created_at)
+        VALUES (%s, %s, %s, %s, %s, NOW())
+    """, ('WARNING', f'Page Not Found: {path}', path, ip, 404))
+    conn.commit()
+    conn.close()
+
+    # 4. Show the Gold error page to regular users
+    return render_template('error.html', error="The page you are looking for does not exist."), 404
