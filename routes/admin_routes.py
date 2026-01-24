@@ -6,6 +6,8 @@ import random
 import string
 import smtplib
 import math
+import gzip
+import io
 from datetime import datetime, date, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -766,12 +768,13 @@ def fix_logs_db():
     cur = conn.cursor()
     messages = []
     
-    # Columns to add to system_logs so the View route works
     commands = [
         "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS ip_address TEXT;",
         "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS company_id INTEGER;",
         "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS user_id INTEGER;",
-        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS status_code INTEGER DEFAULT 500;"
+        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS status_code INTEGER DEFAULT 500;",
+        # THE NEW BAN LIST TABLE
+        "CREATE TABLE IF NOT EXISTS banned_ips (ip_address TEXT PRIMARY KEY, reason TEXT, banned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"
     ]
     
     try:
@@ -780,7 +783,7 @@ def fix_logs_db():
             messages.append(f"✅ Executed: {sql}")
         
         conn.commit()
-        messages.append("SUCCESS: Database upgraded! You can now view System Logs.")
+        messages.append("SUCCESS: Database fully upgraded with Ban List capability!")
     except Exception as e:
         conn.rollback()
         messages.append(f"❌ Error: {e}")
@@ -788,3 +791,72 @@ def fix_logs_db():
         conn.close()
         
     return "<br>".join(messages)
+
+# --- VIEW BANNED IPs ---
+@admin_bp.route('/admin/banned-ips')
+def view_banned_ips():
+    if session.get('role') not in ['SuperAdmin', 'Admin']: return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT ip_address, reason, TO_CHAR(banned_at, 'DD Mon YYYY HH24:MI') FROM banned_ips ORDER BY banned_at DESC")
+    banned = cur.fetchall()
+    conn.close()
+    
+    return render_template('admin/banned_ips.html', banned=banned)
+
+# --- REMOVE BAN (UNBAN) ---
+@admin_bp.route('/admin/unban/<ip>')
+def unban_ip(ip):
+    if session.get('role') not in ['SuperAdmin', 'Admin']: return "Access Denied", 403
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("DELETE FROM banned_ips WHERE ip_address = %s", (ip,))
+    conn.commit(); conn.close()
+    flash(f"✅ IP {ip} has been unbanned.")
+    return redirect(url_for('admin.view_banned_ips'))
+    
+def the_nightmare_trap():
+    ip = request.remote_addr
+    ua = request.user_agent.string
+    
+    # 1. LOG THE ATTACK
+    log_audit(
+        action="NIGHTMWARE_TRAP_SPRUNG", 
+        target="WP Setup Trap", 
+        details=f"Zip-bombed and Banned: {ip}"
+    )
+
+    # 2. PERMANENTLY BAN THE IP
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("INSERT INTO banned_ips (ip_address, reason) VALUES (%s, %s) ON CONFLICT DO NOTHING", 
+                    (ip, f"Honeypot hit: {ua}"))
+        conn.commit()
+    finally:
+        conn.close()
+
+    # 3. THE ZIP BOMB (Gzip Bomb)
+    # We create 100MB of null data and compress it into a tiny packet.
+    # When their scanner decompresses it, it fills their RAM instantly.
+    out = io.BytesIO()
+    with gzip.GzipFile(fileobj=out, mode="w") as f:
+        f.write(b"\x00" * 1024 * 1024 * 100)  # 100MB of empty data
+    
+    bomb_data = out.getvalue()
+    
+    # 4. THE HALL OF MIRRORS (Infinite Redirect)
+    # We send the data, but tell the browser to "Redirect" to another random trap page
+    random_path = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
+    
+    response = make_response(bomb_data)
+    response.headers['Content-Encoding'] = 'gzip'
+    response.headers['Content-Type'] = 'text/html'
+    response.headers['Refresh'] = f"1; url=/admin/trap/{random_path}" # Redirects them in 1 second
+    return response
+
+# Catch-all for the redirect loop
+@admin_bp.route('/admin/trap/<path:junk>')
+
+def redirect_loop(junk):
+    return redirect(f"/admin/trap/{''.join(random.choices(string.ascii_lowercase, k=10))}")

@@ -195,3 +195,20 @@ def serve_uploads(filename):
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('publicbb/404.html'), 404
+    
+@app.before_request
+def block_banned_ips():
+    # Ignore static files so we don't hit the DB for every image
+    if request.path.startswith('/static'):
+        return
+
+    ip = request.remote_addr
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT ip_address FROM banned_ips WHERE ip_address = %s", (ip,))
+    is_banned = cur.fetchone()
+    conn.close()
+
+    if is_banned:
+        # Give them a 403 Forbidden or just a blank 444 (No Response)
+        return "Access Permanently Denied.", 403
