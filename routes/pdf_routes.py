@@ -3,6 +3,7 @@ from db import get_db, get_site_config
 from services.pdf_generator import generate_pdf
 from datetime import datetime
 import os
+import json
 
 pdf_bp = Blueprint('pdf', __name__)
 
