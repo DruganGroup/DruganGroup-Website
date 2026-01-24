@@ -109,6 +109,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form action="/clients/add" method="POST" id="clientForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="client_id" id="client_id">
                     
                     <div class="modal-body p-4">
