@@ -50,27 +50,60 @@ def smart_calculate(trade_type):
     if not calculator:
         return jsonify({'error': f'Trade type "{trade_type}" not supported'}), 400
 
+    conn = None
     try:
         inputs = request.get_json()
         requirements = calculator.calculate_requirements(inputs)
         
-        # Simple Pricing Lookup
+        # 1. Setup Database Connection
         comp_id = session.get('company_id')
-        conn = get_db(); cur = conn.cursor()
+        conn = get_db()
+        cur = conn.cursor()
+        
+        # 2. Get Markup Setting
         cur.execute("SELECT value FROM settings WHERE company_id=%s AND key='material_markup_percent'", (comp_id,))
         row = cur.fetchone()
-        markup = 1 + (float(row[0])/100) if row and row[0] else 1.20
-        conn.close()
+        markup_percent = float(row[0]) if row and row[0] else 20.0
+        markup = 1 + (markup_percent / 100)
         
         priced_materials = []
         for item in requirements.get('materials', []):
-            est_cost = item.get('est_cost', 0.00) 
-            if est_cost == 0: est_cost = 10.00 # Fallback
+            item_name = item['name']
+            qty = item['qty']
+            est_cost = 0.00
             
+            # 3. REAL DATABASE LOOKUP
+            # Try to find a material with a matching name (Case insensitive)
+            cur.execute("""
+                SELECT cost_price FROM materials 
+                WHERE company_id = %s AND name ILIKE %s 
+                LIMIT 1
+            """, (comp_id, f"%{item_name}%")) # Fuzzy match to find "Fence Post" in "Fence Post 2.4m"
+            
+            db_row = cur.fetchone()
+            
+            if db_row:
+                # FOUND IN DB
+                est_cost = float(db_row[0] or 0)
+            else:
+                # NOT FOUND - USE FALLBACK ESTIMATES (Safety Net)
+                name_lower = item_name.lower()
+                if 'post' in name_lower: est_cost = 15.00
+                elif 'rail' in name_lower: est_cost = 6.50
+                elif 'board' in name_lower: est_cost = 1.20
+                elif 'bag' in name_lower: est_cost = 6.50
+                elif 'cement' in name_lower: est_cost = 6.50
+                elif 'tile' in name_lower: est_cost = 1.10
+                elif 'batten' in name_lower: est_cost = 0.80
+                elif 'membrane' in name_lower: est_cost = 45.00
+                else: est_cost = 20.00 # Generic fallback
+            
+            # 4. Calculate Sell Price
             sell_price = est_cost * markup
+            
             priced_materials.append({
-                'name': item['name'],
-                'qty': item['qty'],
+                'name': item_name,
+                'qty': qty,
                 'est_cost': round(sell_price, 2)
             })
 
@@ -78,10 +111,15 @@ def smart_calculate(trade_type):
             'status': 'success',
             'trade': trade_type,
             'materials': priced_materials,
-            'labor_hours': requirements.get('labor_hours', 0)
+            'labor_hours': requirements.get('labor_hours', 0),
+            'summary': requirements.get('summary', '')
         })
+
     except Exception as e:
+        print(f"CALC ERROR: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if conn: conn.close()
 
 # --- HELPER: GET SITE CONFIG (PRESERVED) ---
 def get_site_config(comp_id):
