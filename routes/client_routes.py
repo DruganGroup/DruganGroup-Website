@@ -46,7 +46,7 @@ def add_client():
     
     comp_id = session.get('company_id')
     
-    # Check limits if function exists
+    # Check limits
     allowed, msg = check_limit(comp_id, 'max_clients')
     if not allowed:
         flash(msg, "error")
@@ -55,23 +55,28 @@ def add_client():
     name = request.form.get('name')
     email = request.form.get('email')
     phone = request.form.get('phone')
-    addr = request.form.get('address')
+    
+    # FIX: Get the correct field name from your HTML form
+    billing_addr = request.form.get('billing_address')
+
+    # LOGIC: If address is empty, set a placeholder so DB doesn't crash
+    safe_addr = billing_addr if billing_addr and billing_addr.strip() else "Address Pending"
     
     conn = get_db(); cur = conn.cursor()
     try:
+        # 1. Create Client (using billing_address)
         cur.execute("""
-            INSERT INTO clients (company_id, name, email, phone, site_address, billing_address, status)
-            VALUES (%s, %s, %s, %s, %s, %s, 'Active')
+            INSERT INTO clients (company_id, name, email, phone, billing_address, status)
+            VALUES (%s, %s, %s, %s, %s, 'Active')
             RETURNING id
-        """, (comp_id, name, email, phone, addr, addr))
+        """, (comp_id, name, email, phone, safe_addr))
         new_id = cur.fetchone()[0]
         
-        prop_address = addr if addr and addr.strip() else "Address Pending"
-
+        # 2. Create First Property (using the same address as the 'Site Address')
         cur.execute("""
             INSERT INTO properties (company_id, client_id, address_line1, postcode, type, status)
             VALUES (%s, %s, %s, '', 'Property', 'Active')
-        """, (comp_id, new_id, prop_address))
+        """, (comp_id, new_id, safe_addr))
         
         conn.commit()
         flash("✅ Client Added")
