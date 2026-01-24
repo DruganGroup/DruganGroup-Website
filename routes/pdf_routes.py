@@ -345,6 +345,7 @@ def save_and_download_rams(job_id):
     if not check_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
+    config = get_site_config(comp_id) # Load settings (Logo, Date Format, etc.)
 
     # 1. Get Data from Form
     ref = request.form.get('ref')
@@ -354,29 +355,49 @@ def save_and_download_rams(job_id):
     hazards = request.form.getlist('hazards')
     ppe = request.form.getlist('ppe')
 
-    # 2. Prepare Context
+    # 2. DATE FORMAT FIX: Use your Company Settings
+    # We check if you have a custom format (e.g., YYYY-MM-DD), otherwise default to dd/mm/yyyy
+    user_fmt = config.get('date_format', '%d/%m/%Y') 
+    
+    # Python's strftime doesn't always like PHP formats (like d/m/Y), so we do a quick safe mapping if needed
+    # (Assuming your settings use standard Python codes like %d/%m/%Y. If not, it defaults safely).
+    try:
+        formatted_date = datetime.now().strftime(user_fmt)
+    except:
+        formatted_date = datetime.now().strftime('%d/%m/%Y')
+
+    # 3. Prepare Context
     context = {
         'ref': ref,
-        'date': datetime.now().strftime('%d/%m/%Y'),
+        'date': formatted_date, # Now using YOUR setting
         'client_name': client,
         'site_address': address,
         'description': method, 
         'risks': hazards,
         'ppe': ppe,
-        'config': get_site_config(comp_id)
+        'config': config
     }
 
-    # 3. GENERATE PDF using your EXISTING service
+    # 4. GENERATE PDF
     filename = f"RAMS_{ref}_{datetime.now().strftime('%Y%m%d%H%M')}.pdf"
     
-    # We call your existing generator. It returns a Flask Response object.
-    # Note: Ensure 'finance/pdf_rams.html' exists, otherwise use 'office/pdf_materials.html' as a fallback test
-    response = generate_pdf('office/rams/pdf_rams.html', context, filename)
+    # We call your existing generator.
+    # It seems to return the raw string/bytes in your setup, not a Response object.
+    pdf_content = generate_pdf('office/rams/pdf_rams.html', context, filename)
     
-    # 4. EXTRACT BYTES & SAVE TO DISK
-    # This pulls the raw PDF data out of the response object
-    pdf_bytes = response.get_data()
-    
+    # 5. HANDLE PDF DATA (The Crash Fix)
+    # We check what 'generate_pdf' actually gave us to prevent the "str has no get_data" error
+    if hasattr(pdf_content, 'get_data'):
+        # It IS a Flask Response
+        pdf_bytes = pdf_content.get_data()
+    elif isinstance(pdf_content, str):
+        # It IS a String (Latin-1 encoded PDF)
+        pdf_bytes = pdf_content.encode('latin-1')
+    else:
+        # It IS already Bytes
+        pdf_bytes = pdf_content
+
+    # 6. SAVE TO DISK
     save_dir = os.path.join(current_app.static_folder, 'uploads', 'documents')
     os.makedirs(save_dir, exist_ok=True)
     
@@ -384,7 +405,7 @@ def save_and_download_rams(job_id):
     with open(abs_path, 'wb') as f:
         f.write(pdf_bytes)
 
-    # 5. INSERT INTO DATABASE
+    # 7. INSERT INTO DATABASE
     conn = get_db()
     cur = conn.cursor()
     try:
