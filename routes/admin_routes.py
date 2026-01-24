@@ -850,3 +850,17 @@ def the_nightmare_trap():
 def redirect_loop(junk):
     # Keep them in the loop
     return redirect(f"/admin/trap/{''.join(random.choices(string.ascii_lowercase, k=10))}")
+    
+@admin_bp.route('/admin/emergency-unban-all-999')
+def emergency_unban_all():
+    # This route bypasses the session check so you can run it while locked out
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM banned_ips")
+        conn.commit()
+        return "<h1>Success</h1><p>The ban list has been wiped. You can now log in.</p>"
+    except Exception as e:
+        return f"<h1>Error</h1><p>{str(e)}</p>"
+    finally:
+        conn.close()
