@@ -811,17 +811,15 @@ def unban_ip(ip):
     conn.commit(); conn.close()
     flash(f"✅ IP {ip} has been unbanned.")
     return redirect(url_for('admin.view_banned_ips'))
-    
+
+@admin_bp.route('/wp-admin/setup-config.php')
+@admin_bp.route('/wordpress/wp-admin/setup-config.php')
 def the_nightmare_trap():
     ip = request.remote_addr
     ua = request.user_agent.string
     
     # 1. LOG THE ATTACK
-    log_audit(
-        action="NIGHTMWARE_TRAP_SPRUNG", 
-        target="WP Setup Trap", 
-        details=f"Zip-bombed and Banned: {ip}"
-    )
+    log_audit("NIGHTMARE_TRAP_SPRUNG", ip, f"Zip-bombed and Banned. UA: {ua}")
 
     # 2. PERMANENTLY BAN THE IP
     conn = get_db()
@@ -834,26 +832,26 @@ def the_nightmare_trap():
         conn.close()
 
     # 3. THE ZIP BOMB (Gzip Bomb)
-    # We create 100MB of null data and compress it into a tiny packet.
-    # When their scanner decompresses it, it fills their RAM instantly.
     out = io.BytesIO()
     with gzip.GzipFile(fileobj=out, mode="w") as f:
         f.write(b"\x00" * 1024 * 1024 * 100)  # 100MB of empty data
-    
     bomb_data = out.getvalue()
     
     # 4. THE HALL OF MIRRORS (Infinite Redirect)
-    # We send the data, but tell the browser to "Redirect" to another random trap page
     random_path = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
     
     response = make_response(bomb_data)
     response.headers['Content-Encoding'] = 'gzip'
     response.headers['Content-Type'] = 'text/html'
-    response.headers['Refresh'] = f"1; url=/admin/trap/{random_path}" # Redirects them in 1 second
+    response.headers['Refresh'] = f"1; url=/admin/trap/{random_path}"
     return response
+
+@admin_bp.route('/admin/trap/<path:junk>')
+def redirect_loop(junk):
+    # Keep them in the loop
+    return redirect(f"/admin/trap/{''.join(random.choices(string.ascii_lowercase, k=10))}")    
 
 # Catch-all for the redirect loop
 @admin_bp.route('/admin/trap/<path:junk>')
-
 def redirect_loop(junk):
     return redirect(f"/admin/trap/{''.join(random.choices(string.ascii_lowercase, k=10))}")

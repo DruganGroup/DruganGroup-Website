@@ -251,31 +251,28 @@ def handle_security_exceptions(e):
     path = request.path
     ip = request.remote_addr
     
+    # 1. INSTANT BAN LIST: 100% Bots
     instant_ban_paths = [
-    '/wp-admin', '/wordpress', '/setup-config.php', 
-    '/xmlrpc.php', '/index.php', '/.env', '/api', '/admin', '/' # Added '/' for 405 probes
-]
+        '/wp-admin', '/wordpress', '/setup-config.php', 
+        '/xmlrpc.php', '/index.php', '/.env', '/api', '/admin'
+    ]
 
     if any(trap in path for trap in instant_ban_paths):
-        return redirect(url_for('admin.the_nightmare_trap'))
+        # We use the direct string to prevent BuildErrors
+        return redirect('/wp-admin/setup-config.php')
 
-    # 2. THE SAFE LIST
-    # Browsers ask for these automatically. 
-    # We ignore these so your customers NEVER get strikes for them.
+    # 2. SAFE LIST: Ignore these common requests
     safe_list = ['/favicon.ico', '/robots.txt', '/apple-touch-icon', '/static']
     if any(safe in path for safe in safe_list):
         return render_template('error.html', error="Resource not found."), 404
 
-    # 3. THE SMART STRIKE SYSTEM
-    # We only count strikes for suspicious activity (root POSTs or probing for scripts)
+    # 3. SMART STRIKE SYSTEM: 3 strikes for suspicious probes
     if path == '/' or path.endswith('.php') or path.endswith('.sql'):
         session['strikes'] = session.get('strikes', 0) + 1
-        
-        # Customers are safe: they'd need to hit 3 suspicious errors to trigger this
         if session.get('strikes', 0) >= 3:
-            return redirect(url_for('admin.the_nightmare_trap'))
+            return redirect('/wp-admin/setup-config.php')
 
-    # 4. LOG FOR YOUR VISIBILITY
+    # 4. LOG NORMAL ERRORS TO DB
     try:
         conn = get_db()
         cur = conn.cursor()
