@@ -19,7 +19,7 @@ def create_job():
     cur.execute("SELECT id, reg_plate FROM vehicles WHERE company_id = %s AND status = 'Active' ORDER BY reg_plate ASC", (comp_id,))
     vehicles = cur.fetchall()
     
-    # 2. Handle Pre-selection (Client & Property)
+    # 2. Handle Pre-selection
     pre_client_id = request.args.get('client_id')
     pre_prop_id = request.args.get('property_id')
     
@@ -28,18 +28,21 @@ def create_job():
     target_property = None
 
     if pre_client_id:
+        # Get properties for dropdown
         cur.execute("SELECT id, address_line1, postcode FROM properties WHERE client_id = %s ORDER BY address_line1 ASC", (pre_client_id,))
         properties = cur.fetchall()
         
+        # Get Client (Select * works here because Name is usually index 1)
         cur.execute("SELECT * FROM clients WHERE id = %s", (pre_client_id,))
         target_client = cur.fetchone()
 
     if pre_prop_id:
-        cur.execute("SELECT * FROM properties WHERE id = %s", (pre_prop_id,))
+        cur.execute("SELECT id, address_line1, postcode FROM properties WHERE id = %s", (pre_prop_id,))
         target_property = cur.fetchone()
         
     conn.close()
     
+    # 3. Render
     return render_template('office/job/create_job.html',
                            clients=clients, 
                            vehicles=vehicles, 
