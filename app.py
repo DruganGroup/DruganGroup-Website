@@ -195,38 +195,3 @@ def serve_uploads(filename):
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('publicbb/404.html'), 404
-    
-@admin_bp.route('/admin/fix-logs-db')
-def fix_logs_db():
-    # Security check (optional, but good practice)
-    if session.get('role') not in ['SuperAdmin', 'Admin']:
-        return "Access Denied", 403
-
-    conn = get_db()
-    cur = conn.cursor()
-    
-    messages = []
-    
-    # List of columns to add to 'system_logs'
-    commands = [
-        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS ip_address TEXT;",
-        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS company_id INTEGER;",
-        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS user_id INTEGER;",
-        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS status_code INTEGER DEFAULT 500;"
-    ]
-    
-    try:
-        for sql in commands:
-            cur.execute(sql)
-            messages.append(f"✅ Executed: {sql}")
-        
-        conn.commit()
-        messages.append("SUCCESS: Database successfully upgraded!")
-        
-    except Exception as e:
-        conn.rollback()
-        messages.append(f"❌ Error: {e}")
-    finally:
-        conn.close()
-        
-    return "<br>".join(messages)

@@ -755,3 +755,35 @@ def global_nuclear_reset():
 
     # Redirect to Dashboard (which should now be empty)
     return redirect(url_for('office.office_dashboard'))
+    
+@admin_bp.route('/admin/fix-logs-db')
+def fix_logs_db():
+    if session.get('role') not in ['SuperAdmin', 'Admin']:
+        return "Access Denied", 403
+
+    conn = get_db()
+    cur = conn.cursor()
+    messages = []
+    
+    # Columns to add to system_logs so the View route works
+    commands = [
+        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS ip_address TEXT;",
+        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS company_id INTEGER;",
+        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS user_id INTEGER;",
+        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS status_code INTEGER DEFAULT 500;"
+    ]
+    
+    try:
+        for sql in commands:
+            cur.execute(sql)
+            messages.append(f"✅ Executed: {sql}")
+        
+        conn.commit()
+        messages.append("SUCCESS: Database upgraded! You can now view System Logs.")
+    except Exception as e:
+        conn.rollback()
+        messages.append(f"❌ Error: {e}")
+    finally:
+        conn.close()
+        
+    return "<br>".join(messages)
