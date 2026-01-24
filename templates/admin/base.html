@@ -164,6 +164,9 @@
             <a href="{{ url_for('admin.view_system_logs') }}" class="sidebar-btn {{ 'active' if 'system' in request.path else '' }}">
                 <i class="fas fa-exclamation-triangle"></i> Error Logs
             </a>
+			<a href="{{ url_for('admin.view_banned_ips') }}" class="sidebar-btn {{ 'active' if 'banned' in request.path else '' }}">
+    <i class="fas fa-user-slash text-danger"></i> Banned Intruders
+</a>
 
             <small class="text-muted text-uppercase mb-2 mt-4" style="font-size: 0.7rem; letter-spacing: 1px;">Navigation</small>
             
