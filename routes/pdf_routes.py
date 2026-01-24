@@ -338,7 +338,7 @@ def create_rams_form(job_id):
         'method': method_template
     }
 
-    return render_template('office/create_rams.html', data=data)
+    return render_template('office/rams/create_rams.html', data=data)
 
 
 # --- ROUTE 2: SAVE & GENERATE THE PDF ---
