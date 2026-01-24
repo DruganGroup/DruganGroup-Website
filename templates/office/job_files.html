@@ -140,16 +140,17 @@
                             {% for f in files if f[0] != 'Site Photo' %}
                             <tr>
                                 <td class="ps-3">
-                                    {% if 'Invoice' in f[0] %}
-                                        <span class="badge bg-success-subtle text-success">Invoice</span>
-                                    {% elif f[0] == 'Timesheet' %}
-                                        <span class="badge bg-warning-subtle text-dark">Labor</span>
-                                    {% elif f[0] == 'Material' %}
-                                        <span class="badge bg-secondary-subtle text-secondary">Material</span>
-                                    {% else %}
-                                        <span class="badge bg-danger-subtle text-danger">Expense</span>
-                                    {% endif %}
-                                </td>
+    {% if 'Invoice' in f[0] %}
+        <span class="badge bg-success-subtle text-success">Invoice</span>
+    {% elif 'RAMS' in f[0] %}  <span class="badge bg-primary text-white">RAMS / Safety</span>
+    {% elif f[0] == 'Timesheet' %}
+        <span class="badge bg-warning-subtle text-dark">Labor</span>
+    {% elif f[0] == 'Material' %}
+        <span class="badge bg-secondary-subtle text-secondary">Material</span>
+    {% else %}
+        <span class="badge bg-danger-subtle text-danger">Expense</span>
+    {% endif %}
+</td>
                                 <td class="fw-bold text-dark">{{ f[1] }}</td>
                                 <td class="text-muted">{{ f[3] }}</td>
                                 <td class="text-end font-monospace">

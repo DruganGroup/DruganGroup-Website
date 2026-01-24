@@ -340,19 +340,17 @@ def create_rams_form(job_id):
 
     return render_template('office/rams/create_rams.html', data=data)
 
-
-# --- ROUTE 2: SAVE & GENERATE THE PDF ---
 @pdf_bp.route('/office/job/<int:job_id>/rams/save', methods=['POST'])
 def save_and_download_rams(job_id):
     if not check_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
 
     # 1. Get Data from Form
     ref = request.form.get('ref')
     client = request.form.get('client')
     address = request.form.get('address')
     method = request.form.get('method_statement')
-    
-    # Get checkboxes (returns a list)
     hazards = request.form.getlist('hazards')
     ppe = request.form.getlist('ppe')
 
@@ -362,11 +360,55 @@ def save_and_download_rams(job_id):
         'date': datetime.now().strftime('%d/%m/%Y'),
         'client_name': client,
         'site_address': address,
-        'description': method, # Using the method statement as the main body
+        'description': method, 
         'risks': hazards,
         'ppe': ppe,
-        'config': get_site_config(session.get('company_id'))
+        'config': get_site_config(comp_id)
     }
 
-    # 3. Generate PDF (Uses the template we made earlier)
-    return generate_pdf('finance/pdf_rams.html', context, f"RAMS_{ref}.pdf")
+    # 3. GENERATE PDF BINARY
+    # We call the internal function to get raw bytes first
+    from services.pdf_generator import render_template, HTML
+    html = render_template('finance/pdf_rams.html', **context)
+    pdf_bytes = HTML(string=html).write_pdf()
+
+    # 4. SAVE TO DISK
+    filename = f"RAMS_{ref}_{datetime.now().strftime('%Y%m%d%H%M')}.pdf"
+    # Ensure directory exists
+    save_dir = os.path.join(current_app.static_folder, 'uploads', 'documents')
+    os.makedirs(save_dir, exist_ok=True)
+    
+    abs_path = os.path.join(save_dir, filename)
+    with open(abs_path, 'wb') as f:
+        f.write(pdf_bytes)
+
+    # 5. INSERT INTO DATABASE (This makes it show on the dashboard)
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # A. Save Data for future editing
+        cur.execute("""
+            INSERT INTO job_rams (job_id, company_id, hazards, ppe, method_statement, pdf_path)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (job_id, comp_id, json.dumps(hazards), json.dumps(ppe), method, filename))
+
+        # B. Log in Evidence Table (Visible in "Files" tab)
+        # The path stored is relative to static folder
+        db_path = f"static/uploads/documents/{filename}"
+        
+        cur.execute("""
+            INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type, uploaded_at)
+            VALUES (%s, %s, %s, 'RAMS Document', NOW())
+        """, (job_id, db_path, session.get('user_id')))
+        
+        conn.commit()
+        flash("✅ RAMS Created and Saved to Job Files")
+    except Exception as e:
+        conn.rollback()
+        print(f"DB Error: {e}")
+        flash("Error saving RAMS to database", "error")
+    finally:
+        conn.close()
+
+    # 6. Redirect back to Job Files so user sees it immediately
+    return redirect(url_for('office.job_files', job_id=job_id))
