@@ -432,4 +432,4 @@ def save_and_download_rams(job_id):
     finally:
         conn.close()
 
-    return redirect(url_for('office.job_files', job_id=job_id))
+    return redirect(url_for('jobs.job_files', job_id=job_id))
