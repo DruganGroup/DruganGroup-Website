@@ -13,7 +13,6 @@ def check_access():
 try:
     from fpdf import FPDF
 except ImportError:
-    # Fallback/Mock if FPDF isn't found directly (rare)
     class FPDF: pass
 
 # --- HELPER: FORMAT DATE BY COUNTRY ---
@@ -352,7 +351,6 @@ def save_and_download_rams(job_id):
     if not check_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
-    config = get_site_config(comp_id)
 
     # 1. GET DATA
     ref = request.form.get('ref')
@@ -363,7 +361,7 @@ def save_and_download_rams(job_id):
     ppe = request.form.getlist('ppe')
     date_str = datetime.now().strftime('%d/%m/%Y')
 
-    # 2. BUILD PDF MANUALLY (Using FPDF)
+    # 2. BUILD PDF MANUALLY
     class RAMSPDF(FPDF):
         def header(self):
             self.set_font('Arial', 'B', 16)
@@ -380,23 +378,22 @@ def save_and_download_rams(job_id):
     pdf = RAMSPDF()
     pdf.add_page()
     
-    # -- CLIENT DETAILS --
+    # -- CONTENT SECTIONS --
+    # Client
     pdf.set_font('Arial', 'B', 12)
     pdf.set_fill_color(240, 240, 240)
     pdf.cell(0, 10, '1. Job Details', 1, 1, 'L', 1)
-    
     pdf.set_font('Arial', '', 10)
     pdf.cell(40, 8, 'Client:', 0, 0)
-    pdf.cell(0, 8, client_name, 0, 1)
+    pdf.cell(0, 8, client_name or "", 0, 1)
     pdf.cell(40, 8, 'Site Address:', 0, 0)
-    pdf.cell(0, 8, site_address, 0, 1)
+    pdf.cell(0, 8, site_address or "", 0, 1)
     pdf.ln(5)
 
-    # -- HAZARDS --
+    # Hazards
     pdf.set_font('Arial', 'B', 12)
     pdf.cell(0, 10, '2. Identified Hazards', 1, 1, 'L', 1)
     pdf.set_font('Arial', '', 10)
-    
     if hazards:
         for h in hazards:
             pdf.cell(10, 8, '- ', 0, 0)
@@ -405,38 +402,41 @@ def save_and_download_rams(job_id):
         pdf.cell(0, 8, 'No specific hazards identified.', 0, 1)
     pdf.ln(5)
 
-    # -- PPE --
+    # PPE
     pdf.set_font('Arial', 'B', 12)
     pdf.cell(0, 10, '3. PPE Required', 1, 1, 'L', 1)
     pdf.set_font('Arial', '', 10)
-    
     if ppe:
-        ppe_str = ", ".join(ppe)
-        pdf.multi_cell(0, 8, ppe_str)
+        pdf.multi_cell(0, 8, ", ".join(ppe))
     else:
         pdf.cell(0, 8, 'Standard PPE only.', 0, 1)
     pdf.ln(5)
 
-    # -- METHOD STATEMENT --
+    # Method
     pdf.set_font('Arial', 'B', 12)
     pdf.cell(0, 10, '4. Method Statement', 1, 1, 'L', 1)
     pdf.set_font('Arial', '', 10)
     pdf.multi_cell(0, 6, method_stmt or "No method statement provided.")
     pdf.ln(10)
 
-    # -- SIGN OFF --
+    # Sign Off
     pdf.set_font('Arial', 'B', 12)
     pdf.cell(0, 10, '5. Sign-Off', 1, 1, 'L', 1)
-    pdf.set_font('Arial', '', 10)
     pdf.ln(5)
+    pdf.set_font('Arial', '', 10)
     pdf.cell(20, 10, "Engineer:", 0, 0)
     pdf.cell(80, 10, "_" * 30, 0, 0)
     pdf.cell(15, 10, "Date:", 0, 0)
     pdf.cell(0, 10, "_" * 20, 0, 1)
 
-    # 3. SAVE PDF TO STRING (BYTES)
-    # FPDF output(dest='S') returns a latin-1 string we must encode to bytes
-    pdf_content = pdf.output(dest='S').encode('latin-1')
+    # 3. SAFE OUTPUT HANDLING (Professional Type Check)
+    raw_output = pdf.output(dest='S')
+    
+    # Check if we received a string (needs encoding) or bytes (ready to write)
+    if isinstance(raw_output, str):
+        pdf_content = raw_output.encode('latin-1')
+    else:
+        pdf_content = raw_output
 
     # 4. SAVE TO DISK
     filename = f"RAMS_{ref}_{datetime.now().strftime('%Y%m%d%H%M')}.pdf"
@@ -447,17 +447,15 @@ def save_and_download_rams(job_id):
     with open(abs_path, 'wb') as f:
         f.write(pdf_content)
 
-    # 5. DATABASE LOGGING
+    # 5. DB SAVE
     conn = get_db()
     cur = conn.cursor()
     try:
-        # Save RAMS Data
         cur.execute("""
             INSERT INTO job_rams (job_id, company_id, hazards, ppe, method_statement, pdf_path, created_at)
             VALUES (%s, %s, %s, %s, %s, %s, NOW())
         """, (job_id, comp_id, json.dumps(hazards), json.dumps(ppe), method_stmt, filename))
 
-        # Save to Evidence
         db_path = f"static/uploads/documents/{filename}"
         cur.execute("""
             INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type, uploaded_at)
@@ -473,5 +471,5 @@ def save_and_download_rams(job_id):
     finally:
         conn.close()
 
-    # 6. REDIRECT
+    # 6. REDIRECT to the JOBS blueprint
     return redirect(url_for('jobs.job_files', job_id=job_id))
