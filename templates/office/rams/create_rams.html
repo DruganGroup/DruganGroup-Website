@@ -10,6 +10,7 @@
     </div>
 
     <form action="/office/job/{{ data.job_id }}/rams/save" method="POST">
+	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="ref" value="{{ data.ref }}">
         <input type="hidden" name="client" value="{{ data.client }}">
         <input type="hidden" name="address" value="{{ data.address }}">

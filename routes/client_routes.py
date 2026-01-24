@@ -66,11 +66,12 @@ def add_client():
         """, (comp_id, name, email, phone, addr, addr))
         new_id = cur.fetchone()[0]
         
-        # Auto-create first property (Site Address)
+        prop_address = addr if addr and addr.strip() else "Address Pending"
+
         cur.execute("""
-            INSERT INTO properties (company_id, client_id, address_line1)
-            VALUES (%s, %s, %s)
-        """, (comp_id, new_id, addr))
+            INSERT INTO properties (company_id, client_id, address_line1, postcode, type, status)
+            VALUES (%s, %s, %s, '', 'Property', 'Active')
+        """, (comp_id, new_id, prop_address))
         
         conn.commit()
         flash("✅ Client Added")
