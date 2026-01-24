@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, session, redirect, url_for, request, send_file, flash
+from flask import Blueprint, render_template, session, redirect, url_for, request, send_file, flash, current_app
 from db import get_db, get_site_config
 from services.pdf_generator import generate_pdf
 from datetime import datetime
