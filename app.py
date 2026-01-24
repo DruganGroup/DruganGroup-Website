@@ -198,17 +198,23 @@ def page_not_found(e):
     
 @app.before_request
 def block_banned_ips():
-    # Ignore static files so we don't hit the DB for every image
-    if request.path.startswith('/static'):
+    # 1. Skip check for static files and the DB fix route itself
+    if request.path.startswith('/static') or request.path == '/admin/fix-logs-db':
         return
 
     ip = request.remote_addr
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT ip_address FROM banned_ips WHERE ip_address = %s", (ip,))
-    is_banned = cur.fetchone()
-    conn.close()
-
-    if is_banned:
-        # Give them a 403 Forbidden or just a blank 444 (No Response)
-        return "Access Permanently Denied.", 403
+    try:
+        # 2. Check the table
+        cur.execute("SELECT ip_address FROM banned_ips WHERE ip_address = %s", (ip,))
+        is_banned = cur.fetchone()
+        
+        if is_banned:
+            return "<h1>403 Forbidden</h1><p>Access Denied.</p>", 403
+    except Exception as e:
+        # 3. If table 'banned_ips' doesn't exist yet, just let the request through
+        # This prevents the exact crash you are seeing right now.
+        pass 
+    finally:
+        conn.close()

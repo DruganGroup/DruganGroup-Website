@@ -773,7 +773,6 @@ def fix_logs_db():
         "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS company_id INTEGER;",
         "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS user_id INTEGER;",
         "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS status_code INTEGER DEFAULT 500;",
-        # THE NEW BAN LIST TABLE
         "CREATE TABLE IF NOT EXISTS banned_ips (ip_address TEXT PRIMARY KEY, reason TEXT, banned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"
     ]
     
@@ -781,9 +780,7 @@ def fix_logs_db():
         for sql in commands:
             cur.execute(sql)
             messages.append(f"✅ Executed: {sql}")
-        
         conn.commit()
-        messages.append("SUCCESS: Database fully upgraded with Ban List capability!")
     except Exception as e:
         conn.rollback()
         messages.append(f"❌ Error: {e}")
