@@ -251,12 +251,10 @@ def handle_security_exceptions(e):
     path = request.path
     ip = request.remote_addr
     
-    # 1. THE INSTANT-KILL LIST
-    # If they touch these, they are 100% bots. No strikes, just the trap.
     instant_ban_paths = [
-        '/wp-admin', '/wordpress', '/setup-config.php', 
-        '/xmlrpc.php', '/index.php', '/.env', '/api', '/admin'
-    ]
+    '/wp-admin', '/wordpress', '/setup-config.php', 
+    '/xmlrpc.php', '/index.php', '/.env', '/api', '/admin', '/' # Added '/' for 405 probes
+]
 
     if any(trap in path for trap in instant_ban_paths):
         return redirect(url_for('admin.the_nightmare_trap'))
