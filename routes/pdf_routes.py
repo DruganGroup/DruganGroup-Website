@@ -371,7 +371,7 @@ def save_and_download_rams(job_id):
     
     # We call your existing generator. It returns a Flask Response object.
     # Note: Ensure 'finance/pdf_rams.html' exists, otherwise use 'office/pdf_materials.html' as a fallback test
-    response = generate_pdf('finance/pdf_rams.html', context, filename)
+    response = generate_pdf('office/rams/pdf_rams.html', context, filename)
     
     # 4. EXTRACT BYTES & SAVE TO DISK
     # This pulls the raw PDF data out of the response object
