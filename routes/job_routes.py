@@ -32,7 +32,7 @@ def create_job():
         
     conn.close()
     
-    return render_template('office/create_job.html', 
+    return render_template('office/job/create_job.html',
                            clients=clients, 
                            vehicles=vehicles, 
                            properties=properties,
