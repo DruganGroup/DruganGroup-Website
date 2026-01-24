@@ -191,88 +191,53 @@ def serve_uploads(filename):
     
     return send_from_directory(upload_dir, filename)
 
-# --- ERROR HANDLERS ---
-@app.errorhandler(404)
-def page_not_found(e):
-    return render_template('publicbb/404.html'), 404
-    
 @app.before_request
 def block_banned_ips():
-    # 1. Skip check for static files and the DB fix route itself
+    # 1. Skip check for static files and the DB fix route
     if request.path.startswith('/static') or request.path == '/admin/fix-logs-db':
         return
 
     ip = request.remote_addr
+    
+    # 2. PERMANENT WHITELIST: Replace with your actual IP to be immune to bans
+    if ip == '185.130.187.9': 
+        return
+
     conn = get_db()
     cur = conn.cursor()
     try:
-        # 2. Check the table
         cur.execute("SELECT ip_address FROM banned_ips WHERE ip_address = %s", (ip,))
-        is_banned = cur.fetchone()
-        
-        if is_banned:
+        if cur.fetchone():
             return "<h1>403 Forbidden</h1><p>Access Denied.</p>", 403
-    except Exception as e:
-        # 3. If table 'banned_ips' doesn't exist yet, just let the request through
-        # This prevents the exact crash you are seeing right now.
+    except:
         pass 
     finally:
         conn.close()
-        
-@app.errorhandler(404)
-def handle_404_security(e):
-    ip = request.remote_addr
-    path = request.path
-    
-    # 1. List of high-risk paths that only bots look for
-    bot_traps = ['/wp-admin', '/wordpress', '/xmlrpc.php', '/setup-config.php', '/.env']
-    
-    # 2. If they hit a trap path, send them to the Nightmare Trap
-    if any(trap in path for trap in bot_traps):
-        # This redirects them to the route that performs the Zip Bomb and DB Ban
-        return redirect(url_for('admin.the_nightmare_trap'))
 
-    # 3. Log "normal" 404s to System Logs so you can see them (Optional)
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO system_logs (level, message, route, ip_address, status_code, created_at)
-        VALUES (%s, %s, %s, %s, %s, NOW())
-    """, ('WARNING', f'Page Not Found: {path}', path, ip, 404))
-    conn.commit()
-    conn.close()
-
-    # 4. Show the Gold error page to regular users
-    return render_template('error.html', error="The page you are looking for does not exist."), 404
-    
 @app.errorhandler(404)
 @app.errorhandler(405)
 def handle_security_exceptions(e):
     path = request.path
     ip = request.remote_addr
     
-    # 1. INSTANT BAN LIST: 100% Bots
-    instant_ban_paths = [
-        '/wp-admin', '/wordpress', '/setup-config.php', 
-        '/xmlrpc.php', '/index.php', '/.env', '/api', '/admin'
-    ]
-
-    if any(trap in path for trap in instant_ban_paths):
-        # We use the direct string to prevent BuildErrors
-        return redirect('/wp-admin/setup-config.php')
-
-    # 2. SAFE LIST: Ignore these common requests
+    # 1. THE SAFE LIST: Ignore these common browser requests completely
     safe_list = ['/favicon.ico', '/robots.txt', '/apple-touch-icon', '/static']
     if any(safe in path for safe in safe_list):
         return render_template('error.html', error="Resource not found."), 404
 
-    # 3. SMART STRIKE SYSTEM: 3 strikes for suspicious probes
-    if path == '/' or path.endswith('.php') or path.endswith('.sql'):
+    # 2. INSTANT BAN LIST: 100% Bots
+    instant_ban_paths = ['/wp-admin', '/wordpress', '/setup-config.php', '/xmlrpc.php', '/.env']
+    if any(trap in path for trap in instant_ban_paths):
+        return redirect('/wp-admin/setup-config.php')
+
+    # 3. SMART STRIKE SYSTEM: Typos happen, probing doesn't
+    # We only count strikes for suspicious file extensions
+    if path.endswith('.php') or path.endswith('.sql'):
         session['strikes'] = session.get('strikes', 0) + 1
-        if session.get('strikes', 0) >= 3:
+        if session.get('strikes', 0) >= 5:
             return redirect('/wp-admin/setup-config.php')
 
-    # 4. LOG NORMAL ERRORS TO DB
+    # 4. LOG NORMAL ERRORS
     try:
         conn = get_db()
         cur = conn.cursor()
@@ -284,5 +249,4 @@ def handle_security_exceptions(e):
     finally:
         conn.close()
 
-    # Show the standard Gold error page to regular users
     return render_template('error.html', error=e), e.code
