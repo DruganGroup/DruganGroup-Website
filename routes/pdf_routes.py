@@ -354,7 +354,7 @@ def save_and_download_rams(job_id):
     hazards = request.form.getlist('hazards')
     ppe = request.form.getlist('ppe')
 
-    # 2. Prepare Context for PDF
+    # 2. Prepare Context
     context = {
         'ref': ref,
         'date': datetime.now().strftime('%d/%m/%Y'),
@@ -366,15 +366,17 @@ def save_and_download_rams(job_id):
         'config': get_site_config(comp_id)
     }
 
-    # 3. GENERATE PDF BINARY
-    # We call the internal function to get raw bytes first
-    from services.pdf_generator import render_template, HTML
-    html = render_template('finance/pdf_rams.html', **context)
-    pdf_bytes = HTML(string=html).write_pdf()
-
-    # 4. SAVE TO DISK
+    # 3. GENERATE PDF using your EXISTING service
     filename = f"RAMS_{ref}_{datetime.now().strftime('%Y%m%d%H%M')}.pdf"
-    # Ensure directory exists
+    
+    # We call your existing generator. It returns a Flask Response object.
+    # Note: Ensure 'finance/pdf_rams.html' exists, otherwise use 'office/pdf_materials.html' as a fallback test
+    response = generate_pdf('finance/pdf_rams.html', context, filename)
+    
+    # 4. EXTRACT BYTES & SAVE TO DISK
+    # This pulls the raw PDF data out of the response object
+    pdf_bytes = response.get_data()
+    
     save_dir = os.path.join(current_app.static_folder, 'uploads', 'documents')
     os.makedirs(save_dir, exist_ok=True)
     
@@ -382,18 +384,17 @@ def save_and_download_rams(job_id):
     with open(abs_path, 'wb') as f:
         f.write(pdf_bytes)
 
-    # 5. INSERT INTO DATABASE (This makes it show on the dashboard)
+    # 5. INSERT INTO DATABASE
     conn = get_db()
     cur = conn.cursor()
     try:
-        # A. Save Data for future editing
+        # A. Save Data
         cur.execute("""
             INSERT INTO job_rams (job_id, company_id, hazards, ppe, method_statement, pdf_path)
             VALUES (%s, %s, %s, %s, %s, %s)
         """, (job_id, comp_id, json.dumps(hazards), json.dumps(ppe), method, filename))
 
-        # B. Log in Evidence Table (Visible in "Files" tab)
-        # The path stored is relative to static folder
+        # B. Log in Evidence Table
         db_path = f"static/uploads/documents/{filename}"
         
         cur.execute("""
@@ -402,7 +403,7 @@ def save_and_download_rams(job_id):
         """, (job_id, db_path, session.get('user_id')))
         
         conn.commit()
-        flash("✅ RAMS Created and Saved to Job Files")
+        flash("✅ RAMS Created & Saved")
     except Exception as e:
         conn.rollback()
         print(f"DB Error: {e}")
@@ -410,5 +411,4 @@ def save_and_download_rams(job_id):
     finally:
         conn.close()
 
-    # 6. Redirect back to Job Files so user sees it immediately
     return redirect(url_for('office.job_files', job_id=job_id))
