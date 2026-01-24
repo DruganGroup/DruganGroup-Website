@@ -2,7 +2,6 @@ from flask import Blueprint, render_template, session, redirect, url_for, flash,
 from db import get_db
 from datetime import date
 
-# Define the Blueprint
 jobs_bp = Blueprint('jobs', __name__)
 
 @jobs_bp.route('/office/job/create')
@@ -25,19 +24,20 @@ def create_job():
     pre_prop_id = request.args.get('property_id')
     
     properties = []
-    target_client = None  # This is the variable your template was missing!
+    target_client = None  # Define the variable the template is looking for
 
     if pre_client_id:
-        # Fetch properties for the dropdown
+        # Get properties for this client
         cur.execute("SELECT id, address_line1, postcode FROM properties WHERE client_id = %s ORDER BY address_line1 ASC", (pre_client_id,))
         properties = cur.fetchall()
         
-        # Fetch the actual client object so the template can use 'client.id' or 'client.name'
+        # Get the Client Details (This fixes the "client is undefined" error)
         cur.execute("SELECT * FROM clients WHERE id = %s", (pre_client_id,))
         target_client = cur.fetchone()
         
     conn.close()
     
+    # 3. Render Template with 'client' included
     return render_template('office/job/create_job.html',
                            clients=clients, 
                            vehicles=vehicles, 
