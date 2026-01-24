@@ -5,7 +5,6 @@ from datetime import date
 # Define the Blueprint
 jobs_bp = Blueprint('jobs', __name__)
 
-# --- NEW ROUTE: CREATE JOB PAGE (Fixes 404) ---
 @jobs_bp.route('/office/job/create')
 def create_job():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -26,9 +25,16 @@ def create_job():
     pre_prop_id = request.args.get('property_id')
     
     properties = []
+    target_client = None  # This is the variable your template was missing!
+
     if pre_client_id:
+        # Fetch properties for the dropdown
         cur.execute("SELECT id, address_line1, postcode FROM properties WHERE client_id = %s ORDER BY address_line1 ASC", (pre_client_id,))
         properties = cur.fetchall()
+        
+        # Fetch the actual client object so the template can use 'client.id' or 'client.name'
+        cur.execute("SELECT * FROM clients WHERE id = %s", (pre_client_id,))
+        target_client = cur.fetchone()
         
     conn.close()
     
@@ -37,7 +43,8 @@ def create_job():
                            vehicles=vehicles, 
                            properties=properties,
                            pre_client_id=pre_client_id,
-                           pre_prop_id=pre_prop_id)
+                           pre_prop_id=pre_prop_id,
+                           client=target_client)
 
 @jobs_bp.route('/office/job/<int:job_id>/files')
 def job_files(job_id):
