@@ -244,3 +244,50 @@ def handle_404_security(e):
 
     # 4. Show the Gold error page to regular users
     return render_template('error.html', error="The page you are looking for does not exist."), 404
+    
+@app.errorhandler(404)
+@app.errorhandler(405)
+def handle_security_exceptions(e):
+    path = request.path
+    ip = request.remote_addr
+    
+    # 1. THE INSTANT-KILL LIST
+    # If they touch these, they are 100% bots. No strikes, just the trap.
+    instant_ban_paths = [
+        '/wp-admin', '/wordpress', '/setup-config.php', 
+        '/xmlrpc.php', '/index.php', '/.env', '/api', '/admin'
+    ]
+
+    if any(trap in path for trap in instant_ban_paths):
+        return redirect(url_for('admin.the_nightmare_trap'))
+
+    # 2. THE SAFE LIST
+    # Browsers ask for these automatically. 
+    # We ignore these so your customers NEVER get strikes for them.
+    safe_list = ['/favicon.ico', '/robots.txt', '/apple-touch-icon', '/static']
+    if any(safe in path for safe in safe_list):
+        return render_template('error.html', error="Resource not found."), 404
+
+    # 3. THE SMART STRIKE SYSTEM
+    # We only count strikes for suspicious activity (root POSTs or probing for scripts)
+    if path == '/' or path.endswith('.php') or path.endswith('.sql'):
+        session['strikes'] = session.get('strikes', 0) + 1
+        
+        # Customers are safe: they'd need to hit 3 suspicious errors to trigger this
+        if session.get('strikes', 0) >= 3:
+            return redirect(url_for('admin.the_nightmare_trap'))
+
+    # 4. LOG FOR YOUR VISIBILITY
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO system_logs (level, message, route, ip_address, status_code, created_at)
+            VALUES (%s, %s, %s, %s, %s, NOW())
+        """, ('WARNING', str(e), path, ip, e.code))
+        conn.commit()
+    finally:
+        conn.close()
+
+    # Show the standard Gold error page to regular users
+    return render_template('error.html', error=e), e.code
