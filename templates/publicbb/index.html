@@ -1,6 +1,6 @@
 {% extends "publicbb/base.html" %}
 
-{% block title %}Business Better | The Executive OS{% endblock %}
+{% block title %}Business Better | The Trade Operating System{% endblock %}
 
 {% block head %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,7 +13,6 @@
         --bb-black: #050505;
         --bb-dark: #0f1014;
         --bb-gold: #d4af37;
-        --bb-gold-light: #f3cf55;
         --bb-gold-gradient: linear-gradient(135deg, #d4af37 0%, #aa8a29 100%);
         --bb-glass: rgba(255, 255, 255, 0.03);
     }
@@ -25,22 +24,12 @@
     }
 
     h1, h2, h3 {
-        font-family: 'Montserrat', sans-serif; /* Clean, architectural */
+        font-family: 'Montserrat', sans-serif;
         letter-spacing: -1px;
     }
 
     .text-gold {
         color: var(--bb-gold);
-        background: linear-gradient(to right, #f3cf55, #d4af37, #f3cf55);
-        -webkit-background-clip: text;
-        background-clip: text;
-        background-size: 200% auto;
-        animation: shine 5s linear infinite;
-        color: transparent; /* Fallback */
-    }
-
-    @keyframes shine {
-        to { background-position: 200% center; }
     }
 
     /* Premium Button */
@@ -52,10 +41,8 @@
         text-transform: uppercase;
         letter-spacing: 1px;
         padding: 15px 40px;
-        border-radius: 2px; /* Sharp angles like the skyscraper */
+        border-radius: 2px;
         transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
     }
 
     .btn-gold:hover {
@@ -84,6 +71,8 @@
         font-family: 'Playfair Display', serif;
         font-size: 3rem;
         color: var(--bb-gold);
+        line-height: 1;
+        margin-bottom: 10px;
     }
 
     /* Hero Glow */
@@ -103,211 +92,112 @@
 
 {% block content %}
 
-<header class="position-relative overflow-hidden" style="padding-top: 120px; padding-bottom: 100px;">
+<header class="position-relative overflow-hidden" style="padding-top: 50px; padding-bottom: 100px;">
     <div class="hero-glow"></div>
-
     <div class="container position-relative" style="z-index: 2;">
         <div class="row justify-content-center text-center">
             <div class="col-lg-10">
                 <div class="mb-4" data-aos="fade-down">
-                    <span class="text-uppercase tracking-wide small text-muted border border-secondary px-3 py-1 rounded-pill">
-                        Enterprise Edition 2.0
+                    <span class="text-uppercase tracking-wide small text-gold border border-warning px-3 py-1 rounded-pill">
+                        The Trade Operating System (T-OS)
                     </span>
                 </div>
                 
                 <h1 class="display-2 fw-bold mb-4 text-white">
-                    The Operating System for <br>
-                    <span class="text-gold">The Top 1%.</span>
+                    Stop Running a Job. <br>
+                    <span class="text-gold">Start Running an Engine.</span>
                 </h1>
                 
-                <p class="lead text-secondary mx-auto mb-5" style="max-width: 700px; font-weight: 300;">
-                    Most software tracks your invoices. <strong>Business Better</strong> tracks your empire. 
-                    From forensic audit logs to real-time profit analysis—this is construction management at an executive level.
+                <p class="lead text-secondary mx-auto mb-5" style="max-width: 800px; font-weight: 300;">
+                    Business Better is the integrated <strong>Business Operating System</strong> for trade firms. 
+                    From the first screw estimated to the final invoice paid, we automate your compliance, 
+                    protect your margins, and reclaim <strong>20+ hours of admin every week</strong>.
                 </p>
 
-                <div class="d-flex justify-content-center gap-3 mb-5" data-aos="fade-up" data-aos-delay="100">
-                    <a href="/login" class="btn btn-gold shadow-lg">Enter Dashboard</a>
-                    <a href="/features" class="btn btn-outline-light rounded-0 px-4 py-3 text-uppercase small fw-bold" style="letter-spacing: 1px;">Explore Features</a>
-                </div>
-            </div>
-        </div>
-
-        <div class="mx-auto mt-4 position-relative" style="max-width: 1100px; perspective: 1500px;" data-aos="fade-up" data-aos-delay="200">
-            <div style="position: absolute; top: -1px; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--bb-gold), transparent);"></div>
-            
-            <div class="rounded-3 overflow-hidden shadow-lg border border-secondary bg-dark">
-                <img src="{{ url_for('static', filename='images/dashboard-main.png') }}" class="img-fluid opacity-75" alt="Executive Dashboard" style="filter: contrast(1.1) saturate(1.1);">
-                
-                <div class="position-absolute top-50 start-50 translate-middle text-center">
-                    <div class="d-inline-flex align-items-center gap-2 bg-black border border-warning px-4 py-2 rounded-pill shadow-lg text-gold">
-                        <i class="fas fa-check-circle"></i>
-                        <span>System Online: Global Mode</span>
-                    </div>
+                <div class="d-flex justify-content-center gap-3 mb-5" data-aos="fade-up">
+                    <a href="/login" class="btn btn-gold shadow-lg">Launch Your Dashboard</a>
+                    <a href="/features" class="btn btn-outline-light rounded-0 px-4 py-3 text-uppercase small fw-bold">See How it Works</a>
                 </div>
             </div>
         </div>
     </div>
 </header>
 
-<section class="py-5" style="background: linear-gradient(to bottom, var(--bb-black), var(--bb-dark));">
+<section class="py-5" style="background: var(--bb-card);">
+    <div class="container text-center py-4">
+        <div class="row g-4">
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                <div class="stat-number">20+</div>
+                <p class="text-muted text-uppercase small fw-bold tracking-wide">Admin Hours Saved Weekly</p>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                <div class="stat-number">100%</div>
+                <p class="text-muted text-uppercase small fw-bold tracking-wide">Compliance Accuracy</p>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
+                <div class="stat-number">30%</div>
+                <p class="text-muted text-uppercase small fw-bold tracking-wide">Average Margin Increase</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="py-5">
     <div class="container py-5">
         <div class="row align-items-center">
             <div class="col-md-6 mb-5 mb-md-0" data-aos="fade-right">
-                <h6 class="text-gold text-uppercase mb-3">Financial Precision</h6>
-                <h2 class="display-5 fw-bold text-white mb-4">Revenue is Vanity.<br>Profit is Sanity.</h2>
-                <p class="text-secondary mb-4 lead" style="font-weight: 300;">
-                    Stop guessing your margins. Our <strong>Profit Engine</strong> doesn't just track what you bill. 
-                    It automatically deducts materials, labor hours, and vehicle daily costs to show you the 
-                    <em>exact</em> net profit on every single job.
-                </p>
-                <ul class="list-unstyled text-secondary">
-                    <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Real-time margin analysis per project</li>
-                    <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Automatic "Daily Run Cost" deduction</li>
-                    <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Tax & VAT forecasting (Global Support)</li>
-                </ul>
+                <h2 class="display-5 fw-bold text-white mb-4">Why Top Firms Spend £300/mo on Business Better.</h2>
+                <p class="text-secondary mb-4 lead">It’s not an expense; it’s an automated manager.</p>
+                
+                <div class="d-flex gap-3 mb-4">
+                    <div class="text-gold mt-1"><i class="fas fa-check-double fa-lg"></i></div>
+                    <div>
+                        <h5 class="text-white fw-bold m-0">The Unified Estimator</h5>
+                        <p class="text-muted small mt-1">Stop spending evenings on quotes. Auto-calculate materials, labor, and van costs in seconds. Import directly to a live job.</p>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-3 mb-4">
+                    <div class="text-gold mt-1"><i class="fas fa-satellite-dish fa-lg"></i></div>
+                    <div>
+                        <h5 class="text-white fw-bold m-0">Live Fleet Ops</h5>
+                        <p class="text-muted small mt-1">Know where every van, every tool, and every engineer is in real-time. Enforce safety checks before they start the engine.</p>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-3">
+                    <div class="text-gold mt-1"><i class="fas fa-file-invoice-dollar fa-lg"></i></div>
+                    <div>
+                        <h5 class="text-white fw-bold m-0">Automatic Cashflow</h5>
+                        <p class="text-muted small mt-1">Convert completed jobs to professional invoices instantly. The system chases late payments so you don't have to.</p>
+                    </div>
+                </div>
             </div>
+            
             <div class="col-md-6 ps-md-5" data-aos="fade-left">
-                <div class="feature-card">
-                    <div class="d-flex justify-content-between mb-4 border-bottom border-secondary pb-3">
-                        <span class="text-muted">Job Ref: #JB-4492</span>
-                        <span class="text-white">Status: <span class="text-success">Complete</span></span>
-                    </div>
-                    <div class="row text-center mb-4">
-                        <div class="col-4 border-end border-secondary">
-                            <small class="text-muted d-block mb-1">Invoiced</small>
-                            <span class="h4 text-white">£12,500</span>
-                        </div>
-                        <div class="col-4 border-end border-secondary">
-                            <small class="text-muted d-block mb-1">True Cost</small>
-                            <span class="h4 text-danger">£8,240</span>
-                        </div>
-                        <div class="col-4">
-                            <small class="text-gold d-block mb-1">Net Profit</small>
-                            <span class="h4 text-gold">+£4,260</span>
-                        </div>
-                    </div>
-                    <div class="progress" style="height: 6px; background: #333;">
-                        <div class="progress-bar bg-gold" role="progressbar" style="width: 34%; background-color: var(--bb-gold);" aria-valuenow="34" aria-valuemin="0" aria-valuemax="100"></div>
-                    </div>
-                    <small class="text-end d-block mt-2 text-gold">34% Margin Achieved</small>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="py-5 bg-dark position-relative">
-    <div class="container py-5">
-        <div class="text-center mb-5" data-aos="fade-up">
-            <h6 class="text-gold text-uppercase">Enterprise Ready</h6>
-            <h2 class="display-5 fw-bold text-white">Your Brand. Your Empire.</h2>
-            <p class="text-secondary mx-auto" style="max-width: 600px;">
-                Built for franchises, agencies, and holding companies. 
-                Upload your logo, set your currency, and own the platform.
-            </p>
-        </div>
-
-        <div class="row g-4">
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
-                <div class="feature-card h-100">
-                    <div class="mb-4 text-gold"><i class="fas fa-globe-americas fa-2x"></i></div>
-                    <h4 class="text-white mb-3">Global Infrastructure</h4>
-                    <p class="text-secondary">
-                        Whether you operate in London, New York, or Dubai, our system adapts. 
-                        Multi-currency support (GBP, USD, EUR) and dynamic tax engines handle the math.
-                    </p>
-                </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
-                <div class="feature-card h-100" style="border-color: var(--bb-gold);">
-                    <div class="mb-4 text-gold"><i class="fas fa-paint-brush fa-2x"></i></div>
-                    <h4 class="text-white mb-3">True White-Label</h4>
-                    <p class="text-secondary">
-                        Don't build your own software. Lease ours. Your domain, your colors, your logo. 
-                        Your clients will never know we exist.
-                    </p>
-                </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
-                <div class="feature-card h-100">
-                    <div class="mb-4 text-gold"><i class="fas fa-shield-alt fa-2x"></i></div>
-                    <h4 class="text-white mb-3">Forensic Security</h4>
-                    <p class="text-secondary">
-                        Every action is logged. IP addresses, timestamps, and user IDs are tracked in our 
-                        forensic audit logs. Total accountability for your staff.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="py-5" style="background-color: var(--bb-black);">
-    <div class="container py-5">
-        <div class="row align-items-center flex-md-row-reverse">
-            <div class="col-md-6 mb-5 mb-md-0 ps-md-5" data-aos="fade-left">
-                <h6 class="text-gold text-uppercase mb-3">Logistics & Safety</h6>
-                <h2 class="display-5 fw-bold text-white mb-4">Command Your Fleet.</h2>
-                <p class="text-secondary mb-4 lead" style="font-weight: 300;">
-                    Assets are liabilities if not managed. Track MOTs, Service dates, and Insurance expiry automatically.
-                    Enforce daily walkaround checks via the mobile app before a wheel turns.
-                </p>
-                <div class="d-flex gap-4 text-white">
-                    <div>
-                        <div class="stat-number">100%</div>
-                        <small class="text-uppercase tracking-wide text-muted">Compliance</small>
-                    </div>
-                    <div>
-                        <div class="stat-number">0</div>
-                        <small class="text-uppercase tracking-wide text-muted">Paper Forms</small>
+                <div class="feature-card border-warning shadow-lg p-5">
+                    <h4 class="text-white mb-4"><i class="fas fa-calculator text-gold me-2"></i> The ROI Calculator</h4>
+                    <ul class="list-group list-group-flush bg-transparent">
+                        <li class="list-group-item bg-transparent text-secondary border-secondary d-flex justify-content-between px-0 py-3">
+                            <span>Manual Admin Time (Weekly)</span>
+                            <span class="text-danger fw-bold">-25 Hours</span>
+                        </li>
+                        <li class="list-group-item bg-transparent text-secondary border-secondary d-flex justify-content-between px-0 py-3">
+                            <span>Billed Hours with Automation</span>
+                            <span class="text-success fw-bold">+18 Hours</span>
+                        </li>
+                        <li class="list-group-item bg-transparent text-white border-0 d-flex justify-content-between align-items-center pt-4 px-0">
+                            <span class="h5 m-0">Net Value Gained</span>
+                            <span class="h3 text-gold m-0">£1,440 / mo*</span>
+                        </li>
+                    </ul>
+                    <p class="mt-3 small text-muted fst-italic text-end">*Based on avg UK trade labor rates.</p>
+                    
+                    <div class="d-grid mt-4">
+                        <a href="/pricing" class="btn btn-outline-light btn-sm text-uppercase fw-bold">Start Your Free Trial</a>
                     </div>
                 </div>
             </div>
-            <div class="col-md-6" data-aos="fade-right">
-                <div class="feature-card p-0 overflow-hidden">
-                    <div class="bg-dark p-3 border-bottom border-secondary d-flex justify-content-between align-items-center">
-                        <span class="text-white fw-bold"><i class="fas fa-truck text-gold me-2"></i> Fleet Status</span>
-                        <span class="badge bg-success text-black">Live</span>
-                    </div>
-                    <div class="p-4">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="flex-grow-1">
-                                <h6 class="text-white m-0">Ford Transit Custom</h6>
-                                <small class="text-muted">Reg: KM24 LPO • Driver: M. Davis</small>
-                            </div>
-                            <div class="text-end">
-                                <span class="d-block text-success small"><i class="fas fa-check-circle"></i> Check Passed</span>
-                                <small class="text-muted">Today, 07:45 AM</small>
-                            </div>
-                        </div>
-                        <hr class="border-secondary">
-                        <div class="d-flex align-items-center">
-                            <div class="flex-grow-1">
-                                <h6 class="text-white m-0">Mercedes Sprinter</h6>
-                                <small class="text-muted">Reg: EX19 BNN • Driver: Unassigned</small>
-                            </div>
-                            <div class="text-end">
-                                <span class="d-block text-warning small"><i class="fas fa-exclamation-triangle"></i> Service Due</span>
-                                <small class="text-warning">In 3 Days</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="py-5 text-center position-relative overflow-hidden">
-    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, rgba(212, 175, 55, 0.15), transparent 70%);"></div>
-    <div class="container position-relative py-5">
-        <h2 class="display-4 fw-bold text-white mb-4" data-aos="fade-up">Ready to upgrade your standard?</h2>
-        <p class="lead text-secondary mb-5 mx-auto" style="max-width: 600px;" data-aos="fade-up" data-aos-delay="100">
-            Join the elite trade businesses running on <strong>Business Better</strong>.
-        </p>
-        <div data-aos="fade-up" data-aos-delay="200">
-            <a href="/login" class="btn btn-gold btn-lg shadow-lg">Access System</a>
-            <p class="mt-4 text-muted small">Full setup provided. Data migration assistance included.</p>
         </div>
     </div>
 </section>
