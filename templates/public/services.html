@@ -10,75 +10,20 @@
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     
     <link rel="stylesheet" href="static/style.css">
-    <link rel="stylesheet" href="style.css">
-
     <style>
-        /* Zig-Zag Layout */
-        .service-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 80px;
-            gap: 60px;
-        }
-
-        .service-row.reverse {
-            flex-direction: row-reverse;
-        }
-
-        .service-content {
-            flex: 1;
-        }
-
-        .service-image {
-            flex: 1;
-            height: 400px;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 15px 30px rgba(0,0,0,0.5);
-            border: 1px solid #333;
-        }
-
-        .service-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.5s;
-        }
-        
-        .service-row:hover .service-image img {
-            transform: scale(1.05);
-        }
-
+        .service-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 80px; gap: 60px; }
+        .service-row.reverse { flex-direction: row-reverse; }
+        .service-content { flex: 1; }
+        .service-image { flex: 1; height: 400px; border-radius: 20px; overflow: hidden; box-shadow: 0 15px 30px rgba(0,0,0,0.5); border: 1px solid #333; }
+        .service-image img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
+        .service-row:hover .service-image img { transform: scale(1.05); }
         h2 { font-family: 'Montserrat', sans-serif; font-weight: 700; margin-bottom: 20px; color: #fff; }
         p { line-height: 1.8; color: #ccc; margin-bottom: 25px; }
-
-        .service-btn {
-            padding: 12px 30px;
-            border: 1px solid rgba(255,255,255,0.3);
-            text-decoration: none;
-            color: #fff;
-            font-weight: 600;
-            transition: 0.3s;
-            display: inline-block;
-        }
-        
-        .service-btn:hover {
-            background: var(--primary-gold);
-            border-color: var(--primary-gold);
-            color: white;
-        }
-
-        /* Mobile Adjustments */
+        .service-btn { padding: 12px 30px; border: 1px solid rgba(255,255,255,0.3); text-decoration: none; color: #fff; font-weight: 600; transition: 0.3s; display: inline-block; }
+        .service-btn:hover { background: var(--primary-gold); border-color: var(--primary-gold); color: white; }
         @media(max-width: 768px) {
-            .service-row, .service-row.reverse {
-                flex-direction: column;
-                gap: 30px;
-            }
-            .service-image {
-                width: 100%;
-                height: 250px;
-            }
+            .service-row, .service-row.reverse { flex-direction: column; gap: 30px; }
+            .service-image { width: 100%; height: 250px; }
         }
     </style>
 </head>
@@ -87,33 +32,22 @@
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-                <a href="index.html">
-                    <img src="static/images/logo.png" alt="Drugan Group" class="main-logo-img">
-                </a> 
+                <a href="index.html"><img src="static/images/logo.png" alt="Drugan Group" class="main-logo-img"></a> 
                 DRUGAN <span class="tagline">GROUP</span>
             </div>
-            <div class="menu-toggle" id="mobile-menu">
-                <span class="bar"></span>
-                <span class="bar"></span>
-                <span class="bar"></span>
-            </div>
-            
+            <div class="menu-toggle" id="mobile-menu"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
             <ul class="nav-links">
                 <li><a href="about.html">About</a></li>
                 <li><a href="services.html" style="color: var(--primary-gold);">Services</a></li>
                 <li><a href="businessbetter.html">Software</a></li>
-                <li><a href="forensics.html">Disputes</a></li>
                 <li><a href="contact.html">Contact</a></li>
                 <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
-            
-            <div class="nav-actions">
-                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i>Portal Login</a>
-            </div>
+            <div class="nav-actions"><a href="login.html" class="btn-primary">Portal Login</a></div>
         </div>
     </nav>
 
-    <header class="hero hero-enhanced" style="min-height: 60vh;">
+    <header class="hero hero-enhanced" style="min-height: 50vh;">
         <div class="hero-bg"></div>
         <div class="hero-overlay"></div>
         <div class="container hero-grid single-col">
@@ -130,12 +64,10 @@
         <div class="service-row" data-aos="fade-up">
             <div class="service-content">
                 <h2>Construction & Development</h2>
-                <p>From groundworks to final handover, we manage complex build projects with precision. Our team specializes in residential developments, commercial fit-outs, and structural alterations.</p>
+                <p>From groundworks to final handover, we manage complex build projects with precision. Our team specializes in residential developments, commercial fit-outs, and structural alterations. All tracked digitally.</p>
                 <a href="construction.html" class="service-btn">View Construction</a>
             </div>
-            <div class="service-image">
-                <img src="static/images/construction.jpg" alt="Construction Site" onerror="this.src='https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=800&q=80'">
-            </div>
+            <div class="service-image"><img src="static/images/construction.jpg" alt="Construction Site"></div>
         </div>
 
         <div class="service-row reverse" data-aos="fade-up">
@@ -144,9 +76,7 @@
                 <p>Expert installation of slate, tile, and flat roofing systems. We use drone technology for surveys and provide comprehensive warranties on all new roofs.</p>
                 <a href="roofing.html" class="service-btn">View Roofing</a>
             </div>
-            <div class="service-image">
-                <img src="static/images/roofing.jpg" alt="Roofing" onerror="this.src='https://images.unsplash.com/photo-1632759145351-1d592919f522?auto=format&fit=crop&w=800&q=80'">
-            </div>
+            <div class="service-image"><img src="static/images/roofing.jpg" alt="Roofing"></div>
         </div>
 
         <div class="service-row" data-aos="fade-up">
@@ -155,104 +85,45 @@
                 <p>Foundations, drainage, and site clearance. We own our heavy plant fleet, ensuring we hit the ground running without hire-in delays.</p>
                 <a href="groundworks.html" class="service-btn">View Groundworks</a>
             </div>
-            <div class="service-image">
-                <img src="static/images/foundations.jpg" alt="Groundworks" onerror="this.src='https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=800&q=80'">
-            </div>
+            <div class="service-image"><img src="static/images/foundations.jpg" alt="Groundworks"></div>
         </div>
 
         <div class="service-row reverse" data-aos="fade-up">
-            <div class="service-content">
-                <h2>Landscaping & External</h2>
-                <p>Transforming outdoor spaces with precision paving, driveways, and secure fencing. We ensure the exterior of your property matches the quality of the interior.</p>
-                <a href="landscaping.html" class="service-btn">View Landscaping</a>
-            </div>
-            <div class="service-image">
-                <img src="static/images/landscaping.jpg" alt="Landscaping" onerror="this.src='https://images.unsplash.com/photo-1623625345638-89c836e67618?auto=format&fit=crop&w=800&q=80'">
-            </div>
-        </div>
-
-        <div class="service-row" data-aos="fade-up">
             <div class="service-content">
                 <h2>Reactive Maintenance</h2>
                 <p>24/7 emergency response for plumbing, electrical, and storm damage. Track your engineer live via our client portal.</p>
                 <a href="maintenance.html" class="service-btn">View Maintenance</a>
             </div>
-            <div class="service-image">
-                <img src="static/images/maintenance.jpg" alt="Maintenance Van" onerror="this.src='https://images.unsplash.com/photo-1621905252507-b35492cc7471?auto=format&fit=crop&w=800&q=80'">
-            </div>
+            <div class="service-image"><img src="static/images/maintenance.jpg" alt="Maintenance Van"></div>
         </div>
 
-        <div class="service-row reverse" data-aos="fade-up">
+        <div class="service-row" data-aos="fade-up">
             <div class="service-content">
                 <h2>Property Management</h2>
                 <p>End-to-end asset management powered by software. We automate compliance, handle tenant relations, and give landlords total transparency on costs.</p>
                 <a href="management.html" class="service-btn">View Management</a>
             </div>
-            <div class="service-image">
-                <img src="static/images/commercial.jpg" alt="Property Management" onerror="this.src='https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80'">
-            </div>
-        </div>
-
-        <div class="service-row" data-aos="fade-up">
-            <div class="service-content">
-                <h2>Business Better Software</h2>
-                <p>We built the software we needed but couldn't find. Now available for other trade businesses. A complete operating system for quoting, invoicing, and fleet management.</p>
-                <a href="businessbetter.html" class="service-btn">View Software</a> 
-            </div>
-            <div class="service-image">
-                <div style="width:100%; height:100%; background:#1a1a1a; display:flex; align-items:center; justify-content:center; color:var(--primary-gold);">
-                    <i class="fas fa-laptop-code fa-4x"></i>
-                </div>
-            </div>
-        </div>
-
-        <div class="service-row reverse" data-aos="fade-up">
-            <div class="service-content">
-                <h2>Forensics & Disputes</h2>
-                <p>Expert witness services and defect analysis for construction disputes. We provide impartial, technical reports to resolve conflicts efficiently.</p>
-                <a href="forensics.html" class="service-btn">View Forensics</a>
-            </div>
-            <div class="service-image">
-                <img src="static/images/forensics.jpg" alt="Surveyor" onerror="this.src='https://images.unsplash.com/photo-1581094794329-cd136ce4eed6?auto=format&fit=crop&w=800&q=80'">
-            </div>
+            <div class="service-image"><img src="static/images/commercial.jpg" alt="Property Management"></div>
         </div>
 
     </section>
 
     <footer>
         <div class="container footer-content">
-            <div class="footer-col">
-                <h4>Drugan Group</h4>
-                <p class="creator">Building & Maintenance</p>
-                <p>Quality workmanship backed by cutting-edge technology.</p>
-            </div>
-            <div class="footer-col">
-                <h5>Group Companies</h5>
-                <a href="construction.html">Construction</a>
-                <a href="businessbetter.html">Business Better Software</a> 
-                <a href="forensics.html">Forensics Unit</a>
-            </div>
-            <div class="footer-col">
-                <h5>Contact</h5>
-                <a href="login.html">Client Portal</a>
-                <a href="mailto:info@drugangroup.com">info@drugangroup.com</a>
-            </div>
+            <div class="footer-col"><h4>Drugan Group</h4><p>Building & Maintenance</p></div>
+            <div class="footer-col"><h5>Services</h5><a href="index.html">Construction</a><a href="businessbetter.html">Business Better SaaS</a></div>
+            <div class="footer-col"><h5>Client Area</h5><a href="login.html">Portal Login</a><a href="contact.html">Contact</a></div>
         </div>
-        <div class="bottom-bar">
-            <p>&copy; 2025 Drugan Group. All rights reserved.</p>
-        </div>
+        <div class="bottom-bar"><p>&copy; 2026 Drugan Group. All rights reserved.</p></div>
     </footer>
 
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
         AOS.init({ duration: 800, once: true });
-        
         window.addEventListener('scroll', function() {
             const nav = document.getElementById('navbar');
-            if (window.scrollY > 50) nav.classList.add('scrolled');
-            else nav.classList.remove('scrolled');
+            if (window.scrollY > 50) nav.classList.add('scrolled'); else nav.classList.remove('scrolled');
         });
-
         const menuToggle = document.querySelector('#mobile-menu');
         const navLinks = document.querySelector('.nav-links');
         if (menuToggle) {

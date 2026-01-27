@@ -4,31 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Maintenance | Drugan Group</title>
-    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    
     <link rel="stylesheet" href="static/style.css">
-    <link rel="stylesheet" href="style.css">
-
     <style>
-        .service-detail-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 60px;
-            align-items: center;
-            margin-bottom: 80px;
-        }
+        .service-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; margin-bottom: 80px; }
         .text-col h2 { color: #fff; font-family: 'Montserrat', sans-serif; margin-bottom: 20px; }
         .text-col h3 { color: var(--primary-gold); font-size: 1.1rem; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
         .text-col p { color: #ccc; line-height: 1.8; margin-bottom: 20px; }
         .img-col img { width: 100%; border-radius: 12px; border: 1px solid #333; height: 350px; object-fit: cover; }
-        
-        @media(max-width: 900px) {
-            .service-detail-grid { grid-template-columns: 1fr; }
-            .order-swap { order: 2; }
-        }
+        @media(max-width: 900px) { .service-detail-grid { grid-template-columns: 1fr; } .order-swap { order: 2; } }
     </style>
 </head>
 <body>
@@ -36,9 +22,7 @@
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-                <a href="index.html">
-                    <img src="static/images/logo.png" alt="Drugan Group" class="main-logo-img">
-                </a> 
+                <a href="index.html"><img src="static/images/logo.png" alt="Drugan Group" class="main-logo-img"></a> 
                 DRUGAN <span class="tagline">GROUP</span>
             </div>
             <div class="menu-toggle" id="mobile-menu"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
@@ -46,13 +30,10 @@
                 <li><a href="about.html">About</a></li>
                 <li><a href="services.html" style="color: var(--primary-gold);">Services</a></li>
                 <li><a href="businessbetter.html">Software</a></li>
-                <li><a href="forensics.html">Disputes</a></li>
                 <li><a href="contact.html">Contact</a></li>
                 <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
-            <div class="nav-actions">
-                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i>Portal Login</a>
-            </div>
+            <div class="nav-actions"><a href="login.html" class="btn-primary">Portal Login</a></div>
         </div>
     </nav>
 
@@ -78,21 +59,17 @@
                 <h3>24/7 Cover</h3>
                 <h2>Reactive Repairs</h2>
                 <p>When things break, you need them fixed now. We prioritize emergency calls like water leaks and power outages. Our vans are stocked with common parts to ensure a "first-time fix" rate of over 90%.</p>
-                <p>Track your engineer's arrival live on your phone via our client portal.</p>
+                <p><strong style="color: #fff;">The Digital Advantage:</strong> Track your engineer's arrival live on your phone via our client portal.</p>
             </div>
-            <div class="img-col">
-                <img src="static/images/maintenance.jpg" alt="Engineer Van" onerror="this.src='https://images.unsplash.com/photo-1621905252507-b35492cc7471?auto=format&fit=crop&w=800&q=80'">
-            </div>
+            <div class="img-col"><img src="static/images/maintenance.jpg" alt="Engineer Van"></div>
         </div>
 
         <div class="service-detail-grid" data-aos="fade-up">
-            <div class="img-col order-swap">
-                <img src="static/images/boiler.jpg" alt="Boiler Service" onerror="this.src='https://images.unsplash.com/photo-1581094288338-2314dddb7ece?auto=format&fit=crop&w=800&q=80'">
-            </div>
+            <div class="img-col order-swap"><img src="static/images/boiler.jpg" alt="Boiler Service"></div>
             <div class="text-col">
                 <h3>Prevention</h3>
                 <h2>Planned Maintenance</h2>
-                <p>Don't wait for a breakdown. We manage annual servicing for boilers (Gas Safe) and electrical testing (EICR). Our software automatically reminds you when certificates are due for renewal.</p>
+                <p>Don't wait for a breakdown. We manage annual servicing for boilers (Gas Safe) and electrical testing (EICR). Our software automatically reminds you when certificates are due for renewal, so you remain compliant.</p>
             </div>
         </div>
 
@@ -100,26 +77,11 @@
 
     <footer>
         <div class="container footer-content">
-            <div class="footer-col">
-                <h4>Drugan Group</h4>
-                <p class="creator">Building & Maintenance</p>
-                <p>Quality workmanship backed by cutting-edge technology.</p>
-            </div>
-            <div class="footer-col">
-                <h5>Group Companies</h5>
-                <a href="index.html">Construction</a>
-                <a href="businessbetter.html">Business Better Software</a> 
-                <a href="forensics.html">Forensics Unit</a>
-            </div>
-            <div class="footer-col">
-                <h5>Contact</h5>
-                <a href="login.html">Client Portal</a>
-                <a href="mailto:info@drugangroup.com">info@drugangroup.com</a>
-            </div>
+            <div class="footer-col"><h4>Drugan Group</h4><p>Building & Maintenance</p></div>
+            <div class="footer-col"><h5>Services</h5><a href="index.html">Construction</a><a href="businessbetter.html">Business Better SaaS</a></div>
+            <div class="footer-col"><h5>Client Area</h5><a href="login.html">Portal Login</a><a href="contact.html">Contact</a></div>
         </div>
-        <div class="bottom-bar">
-            <p>&copy; 2025 Drugan Group. All rights reserved.</p>
-        </div>
+        <div class="bottom-bar"><p>&copy; 2026 Drugan Group. All rights reserved.</p></div>
     </footer>
 
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
@@ -127,8 +89,7 @@
         AOS.init({ duration: 800, once: true });
         window.addEventListener('scroll', function() {
             const nav = document.getElementById('navbar');
-            if (window.scrollY > 50) nav.classList.add('scrolled');
-            else nav.classList.remove('scrolled');
+            if (window.scrollY > 50) nav.classList.add('scrolled'); else nav.classList.remove('scrolled');
         });
         const menuToggle = document.querySelector('#mobile-menu');
         const navLinks = document.querySelector('.nav-links');

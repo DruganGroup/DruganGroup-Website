@@ -7,43 +7,28 @@
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
-    
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     
     <link rel="stylesheet" href="static/style.css">
     <style>
-        .service-link {
-            text-decoration: none;
-            color: inherit;
-            display: block;
-            height: 100%;
-        }
-        .service-card {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-        .read-more {
-            margin-top: 20px;
-            color: var(--primary-gold);
-            font-size: 0.9rem;
-            font-weight: 600;
-            opacity: 0;
-            transform: translateY(10px);
-            transition: 0.3s;
-        }
-        .service-card:hover .read-more {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        .portal-promo { background: #0f0f0f; padding: 80px 0; border-top: 1px solid #333; }
+        .glass-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 40px; }
+        .portal-content { display: flex; align-items: center; gap: 50px; }
+        .portal-text { flex: 1; color: #ccc; }
+        .portal-text h2 { color: #fff; font-family: 'Montserrat'; font-weight: 800; margin-bottom: 10px; }
+        .portal-text h3 { color: var(--primary-gold); font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; }
+        .portal-visual { flex: 1; display: flex; justify-content: center; }
+        
+        .phone-mockup { width: 280px; background: #000; border: 4px solid #333; border-radius: 30px; padding: 15px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .screen-header { border-bottom: 1px solid #333; padding-bottom: 10px; text-align: center; color: #fff; font-weight: bold; font-size: 0.9rem; }
+        .screen-body { padding-top: 15px; }
+        .msg-bubble { background: #333; color: #fff; padding: 10px; border-radius: 10px; margin-bottom: 10px; font-size: 0.85rem; }
+        .msg-bubble.system { background: rgba(212, 175, 55, 0.2); color: var(--primary-gold); text-align: center; border: 1px solid var(--primary-gold); }
+
+        @media(max-width: 900px) { .portal-content { flex-direction: column; } }
     </style>
 </head>
 <body>
-
-    <div class="floating-cta" id="floatingCta">
-        <a href="contact.html" class="btn-primary">Get Free Quote →</a>
-    </div>
 
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
@@ -53,22 +38,15 @@
                 </a> 
                 DRUGAN <span class="tagline">GROUP</span>
             </div>
-            <div class="menu-toggle" id="mobile-menu">
-                <span class="bar"></span>
-                <span class="bar"></span>
-                <span class="bar"></span>
-            </div>
-            
+            <div class="menu-toggle" id="mobile-menu"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
             <ul class="nav-links">
-                <li></li>
                 <li><a href="about.html">About</a></li>
                 <li><a href="services.html">Services</a></li>
-                <li><a href="businessbetter.html">Software</a></li>
+                <li><a href="businessbetter.html" style="color: var(--primary-gold);">Our Software</a></li>
                 <li><a href="forensics.html">Disputes</a></li>
                 <li><a href="contact.html">Contact</a></li>
                 <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
-            
             <div class="nav-actions">
                 <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i>Portal Login</a>
             </div>
@@ -82,11 +60,10 @@
             <div class="hero-text center-text" data-aos="fade-up">
                 <div class="badge">EST. 2019</div>
                 <h1>Building the Future. <br><span class="gold-gradient">Maintaining the Present.</span></h1>
-                <p class="hero-sub">From heavy groundworks to reactive property maintenance. We provide complete construction solutions with total transparency.</p>
-                
+                <p class="hero-sub">From heavy groundworks to reactive property maintenance. We are the only firm that gives you a digital window into your project, powered by our proprietary Business Better OS.</p>
                 <div class="cta-group center-group">
                     <a href="contact.html" class="btn-primary btn-large">Get a Quote</a>
-                    <a href="about.html" class="btn-secondary btn-large">Our Story</a>
+                    <a href="services.html" class="btn-secondary btn-large">Our Services</a>
                 </div>
             </div>
         </div>
@@ -94,18 +71,17 @@
 
     <section class="portal-promo" id="portal" data-aos="fade-up">
         <div class="container">
-            <div class="glass-card wide-card">
+            <div class="glass-card">
                 <div class="portal-content">
                     <div class="portal-text">
-                        <h2><i class="fas fa-bolt gold-text"></i> Instant Fault Reporting</h2>
-                        <h3>The Drugan Group Client Portal</h3>
-                        <p>Don't wait on hold. Our clients get exclusive access to our custom portal. Report repairs, track maintenance teams via GPS, and view job sign-offs in real-time.</p>
-                        <ul class="portal-features">
-                            <li style="list-style: none; margin-bottom: 10px;"><i class="fas fa-check" style="color: var(--primary-gold);"></i> Log issues 24/7</li>
-                            <li style="list-style: none; margin-bottom: 10px;"><i class="fas fa-check" style="color: var(--primary-gold);"></i> Live Engineer Tracking</li>
-                            <li style="list-style: none; margin-bottom: 10px;"><i class="fas fa-check" style="color: var(--primary-gold);"></i> Instant Photo Updates</li>
+                        <h2><i class="fas fa-bolt" style="color: var(--primary-gold);"></i> Instant Fault Reporting</h2>
+                        <h3>The Drugan Client Portal</h3>
+                        <p>Stop waiting on hold. Our clients get exclusive access to our custom portal. Report repairs, track maintenance teams via GPS, and view job sign-offs in real-time.</p>
+                        <ul style="list-style: none; padding: 0; margin-bottom: 30px;">
+                            <li style="margin-bottom: 10px;"><i class="fas fa-check" style="color: var(--primary-gold); margin-right: 10px;"></i> Log issues 24/7</li>
+                            <li style="margin-bottom: 10px;"><i class="fas fa-check" style="color: var(--primary-gold); margin-right: 10px;"></i> Live Engineer Tracking</li>
+                            <li style="margin-bottom: 10px;"><i class="fas fa-check" style="color: var(--primary-gold); margin-right: 10px;"></i> Instant Photo Updates</li>
                         </ul>
-                        <br>
                         <a href="login.html" class="btn-primary">Log Issue Now</a>
                     </div>
                     <div class="portal-visual">
@@ -123,111 +99,44 @@
         </div>
     </section>
 
-    <section class="features" id="services" data-aos="fade-up">
+    <section class="features" id="services" style="padding: 80px 0;">
         <div class="container">
-            <div class="section-header">
-                <h2>Comprehensive <span class="gold-text">Trades.</span></h2>
-                <p>We handle every aspect of your project. For specialist Gas & Electric works, we manage vetted sub-contractors so you have one point of contact.</p>
+            <div class="section-header" style="text-align: center; margin-bottom: 60px;">
+                <h2 style="color: #fff; font-family: 'Montserrat'; font-size: 2.5rem; margin-bottom: 15px;">Comprehensive <span style="color: var(--primary-gold);">Trades.</span></h2>
+                <p style="color: #ccc;">One point of contact. One standard of excellence.</p>
             </div>
 
-            <div class="services-grid">
-                <a href="roofing.html" class="service-link" data-aos="fade-up" data-aos-delay="100">
-                    <div class="service-card">
-                        <div>
-                            <i class="fas fa-home card-icon"></i>
-                            <h3>Roofing</h3>
-                            <p>New builds, repairs, and flat roofing systems. We keep you watertight.</p>
-                        </div>
-                        <div class="read-more">View Services →</div>
-                    </div>
+            <div class="bento-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
+                <a href="roofing.html" class="service-card" style="background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; text-decoration: none; transition: 0.3s;">
+                    <i class="fas fa-home fa-2x" style="color: var(--primary-gold); margin-bottom: 20px;"></i>
+                    <h3 style="color: #fff; margin-bottom: 10px;">Roofing</h3>
+                    <p style="color: #999;">New builds and repairs. Drone surveys included.</p>
                 </a>
-
-                <a href="construction.html" class="service-link" data-aos="fade-up" data-aos-delay="150">
-                    <div class="service-card">
-                        <div>
-                            <i class="fas fa-hard-hat card-icon"></i>
-                            <h3>Construction</h3>
-                            <p>Extensions, renovations, and new developments managed from ground to completion.</p>
-                        </div>
-                        <div class="read-more">View Projects →</div>
-                    </div>
+                <a href="construction.html" class="service-card" style="background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; text-decoration: none; transition: 0.3s;">
+                    <i class="fas fa-hard-hat fa-2x" style="color: var(--primary-gold); margin-bottom: 20px;"></i>
+                    <h3 style="color: #fff; margin-bottom: 10px;">Construction</h3>
+                    <p style="color: #999;">Extensions & renovations managed digitally.</p>
                 </a>
-
-                <a href="groundworks.html" class="service-link" data-aos="fade-up" data-aos-delay="200">
-                    <div class="service-card">
-                        <div>
-                            <i class="fas fa-tractor card-icon"></i>
-                            <h3>Groundworks</h3>
-                            <p>Foundations, drainage, and excavation. The heavy lifting done right.</p>
-                        </div>
-                        <div class="read-more">View Machinery →</div>
-                    </div>
+                <a href="groundworks.html" class="service-card" style="background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; text-decoration: none; transition: 0.3s;">
+                    <i class="fas fa-tractor fa-2x" style="color: var(--primary-gold); margin-bottom: 20px;"></i>
+                    <h3 style="color: #fff; margin-bottom: 10px;">Groundworks</h3>
+                    <p style="color: #999;">Foundations and drainage. Heavy plant fleet.</p>
                 </a>
-
-                <a href="landscaping.html" class="service-link" data-aos="fade-up" data-aos-delay="250">
-                    <div class="service-card">
-                        <div>
-                            <i class="fas fa-tree card-icon"></i>
-                            <h3>Landscaping</h3>
-                            <p>Transforming outdoor spaces with precision paving, decking, and secure fencing.</p>
-                        </div>
-                        <div class="read-more">View Designs →</div>
-                    </div>
+                <a href="maintenance.html" class="service-card" style="background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; text-decoration: none; transition: 0.3s;">
+                    <i class="fas fa-tools fa-2x" style="color: var(--primary-gold); margin-bottom: 20px;"></i>
+                    <h3 style="color: #fff; margin-bottom: 10px;">Reactive Maintenance</h3>
+                    <p style="color: #999;">24/7 response for landlords & agencies.</p>
                 </a>
-
-                <a href="maintenance.html" class="service-link" data-aos="fade-up" data-aos-delay="300">
-                    <div class="service-card">
-                        <div>
-                            <i class="fas fa-tools card-icon"></i>
-                            <h3>Property Maintenance</h3>
-                            <p>Reactive repairs and planned maintenance for landlords and homeowners.</p>
-                        </div>
-                        <div class="read-more">Get Repairs →</div>
-                    </div>
+                <a href="management.html" class="service-card" style="background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; text-decoration: none; transition: 0.3s;">
+                    <i class="fas fa-clipboard-check fa-2x" style="color: var(--primary-gold); margin-bottom: 20px;"></i>
+                    <h3 style="color: #fff; margin-bottom: 10px;">Management</h3>
+                    <p style="color: #999;">Total asset management with automated compliance.</p>
                 </a>
-
-                <a href="management.html" class="service-link" data-aos="fade-up" data-aos-delay="350">
-                    <div class="service-card">
-                        <div>
-                            <i class="fas fa-clipboard-check card-icon"></i>
-                            <h3>Property Management</h3>
-                            <p>End-to-end management services. We look after your asset so you don't have to.</p>
-                        </div>
-                        <div class="read-more">Learn More →</div>
-                    </div>
+                <a href="businessbetter.html" class="service-card" style="background: linear-gradient(145deg, #1a1a1a, #000); padding: 30px; border-radius: 15px; border: 1px solid var(--primary-gold); text-decoration: none; transition: 0.3s;">
+                    <i class="fas fa-laptop-code fa-2x" style="color: var(--primary-gold); margin-bottom: 20px;"></i>
+                    <h3 style="color: #fff; margin-bottom: 10px;">Business Better</h3>
+                    <p style="color: #fff;">Our proprietary software. See how we work.</p>
                 </a>
-            </div>
-        </div>
-    </section>
-
-    <section class="software-link" data-aos="fade-up">
-        <div class="container">
-            <div class="software-row">
-                <div class="text">
-                    <h4>Powered by Innovation</h4>
-                    <h2>We built our own brain.</h2>
-                    <p>Drugan Group runs on <strong>Business Better Enterprise</strong> (developed 2025). This proprietary software allows us to quote accurately, track our fleet efficiently, and guarantee our clients total transparency.</p>
-                    <a href="businessbetter.html" class="btn-outline">Explore Our Software</a>
-                </div>
-                <div class="logo-display">
-                    <span class="logo-icon"> DG </span> Business Better
-                </div>
-            </div>
-        </div>
-    </section>
-    
-    <section class="container" style="padding: 80px 0; border-top: 1px solid rgba(255,255,255,0.05);" data-aos="fade-up">
-        <div class="feature-row">
-             <div class="feature-visual">
-                <div class="glass-card" style="height: 100%; display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-file-contract" style="font-size: 5rem; color: #ff5555; opacity: 0.8;"></i>
-                </div>
-            </div>
-            <div class="feature-text">
-                <div class="badge" style="color: #ff5555; border-color: #ff5555;">DISPUTE RESOLUTION</div>
-                <h2>Evidence. <span class="gold-text">Not Opinions.</span></h2>
-                <p>Introducing <strong>Drugan Forensics</strong>. A specialist unit dedicated to technical and commercial auditing. We generate court-ready dossiers detailing regulatory non-compliance and contractual failures, protecting your financial interests.</p>
-                <a href="forensics.html" class="btn-primary">View Forensic Services</a>
             </div>
         </div>
     </section>
@@ -236,15 +145,13 @@
         <div class="container footer-content">
             <div class="footer-col">
                 <h4>Drugan Group</h4>
-                <p class="creator">Building & Maintenance</p>
                 <p>Quality workmanship backed by cutting-edge technology.</p>
             </div>
             <div class="footer-col">
                 <h5>Services</h5>
                 <a href="index.html">Construction</a>
                 <a href="businessbetter.html">Business Better SaaS</a>
-                <a href="forensics.html">Forensic Analysis</a>
-                <a href="about.html">About Us</a>
+                <a href="forensics.html">Forensics Unit</a>
             </div>
             <div class="footer-col">
                 <h5>Client Area</h5>
@@ -254,26 +161,18 @@
             </div>
         </div>
         <div class="bottom-bar">
-            <p>&copy; 2025 Drugan Group. All rights reserved.</p>
+            <p>&copy; 2026 Drugan Group. All rights reserved.</p>
         </div>
     </footer>
 
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
-        AOS.init({ duration: 800, once: true, offset: 100 });
-
+        AOS.init({ duration: 800, once: true });
         window.addEventListener('scroll', function() {
             const nav = document.getElementById('navbar');
             if (window.scrollY > 50) nav.classList.add('scrolled');
             else nav.classList.remove('scrolled');
-
-            const floating = document.getElementById('floatingCta');
-            if (floating) {
-                if (window.scrollY > 400) floating.classList.add('visible');
-                else floating.classList.remove('visible');
-            }
         });
-
         const menuToggle = document.querySelector('#mobile-menu');
         const navLinks = document.querySelector('.nav-links');
         if (menuToggle) {

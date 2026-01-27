@@ -1,116 +1,107 @@
 {% extends "publicbb/base.html" %}
 
-{% block title %}Trade Operating System | Business Better{% endblock %}
+{% block title %}Trade OS | Business Better{% endblock %}
 
 {% block content %}
-<header class="position-relative overflow-hidden" style="padding: 100px 0; background: var(--bb-bg);">
+<header class="py-5 position-relative overflow-hidden" style="background-color: var(--bb-bg); padding-top: 100px !important;">
     <div class="container position-relative z-2">
         <div class="row align-items-center">
-            <div class="col-lg-7">
-                <div class="d-inline-block px-3 py-1 mb-4 border border-warning rounded-pill">
-                    <span class="text-gold text-uppercase small fw-bold tracking-wide">For Contractors & Trades</span>
+            <div class="col-lg-8">
+                <div class="d-inline-flex align-items-center gap-2 px-3 py-1 mb-4 border border-warning rounded-pill bg-dark">
+                    <i class="fas fa-hammer text-gold"></i>
+                    <span class="text-white text-uppercase small fw-bold tracking-wide">Commercial & Industrial Edition</span>
                 </div>
                 <h1 class="display-3 fw-bold text-white mb-4">
-                    Stop Acting Small. <br>
-                    <span class="text-gold">Start Winning Big.</span>
+                    Stop Guessing Your Margins. <br>
+                    <span class="text-gold">Start Knowing Them.</span>
                 </h1>
-                <p class="lead text-secondary mb-5" style="max-width: 600px;">
-                    The only software that helps you manage your current jobs <strong>AND</strong> helps you win commercial maintenance contracts.
-                    From forensic profit analysis to fleet command.
+                <p class="lead text-secondary mb-5" style="max-width: 650px;">
+                    The only software that auto-deducts labor rates, material costs, and vehicle daily run fees from every job. 
+                    See your <strong>True Net Profit</strong> in real-time, not at the end of the year.
                 </p>
                 <div class="d-flex gap-3">
-                    <a href="/pricing" class="btn btn-brand btn-lg shadow-lg">View Pricing</a>
-                    <a href="#profit" class="btn btn-outline-light btn-lg">How It Works</a>
-                </div>
-            </div>
-            <div class="col-lg-5 d-none d-lg-block">
-                <div class="p-5 rounded-circle border border-secondary d-flex align-items-center justify-content-center bg-dark" style="width: 450px; height: 450px; box-shadow: 0 0 50px rgba(212,175,55,0.1);">
-                    <i class="fas fa-tools fa-10x text-gold opacity-50"></i>
+                    <a href="/pricing" class="btn btn-brand btn-lg shadow-lg">Start Free Trial</a>
+                    <a href="#compliance" class="btn btn-outline-light btn-lg">See Compliance Tools</a>
                 </div>
             </div>
         </div>
     </div>
 </header>
 
-<section id="profit" class="py-5 bg-dark">
+<section class="py-5 bg-dark border-top border-secondary">
     <div class="container py-5">
         <div class="row align-items-center">
-            <div class="col-lg-6 order-lg-2 mb-4 mb-lg-0">
-                <div class="p-4 border border-secondary bg-black rounded-4 shadow-lg">
-                    <div class="d-flex justify-content-between text-white mb-3 border-bottom border-secondary pb-2">
-                        <span>Invoice Value</span>
-                        <span>£5,000.00</span>
-                    </div>
-                    <div class="text-danger small mb-2"><i class="fas fa-minus me-2"></i> Materials: £1,200</div>
-                    <div class="text-danger small mb-2"><i class="fas fa-minus me-2"></i> Labor (32hrs): £800</div>
-                    <div class="text-danger small mb-3"><i class="fas fa-minus me-2"></i> Van Run Cost: £150</div>
-                    <div class="d-flex justify-content-between text-gold fw-bold h4 m-0 pt-2 border-top border-secondary">
-                        <span>Net Profit</span>
-                        <span>£2,850.00</span>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-6 order-lg-1 pe-lg-5">
-                <h2 class="fw-bold text-white mb-3">The "True Profit" Engine.</h2>
-                <p class="text-secondary lead mb-4">Most apps just track invoices. We track margins.</p>
-                <p class="text-secondary">Our system automatically calculates the cost of every screw, every hour of labor, and the daily running cost of the van assigned to the job. You will know exactly which jobs are making you rich, and which are bleeding you dry.</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="py-5" style="background-color: var(--bb-bg);">
-    <div class="container py-5">
-        <div class="row align-items-center">
-            <div class="col-lg-6 mb-4 mb-lg-0">
-                <div class="p-5 border border-warning rounded-4 text-center bg-dark position-relative overflow-hidden">
-                    <div style="position: absolute; top:0; left:0; width:100%; height:5px; background: var(--bb-gold);"></div>
-                    <i class="fas fa-file-contract fa-4x text-gold mb-4"></i>
-                    <h4 class="text-white fw-bold">Commercial Grade</h4>
-                    <p class="text-secondary small">Your Gateway to Big Contracts</p>
-                </div>
-            </div>
-            <div class="col-lg-6 ps-lg-5">
-                <h2 class="fw-bold text-white mb-3">Win the Big Contracts.</h2>
+            <div class="col-lg-5 mb-5 mb-lg-0">
+                <h2 class="text-white fw-bold mb-4">The "Blind Spot" Killer.</h2>
                 <p class="text-secondary mb-4">
-                    Estate Agents and Facility Managers won't hire you if you send invoices written on a scrap of paper. They need <strong>Audit Trails</strong>.
+                    Most tradesmen fail because they confuse "Revenue" with "Profit". 
+                    You might invoice £5,000, but after materials (£1,200), labor (£800), and van wear (£150), what's left?
                 </p>
-                <div class="p-4 bg-dark rounded-3 border-start border-4 border-warning">
-                    <p class="text-white fst-italic m-0">
-                        "With Business Better, you give your commercial clients their own <strong>White-Label Portal</strong>. They can log in, see live job photos, download safety certificates, and track progress. You look like a multi-national firm."
-                    </p>
+                <p class="text-white fw-bold mb-4">Business Better calculates this automatically.</p>
+                <ul class="list-unstyled text-secondary">
+                    <li class="mb-3 d-flex"><i class="fas fa-check text-gold mt-1 me-3"></i> <span><strong>Live Margin Tracking:</strong> See a progress bar of your budget on every job.</span></li>
+                    <li class="mb-3 d-flex"><i class="fas fa-check text-gold mt-1 me-3"></i> <span><strong>Daily Run Cost:</strong> Assign vans to jobs to auto-deduct lease/fuel/insurance costs.</span></li>
+                </ul>
+            </div>
+            <div class="col-lg-7 ps-lg-5">
+                <div class="p-4 bg-black border border-secondary rounded-4 shadow-lg">
+                    <div class="d-flex justify-content-between text-white border-bottom border-secondary pb-3 mb-3">
+                        <span class="h5 m-0">Project: Unit 4 Refit</span>
+                        <span class="badge bg-success">Complete</span>
+                    </div>
+                    <div class="row text-center g-0">
+                        <div class="col-4 border-end border-secondary">
+                            <div class="small text-muted text-uppercase fw-bold">Invoiced</div>
+                            <div class="h3 text-white m-0">£12,500</div>
+                        </div>
+                        <div class="col-4 border-end border-secondary">
+                            <div class="small text-muted text-uppercase fw-bold">Total Cost</div>
+                            <div class="h3 text-danger m-0">£8,240</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="small text-muted text-uppercase fw-bold">Net Profit</div>
+                            <div class="h3 text-gold m-0">£4,260</div>
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-3 border-top border-secondary small text-end text-muted">
+                        *Includes Material, Labor, and Fleet Costs
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </section>
 
-<section class="py-5 bg-dark">
+<section id="compliance" class="py-5" style="background-color: var(--bb-bg);">
     <div class="container py-5">
         <div class="text-center mb-5">
-            <h2 class="fw-bold text-white">The Daily Command Center</h2>
-            <p class="text-secondary">Everything else you need to run the van.</p>
+            <h6 class="text-gold text-uppercase">Commercial Capabilities</h6>
+            <h2 class="text-white fw-bold">Win Bigger Contracts.</h2>
+            <p class="text-secondary mx-auto" style="max-width: 600px;">
+                Commercial clients need paperwork. We automate it.
+            </p>
         </div>
+        
         <div class="row g-4">
             <div class="col-md-4">
-                <div class="card h-100 border-secondary bg-black text-white p-4 hover-gold">
-                    <i class="fas fa-file-invoice-dollar fa-2x text-gold mb-3"></i>
-                    <h5 class="fw-bold">Smart Invoicing</h5>
-                    <p class="text-secondary small">Convert quotes to invoices instantly. Automatic chase emails for late payers.</p>
+                <div class="p-4 border border-secondary rounded-4 h-100 bg-dark hover-gold">
+                    <i class="fas fa-file-contract fa-2x text-gold mb-3"></i>
+                    <h5 class="text-white fw-bold">Instant RAMS</h5>
+                    <p class="text-secondary small">Generate professional Risk Assessments and Method Statements in 60 seconds. Send them to the site manager before you even park the van.</p>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="card h-100 border-secondary bg-black text-white p-4 hover-gold">
-                    <i class="fas fa-truck-pickup fa-2x text-gold mb-3"></i>
-                    <h5 class="fw-bold">Fleet Command</h5>
-                    <p class="text-secondary small">Track MOT, Tax, and Service dates. Force drivers to complete photo-verified walkaround checks.</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card h-100 border-secondary bg-black text-white p-4 hover-gold">
+                <div class="p-4 border border-secondary rounded-4 h-100 bg-dark hover-gold">
                     <i class="fas fa-hard-hat fa-2x text-gold mb-3"></i>
-                    <h5 class="fw-bold">HR & Safety</h5>
-                    <p class="text-secondary small">Store Next-of-Kin details, track driving license points, and generate RAMS on the fly.</p>
+                    <h5 class="text-white fw-bold">Site Diaries</h5>
+                    <p class="text-secondary small">Engineers upload photos and notes daily. Generate a "Proof of Work" PDF at the end of the job to guarantee payment.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-4 border border-secondary rounded-4 h-100 bg-dark hover-gold">
+                    <i class="fas fa-id-card fa-2x text-gold mb-3"></i>
+                    <h5 class="text-white fw-bold">White-Label Portal</h5>
+                    <p class="text-secondary small">Give your clients a login to your branded portal. They can download their own invoices and certificates, saving you admin time.</p>
                 </div>
             </div>
         </div>
@@ -118,7 +109,7 @@
 </section>
 
 <style>
-    .hover-gold { transition: all 0.3s; }
-    .hover-gold:hover { transform: translateY(-5px); border-color: var(--bb-gold); }
+    .hover-gold { transition: transform 0.3s; }
+    .hover-gold:hover { transform: translateY(-5px); border-color: var(--bb-gold) !important; }
 </style>
 {% endblock %}

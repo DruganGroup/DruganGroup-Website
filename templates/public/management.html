@@ -10,66 +10,18 @@
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     
     <link rel="stylesheet" href="static/style.css">
-    <link rel="stylesheet" href="style.css">
-
     <style>
-        .bento-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-        }
-        .bento-card {
-            background: var(--bg-card);
-            border: 1px solid rgba(255,255,255,0.1);
-            padding: 40px;
-            border-radius: 20px;
-            transition: 0.3s;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-        }
-        .bento-card:hover {
-            border-color: var(--primary-gold);
-            transform: translateY(-5px);
-            background: rgba(255,255,255,0.03);
-        }
-        .card-icon {
-            font-size: 2.5rem;
-            color: var(--primary-gold);
-            margin-bottom: 25px;
-        }
+        .bento-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+        .bento-card { background: var(--bg-card); border: 1px solid rgba(255,255,255,0.1); padding: 40px; border-radius: 20px; transition: 0.3s; height: 100%; display: flex; flex-direction: column; }
+        .bento-card:hover { border-color: var(--primary-gold); transform: translateY(-5px); background: rgba(255,255,255,0.03); }
+        .card-icon { font-size: 2.5rem; color: var(--primary-gold); margin-bottom: 25px; }
         .bento-card h3 { color: #fff; margin-bottom: 15px; font-family: 'Montserrat', sans-serif; }
         .bento-card p { color: #ccc; line-height: 1.6; }
         
-        .software-highlight {
-            display: flex;
-            align-items: center;
-            background: #111;
-            border-radius: 20px;
-            overflow: hidden;
-            margin-top: 80px;
-            border: 1px solid #333;
-        }
+        .software-highlight { display: flex; align-items: center; background: #111; border-radius: 20px; overflow: hidden; margin-top: 80px; border: 1px solid #333; }
         .sw-text { flex: 1; padding: 60px; }
-        .sw-visual { 
-            flex: 1; 
-            background: #000; 
-            height: 100%; 
-            min-height: 400px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            padding: 40px;
-            font-family: 'Courier New', monospace;
-            border-left: 1px solid #333;
-        }
-
-        /* Mobile Fix */
-        @media(max-width: 900px) {
-            .software-highlight { flex-direction: column; }
-            .sw-visual { width: 100%; border-left: none; border-top: 1px solid #333; }
-            .sw-text { padding: 40px; }
-        }
+        .sw-visual { flex: 1; background: #000; height: 100%; min-height: 400px; display: flex; flex-direction: column; justify-content: center; padding: 40px; font-family: 'Courier New', monospace; border-left: 1px solid #333; }
+        @media(max-width: 900px) { .software-highlight { flex-direction: column; } .sw-visual { width: 100%; border-left: none; border-top: 1px solid #333; } .sw-text { padding: 40px; } }
     </style>
 </head>
 <body>
@@ -77,33 +29,24 @@
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-                <a href="index.html">
-                    <img src="static/images/logo.png" alt="Drugan Group" class="main-logo-img">
-                </a> 
+                <a href="index.html"><img src="static/images/logo.png" alt="Drugan Group" class="main-logo-img"></a> 
                 DRUGAN <span class="tagline">GROUP</span>
             </div>
-            <div class="menu-toggle" id="mobile-menu">
-                <span class="bar"></span>
-                <span class="bar"></span>
-                <span class="bar"></span>
-            </div>
-            
+            <div class="menu-toggle" id="mobile-menu"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
             <ul class="nav-links">
                 <li><a href="about.html">About</a></li>
                 <li><a href="services.html" style="color: var(--primary-gold);">Services</a></li>
                 <li><a href="businessbetter.html">Software</a></li>
-                <li><a href="forensics.html">Disputes</a></li>
                 <li><a href="contact.html">Contact</a></li>
                 <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
-            
-            <div class="nav-actions">
-                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i>Portal Login</a>
-            </div>
+            <div class="nav-actions"><a href="login.html" class="btn-primary">Portal Login</a></div>
         </div>
     </nav>
 
-    <header class="hero hero-enhanced" style="background-image: linear-gradient(rgba(10,10,15,0.85), rgba(10,10,15,0.95)), url('https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1920&q=80');">
+    <header class="hero hero-enhanced">
+        <div class="hero-bg"></div>
+        <div class="hero-overlay"></div>
         <div class="container hero-grid single-col">
             <div class="hero-text center-text" data-aos="fade-up">
                 <div class="badge">ASSET MANAGEMENT</div>
@@ -170,38 +113,20 @@
 
     <footer>
         <div class="container footer-content">
-            <div class="footer-col">
-                <h4>Drugan Group</h4>
-                <p class="creator">Building & Maintenance</p>
-                <p>Quality workmanship backed by cutting-edge technology.</p>
-            </div>
-            <div class="footer-col">
-                <h5>Group Companies</h5>
-                <a href="index.html">Construction</a>
-                <a href="businessbetter.html">Business Better Software</a> 
-                <a href="forensics.html">Forensics Unit</a>
-            </div>
-            <div class="footer-col">
-                <h5>Contact</h5>
-                <a href="login.html">Client Portal</a>
-                <a href="mailto:info@drugangroup.com">info@drugangroup.com</a>
-            </div>
+            <div class="footer-col"><h4>Drugan Group</h4><p>Building & Maintenance</p></div>
+            <div class="footer-col"><h5>Services</h5><a href="index.html">Construction</a><a href="businessbetter.html">Business Better SaaS</a></div>
+            <div class="footer-col"><h5>Client Area</h5><a href="login.html">Portal Login</a><a href="contact.html">Contact</a></div>
         </div>
-        <div class="bottom-bar">
-            <p>&copy; 2025 Drugan Group. All rights reserved.</p>
-        </div>
+        <div class="bottom-bar"><p>&copy; 2026 Drugan Group. All rights reserved.</p></div>
     </footer>
 
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
         AOS.init({ duration: 800, once: true });
-        
         window.addEventListener('scroll', function() {
             const nav = document.getElementById('navbar');
-            if (window.scrollY > 50) nav.classList.add('scrolled');
-            else nav.classList.remove('scrolled');
+            if (window.scrollY > 50) nav.classList.add('scrolled'); else nav.classList.remove('scrolled');
         });
-
         const menuToggle = document.querySelector('#mobile-menu');
         const navLinks = document.querySelector('.nav-links');
         if (menuToggle) {
