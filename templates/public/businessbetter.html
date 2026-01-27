@@ -3,97 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Business Better | The Simple Trade OS</title>
+    <title>Business Better | The Trade Operating System</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     
     <link rel="stylesheet" href="static/style.css">
-    <link rel="stylesheet" href="style.css">
-
     <style>
-        :root {
-            --primary-gold: #c5a059;
-            --bg-dark: #0a0a0a;
-            --card-bg: #161616;
-            --text-main: #ffffff;
-            --text-muted: #dcdcdc; 
+        /* Custom Styles for this Bridge Page */
+        .software-hero {
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+            padding: 120px 0 80px;
+            position: relative;
+            overflow: hidden;
         }
-
-        body { 
-            background-color: var(--bg-dark); 
-            color: var(--text-main); 
-            font-family: 'Inter', sans-serif; 
-            margin: 0;
+        .glow-effect {
+            position: absolute;
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.15) 0%, rgba(0,0,0,0) 70%);
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
         }
-
-        /* RESET: Ensure Custom Navbar isn't messed up by Bootstrap */
-        .navbar { padding: 0; }
-        .nav-links { padding-left: 0; margin-bottom: 0; }
-        a { text-decoration: none; }
-        
-        .text-muted { color: var(--text-muted) !important; }
-        p { color: var(--text-muted); }
-
-        /* FIXED: Removed the huge padding that was making the blue bit too big */
-        .hero-enhanced { 
-            position: relative; 
-            overflow: hidden; 
-            background: transparent;
-        }
-        
-        .hero-sub { 
-            color: var(--text-muted); 
-            font-size: 1.2rem; 
-            line-height: 1.6; 
-            max-width: 600px; 
-            position: relative; 
-            z-index: 2; 
-        }
-
-        .gold-gradient {
-            background: linear-gradient(45deg, #c5a059, #f9e2af);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-weight: 800;
-        }
-
-        /* PRICING CARDS */
-        .pricing-section { padding: 100px 0; background: #050505; }
-        .price-card {
-            background: var(--card-bg);
-            border: 1px solid #222;
-            border-radius: 20px;
-            padding: 40px;
-            transition: 0.3s ease;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-        }
-        .price-card:hover { border-color: var(--primary-gold); transform: translateY(-10px); }
-        .price-val { font-size: 3.5rem; font-weight: 800; color: white; margin: 15px 0; }
-        .price-val small { font-size: 1rem; color: var(--text-muted); }
-        .list-unstyled li { margin-bottom: 12px; color: var(--text-muted); }
-
-        .btn-gold {
-            background: var(--primary-gold);
-            color: #000;
-            font-weight: 700;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 8px;
-            text-decoration: none;
-            display: inline-block;
+        .stat-box {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
             transition: 0.3s;
         }
-        .btn-gold:hover { background: #fff; color: #000; }
-
-        /* FOOTER */
-        footer { border-top: 1px solid #222; padding: 60px 0; background: #0a0a0a; }
-        .footer-link { color: var(--text-muted); text-decoration: none; display: block; margin-bottom: 10px; }
-        .footer-link:hover { color: white; }
+        .stat-box:hover {
+            border-color: var(--primary-gold);
+            transform: translateY(-5px);
+        }
+        .stat-num { font-size: 2.5rem; font-weight: 800; color: #fff; display: block; margin-bottom: 5px; }
+        .stat-label { color: var(--primary-gold); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .feature-list li {
+            margin-bottom: 15px;
+            color: #ccc;
+            display: flex;
+            align-items: flex-start;
+        }
+        .feature-list i {
+            color: var(--primary-gold);
+            margin-right: 15px;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -108,147 +66,123 @@
             </div>
             
             <div class="menu-toggle" id="mobile-menu">
-                <span class="bar"></span>
-                <span class="bar"></span>
-                <span class="bar"></span>
+                <span class="bar"></span><span class="bar"></span><span class="bar"></span>
             </div>
             
             <ul class="nav-links">
                 <li><a href="about.html">About</a></li>
                 <li><a href="services.html">Services</a></li>
-                <li><a href="businessbetter.html" style="color: var(--primary-gold);">Software</a></li>
-                <li><a href="forensics.html">Disputes</a></li>
+                <li><a href="businessbetter.html" style="color: var(--primary-gold);">Our Software</a></li>
                 <li><a href="contact.html">Contact</a></li>
                 <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
             
             <div class="nav-actions">
-                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i>Portal Login</a>
+                <a href="login.html" class="btn-primary">Portal Login</a>
             </div>
         </div>
     </nav>
 
-    <header class="hero hero-enhanced" style="min-height: 60vh;">
-        <div class="hero-bg"></div>
-        <div class="hero-overlay"></div>
-        
-        <div class="container hero-grid single-col" style="position: relative; z-index: 2;">
-            <div class="hero-text center-text" data-aos="fade-up">
-                <div class="badge border border-secondary mb-3 p-2 px-3 text-white" style="background: rgba(255,255,255,0.05);">🚀 Now Live for 2026</div>
-                <h1 class="display-3 fw-bold mb-4">Trade Software.<br><span class="gold-gradient">Simplified.</span></h1>
-                <p class="hero-sub">
-                    Most software is too complicated. Ours is built for people who actually work for a living. 
-                    <strong>One app for the Van. One dashboard for the Office.</strong>
-                    Quote, Schedule, and Invoice in clicks, not hours.
-                </p>
-                
-                <div class="cta-group center-group mt-4">
-                    <a href="#features" class="btn-gold">See How It Works</a>
-                    <a href="contact.html" class="btn btn-outline-light btn-lg px-4" style="border-radius: 8px;">Purchase</a>
+    <header class="software-hero">
+        <div class="glow-effect"></div>
+        <div class="container" style="position: relative; z-index: 2;">
+            <div class="row align-items-center">
+                <div class="col-lg-7" data-aos="fade-right">
+                    <div class="badge">PROPRIETARY TECHNOLOGY</div>
+                    <h1 style="font-size: 3.5rem; line-height: 1.1; margin-bottom: 20px; color: white;">
+                        The Secret to Our <br><span class="gold-gradient">Speed.</span>
+                    </h1>
+                    <p class="hero-sub" style="font-size: 1.2rem; color: #ccc; margin-bottom: 40px;">
+                        Clients often ask how Drugan Group manages complex projects with such precision. 
+                        The answer isn't just hard work. It's <strong>Business Better</strong>—the Trade Operating System we built to run our own empire.
+                    </p>
+                    <div class="cta-group">
+                        <a href="https://www.businessbetter.co.uk" target="_blank" class="btn-primary btn-large">
+                            Visit Business Better <i class="fas fa-external-link-alt" style="margin-left: 10px;"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="col-lg-5" data-aos="fade-left">
+                    <div style="background: #111; padding: 40px; border-radius: 20px; border: 1px solid #333; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+                        <h3 style="color: white; margin-bottom: 20px;">Why we built it:</h3>
+                        <ul class="feature-list">
+                            <li><i class="fas fa-times-circle" style="color: #ff4444;"></i> Existing software was too slow.</li>
+                            <li><i class="fas fa-times-circle" style="color: #ff4444;"></i> Nobody tracked "True Net Profit".</li>
+                            <li><i class="fas fa-check-circle"></i> We needed GPS-verified compliance.</li>
+                            <li><i class="fas fa-check-circle"></i> We wanted to automate admin.</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
     </header>
 
-    <section class="py-5 bg-dark" id="features">
-        <div class="container py-5">
-            <div class="row g-5">
-                <div class="col-md-4" data-aos="fade-up">
-                    <div class="p-3 border border-secondary rounded-4 bg-black h-100">
-                        <i class="fas fa-laptop-house text-primary fa-2x mb-3"></i>
-                        <h3 class="text-white fw-bold mb-3">The Office Hub</h3>
-                        <p class="text-muted">Your Mission Control. Drag-and-drop scheduling, instant quotes, and a "Job Binder" that collects every receipt and photo automatically.</p>
-                        <ul class="text-muted small list-unstyled">
-                            <li><i class="fas fa-check text-success me-2"></i> Create Quotes in Seconds</li>
-                            <li><i class="fas fa-check text-success me-2"></i> One-Click Invoicing</li>
-                            <li><i class="fas fa-check text-success me-2"></i> Live Fleet Map</li>
-                        </ul>
-                    </div>
-                </div>
+    <section class="container" style="padding: 80px 0;">
+        <div class="row" style="gap: 20px; justify-content: center;">
+            <div class="col-md-3 stat-box" data-aos="fade-up">
+                <span class="stat-num">20+</span>
+                <span class="stat-label">Hours Saved / Week</span>
+            </div>
+            <div class="col-md-3 stat-box" data-aos="fade-up" data-aos-delay="100">
+                <span class="stat-num">100%</span>
+                <span class="stat-label">Compliance Rate</span>
+            </div>
+            <div class="col-md-3 stat-box" data-aos="fade-up" data-aos-delay="200">
+                <span class="stat-num">30%</span>
+                <span class="stat-label">Margin Increase</span>
+            </div>
+        </div>
+    </section>
 
-                <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
-                    <div class="p-3 border border-secondary rounded-4 bg-black h-100 position-relative" style="border-color: var(--primary-gold) !important;">
-                        <span class="badge bg-warning text-dark position-absolute top-0 end-0 m-3">Driver Favorite</span>
-                        <i class="fas fa-mobile-alt text-warning fa-2x mb-3"></i>
-                        <h3 class="text-white fw-bold mb-3">Site Companion</h3>
-                        <p class="text-muted">The app for the van. Big buttons, no confusing menus. Your team can clock in, check vehicle safety, and upload receipts instantly.</p>
-                        <ul class="text-muted small list-unstyled">
-                            <li><i class="fas fa-check text-success me-2"></i> Photo Evidence Upload</li>
-                            <li><i class="fas fa-check text-success me-2"></i> Daily Van Checks</li>
-                            <li><i class="fas fa-check text-success me-2"></i> Navigation to Site</li>
-                        </ul>
-                    </div>
+    <section style="background: #111; padding: 100px 0; border-top: 1px solid #222;">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6" data-aos="fade-right">
+                    <h2 style="color: white; margin-bottom: 25px; font-family: 'Montserrat';">Now Available to the Industry.</h2>
+                    <p style="color: #ccc; line-height: 1.8; margin-bottom: 20px;">
+                        We realized that <strong>Business Better</strong> wasn't just a tool for Drugan Group. It was the solution every serious trade business needed.
+                    </p>
+                    <p style="color: #ccc; line-height: 1.8; margin-bottom: 30px;">
+                        Whether you are a <strong>Sole Trader</strong> tired of paperwork, or a <strong>Property Management Agency</strong> drowning in maintenance calls, our software automates the chaos.
+                    </p>
+                    
+                    <a href="https://www.businessbetter.co.uk/features" class="btn-outline">Explore Features</a>
                 </div>
-
-                <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
-                    <div class="p-3 border border-secondary rounded-4 bg-black h-100">
-                        <i class="fas fa-chart-line text-success fa-2x mb-3"></i>
-                        <h3 class="text-white fw-bold mb-3">Profit Watchdog</h3>
-                        <p class="text-muted">Stop guessing. See exactly how much money you made today. Track real material costs vs. what you quoted in real-time.</p>
-                        <ul class="text-muted small list-unstyled">
-                            <li><i class="fas fa-check text-success me-2"></i> Live Profit Margins</li>
-                            <li><i class="fas fa-check text-success me-2"></i> Expense Tracking</li>
-                            <li><i class="fas fa-check text-success me-2"></i> Auto-Tax Calculations</li>
-                        </ul>
+                <div class="col-lg-6" data-aos="fade-left">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div style="background: #000; padding: 25px; border: 1px solid #333; border-radius: 10px;">
+                            <i class="fas fa-file-invoice-dollar fa-2x" style="color: var(--primary-gold); margin-bottom: 15px;"></i>
+                            <h4 style="color: white; margin-bottom: 10px;">Unified Estimator</h4>
+                            <p style="color: #888; font-size: 0.9rem;">Auto-calculate materials & labor. Quote in seconds.</p>
+                        </div>
+                        <div style="background: #000; padding: 25px; border: 1px solid #333; border-radius: 10px;">
+                            <i class="fas fa-truck-pickup fa-2x" style="color: var(--primary-gold); margin-bottom: 15px;"></i>
+                            <h4 style="color: white; margin-bottom: 10px;">Fleet Command</h4>
+                            <p style="color: #888; font-size: 0.9rem;">Live GPS tracking & daily van safety checks.</p>
+                        </div>
+                        <div style="background: #000; padding: 25px; border: 1px solid #333; border-radius: 10px;">
+                            <i class="fas fa-hard-hat fa-2x" style="color: var(--primary-gold); margin-bottom: 15px;"></i>
+                            <h4 style="color: white; margin-bottom: 10px;">Site RAMS</h4>
+                            <p style="color: #888; font-size: 0.9rem;">Generate risk assessments on your phone instantly.</p>
+                        </div>
+                        <div style="background: #000; padding: 25px; border: 1px solid #333; border-radius: 10px;">
+                            <i class="fas fa-building fa-2x" style="color: var(--primary-gold); margin-bottom: 15px;"></i>
+                            <h4 style="color: white; margin-bottom: 10px;">Agency Portal</h4>
+                            <p style="color: #888; font-size: 0.9rem;">Tenants report repairs. You dispatch. Zero phone calls.</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="pricing-section" id="pricing">
-        <div class="container">
-            <div class="text-center mb-5" data-aos="fade-up">
-                <h2 class="display-5 fw-bold text-white">Simple <span class="gold-text">Pricing</span></h2>
-                <p class="text-muted">No hidden fees. Cancel anytime.</p>
-            </div>
-
-            <div class="row g-4 justify-content-center">
-                <div class="col-lg-4 col-md-6" data-aos="fade-up">
-                    <div class="price-card">
-                        <h4 class="fw-bold">Sole Trader</h4>
-                        <div class="price-val">£25<small>/mo</small></div>
-                        <p class="text-muted">Perfect for one-man bands.</p>
-                        <ul class="list-unstyled mb-4">
-                            <li><i class="fas fa-check gold-text me-2"></i> Quote & Invoice</li>
-                            <li><i class="fas fa-check gold-text me-2"></i> Expense Tracking</li>
-                            <li><i class="fas fa-check gold-text me-2"></i> Basic Scheduling</li>
-                        </ul>
-                        <a href="contact.html" class="btn-gold mt-auto text-center">Get Started</a>
-                    </div>
-                </div>
-
-                <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="100">
-                    <div class="price-card" style="border: 2px solid var(--primary-gold); background: #1a1a1a;">
-                        <span class="badge bg-warning text-dark position-absolute top-0 start-50 translate-middle">MOST POPULAR</span>
-                        <h4 class="fw-bold">Growing Team</h4>
-                        <div class="price-val">£75<small>/mo</small></div>
-                        <p class="text-muted">For gangs of up to 5 staff.</p>
-                        <ul class="list-unstyled mb-4">
-                            <li><i class="fas fa-check gold-text me-2"></i> <strong>Everything in Sole Trader</strong></li>
-                            <li><i class="fas fa-check gold-text me-2"></i> Site Companion App</li>
-                            <li><i class="fas fa-check gold-text me-2"></i> Fleet Management</li>
-                            <li><i class="fas fa-check gold-text me-2"></i> Profit Analysis</li>
-                        </ul>
-                        <a href="contact.html" class="btn-gold mt-auto text-center">Start Free Trial</a>
-                    </div>
-                </div>
-
-                <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="200">
-                    <div class="price-card">
-                        <h4 class="fw-bold">Enterprise</h4>
-                        <div class="price-val">£199<small>/mo</small></div>
-                        <p class="text-muted">Unlimited staff & power.</p>
-                        <ul class="list-unstyled mb-4">
-                            <li><i class="fas fa-check gold-text me-2"></i> <strong>Everything in Growing</strong></li>
-                            <li><i class="fas fa-check gold-text me-2"></i> Unlimited Users</li>
-                            <li><i class="fas fa-check gold-text me-2"></i> Service Desk Module</li>
-                            <li><i class="fas fa-check gold-text me-2"></i> Dedicated Support</li>
-                        </ul>
-                        <a href="contact.html" class="btn btn-outline-light mt-auto text-center py-2">Contact Sales</a>
-                    </div>
-                </div>
-            </div>
+    <section style="padding: 100px 0; text-align: center;">
+        <div class="container" data-aos="zoom-in">
+            <h2 style="color: white; margin-bottom: 20px;">Ready to run your business better?</h2>
+            <p style="color: #ccc; margin-bottom: 40px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                Join the platform that powers Drugan Group. Start your free trial today.
+            </p>
+            <a href="https://www.businessbetter.co.uk/pricing" class="btn-primary btn-large">View Pricing & Plans</a>
         </div>
     </section>
 
@@ -256,13 +190,12 @@
         <div class="container footer-content">
             <div class="footer-col">
                 <h4>Drugan Group</h4>
-                <p class="creator">Building & Maintenance</p>
                 <p>Quality workmanship backed by cutting-edge technology.</p>
             </div>
             <div class="footer-col">
                 <h5>Group Companies</h5>
                 <a href="index.html">Construction</a>
-                <a href="businessbetter.html">Business Better Software</a> 
+                <a href="businessbetter.html">Business Better SaaS</a>
                 <a href="forensics.html">Forensics Unit</a>
             </div>
             <div class="footer-col">
@@ -272,16 +205,14 @@
             </div>
         </div>
         <div class="bottom-bar">
-            <p>&copy; 2025 Drugan Group. All rights reserved.</p>
+            <p>&copy; 2026 Drugan Group. All rights reserved.</p>
         </div>
     </footer>
 
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         AOS.init({ duration: 800, once: true });
-
-        // JS Logic to match Index & other pages
+        
         window.addEventListener('scroll', function() {
             const nav = document.getElementById('navbar');
             if (window.scrollY > 50) nav.classList.add('scrolled');
