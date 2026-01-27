@@ -1,7 +1,8 @@
 import os
 import traceback
 from datetime import timedelta
-from flask import Flask, render_template, request, session, send_from_directory, abort, redirect, url_for, session
+# Added 'g' to imports for White Label Logic
+from flask import Flask, render_template, request, session, send_from_directory, abort, redirect, url_for, session, g
 from werkzeug.exceptions import HTTPException
 from db import get_db
 from flask_wtf.csrf import CSRFProtect
@@ -57,6 +58,54 @@ app.register_blueprint(jobs_bp)
 app.register_blueprint(quote_bp)
 
 # =========================================================
+# WHITE LABEL LOGIC (SUBDOMAIN INTERCEPTOR)
+# =========================================================
+@app.before_request
+def load_tenant_context():
+    """
+    Runs before every request. Checks if the user is visiting via a subdomain
+    (e.g., drugangroup.businessbetter.co.uk). If so, it loads that company's ID.
+    """
+    host = request.host.lower()
+    
+    # CHANGE THIS to your live domain when deploying
+    base_domain = 'businessbetter.co.uk' 
+    # For testing on Render, you might need to check 'onrender.com' too
+    
+    # 1. Check if we are on a subdomain (and NOT www)
+    if base_domain in host and not host.startswith('www.') and host != base_domain:
+        # Extract the subdomain (e.g. "drugangroup")
+        subdomain = host.replace(f'.{base_domain}', '').split('.')[0]
+        
+        # 2. Look up the company in the DB
+        conn = get_db()
+        if conn:
+            try:
+                cur = conn.cursor()
+                # Note: DB schema uses 'sub_domain' (with underscore)
+                cur.execute("SELECT id, name FROM companies WHERE LOWER(sub_domain) = %s", (subdomain,))
+                company = cur.fetchone()
+                
+                if company:
+                    # Found them! Store in global 'g' for this request
+                    g.tenant_id = company[0]
+                    g.tenant_name = company[1]
+                    g.is_white_label = True
+                else:
+                    # Subdomain exists in URL but not in DB -> 404
+                    g.is_white_label = False
+                    # Optional: abort(404) if you want to block invalid subdomains strictly
+            except Exception as e:
+                print(f"Subdomain Check Error: {e}")
+                g.is_white_label = False
+            finally:
+                conn.close()
+        else:
+            g.is_white_label = False
+    else:
+        g.is_white_label = False
+
+# =========================================================
 # GLOBAL ERROR CAPTURE
 # =========================================================
 @app.errorhandler(Exception)
@@ -77,20 +126,21 @@ def handle_exception(e):
         msg = str(e)
         tb = traceback.format_exc()
 
-    # 3. Log to DB (Now using the new columns)
+    # 3. Log to DB
     conn = get_db()
-    cur = conn.cursor()
-    try:
-        cur.execute("""
-            INSERT INTO system_logs 
-            (level, message, traceback, route, created_at, ip_address, user_id, company_id, status_code)
-            VALUES (%s, %s, %s, %s, NOW(), %s, %s, %s, %s)
-        """, ('ERROR' if code==500 else 'WARNING', msg, tb, route, ip, user_id, company_id, code))
-        conn.commit()
-    except Exception as db_err:
-        print(f"Failed to log error: {db_err}")
-    finally:
-        conn.close()
+    if conn:
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                INSERT INTO system_logs 
+                (level, message, traceback, route, created_at, ip_address, user_id, company_id, status_code)
+                VALUES (%s, %s, %s, %s, NOW(), %s, %s, %s, %s)
+            """, ('ERROR' if code==500 else 'WARNING', msg, tb, route, ip, user_id, company_id, code))
+            conn.commit()
+        except Exception as db_err:
+            print(f"Failed to log error: {db_err}")
+        finally:
+            conn.close()
 
     # 4. Return standard error page
     return render_template('error.html', error=e), code
@@ -142,39 +192,61 @@ def inject_currency():
 
 @app.context_processor
 def inject_branding():
-    default_color = '#2c3e50'; default_logo = None
-    if 'company_id' not in session: return dict(brand_color=default_color, logo=default_logo)
+    # Defaults
+    default_color = '#c5a059' # Gold
+    default_logo = '/static/images/logo.png' # Business Better Logo
     
-    color = session.get('brand_color')
-    logo = session.get('logo')
+    # 1. IF LOGGED IN (Use Session Data)
+    if 'company_id' in session:
+        # If session data is missing, try to fetch it
+        if not session.get('brand_color') or not session.get('logo'):
+            try:
+                conn = get_db()
+                cur = conn.cursor()
+                cur.execute("SELECT key, value FROM settings WHERE company_id = %s AND key IN ('brand_color', 'logo')", (session['company_id'],))
+                settings = dict(cur.fetchall())
+                conn.close()
+                session['brand_color'] = settings.get('brand_color', default_color)
+                session['logo'] = settings.get('logo', default_logo)
+            except: pass
+            
+        return dict(brand_color=session.get('brand_color', default_color), 
+                    logo=session.get('logo', default_logo))
 
-    if not color or not logo:
+    # 2. IF NOT LOGGED IN BUT ON SUBDOMAIN (Use Interceptor Data)
+    if hasattr(g, 'is_white_label') and g.is_white_label:
         try:
-            conn = get_db(); cur = conn.cursor()
-            cur.execute("SELECT key, value FROM settings WHERE company_id = %s AND key IN ('brand_color', 'logo')", (session['company_id'],))
-            row_dict = dict(cur.fetchall()); conn.close()
-            color = row_dict.get('brand_color', default_color)
-            logo = row_dict.get('logo')
-            session['brand_color'] = color; session['logo'] = logo
-        except: pass
-    return dict(brand_color=color or default_color, logo=logo)
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute("SELECT key, value FROM settings WHERE company_id = %s AND key IN ('brand_color', 'logo')", (g.tenant_id,))
+            settings = dict(cur.fetchall())
+            conn.close()
+            
+            # Return the Company's Branding
+            return dict(
+                brand_color=settings.get('brand_color', default_color),
+                logo=settings.get('logo', default_logo),
+                company_name=g.tenant_name # Pass name for "Login to [Company]" text
+            )
+        except:
+            pass
+
+    # 3. FALLBACK (Main Marketing Site)
+    return dict(brand_color=default_color, logo=default_logo)
     
 @app.route('/uploads/<path:filename>')
 def serve_uploads(filename):
     # 1. SECURITY: Check for ANY valid session ID
-    # This covers Office Staff, Admins, and Portal Clients
     if not any(k in session for k in ['user_id', 'portal_client_id']):
         return "Access Denied", 403 
 
     # 2. IDENTIFY THE COMPANY ID
-    # Check all possible session keys for the company ID
     user_comp_id = session.get('company_id') or session.get('portal_company_id')
     
     if not user_comp_id:
         return "Company Identity Not Found", 403
 
     # 3. VERIFY TENANT ISOLATION
-    # The URL looks like: /uploads/company_1/logos/logo.png
     parts = filename.split('/')
     if parts[0].startswith('company_'):
         try:
@@ -186,7 +258,6 @@ def serve_uploads(filename):
             return "Invalid Path Structure", 400
 
     # 4. LOCATE AND SERVE
-    # Path: /opt/render/project/src/static/uploads
     upload_dir = os.path.join(app.root_path, 'static', 'uploads')
     
     return send_from_directory(upload_dir, filename)
