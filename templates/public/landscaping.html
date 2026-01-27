@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Landscaping | Drugan Group</title>
+    <title>Landscaping & Fencing | Drugan Group</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
@@ -13,21 +13,29 @@
     <link rel="stylesheet" href="style.css">
 
     <style>
-        .service-detail-grid {
+        .gallery-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 60px;
-            align-items: center;
-            margin-bottom: 80px;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-top: 40px;
         }
-        .text-col h2 { color: #fff; font-family: 'Montserrat', sans-serif; margin-bottom: 20px; }
-        .text-col p { color: #ccc; line-height: 1.8; margin-bottom: 20px; }
-        .img-col img { width: 100%; border-radius: 12px; border: 1px solid #333; height: 350px; object-fit: cover; }
-        
-        @media(max-width: 900px) {
-            .service-detail-grid { grid-template-columns: 1fr; }
-            .order-swap { order: 2; }
+        .gallery-item {
+            position: relative;
+            height: 350px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #333;
+            cursor: pointer;
         }
+        .gallery-item img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
+        .gallery-item:hover img { transform: scale(1.1); }
+        .project-info {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: linear-gradient(transparent, #000);
+            padding: 20px; color: white;
+        }
+        .project-title { font-family: 'Montserrat'; font-weight: 700; margin-bottom: 5px; color: #fff; }
+        .project-tag { font-size: 0.8rem; color: var(--primary-gold); text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body>
@@ -35,87 +43,93 @@
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-                <a href="index.html">
-                    <img src="static/images/logo.png" alt="Drugan Group" class="main-logo-img">
-                </a> 
+                <a href="index.html"><img src="static/images/logo.png" alt="Drugan Group" class="main-logo-img"></a> 
                 DRUGAN <span class="tagline">GROUP</span>
             </div>
             <div class="menu-toggle" id="mobile-menu"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
             <ul class="nav-links">
-                <li><a href="about.html">About</a></li>
-                <li><a href="services.html" style="color: var(--primary-gold);">Services</a></li>
-                <li><a href="businessbetter.html">Software</a></li>
-                <li><a href="forensics.html">Disputes</a></li>
+                <li><a href="services.html">Back to Services</a></li>
                 <li><a href="contact.html">Contact</a></li>
                 <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
-            <div class="nav-actions">
-                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i>Portal Login</a>
-            </div>
+            <div class="nav-actions"><a href="login.html" class="btn-primary">Portal Login</a></div>
         </div>
     </nav>
 
-    <header class="hero hero-enhanced">
-        <div class="hero-bg"></div>
-        <div class="hero-overlay"></div>
+    <header class="hero hero-enhanced" style="background-image: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.9)), url('static/images/landscaping/main.jpg');">
         <div class="container hero-grid single-col">
             <div class="hero-text center-text" data-aos="fade-up">
-                <div class="badge">EXTERIOR WORKS</div>
-                <h1>Transform Your <span class="gold-gradient">Space.</span></h1>
-                <p class="hero-sub">Precision paving, secure fencing, and durable driveways. We treat the outside of your property with the same care as the inside.</p>
+                <div class="badge">LANDSCAPING DIVISION</div>
+                <h1>Secure <span class="gold-gradient">Perimeters.</span></h1>
+                <p class="hero-sub">Commercial Fencing, Residential Paving, and Site Security. Built to last.</p>
                 <div class="cta-group center-group">
-                    <a href="contact.html" class="btn-primary btn-large">Get Free Quote</a>
+                    <a href="contact.html" class="btn-primary btn-large">Get a Quote</a>
                 </div>
             </div>
         </div>
     </header>
 
-    <section class="container" style="padding: 100px 0;">
-        
-        <div class="service-detail-grid" data-aos="fade-up">
-            <div class="text-col">
-                <h2>Patios & Driveways</h2>
-                <p>We install Porcelain, Indian Sandstone, and Block Paving. The secret to a long-lasting driveway is what you don't see—we dig deeper and use higher-grade sub-base than the industry standard to prevent sinking.</p>
+    <section class="container" style="padding: 80px 0;">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h2 style="color:white; font-family:'Montserrat'; margin-bottom:20px;">Fencing & Paving Specialists.</h2>
+                <p style="color:#ccc; line-height:1.8; margin-bottom:20px;">
+                    We install high-quality timber and steel fencing for both residential gardens and commercial sites. From standard closeboard to high-security palisade.
+                </p>
+                <ul class="list-check">
+                    <li style="color:#ccc; margin-bottom:10px;"><i class="fas fa-check" style="color:var(--primary-gold); margin-right:10px;"></i> <strong>Closeboard / Feather Edge</strong></li>
+                    <li style="color:#ccc; margin-bottom:10px;"><i class="fas fa-check" style="color:var(--primary-gold); margin-right:10px;"></i> <strong>Picket & Panel Fencing</strong></li>
+                    <li style="color:#ccc; margin-bottom:10px;"><i class="fas fa-check" style="color:var(--primary-gold); margin-right:10px;"></i> <strong>Security & Steel Palisade</strong></li>
+                    <li style="color:#ccc; margin-bottom:10px;"><i class="fas fa-check" style="color:var(--primary-gold); margin-right:10px;"></i> <strong>Patios & Driveways</strong></li>
+                </ul>
             </div>
-            <div class="img-col">
-                <img src="static/images/landscaping.jpg" alt="Paving" onerror="this.src='https://images.unsplash.com/photo-1623625345638-89c836e67618?auto=format&fit=crop&w=800&q=80'">
+            <div class="col-lg-6">
+                <div class="img-col">
+                    <img src="static/images/landscaping/fence_panel.jpg" alt="Fencing Work" style="width:100%; border-radius:12px; border:1px solid #333;" onerror="this.src='https://images.unsplash.com/photo-1598335624129-8739da639639?auto=format&fit=crop&w=800&q=80'">
+                </div>
             </div>
         </div>
 
-        <div class="service-detail-grid" data-aos="fade-up">
-            <div class="img-col order-swap">
-                <img src="static/images/fencing.jpg" alt="Fencing" onerror="this.src='https://images.unsplash.com/photo-1595846519845-68e298c2edd8?auto=format&fit=crop&w=800&q=80'">
-            </div>
-            <div class="text-col">
-                <h2>Fencing & Security</h2>
-                <p>From decorative residential panels to security palisade for commercial yards. We concrete all posts to a minimum depth of 600mm, ensuring they stand firm in high winds.</p>
+        <div style="margin-top: 80px;">
+            <h3 style="color:#fff; border-bottom:1px solid #333; padding-bottom:15px;">Recent Installations</h3>
+            
+            <div class="gallery-grid" data-aos="fade-up">
+                
+                <div class="gallery-item">
+                    <img src="static/images/landscaping/project1.jpg" alt="Closeboard Fence" onerror="this.src='https://images.unsplash.com/photo-1612373733075-472097073289?auto=format&fit=crop&w=800&q=80'">
+                    <div class="project-info">
+                        <div class="project-tag">Timber</div>
+                        <div class="project-title">Closeboard Run (50m)</div>
+                    </div>
+                </div>
+
+                <div class="gallery-item">
+                    <img src="static/images/landscaping/project2.jpg" alt="Paving" onerror="this.src='https://images.unsplash.com/photo-1593450970929-22a078f4a395?auto=format&fit=crop&w=800&q=80'">
+                    <div class="project-info">
+                        <div class="project-tag">Hardscaping</div>
+                        <div class="project-title">Porcelain Patio</div>
+                    </div>
+                </div>
+
+                <div class="gallery-item">
+                    <img src="static/images/landscaping/project3.jpg" alt="Security Fence" onerror="this.src='https://images.unsplash.com/photo-1599159929532-6a77b8b40974?auto=format&fit=crop&w=800&q=80'">
+                    <div class="project-info">
+                        <div class="project-tag">Commercial</div>
+                        <div class="project-title">Security Gates</div>
+                    </div>
+                </div>
+
             </div>
         </div>
-
     </section>
 
     <footer>
         <div class="container footer-content">
-            <div class="footer-col">
-                <h4>Drugan Group</h4>
-                <p class="creator">Building & Maintenance</p>
-                <p>Quality workmanship backed by cutting-edge technology.</p>
-            </div>
-            <div class="footer-col">
-                <h5>Group Companies</h5>
-                <a href="index.html">Construction</a>
-                <a href="businessbetter.html">Business Better Software</a> 
-                <a href="forensics.html">Forensics Unit</a>
-            </div>
-            <div class="footer-col">
-                <h5>Contact</h5>
-                <a href="login.html">Client Portal</a>
-                <a href="mailto:info@drugangroup.com">info@drugangroup.com</a>
-            </div>
+            <div class="footer-col"><h4>Drugan Group</h4><p>Building & Maintenance</p></div>
+            <div class="footer-col"><h5>Services</h5><a href="index.html">Construction</a><a href="businessbetter.html">Business Better SaaS</a></div>
+            <div class="footer-col"><h5>Client Area</h5><a href="login.html">Portal Login</a><a href="contact.html">Contact</a></div>
         </div>
-        <div class="bottom-bar">
-            <p>&copy; 2025 Drugan Group. All rights reserved.</p>
-        </div>
+        <div class="bottom-bar"><p>&copy; 2026 Drugan Group. All rights reserved.</p></div>
     </footer>
 
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
@@ -123,8 +137,7 @@
         AOS.init({ duration: 800, once: true });
         window.addEventListener('scroll', function() {
             const nav = document.getElementById('navbar');
-            if (window.scrollY > 50) nav.classList.add('scrolled');
-            else nav.classList.remove('scrolled');
+            if (window.scrollY > 50) nav.classList.add('scrolled'); else nav.classList.remove('scrolled');
         });
         const menuToggle = document.querySelector('#mobile-menu');
         const navLinks = document.querySelector('.nav-links');
