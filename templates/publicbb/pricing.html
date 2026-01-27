@@ -3,92 +3,128 @@
 {% block title %}Pricing | Business Better{% endblock %}
 
 {% block content %}
-<header class="py-5 text-center" style="background-color: var(--bb-bg);">
-    <div class="container py-4">
-        <h1 class="fw-bold display-4 text-white">Choose your fleet size</h1>
-        <p class="lead text-secondary">No hidden fees. Cancel anytime. Scale as you grow.</p>
+<header class="py-5 text-center position-relative overflow-hidden" style="background-color: var(--bb-bg); padding-top: 100px !important;">
+    <div class="container py-4 position-relative z-2">
+        <h1 class="fw-bold display-4 text-white mb-3">Choose your <span class="text-gold">Power Level.</span></h1>
+        <p class="lead text-secondary mx-auto" style="max-width: 600px;">
+            No hidden fees. Cancel anytime. Scale as you grow.
+        </p>
     </div>
 </header>
 
 <section class="py-5" style="background-color: var(--bb-bg);">
-        <div class="row g-4 align-items-center">
+    <div class="container pb-5">
+        
+        <div class="text-center mb-5">
+            <div class="d-inline-block px-3 py-1 border border-secondary rounded-pill mb-3">
+                <small class="text-white text-uppercase fw-bold"><i class="fas fa-hammer text-gold me-2"></i> For Trade & Construction</small>
+            </div>
+        </div>
+
+        <div class="row g-4 justify-content-center align-items-center mb-5">
             
-            <div class="col-lg-4">
-                <div class="card h-100 border-secondary bg-dark text-white rounded-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="card h-100 border-secondary bg-dark text-white rounded-4 hover-lift">
                     <div class="card-body p-5 text-center">
                         <h4 class="fw-bold text-secondary mb-3">Sole Trader</h4>
                         <div class="display-4 fw-bold mb-3 text-white">£99<span class="fs-6 text-secondary fw-normal">/mo</span></div>
                         <p class="text-secondary small mb-4">Perfect for getting organized.</p>
+                        
                         <div class="d-grid mb-4">
                             <a href="/contact" class="btn btn-outline-light rounded-pill">Start Free Trial</a>
                         </div>
+                        
                         <ul class="list-unstyled text-start small mx-auto text-secondary" style="max-width: 260px;">
                             <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Unlimited Quotes & Invoices</li>
                             <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Client Database (CRM)</li>
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> 2 Staff</li>
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>2</strong> Staff Members</li>
                         </ul>
                     </div>
                 </div>
             </div>
 
-            <div class="col-lg-4">
-                <div class="card h-100 border-warning shadow-lg bg-dark text-white rounded-4 position-relative" style="box-shadow: 0 0 30px rgba(212,175,55,0.15) !important;">
-                    <div class="bg-gradient-gold text-black text-center py-1 small fw-bold text-uppercase" style="background: var(--bb-gold);">Most Popular</div>
+            <div class="col-lg-4 col-md-6">
+                <div class="card h-100 border-warning shadow-lg bg-black text-white rounded-4 position-relative transform-scale">
+                    <div class="position-absolute top-0 start-50 translate-middle badge bg-warning text-dark px-3 py-2 rounded-pill shadow-sm">
+                        MOST POPULAR
+                    </div>
+
                     <div class="card-body p-5 text-center">
                         <h4 class="fw-bold text-gold mb-3">Growing Team</h4>
                         <div class="display-4 fw-bold mb-3 text-white">£199<span class="fs-6 text-secondary fw-normal">/mo</span></div>
                         <p class="text-secondary small mb-4">Connect the office to the van.</p>
+                        
                         <div class="d-grid mb-4">
-                            <a href="/contact" class="btn btn-brand rounded-pill">Start Free Trial</a>
+                            <a href="/contact" class="btn btn-brand rounded-pill fw-bold">Start Free Trial</a>
                         </div>
+                        
                         <ul class="list-unstyled text-start small mx-auto text-secondary" style="max-width: 260px;">
                             <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>Everything in Starter</strong></li>
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>Site App</strong> (10 Staff)</li>
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>Site Companion App</strong></li>
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>10</strong> Staff Members</li>
                             <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Live Job Status Updates</li>
                         </ul>
                     </div>
                 </div>
             </div>
 
-            <div class="col-lg-4">
-                <div class="card h-100 border-secondary bg-dark text-white rounded-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="card h-100 border-secondary bg-dark text-white rounded-4 hover-lift">
                     <div class="card-body p-5 text-center">
-                        <h4 class="fw-bold text-secondary mb-3">Fleet Command</h4>
+                        <h4 class="fw-bold text-white mb-3">Fleet Command</h4>
                         <div class="display-4 fw-bold mb-3 text-white">£349<span class="fs-6 text-secondary fw-normal">/mo</span></div>
                         <p class="text-secondary small mb-4">Total control for larger firms.</p>
+                        
                         <div class="d-grid mb-4">
                             <a href="/contact" class="btn btn-outline-light rounded-pill">Contact Sales</a>
                         </div>
+                        
                         <ul class="list-unstyled text-start small mx-auto text-secondary" style="max-width: 260px;">
                             <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>Everything in Growth</strong></li>
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>20</strong> Staff</li>
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>20</strong> Staff Members</li>
                             <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Fleet Mgmt (MOT/Tax Alerts)</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-			
-			
-			<div class="col-lg-4">
-                <div class="card h-100 border-warning shadow-lg bg-dark text-white rounded-4 position-relative" style="box-shadow: 0 0 30px rgba(212,175,55,0.15) !important;">
-                    <div class="bg-gradient-gold text-black text-center py-1 small fw-bold text-uppercase" style="background: var(--bb-gold);">Estate Agents</div>
-                    <div class="card-body p-5 text-center">
-                        <h4 class="fw-bold text-gold mb-3">Property Managment</h4>
-                        <div class="display-4 fw-bold mb-3 text-white">£149<span class="fs-6 text-secondary fw-normal">/mo</span></div>
-                        <p class="text-secondary small mb-4">Connect your tenants to your office.</p>
-                        <div class="d-grid mb-4">
-                            <a href="/contact" class="btn btn-brand rounded-pill">Contact us to see how we can help</a>
-                        </div>
-                        <ul class="list-unstyled text-start small mx-auto text-secondary" style="max-width: 260px;">
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>Tenant fault reporting</strong></li>
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>upto 100</strong> properties</li>
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Live Job Status Updates</li>
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Priority Support Line</li>
                         </ul>
                     </div>
                 </div>
             </div>
 
         </div>
+
+        <div class="row justify-content-center mt-5">
+            <div class="col-lg-8">
+                <div class="card border-info bg-black text-white rounded-4 position-relative overflow-hidden">
+                    <div class="row g-0 align-items-center">
+                        <div class="col-md-5 p-4 bg-dark border-end border-secondary text-center d-flex flex-column justify-content-center h-100">
+                            <h4 class="fw-bold text-info mb-2">Property Management</h4>
+                            <div class="display-5 fw-bold text-white mb-2">£149<span class="fs-6 text-secondary fw-normal">/mo</span></div>
+                            <small class="text-secondary">For Estate Agents & Block Managers</small>
+                        </div>
+                        <div class="col-md-7 p-4">
+                            <p class="text-secondary mb-3">
+                                Connect your tenants directly to your maintenance desk.
+                            </p>
+                            <div class="row g-2 mb-4">
+                                <div class="col-6"><small class="text-white"><i class="fas fa-check text-info me-2"></i> Tenant Fault Reporting</small></div>
+                                <div class="col-6"><small class="text-white"><i class="fas fa-check text-info me-2"></i> Auto-Dispatch Logic</small></div>
+                                <div class="col-6"><small class="text-white"><i class="fas fa-check text-info me-2"></i> Up to 100 Properties</small></div>
+                                <div class="col-6"><small class="text-white"><i class="fas fa-check text-info me-2"></i> Compliance Tracking</small></div>
+                            </div>
+                            <a href="/contact" class="btn btn-outline-info rounded-pill w-100">Book Agency Demo</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 </section>
+
+<style>
+    .hover-lift { transition: transform 0.3s ease, border-color 0.3s ease; }
+    .hover-lift:hover { transform: translateY(-5px); border-color: var(--bb-gold) !important; }
+    
+    .transform-scale { transform: scale(1.05); z-index: 2; }
+    @media (max-width: 992px) { .transform-scale { transform: scale(1); } }
+</style>
 {% endblock %}

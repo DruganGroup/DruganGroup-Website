@@ -13,60 +13,17 @@
     <link rel="stylesheet" href="style.css">
 
     <style>
-        /* Form Specific Styles */
-        .contact-grid {
-            display: grid;
-            grid-template-columns: 1fr 1.5fr;
-            gap: 60px;
-            padding-bottom: 100px;
-        }
-
+        .contact-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 60px; padding-bottom: 100px; }
         .contact-info h3 { color: var(--primary-gold); margin-bottom: 10px; font-size: 1.4rem; }
         .contact-info p { margin-bottom: 20px; color: #ccc; }
         .contact-item { display: flex; align-items: center; margin-bottom: 25px; }
-        .contact-item i { 
-            width: 50px; height: 50px; 
-            background: rgba(148,115,54,0.1); 
-            color: var(--primary-gold);
-            display: flex; align-items: center; justify-content: center;
-            border-radius: 50%;
-            margin-right: 20px;
-            font-size: 1.2rem;
-        }
-
-        /* Form Styling (Matching Login Page) */
-        .contact-form {
-            background: var(--bg-card);
-            padding: 50px;
-            border-radius: 20px;
-            border: 1px solid var(--border-light);
-        }
-
+        .contact-item i { width: 50px; height: 50px; background: rgba(148,115,54,0.1); color: var(--primary-gold); display: flex; align-items: center; justify-content: center; border-radius: 50%; margin-right: 20px; font-size: 1.2rem; }
+        .contact-form { background: var(--bg-card); padding: 50px; border-radius: 20px; border: 1px solid var(--border-light); }
         .input-group { margin-bottom: 25px; }
         .input-group label { display: block; color: var(--text-muted); margin-bottom: 10px; font-size: 0.9rem; }
-        
-        .input-group input, .input-group select, .input-group textarea {
-            width: 100%;
-            padding: 15px;
-            background: rgba(0,0,0,0.2);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
-            color: #fff;
-            font-family: 'Inter', sans-serif;
-            transition: 0.3s;
-        }
-
-        .input-group input:focus, .input-group select:focus, .input-group textarea:focus {
-            outline: none;
-            border-color: var(--primary-gold);
-            box-shadow: 0 0 15px rgba(148,115,54,0.1);
-        }
-
-        /* Mobile Fix */
-        @media(max-width: 900px) {
-            .contact-grid { grid-template-columns: 1fr; }
-            .contact-form { padding: 30px; }
-        }
+        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 15px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-family: 'Inter', sans-serif; transition: 0.3s; }
+        .input-group input:focus, .input-group select:focus, .input-group textarea:focus { outline: none; border-color: var(--primary-gold); box-shadow: 0 0 15px rgba(148,115,54,0.1); }
+        @media(max-width: 900px) { .contact-grid { grid-template-columns: 1fr; } .contact-form { padding: 30px; } }
     </style>
 </head>
 <body>
@@ -74,18 +31,10 @@
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-                <a href="index.html">
-                    <img src="static/images/logo.png" alt="Drugan Group" class="main-logo-img">
-                </a> 
+                <a href="index.html"><img src="static/images/logo.png" alt="Drugan Group" class="main-logo-img"></a> 
                 DRUGAN <span class="tagline">GROUP</span>
             </div>
-            
-            <div class="menu-toggle" id="mobile-menu">
-                <span class="bar"></span>
-                <span class="bar"></span>
-                <span class="bar"></span>
-            </div>
-            
+            <div class="menu-toggle" id="mobile-menu"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
             <ul class="nav-links">
                 <li><a href="about.html">About</a></li>
                 <li><a href="services.html">Services</a></li>
@@ -94,10 +43,7 @@
                 <li><a href="contact.html" style="color: var(--primary-gold);">Contact</a></li>
                 <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
-            
-            <div class="nav-actions">
-                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i>Portal Login</a>
-            </div>
+            <div class="nav-actions"><a href="login.html" class="btn-primary">Portal Login</a></div>
         </div>
     </nav>
 
@@ -122,9 +68,9 @@
                 </div>
 
                 <div class="contact-item">
-                    <i class="fas fa-envelope"></i>
+                    <i class="fas fa-tools"></i>
                     <div>
-                        <h3>General Enquiries</h3>
+                        <h3>Construction & Maintenance</h3>
                         <p>info@drugangroup.com</p>
                     </div>
                 </div>
@@ -132,7 +78,7 @@
                 <div class="contact-item">
                     <i class="fas fa-gavel"></i>
                     <div>
-                        <h3>Consultant Unit</h3>
+                        <h3>Forensic Consultant Unit</h3>
                         <p>consultant@drugangroup.com</p>
                     </div>
                 </div>
@@ -140,27 +86,24 @@
                 <div class="contact-item">
                     <i class="fas fa-microchip"></i>
                     <div>
-                        <h3>Software Sales</h3>
-                        <p>info@drugangroup.com</p>
+                        <h3>Business Better Software</h3>
+                        <p>Visit: <a href="https://www.businessbetter.co.uk" target="_blank" style="color: var(--primary-gold);">businessbetter.co.uk</a></p>
                     </div>
                 </div>
 
                 <div class="contact-item">
-                    <i class="fas fa-clock"></i>
+                    <i class="fas fa-exclamation-circle" style="background: rgba(255, 85, 85, 0.1); color: #ff5555;"></i>
                     <div>
-                        <h3>Office Hours</h3>
-                        <p>Mon - Fri: 08:00 - 18:00<br>Emergency Callout: 24/7 (Portal Only)</p>
+                        <h3>Emergency Repairs?</h3>
+                        <p>Existing clients must log faults via the <a href="login.html" style="color: #fff; text-decoration: underline;">Client Portal</a> for 24/7 response.</p>
                     </div>
                 </div>
             </div>
 
             <div class="contact-form" data-aos="fade-left">
                 <form action="https://formsubmit.co/info@drugangroup.co.uk" method="POST">
-    
                     <input type="hidden" name="_next" value="https://drugangroup.com/index.html">
                     <input type="hidden" name="_subject" value="New Lead: Drugan Group Website">
-                    <input type="hidden" name="_captcha" value="false">
-                    <input type="text" name="_honey" style="display:none">
 
                     <div class="input-group">
                         <label>Department</label>
@@ -206,38 +149,20 @@
 
     <footer>
         <div class="container footer-content">
-            <div class="footer-col">
-                <h4>Drugan Group</h4>
-                <p class="creator">Building & Maintenance</p>
-                <p>Quality workmanship backed by cutting-edge technology.</p>
-            </div>
-            <div class="footer-col">
-                <h5>Group Companies</h5>
-                <a href="index.html">Construction</a>
-                <a href="businessbetter.html">Business Better SaaS</a>
-                <a href="forensics.html">Consultant Unit</a>
-            </div>
-            <div class="footer-col">
-                <h5>Contact</h5>
-                <a href="login.html">Client Portal</a>
-                <a href="mailto:info@drugangroup.com">info@drugangroup.com</a>
-            </div>
+            <div class="footer-col"><h4>Drugan Group</h4><p>Building & Maintenance</p></div>
+            <div class="footer-col"><h5>Group Companies</h5><a href="index.html">Construction</a><a href="businessbetter.html">Business Better SaaS</a><a href="forensics.html">Forensics Unit</a></div>
+            <div class="footer-col"><h5>Contact</h5><a href="login.html">Client Portal</a><a href="mailto:info@drugangroup.com">info@drugangroup.com</a></div>
         </div>
-        <div class="bottom-bar">
-            <p>&copy; 2025 Drugan Group. All rights reserved.</p>
-        </div>
+        <div class="bottom-bar"><p>&copy; 2026 Drugan Group. All rights reserved.</p></div>
     </footer>
 
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
-        AOS.init({ duration: 800, once: true, offset: 50 });
-
+        AOS.init({ duration: 800, once: true });
         window.addEventListener('scroll', function() {
             const nav = document.getElementById('navbar');
-            if (window.scrollY > 50) nav.classList.add('scrolled');
-            else nav.classList.remove('scrolled');
+            if (window.scrollY > 50) nav.classList.add('scrolled'); else nav.classList.remove('scrolled');
         });
-
         const menuToggle = document.querySelector('#mobile-menu');
         const navLinks = document.querySelector('.nav-links');
         if (menuToggle) {
