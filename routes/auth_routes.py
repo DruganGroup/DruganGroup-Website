@@ -42,13 +42,14 @@ def process_signup():
     
     conn.close()
 
-    # 3. DETERMINE STRIPE PRICE ID
-    # You will get these IDs from your Stripe Dashboard
     stripe_prices = {
-        'sole-trader': 'price_12345EXAMPLE', 
-        'growing': 'price_67890EXAMPLE',
-        'enterprise': 'price_11223EXAMPLE'
+        'sole-trader': 'price_1SuRCGFiYl53Yok9fFl5cZK2',  # £99 Plan
+        'growing': 'price_1SuRDDFiYl53Yok9W2PRvPuB',      # £199 Plan
+        'agency': 'price_1SuRCGFiYl53Yok9fFl5cZK2',       # (Optional: Using £99 for Agency trial for now)
+        'enterprise': 'price_1SuRDDFiYl53Yok9W2PRvPuB'    # (Optional: Using £199 for Enterprise trial for now)
     }
+    
+    # Default to Growing plan if the ID is missing or wrong
     price_id = stripe_prices.get(data['plan_id'], stripe_prices['growing'])
 
     # 4. CREATE STRIPE CHECKOUT SESSION
