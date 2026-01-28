@@ -55,8 +55,8 @@ def process_signup():
     stripe_prices = {
         'sole-trader': 'price_1SuRCGFiYl53Yok9fFl5cZK2',  # £99 Plan
         'growing': 'price_1SuRDDFiYl53Yok9W2PRvPuB',      # £199 Plan
-        'agency': 'price_1SuRCGFiYl53Yok9fFl5cZK2',       # Fallback Agency
-        'enterprise': 'price_1SuRDDFiYl53Yok9W2PRvPuB'    # Fallback Enterprise
+        'agency': 'price_PASTE_YOUR_AGENCY_ID_HERE',      # <--- Paste the new £149 ID
+        'enterprise': 'price_PASTE_YOUR_FLEET_ID_HERE'
     }
     
     # STRICT CHECK: If plan is invalid, STOP here. Do not guess.
