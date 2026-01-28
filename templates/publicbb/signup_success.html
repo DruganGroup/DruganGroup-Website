@@ -1,0 +1,30 @@
+{% extends "publicbb/base.html" %}
+
+{% block title %}Welcome Aboard! | Business Better{% endblock %}
+
+{% block content %}
+<div class="container py-5 mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            
+            <div class="card bg-dark border-success shadow-lg p-5 rounded-4">
+                <div class="mb-4">
+                    <i class="fas fa-check-circle text-success" style="font-size: 5rem;"></i>
+                </div>
+                
+                <h1 class="text-white fw-bold mb-3">Payment Successful!</h1>
+                <p class="lead text-secondary mb-5">
+                    Your workspace is being provisioned. You can now log in to your dashboard.
+                </p>
+                
+                <div class="d-grid gap-3 col-md-6 mx-auto">
+                    <a href="/login" class="btn btn-brand btn-lg fw-bold">
+                        <i class="fas fa-sign-in-alt me-2"></i> Login to Dashboard
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
