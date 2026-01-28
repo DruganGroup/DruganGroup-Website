@@ -1,0 +1,89 @@
+{% extends "publicbb/base.html" %}
+
+{% block title %}Create Your Account | Business Better{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            
+            <div class="text-center mb-5">
+                <h1 class="fw-bold text-white">Let's set up your <span class="text-gold">Workspace</span></h1>
+                <p class="text-secondary">Step 1 of 2: Account Configuration</p>
+            </div>
+
+            <div class="card border-secondary bg-dark text-white rounded-4 shadow-lg p-4">
+                <form action="{{ url_for('auth.process_signup') }}" method="POST" id="signupForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <input type="hidden" name="plan_id" value="{{ request.args.get('plan', 'basic') }}">
+
+                    <h5 class="text-gold border-bottom border-secondary pb-2 mb-4">1. Company Details</h5>
+                    
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-bold">Company Name</label>
+                            <input type="text" name="company_name" class="form-control bg-black text-white border-secondary" placeholder="e.g. Acme Construction" required>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-bold">Choose your URL</label>
+                            <div class="input-group">
+                                <input type="text" name="sub_domain" id="sub_domain" class="form-control bg-black text-white border-secondary" placeholder="acme" pattern="[a-zA-Z0-9-]+" title="No spaces or symbols" required>
+                                <span class="input-group-text bg-secondary text-light border-secondary">.businessbetter.co.uk</span>
+                            </div>
+                            <div class="form-text text-muted">This will be your team's login address.</div>
+                            <div id="url_feedback" class="small mt-1"></div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label text-secondary small fw-bold">Industry Sector (The Gatekeeper)</label>
+                            <select name="company_type" class="form-select bg-black text-white border-secondary" required>
+                                <option value="" disabled selected>Select your trade...</option>
+                                <option value="Trade">Construction / Trade (Roofing, Building, etc.)</option>
+                                <option value="Agency">Property Management / Estate Agency</option>
+                            </select>
+                            <div class="form-text text-muted">This customizes your dashboard features automatically.</div>
+                        </div>
+                    </div>
+
+                    <h5 class="text-gold border-bottom border-secondary pb-2 mb-4 mt-5">2. Owner Login</h5>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-bold">Your Full Name</label>
+                            <input type="text" name="owner_name" class="form-control bg-black text-white border-secondary" placeholder="e.g. John Doe" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-bold">Email Address</label>
+                            <input type="email" name="owner_email" class="form-control bg-black text-white border-secondary" placeholder="john@acme.com" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-bold">Create Password</label>
+                            <input type="password" name="password" class="form-control bg-black text-white border-secondary" required minlength="8">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-bold">Confirm Password</label>
+                            <input type="password" name="confirm_password" class="form-control bg-black text-white border-secondary" required>
+                        </div>
+                    </div>
+
+                    <div class="d-grid mt-5">
+                        <button type="submit" class="btn btn-brand btn-lg fw-bold">
+                            Proceed to Payment <i class="fas fa-arrow-right ms-2"></i>
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Simple script to force lowercase on subdomain
+    document.getElementById('sub_domain').addEventListener('input', function(e) {
+        this.value = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    });
+</script>
+{% endblock %}

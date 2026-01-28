@@ -1,9 +1,131 @@
-from flask import Blueprint, render_template, request, session, redirect, url_for, flash
+from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify
+import stripe
 from db import get_db
 from werkzeug.security import check_password_hash, generate_password_hash
 from email_service import send_company_email
 
 auth_bp = Blueprint('auth', __name__)
+
+@auth_bp.route('/register', methods=['GET'])
+def show_signup():
+    # Shows the HTML form above
+    return render_template('publicbb/signup.html')
+
+@auth_bp.route('/process-signup', methods=['POST'])
+def process_signup():
+    # 1. Capture Data
+    data = {
+        'company_name': request.form.get('company_name'),
+        'sub_domain': request.form.get('sub_domain'),
+        'company_type': request.form.get('company_type'),
+        'owner_name': request.form.get('owner_name'),
+        'owner_email': request.form.get('owner_email'),
+        'password': request.form.get('password'), # Note: Will hash later
+        'plan_id': request.form.get('plan_id')
+    }
+
+    # 2. VALIDATION CHECK (Crucial!)
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # Check if Email exists
+    cur.execute("SELECT id FROM users WHERE email = %s", (data['owner_email'],))
+    if cur.fetchone():
+        flash("❌ Email already registered. Please login.", "error")
+        return redirect(url_for('auth.show_signup'))
+
+    # Check if Subdomain exists
+    cur.execute("SELECT id FROM companies WHERE sub_domain = %s", (data['sub_domain'],))
+    if cur.fetchone():
+        flash(f"❌ URL '{data['sub_domain']}' is already taken. Try another.", "error")
+        return redirect(url_for('auth.show_signup'))
+    
+    conn.close()
+
+    # 3. DETERMINE STRIPE PRICE ID
+    # You will get these IDs from your Stripe Dashboard
+    stripe_prices = {
+        'sole-trader': 'price_12345EXAMPLE', 
+        'growing': 'price_67890EXAMPLE',
+        'enterprise': 'price_11223EXAMPLE'
+    }
+    price_id = stripe_prices.get(data['plan_id'], stripe_prices['growing'])
+
+    # 4. CREATE STRIPE CHECKOUT SESSION
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price': price_id,
+                'quantity': 1,
+            }],
+            mode='subscription',
+            success_url=url_for('auth.signup_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=url_for('auth.show_signup', _external=True),
+            
+            # THE MAGIC: We stash the form data inside Stripe's "metadata"
+            # Stripe will send this back to us after they pay
+            metadata={
+                'company_name': data['company_name'],
+                'sub_domain': data['sub_domain'],
+                'company_type': data['company_type'],
+                'owner_name': data['owner_name'],
+                'owner_email': data['owner_email'],
+                # Security Note: We don't send raw passwords to Stripe metadata.
+                # In a real production app, we'd cache this in Redis or a temp DB table.
+                # For this MVP, we will create the account as "Pending" first.
+            }
+        )
+        
+        # 5. CREATE "PENDING" ACCOUNT IN DB (To save the password securely)
+        # We save it now, but set status='Pending_Payment'
+        create_pending_account(data) # <--- Helper function we write next
+        
+        return redirect(checkout_session.url, code=303)
+
+    except Exception as e:
+        flash(f"Payment Error: {str(e)}", "error")
+        return redirect(url_for('auth.show_signup'))
+        
+def create_pending_account(data):
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # A. Create Company (Status: Pending)
+        cur.execute("""
+            INSERT INTO companies (name, sub_domain, contact_email, created_at)
+            VALUES (%s, %s, %s, NOW()) RETURNING id
+        """, (data['company_name'], data['sub_domain'], data['owner_email']))
+        company_id = cur.fetchone()[0]
+
+        # B. Create Owner User
+        hashed_pw = generate_password_hash(data['password'], method='scrypt')
+        cur.execute("""
+            INSERT INTO users (email, password_hash, name, role, company_id, created_at)
+            VALUES (%s, %s, %s, 'Admin', %s, NOW())
+        """, (data['owner_email'], hashed_pw, data['owner_name'], company_id))
+
+        # C. Set Settings (The Gatekeeper)
+        # Default layout based on type
+        layout = 'trade' if data['company_type'] == 'Trade' else 'agency'
+        
+        settings = [
+            (company_id, 'company_type', data['company_type']),
+            (company_id, 'dashboard_layout', layout),
+            (company_id, 'brand_color', '#c5a059'), # Default Gold
+            (company_id, 'subscription_status', 'Pending_Payment') # Important flag
+        ]
+        cur.executemany("INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s)", settings)
+
+        conn.commit()
+        return company_id
+
+    except Exception as e:
+        conn.rollback()
+        print(f"DB Error: {e}")
+    finally:
+        conn.close()
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
