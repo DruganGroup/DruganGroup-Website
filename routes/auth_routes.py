@@ -51,15 +51,20 @@ def process_signup():
     
     conn.close()
 
-    # C. DEFINE STRIPE PRICES
+    # C. DEFINE STRIPE PRICES (STRICT MODE)
     stripe_prices = {
         'sole-trader': 'price_1SuRCGFiYl53Yok9fFl5cZK2',  # £99 Plan
         'growing': 'price_1SuRDDFiYl53Yok9W2PRvPuB',      # £199 Plan
-        'agency': 'price_1SuRCGFiYl53Yok9fFl5cZK2',       # (Fallback)
-        'enterprise': 'price_1SuRDDFiYl53Yok9W2PRvPuB'    # (Fallback)
+        'agency': 'price_1SuRCGFiYl53Yok9fFl5cZK2',       # Fallback Agency
+        'enterprise': 'price_1SuRDDFiYl53Yok9W2PRvPuB'    # Fallback Enterprise
     }
     
-    price_id = stripe_prices.get(data['plan_id'], stripe_prices['growing'])
+    # STRICT CHECK: If plan is invalid, STOP here. Do not guess.
+    if data['plan_id'] not in stripe_prices:
+        flash("❌ Error: Invalid Plan Selected. Please try again.", "error")
+        return redirect(url_for('auth.show_signup'))
+
+    price_id = stripe_prices[data['plan_id']]
 
     # D. CREATE STRIPE CHECKOUT SESSION
     try:
@@ -73,7 +78,7 @@ def process_signup():
             success_url=url_for('auth.signup_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
             cancel_url=url_for('auth.show_signup', _external=True),
             
-            # Pass data to Stripe metadata (for Webhooks later)
+            # Pass data to Stripe metadata
             metadata={
                 'company_name': data['company_name'],
                 'sub_domain': data['sub_domain'],
@@ -84,7 +89,8 @@ def process_signup():
             }
         )
         
-        # E. CREATE PENDING ACCOUNT (So we save the password securely now)
+        # E. CREATE PENDING ACCOUNT
+        # This will now fail loudly if the plan_id is wrong (Zero Tolerance)
         create_pending_account(data)
         
         return redirect(checkout_session.url, code=303)
@@ -126,9 +132,6 @@ def login():
         
         if user and check_password_hash(user[2], password):
             # Check Status
-            # user[6] is subscription_status. 
-            # Note: During testing, if this is missing, we let them in.
-            
             # SESSION SETUP
             session.permanent = True 
             session['user_id'] = user[0]
@@ -325,40 +328,59 @@ def create_pending_account(data):
         """, (data['owner_email'], hashed_pw, data['owner_name'], company_id))
 
         # C. Define Modules & Limits Based on Plan
-        # --- THIS IS THE KEY PART FOR YOUR TIERS ---
+        
+        # 1. SOLE TRADER
         if data['plan_id'] == 'sole-trader':
-            # Sole Traders get White Label & Portal
             modules = "Estimates,Invoices,Fleet,Portal,ServiceDesk,WhiteLabel"
             max_users = 2
             max_vehicles = 2
             max_storage = 5
 
+        # 2. GROWING TEAM
         elif data['plan_id'] == 'growing':
-            # Growing teams get RAMS & AutoCalc
             modules = "Estimates,Invoices,Fleet,Portal,ServiceDesk,WhiteLabel,RAMS,AutoCalc,Compliance,Projects"
             max_users = 10
             max_vehicles = 10
             max_storage = 20
             
+        # 3. AGENCY / ENTERPRISE (Placeholders)
         elif data['plan_id'] == 'agency':
-            # AGENCY SPECIFIC
             modules = "ServiceDesk,Portal,WhiteLabel,Compliance,Invoices"
             max_users = 5
             max_vehicles = 0
             max_storage = 10
             
+        elif data['plan_id'] == 'enterprise':
+            modules = "Estimates,Invoices,Fleet,Portal,ServiceDesk,WhiteLabel,RAMS,AutoCalc,Compliance,Projects"
+            max_users = 20
+            max_vehicles = 20
+            max_storage = 100
+        
         else:
-            modules = "Estimates,Invoices"
-            max_users = 1
-            max_vehicles = 1
-            max_storage = 1
+            # STRICT FALLBACK: If we get here, the plan_id is unknown.
+            # We raise an error to ABORT the transaction.
+            raise ValueError(f"CRITICAL: Unknown Plan ID '{data['plan_id']}'")
 
-        # D. Insert Subscription (CRITICAL STEP)
+        # --- STRICT MAPPING: CONVERT TEXT TO INTEGER ---
+        plan_mapping = {
+            'sole-trader': 1,
+            'growing': 2,
+            'agency': 3,
+            'enterprise': 4
+        }
+
+        # Check strict existence again
+        if data['plan_id'] not in plan_mapping:
+             raise ValueError(f"CRITICAL: Plan '{data['plan_id']}' has no ID mapping.")
+
+        db_plan_id = plan_mapping[data['plan_id']]
+
+        # D. Insert Subscription using the Integer ID (db_plan_id)
         cur.execute("""
             INSERT INTO subscriptions 
             (company_id, plan_id, modules, max_users, max_vehicles, max_storage, status, start_date)
             VALUES (%s, %s, %s, %s, %s, %s, 'Pending_Payment', NOW())
-        """, (company_id, data['plan_id'], modules, max_users, max_vehicles, max_storage))
+        """, (company_id, db_plan_id, modules, max_users, max_vehicles, max_storage))
 
         # E. Set Default Settings
         layout = 'agency' if data['company_type'] == 'Agency' else 'trade'
@@ -377,7 +399,7 @@ def create_pending_account(data):
     except Exception as e:
         conn.rollback()
         print(f"DB Error: {e}")
-        # In a real app, you might want to re-raise this error so the route knows it failed
+        # Re-raise so the frontend sees the error
         raise e 
     finally:
         conn.close()
