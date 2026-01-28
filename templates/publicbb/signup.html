@@ -4,6 +4,20 @@
 
 {% block content %}
 <div class="container py-5">
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-danger shadow-lg mb-4 text-center fw-bold" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i> {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+    </div>
     <div class="row justify-content-center">
         <div class="col-lg-8">
             
@@ -16,7 +30,7 @@
                 <form action="{{ url_for('auth.process_signup') }}" method="POST" id="signupForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     
-                    <input type="hidden" name="plan_id" value="{{ request.args.get('plan', 'basic') }}">
+                    <input type="hidden" name="plan_id" value="{{ request.args.get('plan', 'growing') }}">
 
                     <h5 class="text-gold border-bottom border-secondary pb-2 mb-4">1. Company Details</h5>
                     
@@ -33,7 +47,6 @@
                                 <span class="input-group-text bg-secondary text-light border-secondary">.businessbetter.co.uk</span>
                             </div>
                             <div class="form-text text-muted">This will be your team's login address.</div>
-                            <div id="url_feedback" class="small mt-1"></div>
                         </div>
 
                         <div class="col-12">
