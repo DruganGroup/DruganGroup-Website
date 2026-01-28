@@ -4,3 +4,4 @@ gunicorn
 fpdf2==2.7.4
 requests
 Flask-WTF
+stripe
