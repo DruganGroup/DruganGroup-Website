@@ -20,10 +20,20 @@ def show_signup():
 
 @auth_bp.route('/process-signup', methods=['POST'])
 def process_signup():
-    # A. Capture Data
+    # 1. Capture Data (STRICT MODE)
+    # We only look for the correct field name: 'sub_domain'
+    sub_domain_input = request.form.get('sub_domain')
+    
+    # --- THE GUARD RAIL ---
+    # If the URL is missing or empty, STOP immediately.
+    if not sub_domain_input:
+        flash("❌ Error: Company URL is missing. Please try again.", "error")
+        return redirect(url_for('auth.show_signup'))
+    # ----------------------
+
     data = {
         'company_name': request.form.get('company_name'),
-        'sub_domain': request.form.get('sub_domain'),
+        'sub_domain': sub_domain_input.lower(), # Enforce lowercase for URLs
         'company_type': request.form.get('company_type'),
         'owner_name': request.form.get('owner_name'),
         'owner_email': request.form.get('owner_email'),
@@ -31,7 +41,7 @@ def process_signup():
         'plan_id': request.form.get('plan_id')
     }
 
-    # B. VALIDATION CHECK
+    # 2. VALIDATION CHECK (Database)
     conn = get_db()
     cur = conn.cursor()
     
@@ -42,7 +52,7 @@ def process_signup():
         conn.close()
         return redirect(url_for('auth.show_signup'))
 
-    # Check if Subdomain exists
+    # Check if Subdomain exists (Double Check)
     cur.execute("SELECT id FROM companies WHERE sub_domain = %s", (data['sub_domain'],))
     if cur.fetchone():
         flash(f"❌ URL '{data['sub_domain']}' is already taken. Try another.", "error")
@@ -51,34 +61,31 @@ def process_signup():
     
     conn.close()
 
-    # C. DEFINE STRIPE PRICES (STRICT MODE)
+    # 3. DEFINE STRIPE PRICES
     stripe_prices = {
-        'sole-trader': 'price_1SuRCGFiYl53Yok9fFl5cZK2',  # £99 Plan
-        'growing': 'price_1SuRDDFiYl53Yok9W2PRvPuB',      # £199 Plan
-        'agency': 'price_PASTE_YOUR_AGENCY_ID_HERE',      # <--- Paste the new £149 ID
-        'enterprise': 'price_PASTE_YOUR_FLEET_ID_HERE'
+        'sole-trader': 'price_1SuRCGFiYl53Yok9fFl5cZK2', 
+        'growing': 'price_1SuRDDFiYl53Yok9W2PRvPuB',
+        'agency': 'price_1SuRCGFiYl53Yok9fFl5cZK2',      
+        'enterprise': 'price_1SuRDDFiYl53Yok9W2PRvPuB'    
     }
     
-    # STRICT CHECK: If plan is invalid, STOP here. Do not guess.
+    # Strict Plan Check
     if data['plan_id'] not in stripe_prices:
-        flash("❌ Error: Invalid Plan Selected. Please try again.", "error")
+        flash("❌ Error: Invalid Plan Selected.", "error")
         return redirect(url_for('auth.show_signup'))
 
     price_id = stripe_prices[data['plan_id']]
 
-    # D. CREATE STRIPE CHECKOUT SESSION
+    # 4. CREATE STRIPE CHECKOUT SESSION
     try:
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
-            line_items=[{
-                'price': price_id,
-                'quantity': 1,
-            }],
+            line_items=[{'price': price_id, 'quantity': 1}],
             mode='subscription',
             success_url=url_for('auth.signup_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
             cancel_url=url_for('auth.show_signup', _external=True),
             
-            # Pass data to Stripe metadata
+            # Send correct data to Stripe metadata
             metadata={
                 'company_name': data['company_name'],
                 'sub_domain': data['sub_domain'],
@@ -89,8 +96,8 @@ def process_signup():
             }
         )
         
-        # E. CREATE PENDING ACCOUNT
-        # This will now fail loudly if the plan_id is wrong (Zero Tolerance)
+        # 5. CREATE PENDING ACCOUNT
+        # We only reach here if sub_domain is valid.
         create_pending_account(data)
         
         return redirect(checkout_session.url, code=303)
