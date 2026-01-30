@@ -304,10 +304,6 @@ def test_email_connection():
         
     return redirect(url_for('finance.settings_general'))
 
-# =========================================================
-#  4. HELPER FUNCTIONS
-# =========================================================
-
 def create_pending_account(data):
     conn = get_db()
     cur = conn.cursor()
@@ -320,72 +316,57 @@ def create_pending_account(data):
         """, (data['company_name'], data['sub_domain'], data['owner_email']))
         company_id = cur.fetchone()[0]
 
-        # B. Create Owner User
+        # B. Create Owner User (Login Access)
         hashed_pw = generate_password_hash(data['password'], method='scrypt')
         cur.execute("""
             INSERT INTO users (email, password_hash, name, role, company_id, created_at)
             VALUES (%s, %s, %s, 'Admin', %s, NOW())
         """, (data['owner_email'], hashed_pw, data['owner_name'], company_id))
 
+        # --- FIX 1: Create Owner Staff Profile (HR Record) ---
+        # This ensures you appear in the "Staff" list immediately
+        cur.execute("""
+            INSERT INTO staff 
+            (company_id, name, email, position, dept, phone, status, is_active, access_level)
+            VALUES (%s, %s, %s, 'Owner', 'Management', '', 'Active', 1, 'Admin')
+        """, (company_id, data['owner_name'], data['owner_email']))
+        # -------------------------------------------------------
+
         # C. Define Modules & Limits Based on Plan
-        
-        # 1. SOLE TRADER
         if data['plan_id'] == 'sole-trader':
             modules = "Estimates,Invoices,Fleet,Portal,ServiceDesk,WhiteLabel"
-            max_users = 2
-            max_vehicles = 2
-            max_storage = 5
-
-        # 2. GROWING TEAM
+            max_users = 2; max_vehicles = 2; max_storage = 5
         elif data['plan_id'] == 'growing':
             modules = "Estimates,Invoices,Fleet,Portal,ServiceDesk,WhiteLabel,RAMS,AutoCalc,Compliance,Projects"
-            max_users = 10
-            max_vehicles = 10
-            max_storage = 20
-            
-        # 3. AGENCY / ENTERPRISE (Placeholders)
+            max_users = 10; max_vehicles = 10; max_storage = 20
         elif data['plan_id'] == 'agency':
             modules = "ServiceDesk,Portal,WhiteLabel,Compliance,Invoices"
-            max_users = 5
-            max_vehicles = 0
-            max_storage = 10
-            
+            max_users = 5; max_vehicles = 0; max_storage = 10
         elif data['plan_id'] == 'enterprise':
             modules = "Estimates,Invoices,Fleet,Portal,ServiceDesk,WhiteLabel,RAMS,AutoCalc,Compliance,Projects"
-            max_users = 20
-            max_vehicles = 20
-            max_storage = 100
-        
+            max_users = 20; max_vehicles = 20; max_storage = 100
         else:
-            # STRICT FALLBACK: If we get here, the plan_id is unknown.
-            # We raise an error to ABORT the transaction.
             raise ValueError(f"CRITICAL: Unknown Plan ID '{data['plan_id']}'")
 
-        # --- STRICT MAPPING: CONVERT TEXT TO INTEGER ---
-        plan_mapping = {
-            'sole-trader': 1,
-            'growing': 2,
-            'agency': 3,
-            'enterprise': 4
-        }
-
-        # Check strict existence again
+        # D. Map Plan ID (Strict Mode)
+        plan_mapping = {'sole-trader': 1, 'growing': 2, 'agency': 3, 'enterprise': 4}
         if data['plan_id'] not in plan_mapping:
              raise ValueError(f"CRITICAL: Plan '{data['plan_id']}' has no ID mapping.")
-
         db_plan_id = plan_mapping[data['plan_id']]
 
-        # D. Insert Subscription using the Integer ID (db_plan_id)
+        # E. Insert Subscription
         cur.execute("""
             INSERT INTO subscriptions 
             (company_id, plan_id, modules, max_users, max_vehicles, max_storage, status, start_date)
             VALUES (%s, %s, %s, %s, %s, %s, 'Pending_Payment', NOW())
         """, (company_id, db_plan_id, modules, max_users, max_vehicles, max_storage))
 
-        # E. Set Default Settings
+        # --- FIX 2: Set Settings (Including Company Name) ---
         layout = 'agency' if data['company_type'] == 'Agency' else 'trade'
         
         settings = [
+            (company_id, 'company_name', data['company_name']), # <--- POPULATES SETTINGS PAGE
+            (company_id, 'company_email', data['owner_email']),
             (company_id, 'company_type', data['company_type']),
             (company_id, 'dashboard_layout', layout),
             (company_id, 'brand_color', '#c5a059'),
@@ -399,7 +380,6 @@ def create_pending_account(data):
     except Exception as e:
         conn.rollback()
         print(f"DB Error: {e}")
-        # Re-raise so the frontend sees the error
         raise e 
     finally:
         conn.close()
