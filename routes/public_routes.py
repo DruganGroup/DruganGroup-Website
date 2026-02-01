@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, g
 
 # Create the Blueprint
 public_bp = Blueprint('public', __name__)
@@ -7,17 +7,41 @@ public_bp = Blueprint('public', __name__)
 DOMAIN_SOFTWARE = 'businessbetter.co.uk'
 
 # --- MAIN PAGES ---
-@public_bp.route('/')
+@@public_bp.route('/')
 @public_bp.route('/index')
 @public_bp.route('/index.html')
 def home():
+    # 1. WHITE LABEL CHECK (The "Test Ace" Logic)
+    # This checks if app.py detected a valid company subdomain
+    if hasattr(g, 'is_white_label') and g.is_white_label:
+        
+        # Fetch that specific company's branding
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (g.tenant_id,))
+        settings_rows = cur.fetchall()
+        settings = dict(settings_rows)
+        conn.close()
+        
+        # Prepare the branding for the login page
+        brand_color = settings.get('brand_color', '#c5a059')
+        logo_url = settings.get('logo', None)
+        
+        # Serve the Client Portal Login instead of the Homepage
+        return render_template('client_login.html',
+                               company_id=g.tenant_id,
+                               company_name=g.tenant_name,
+                               brand_color=brand_color,
+                               logo_url=logo_url)
+
+    # 2. STANDARD ROUTING (If not a white label subdomain)
     host = request.host.lower()
     
-    # 1. If on Business Better -> Show Software Site
+    # If on Business Better Main URL -> Show Software Marketing Site
     if DOMAIN_SOFTWARE in host:
         return render_template('publicbb/index.html')
     
-    # 2. If on Drugan Group -> Show Trade Site
+    # If on Drugan Group (or other trade domains) -> Show Trade Site
     else:
         return render_template('public/index.html')
 
