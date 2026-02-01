@@ -236,17 +236,27 @@ def inject_branding():
     
 @app.route('/uploads/<path:filename>')
 def serve_uploads(filename):
-    # 1. SECURITY: Check for ANY valid session ID
+    # --- 1. PUBLIC ACCESS (ALLOW LOGOS) ---
+    # If the file is a logo, serve it immediately without checking login.
+    # This fixes the Client Portal Login page issue.
+    if 'logos/' in filename or 'logo' in filename.lower():
+        upload_dir = os.path.join(app.root_path, 'static', 'uploads')
+        return send_from_directory(upload_dir, filename)
+
+    # --- 2. PRIVATE ACCESS (SECURITY CHECK) ---
+    # For everything else (Invoices, Documents, etc.), require login.
+    
+    # Check for ANY valid session ID
     if not any(k in session for k in ['user_id', 'portal_client_id']):
         return "Access Denied", 403 
 
-    # 2. IDENTIFY THE COMPANY ID
+    # IDENTIFY THE COMPANY ID
     user_comp_id = session.get('company_id') or session.get('portal_company_id')
     
     if not user_comp_id:
         return "Company Identity Not Found", 403
 
-    # 3. VERIFY TENANT ISOLATION
+    # VERIFY TENANT ISOLATION
     parts = filename.split('/')
     if parts[0].startswith('company_'):
         try:
@@ -257,7 +267,6 @@ def serve_uploads(filename):
         except ValueError:
             return "Invalid Path Structure", 400
 
-    # 4. LOCATE AND SERVE
+    # LOCATE AND SERVE
     upload_dir = os.path.join(app.root_path, 'static', 'uploads')
-    
     return send_from_directory(upload_dir, filename)
