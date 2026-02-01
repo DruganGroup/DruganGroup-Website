@@ -7,7 +7,7 @@ public_bp = Blueprint('public', __name__)
 DOMAIN_SOFTWARE = 'businessbetter.co.uk'
 
 # --- MAIN PAGES ---
-@@public_bp.route('/')
+@public_bp.route('/')
 @public_bp.route('/index')
 @public_bp.route('/index.html')
 def home():
