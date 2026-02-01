@@ -318,7 +318,7 @@ def create_pending_account(data):
     try:
         # A. Create Company (Status: Pending)
         cur.execute("""
-            INSERT INTO companies (name, sub_domain, contact_email, created_at)
+            INSERT INTO companies (name, subdomain, contact_email, created_at)
             VALUES (%s, %s, %s, NOW()) RETURNING id
         """, (data['company_name'], data['sub_domain'], data['owner_email']))
         company_id = cur.fetchone()[0]
