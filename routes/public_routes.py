@@ -14,41 +14,42 @@ DOMAIN_SOFTWARE = 'businessbetter.co.uk'
 def home():
     host = request.host.lower()
 
-    # 1. WHITE LABEL CHECK (Direct Logic)
-    # Check if we are on a specific company subdomain (e.g. testace.businessbetter...)
-    # We filter out 'www', 'localhost', and the main domain itself.
+    # 1. WHITE LABEL CHECK (Subdomain Logic)
     if 'businessbetter.co.uk' in host and host != 'businessbetter.co.uk' and not host.startswith('www.'):
         subdomain = host.split('.')[0]
         
         conn = get_db()
         cur = conn.cursor()
         
-        # Check BOTH 'sub_domain' (new) and 'subdomain' (legacy) columns
-        cur.execute("""
-            SELECT id, name, value 
-            FROM companies c 
-            LEFT JOIN settings s ON c.id = s.company_id AND s.key = 'brand_color' 
-            WHERE c.subdomain = %s OR c.sub_domain = %s
-        """, (subdomain, subdomain))
-        data = cur.fetchone()
+        # Find the company ID
+        cur.execute("SELECT id, name FROM companies WHERE subdomain = %s OR sub_domain = %s", (subdomain, subdomain))
+        company_data = cur.fetchone()
         
-        # Fetch Logo if company exists
-        logo_url = None
-        if data:
-            cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'logo'", (data[0],))
-            logo_row = cur.fetchone()
-            if logo_row: logo_url = logo_row[0]
+        if company_data:
+            company_id = company_data[0]
+            company_name = company_data[1]
+
+            # --- ROBUST SETTINGS FETCH ---
+            # Grab ALL settings for this company so we don't miss anything
+            cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
+            settings_rows = cur.fetchall()
+            settings = dict(settings_rows) # Convert to dictionary { 'key': 'value' }
+            conn.close()
+
+            # Smart Lookup: Try 'brand_color' OR default to Gold
+            brand_color = settings.get('brand_color', '#c5a059')
+
+            # Smart Lookup: Try 'logo' OR 'company_logo' OR 'invoice_logo'
+            logo_url = settings.get('logo') or settings.get('company_logo') or settings.get('invoice_logo')
+
+            # Render the Portal
+            return render_template('portal/client_login.html',
+                                   company_id=company_id,
+                                   company_name=company_name,
+                                   brand_color=brand_color,
+                                   logo_url=logo_url)
         
         conn.close()
-
-        if data:
-            # SUCCESS: Render the Client Login from the PORTAL folder
-            # We pass the company branding so it looks like "Test Ace"
-            return render_template('portal/client_login.html',
-                                   company_id=data[0],
-                                   company_name=data[1],
-                                   brand_color=data[2] or '#c5a059',
-                                   logo_url=logo_url)
 
     # 2. DEFAULT: SHOW MARKETING SITE
     if 'businessbetter.co.uk' in host:
