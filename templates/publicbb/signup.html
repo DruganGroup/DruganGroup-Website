@@ -30,8 +30,6 @@
                 <form action="{{ url_for('auth.process_signup') }}" method="POST" id="signupForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     
-                    <input type="hidden" name="plan_id" value="{{ request.args.get('plan', 'growing') }}">
-
                     <h5 class="text-gold border-bottom border-secondary pb-2 mb-4">1. Company Details</h5>
                     
                     <div class="row g-3 mb-4">
@@ -60,7 +58,47 @@
                         </div>
                     </div>
 
-                    <h5 class="text-gold border-bottom border-secondary pb-2 mb-4 mt-5">2. Owner Login</h5>
+                    <h5 class="text-gold border-bottom border-secondary pb-2 mb-4 mt-5">2. Select Your Plan</h5>
+
+                    <div class="row g-3 mb-4">
+                        {% for plan in plans %}
+                        <div class="col-md-4">
+                            <label class="plan-card-option w-100" style="cursor: pointer;">
+                                <input type="radio" name="plan_id" value="{{ plan.id }}" required {% if loop.first %}checked{% endif %}>
+                                
+                                <div class="card h-100 bg-black border-secondary p-3 text-center plan-box transition-all">
+                                    <h5 class="fw-bold text-white mb-1">{{ plan.name }}</h5>
+                                    <h3 class="text-gold mb-2">£{{ "%.2f"|format(plan.price) }}<small class="fs-6 text-muted">/mo</small></h3>
+                                    
+                                    <div class="mt-2">
+                                        <span class="badge bg-secondary text-light border border-secondary">Instant Access</span>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                        {% else %}
+                        <div class="col-12 text-center py-3 text-muted border border-dashed border-secondary rounded">
+                            <i class="fas fa-exclamation-circle me-2"></i> No public plans configured in Admin Panel.
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <style>
+                        /* Hidden Radio Logic */
+                        .plan-card-option input { display: none; } 
+                        
+                        /* Selected State */
+                        .plan-card-option input:checked + .plan-box {
+                            border-color: #C5A059 !important; /* Gold Border */
+                            background-color: rgba(197, 160, 89, 0.15) !important; /* Slight Gold Tint */
+                            box-shadow: 0 0 15px rgba(197, 160, 89, 0.3);
+                        }
+                        /* Hover Effect */
+                        .plan-box { transition: 0.3s all; }
+                        .plan-box:hover { transform: translateY(-3px); border-color: #666; }
+                    </style>
+
+                    <h5 class="text-gold border-bottom border-secondary pb-2 mb-4 mt-5">3. Owner Login</h5>
 
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">

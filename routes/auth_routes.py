@@ -16,24 +16,32 @@ stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
 
 @auth_bp.route('/register', methods=['GET'])
 def show_signup():
-    return render_template('publicbb/signup.html')
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # Fetch active plans from DB to populate the dropdown
+    # We filter out any test plans that might have price=0 if you want
+    cur.execute("SELECT id, name, price FROM plans WHERE price > 0 ORDER BY price ASC")
+    rows = cur.fetchall()
+    conn.close()
+    
+    # Format for the template
+    plans = [{'id': r[0], 'name': r[1], 'price': r[2]} for r in rows]
+    
+    return render_template('publicbb/signup.html', plans=plans)
 
 @auth_bp.route('/process-signup', methods=['POST'])
 def process_signup():
-    # 1. Capture Data (STRICT MODE)
-    # We only look for the correct field name: 'sub_domain'
+    # 1. Capture Data
     sub_domain_input = request.form.get('sub_domain')
     
-    # --- THE GUARD RAIL ---
-    # If the URL is missing or empty, STOP immediately.
     if not sub_domain_input:
-        flash("❌ Error: Company URL is missing. Please try again.", "error")
+        flash("❌ Error: Company URL is missing.", "error")
         return redirect(url_for('auth.show_signup'))
-    # ----------------------
 
     data = {
         'company_name': request.form.get('company_name'),
-        'sub_domain': sub_domain_input.lower(), # Enforce lowercase for URLs
+        'sub_domain': sub_domain_input.lower(),
         'company_type': request.form.get('company_type'),
         'owner_name': request.form.get('owner_name'),
         'owner_email': request.form.get('owner_email'),
@@ -41,42 +49,51 @@ def process_signup():
         'plan_id': request.form.get('plan_id')
     }
 
-    # 2. VALIDATION CHECK (Database)
+    # 2. VALIDATION CHECK
     conn = get_db()
     cur = conn.cursor()
     
-    # Check if Email exists
     cur.execute("SELECT id FROM users WHERE email = %s", (data['owner_email'],))
     if cur.fetchone():
         flash("❌ Email already registered. Please login.", "error")
         conn.close()
         return redirect(url_for('auth.show_signup'))
 
-    # Check if Subdomain exists (Double Check)
     cur.execute("SELECT id FROM companies WHERE sub_domain = %s", (data['sub_domain'],))
     if cur.fetchone():
-        flash(f"❌ URL '{data['sub_domain']}' is already taken. Try another.", "error")
+        flash(f"❌ URL '{data['sub_domain']}' is already taken.", "error")
         conn.close()
         return redirect(url_for('auth.show_signup'))
     
-    conn.close()
-
-    # 3. DEFINE STRIPE PRICES
-    stripe_prices = {
-        'sole-trader': 'price_1SuRCGFiYl53Yok9fFl5cZK2', 
-        'growing': 'price_1SuRDDFiYl53Yok9W2PRvPuB',
-        'agency': 'price_1SuRCGFiYl53Yok9fFl5cZK2',      
-        'enterprise': 'price_1SuRDDFiYl53Yok9W2PRvPuB'    
-    }
+    # --- 3. DYNAMIC STRIPE LOOKUP (THE FIX) ---
+    # We ask the DB for the Stripe Price ID associated with the chosen plan
+    # This replaces the hardcoded 'stripe_prices = {...}' dictionary
     
-    # Strict Plan Check
-    if data['plan_id'] not in stripe_prices:
-        flash("❌ Error: Invalid Plan Selected.", "error")
-        return redirect(url_for('auth.show_signup'))
+    # Try to find by ID (e.g. '1') OR Name (e.g. 'Enterprise')
+    cur.execute("""
+        SELECT stripe_price_id FROM plans 
+        WHERE id::text = %s OR LOWER(name) = LOWER(%s)
+    """, (str(data['plan_id']), str(data['plan_id'])))
+    
+    row = cur.fetchone()
+    conn.close() # Close connection before redirecting
 
-    price_id = stripe_prices[data['plan_id']]
+    if not row or not row[0]:
+        # Fallback for old hardcoded plans if DB lookup fails
+        fallback_prices = {
+            'sole-trader': 'price_1SuRCGFiYl53Yok9fFl5cZK2', 
+            'growing': 'price_1SuRDDFiYl53Yok9W2PRvPuB',
+            'enterprise': 'price_1SuRDDFiYl53Yok9W2PRvPuB'
+        }
+        price_id = fallback_prices.get(data['plan_id'])
+        
+        if not price_id:
+            flash("❌ Error: Plan configuration missing. Please contact support.", "error")
+            return redirect(url_for('auth.show_signup'))
+    else:
+        price_id = row[0] # FOUND IT!
 
-    # 4. CREATE STRIPE CHECKOUT SESSION
+    # 4. CREATE STRIPE CHECKOUT
     try:
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
@@ -85,7 +102,6 @@ def process_signup():
             success_url=url_for('auth.signup_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
             cancel_url=url_for('auth.show_signup', _external=True),
             
-            # Send correct data to Stripe metadata
             metadata={
                 'company_name': data['company_name'],
                 'sub_domain': data['sub_domain'],
@@ -96,8 +112,6 @@ def process_signup():
             }
         )
         
-        # 5. CREATE PENDING ACCOUNT
-        # We only reach here if sub_domain is valid.
         create_pending_account(data)
         
         return redirect(checkout_session.url, code=303)
@@ -105,10 +119,6 @@ def process_signup():
     except Exception as e:
         flash(f"Payment Error: {str(e)}", "error")
         return redirect(url_for('auth.show_signup'))
-
-@auth_bp.route('/signup-success')
-def signup_success():
-    return render_template('publicbb/signup_success.html')
 
 # =========================================================
 #  2. LOGIN / LOGOUT
