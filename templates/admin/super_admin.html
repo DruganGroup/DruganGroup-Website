@@ -4,7 +4,7 @@
 
 {% block styles %}
 <style>
-    /* --- Dashboard Specific Styles --- */
+    /* --- DASHBOARD METRICS --- */
     .metric-card {
         background: var(--card-bg);
         border: 1px solid var(--border-color);
@@ -18,15 +18,13 @@
         transform: translateY(-5px);
         border-color: var(--primary-gold);
     }
-    
     .metric-icon {
         position: absolute;
-        right: 20px;
-        top: 20px;
-        font-size: 2.5rem;
-        opacity: 0.1;
+        right: 20px; top: 20px;
+        font-size: 2.5rem; opacity: 0.1;
     }
 
+    /* --- SEARCH INPUT --- */
     .search-input {
         background: #121212;
         border: 1px solid #333;
@@ -40,18 +38,50 @@
         outline: none;
     }
 
-    /* Progress bars for storage */
+    /* --- PROGRESS BARS --- */
     .storage-track {
-        background: #333;
-        height: 4px;
-        width: 100%;
-        border-radius: 2px;
-        margin-top: 5px;
+        background: #333; height: 4px; width: 100%;
+        border-radius: 2px; margin-top: 5px;
     }
     .storage-fill {
-        height: 100%;
-        background: #3498db;
-        border-radius: 2px;
+        height: 100%; background: #3498db; border-radius: 2px;
+    }
+
+    /* --- MODAL FIXES (THE IMPORTANT PART) --- */
+    .modal-content {
+        background-color: #1e1e1e !important; /* Dark Grey Background */
+        border: 1px solid #444;
+        color: #ffffff !important; /* White Text */
+    }
+    .modal-header, .modal-footer {
+        border-color: #333 !important;
+    }
+    .btn-close {
+        filter: invert(1) grayscale(100%) brightness(200%); /* Makes 'X' White */
+    }
+    
+    /* FIX INPUT FIELDS (No more white boxes) */
+    .form-control, .form-select {
+        background-color: #2a2a2a !important; /* Dark Input Background */
+        border: 1px solid #444 !important;
+        color: #ffffff !important; /* White Input Text */
+    }
+    .form-control:focus, .form-select:focus {
+        background-color: #333 !important;
+        color: #ffffff !important;
+        border-color: var(--primary-gold) !important;
+        box-shadow: none;
+    }
+    /* FIX LABELS */
+    .form-label {
+        color: #cccccc !important; /* Light Grey Labels */
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+    }
+    /* FIX PLACEHOLDER TEXT */
+    .form-control::placeholder {
+        color: #666 !important;
     }
 </style>
 {% endblock %}
@@ -81,7 +111,6 @@
             <small class="text-success"><i class="fas fa-arrow-up"></i> Active Subscriptions</small>
         </div>
     </div>
-
     <div class="col-md-3">
         <div class="metric-card">
             <i class="fas fa-building metric-icon text-success"></i>
@@ -93,7 +122,6 @@
             <small class="text-muted">Total Deployments</small>
         </div>
     </div>
-
     <div class="col-md-3">
         <div class="metric-card">
             <i class="fas fa-users metric-icon text-info"></i>
@@ -102,7 +130,6 @@
             <small class="text-muted">Across all companies</small>
         </div>
     </div>
-
     <div class="col-md-3">
         <div class="metric-card">
             <i class="fas fa-server metric-icon text-danger"></i>
@@ -145,9 +172,7 @@
                             {{ c.subdomain }} <i class="fas fa-external-link-alt ms-1" style="font-size: 0.7em;"></i>
                         </a>
                     </td>
-                    <td>
-                        <span class="badge bg-dark border border-secondary">{{ c.plan }}</span>
-                    </td>
+                    <td><span class="badge bg-dark border border-secondary">{{ c.plan }}</span></td>
                     
                     <td style="min-width: 120px;">
                         <div class="d-flex justify-content-between text-white small fw-bold mb-1">
@@ -202,7 +227,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title text-white">Deploy New Tenant</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -221,7 +246,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Plan Tier</label>
-                        <select name="plan_id" class="form-select text-dark bg-white">
+                        <select name="plan_id" class="form-select">
                             {% for p in plans %}
                                 <option value="{{ p.id }}">{{ p.name }} (£{{ p.price }})</option>
                             {% endfor %}
