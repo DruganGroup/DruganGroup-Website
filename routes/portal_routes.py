@@ -150,30 +150,49 @@ def portal_home():
 @portal_bp.route('/portal/job/<int:job_id>')
 def portal_job_view(job_id):
     if not check_portal_access(): return redirect(get_login_url())
+    
     client_id = session['portal_client_id']
     comp_id = session['portal_company_id']
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
     
+    # 1. Fetch Job Details
     cur.execute("""
         SELECT j.id, j.ref, j.status, j.description, j.start_date, j.end_date, p.address_line1, p.postcode
         FROM jobs j LEFT JOIN properties p ON j.property_id = p.id WHERE j.id=%s AND j.client_id=%s
     """, (job_id, client_id))
     job_row = cur.fetchone()
+    
     if not job_row: conn.close(); return "Not Found", 404
+    
     job = list(job_row)
     job[4] = format_date_by_country(job[4], comp_id)
     job[5] = format_date_by_country(job[5], comp_id)
 
-    cur.execute("SELECT filepath, uploaded_at FROM job_evidence WHERE job_id=%s ORDER BY uploaded_at DESC", (job_id,))
+    # 2. UPDATED: Fetch ALL Site Photos + File Type (Required for Gallery Badge)
+    cur.execute("""
+        SELECT filepath, uploaded_at, file_type 
+        FROM job_evidence 
+        WHERE job_id = %s 
+        AND file_type IN ('Site Photo', 'Completion Photo', 'Evidence')
+        ORDER BY uploaded_at DESC
+    """, (job_id,))
+    
     raw_photos = cur.fetchall()
     photos = []
     for p in raw_photos:
         ph = list(p)
         ph[1] = format_date_by_country(ph[1], comp_id)
         photos.append(ph)
+        
     conn.close()
-    return render_template('portal/portal_job_view.html', job=job, photos=photos, company_name=config.get('name'), logo_url=config.get('logo'), brand_color=config.get('color'))
+    
+    return render_template('portal/portal_job_view.html', 
+                           job=job, 
+                           photos=photos, 
+                           company_name=config.get('name'), 
+                           logo_url=config.get('logo'), 
+                           brand_color=config.get('color'))
 
 # --- 5. PROPERTY DETAIL (SMART COMPLIANCE) ---
 @portal_bp.route('/portal/property/<int:property_id>')
@@ -200,11 +219,39 @@ def property_detail(property_id):
         'EPC': prop_row[10]
     }
     
+    compliance_raw = {
+        'Gas Safety': prop_row[7],
+        'EICR': prop_row[8],
+        'PAT Test': prop_row[9],
+        'EPC': prop_row[10]
+    }
+    
+    cert_map = {
+        'Gas Safety': ['CP12', 'Gas Safe', 'Landlord Cert'],
+        'EICR': ['EICR', 'Electrical', 'Electrical Installation'],
+        'EPC': ['EPC', 'Energy Performance']
+    }
+
     compliance = {}
     for key, date_val in compliance_raw.items():
-        if date_val: # Only process if date exists
+        if date_val:
             status_data = get_compliance_status(date_val)
             status_data['date'] = format_date_by_country(date_val, comp_id)
+            
+            # Find latest PDF file for this cert type
+            cur.execute("""
+                SELECT je.filepath 
+                FROM job_evidence je
+                JOIN jobs j ON je.job_id = j.id
+                WHERE j.property_id = %s 
+                AND je.file_type = ANY(%s)
+                ORDER BY je.uploaded_at DESC LIMIT 1
+            """, (property_id, cert_map.get(key, [])))
+            
+            file_row = cur.fetchone()
+            if file_row:
+                status_data['download_url'] = file_row[0]
+
             compliance[key] = status_data
 
     cur.execute("SELECT id, ref, status, description, start_date FROM jobs WHERE property_id=%s ORDER BY start_date DESC", (property_id,))
@@ -438,3 +485,54 @@ def portal_accept_quote(quote_id):
         conn.close()
         
     return redirect(url_for('portal.portal_view_quote', quote_id=quote_id))
+    
+@portal_bp.route('/portal/request/<int:request_id>')
+def portal_view_request(request_id):
+    if not check_portal_access(): return redirect(get_login_url())
+    
+    conn = get_db(); cur = conn.cursor()
+
+    # 1. Fetch Request Details
+    cur.execute("""
+        SELECT sr.id, sr.issue_description, sr.status, sr.created_at, 
+               sr.priority, p.address_line1, p.postcode, sr.property_id
+        FROM service_requests sr
+        JOIN properties p ON sr.property_id = p.id
+        WHERE sr.id = %s AND sr.client_id = %s
+    """, (request_id, session['portal_client_id']))
+    req = cur.fetchone()
+    
+    if not req: 
+        conn.close()
+        return "Request not found", 404
+
+    # 2. Fetch Completion Report (If job is done)
+    cur.execute("""
+        SELECT work_summary, end_date, 
+               (SELECT filepath FROM job_evidence WHERE job_id = j.id AND file_type='Completion Photo' LIMIT 1),
+               (SELECT name FROM staff WHERE id = j.engineer_id)
+        FROM jobs j WHERE service_request_id = %s AND status = 'Completed'
+    """, (request_id,))
+    completion = cur.fetchone()
+
+    # 3. Fetch Timeline Updates (The New Feature)
+    # Note: Ensure you have run the SQL to create the 'request_updates' table first
+    updates = []
+    try:
+        cur.execute("""
+            SELECT message, author, created_at 
+            FROM request_updates 
+            WHERE request_id = %s AND is_public = TRUE 
+            ORDER BY created_at DESC
+        """, (request_id,))
+        updates = cur.fetchall()
+    except Exception:
+        pass # Table might not exist yet, fail gracefully
+
+    conn.close()
+
+    return render_template('portal/portal_request_view.html', 
+                           req=req, 
+                           completion=completion, 
+                           updates=updates,
+                           company_name=session.get('portal_company_name', 'Client Portal'))

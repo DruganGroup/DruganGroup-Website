@@ -30,7 +30,13 @@
                 <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">{{ type }}</small>
                 <div class="d-flex justify-content-between align-items-end mt-1">
                     <h6 class="fw-bold m-0">{{ data.date }}</h6>
-                    <span class="badge bg-{{ data.class }} text-white" style="font-size: 0.65rem;">{{ data.label }}</span>
+                    {% if data.download_url %}
+                        <a href="{{ data.download_url }}" target="_blank" class="badge bg-{{ data.class }} text-white text-decoration-none" title="Download Certificate">
+                            <i class="fas fa-download me-1"></i> {{ data.label }}
+                        </a>
+                    {% else %}
+                        <span class="badge bg-{{ data.class }} text-white" style="font-size: 0.65rem;">{{ data.label }}</span>
+                    {% endif %}
                 </div>
             </div>
         </div>

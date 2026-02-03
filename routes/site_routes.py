@@ -193,11 +193,26 @@ def toggle_day_clock():
 
     try:
         if action == 'start':
-            # Prevent double clock-in
+            # --- FIX: AUTO-CLOSE STALE PAYROLL CLOCKS ---
+            # If they are still clocked in from yesterday (older than 14 hours), close it automatically.
+            cur.execute("""
+                UPDATE staff_attendance
+                SET clock_out = clock_in + INTERVAL '8 hours',
+                    total_hours = 8,
+                    notes = 'Auto-Closed (Stale)'
+                WHERE staff_id = %s 
+                AND clock_out IS NULL 
+                AND clock_in < NOW() - INTERVAL '14 hours'
+            """, (staff_id,))
+            # ---------------------------------------------
+
+            # Prevent double clock-in (Standard check)
             cur.execute("SELECT id FROM staff_attendance WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
             if not cur.fetchone():
                 cur.execute("INSERT INTO staff_attendance (staff_id, date, clock_in) VALUES (%s, CURRENT_DATE, CURRENT_TIMESTAMP)", (staff_id,))
                 flash("✅ Clocked In", "success")
+            else:
+                flash("⚠️ You are already clocked in.", "warning")
 
         elif action == 'stop':
             cur.execute("""
@@ -229,13 +244,24 @@ def toggle_site_time(job_id):
     
     try:
         if action == 'start':
-            # 1. Start Timer
+            # Check for any open timers older than 14 hours and auto-close them
+            cur.execute("""
+                UPDATE staff_timesheets
+                SET clock_out = clock_in + INTERVAL '8 hours',
+                    total_hours = 8,
+                    status = 'Auto-Closed (Stale)'
+                WHERE staff_id = %s 
+                AND clock_out IS NULL 
+                AND clock_in < NOW() - INTERVAL '14 hours'
+            """, (staff_id,))
+
+            # Start New Timer
             cur.execute("""
                 INSERT INTO staff_timesheets (company_id, staff_id, job_id, date, clock_in)
                 VALUES (%s, %s, %s, CURRENT_DATE, CURRENT_TIMESTAMP)
             """, (comp_id, staff_id, job_id))
             
-            # 2. Update Job Status for Office Map
+            # Update Job Status
             cur.execute("UPDATE jobs SET status = 'In Progress', start_date = CURRENT_TIMESTAMP WHERE id = %s", (job_id,))
             flash("✅ Job Started.", "success")
 

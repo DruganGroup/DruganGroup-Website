@@ -49,26 +49,45 @@
             </div>
         </div>
 
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-white py-3 border-0">
-                <h5 class="m-0 fw-bold"><i class="fas fa-camera me-2 text-brand"></i>Site Photos</h5>
+        <div class="card shadow-sm border-0 mt-4">
+            <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                <h5 class="m-0 fw-bold"><i class="fas fa-camera me-2 text-brand"></i>Site Gallery</h5>
+                <span class="badge bg-light text-dark border">{{ photos|length }} Photos</span>
             </div>
             <div class="card-body p-4">
                 {% if photos %}
                     <div class="row g-3">
                         {% for p in photos %}
                         <div class="col-6 col-md-4 col-lg-3">
-                            <a href="/{{ p[0] }}" target="_blank" class="d-block border rounded overflow-hidden shadow-sm" style="height: 150px;">
-                                <img src="/{{ p[0] }}" class="w-100 h-100 object-fit-cover hover-zoom" alt="Site Photo">
-                            </a>
-                            <div class="small text-muted mt-1">{{ p[1] }}</div>
+                            <div class="position-relative border rounded overflow-hidden shadow-sm group-hover-zoom" style="height: 180px;">
+                                <a href="/{{ p[0] }}" target="_blank">
+                                    <img src="/{{ p[0] }}" 
+                                         class="w-100 h-100 object-fit-cover transition-transform" 
+                                         style="transition: transform 0.3s ease;"
+                                         alt="Site Photo"
+                                         onmouseover="this.style.transform='scale(1.05)'"
+                                         onmouseout="this.style.transform='scale(1)'"
+                                         onerror="this.onerror=null;this.src='https://placehold.co/400x300?text=No+Image';">
+                                </a>
+                                
+                                <div class="position-absolute bottom-0 start-0 w-100 p-2" 
+                                     style="background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);">
+                                    <small class="text-white d-block text-truncate">
+                                        <i class="fas fa-calendar-alt me-1 opacity-75"></i> {{ p[1] }}
+                                    </small>
+                                    <span class="badge bg-white text-dark mt-1" style="font-size: 0.6rem; opacity: 0.9;">
+                                        {{ p[2] or 'Site Photo' }}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                         {% endfor %}
                     </div>
                 {% else %}
                     <div class="text-center py-5 text-muted bg-light rounded border border-dashed">
-                        <i class="fas fa-camera fa-2x mb-3 opacity-25"></i>
-                        <p class="mb-0">No photos uploaded for this job yet.</p>
+                        <i class="fas fa-images fa-3x mb-3 opacity-25"></i>
+                        <p class="mb-0">No photos have been uploaded for this job yet.</p>
+                        <small>Photos will appear here as our engineers upload them.</small>
                     </div>
                 {% endif %}
             </div>

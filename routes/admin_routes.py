@@ -708,120 +708,28 @@ def view_system_logs():
                            page=page, 
                            total_pages=total_pages)
 
-# =========================================================
-# GLOBAL NUCLEAR RESET (Wipes ALL Tenants' Transaction Data)
-# =========================================================
-@admin_bp.route('/admin/system/global-nuclear-reset')
-def global_nuclear_reset():
-    # 1. SECURITY CHECK (SuperAdmin Only)
+@admin_bp.route('/super-admin/setup-request-updates')
+def setup_request_updates_db():
     if session.get('role') != 'SuperAdmin': 
-        return "❌ ACCESS DENIED: Only SuperAdmins can press the red button."
-    
-    conn = get_db()
-    cur = conn.cursor()
-    
-    try:
-        # --- PHASE 1: FINANCE ---
-        # Clear Invoicing Data
-        cur.execute("DELETE FROM invoice_items")
-        cur.execute("DELETE FROM invoices")
-        
-        # --- PHASE 2: OPERATIONS ---
-        # Clear Job Data (Dependencies first)
-        cur.execute("DELETE FROM job_materials")
-        
-        # Clear Compliance/RAMS (Safely check if table exists)
-        try: cur.execute("DELETE FROM certificates") 
-        except: pass 
-        
-        # Clear Jobs (This clears the Calendar)
-        cur.execute("DELETE FROM jobs")
-        
-        # --- PHASE 3: SALES & SERVICE ---
-        # Clear Quotes
-        cur.execute("DELETE FROM quote_items")
-        cur.execute("DELETE FROM quotes")
-        
-        # Clear Service Desk
-        cur.execute("DELETE FROM service_requests")
-
-        conn.commit()
-        flash("🌍 GLOBAL RESET SUCCESSFUL: All Jobs, Quotes, and Invoices have been wiped system-wide.", "success")
-        
-    except Exception as e:
-        conn.rollback()
-        flash(f"❌ Reset Failed: {e}", "error")
-        return f"Error executing reset: {e}"
-        
-    finally:
-        conn.close()
-
-    # Redirect to Dashboard (which should now be empty)
-    return redirect(url_for('office.office_dashboard'))
-    
-@admin_bp.route('/admin/fix-logs-db')
-def fix_logs_db():
-    if session.get('role') not in ['SuperAdmin', 'Admin']:
         return "Access Denied", 403
-
+        
     conn = get_db()
     cur = conn.cursor()
-    messages = []
-    
-    commands = [
-        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS ip_address TEXT;",
-        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS company_id INTEGER;",
-        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS user_id INTEGER;",
-        "ALTER TABLE system_logs ADD COLUMN IF NOT EXISTS status_code INTEGER DEFAULT 500;",
-        "CREATE TABLE IF NOT EXISTS banned_ips (ip_address TEXT PRIMARY KEY, reason TEXT, banned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"
-    ]
-    
     try:
-        for sql in commands:
-            cur.execute(sql)
-            messages.append(f"✅ Executed: {sql}")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS request_updates (
+                id SERIAL PRIMARY KEY,
+                request_id INTEGER REFERENCES service_requests(id) ON DELETE CASCADE,
+                message TEXT NOT NULL,
+                author VARCHAR(100), 
+                is_public BOOLEAN DEFAULT TRUE, 
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
         conn.commit()
+        return "<h1>✅ Success: 'request_updates' table created.</h1><a href='/admin/super-admin'>Back to Dashboard</a>"
     except Exception as e:
         conn.rollback()
-        messages.append(f"❌ Error: {e}")
-    finally:
-        conn.close()
-        
-    return "<br>".join(messages)
-
-# --- VIEW BANNED IPs ---
-@admin_bp.route('/admin/banned-ips')
-def view_banned_ips():
-    if session.get('role') not in ['SuperAdmin', 'Admin']: return redirect(url_for('auth.login'))
-    
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT ip_address, reason, TO_CHAR(banned_at, 'DD Mon YYYY HH24:MI') FROM banned_ips ORDER BY banned_at DESC")
-    banned = cur.fetchall()
-    conn.close()
-    
-    return render_template('admin/banned_ips.html', banned=banned)
-
-# --- REMOVE BAN (UNBAN) ---
-@admin_bp.route('/admin/unban/<ip>')
-def unban_ip(ip):
-    if session.get('role') not in ['SuperAdmin', 'Admin']: return "Access Denied", 403
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("DELETE FROM banned_ips WHERE ip_address = %s", (ip,))
-    conn.commit(); conn.close()
-    flash(f"✅ IP {ip} has been unbanned.")
-    return redirect(url_for('admin.view_banned_ips'))
-    
-@admin_bp.route('/admin/emergency-unban-all-999')
-def emergency_unban_all():
-    # This route bypasses the session check so you can run it while locked out
-    conn = get_db()
-    cur = conn.cursor()
-    try:
-        cur.execute("DELETE FROM banned_ips")
-        conn.commit()
-        return "<h1>Success</h1><p>The ban list has been wiped. You can now log in.</p>"
-    except Exception as e:
-        return f"<h1>Error</h1><p>{str(e)}</p>"
+        return f"<h1>❌ Error: {e}</h1>"
     finally:
         conn.close()
