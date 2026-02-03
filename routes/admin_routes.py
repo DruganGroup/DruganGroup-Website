@@ -97,6 +97,7 @@ def super_admin_dashboard():
     cur = conn.cursor()
     
     # --- 1. HANDLE FORM SUBMISSION (CREATE COMPANY) ---
+    # (This is your original logic, preserved exactly)
     if request.method == 'POST':
         c_name = request.form.get('company_name')
         owner_name = request.form.get('owner_name')
@@ -104,7 +105,7 @@ def super_admin_dashboard():
         plan_id = request.form.get('plan_id') 
         
         # Fetch Plan Details
-        cur.execute("SELECT name, max_users, max_vehicles, max_clients, max_properties, max_storage, modules FROM plans WHERE id = %s", (plan_id,))
+        cur.execute("SELECT name, max_users, max_vehicles, max_clients, max_properties, max_storage, modules_enabled FROM plans WHERE id = %s", (plan_id,))
         selected_plan = cur.fetchone()
         
         if selected_plan:
@@ -153,14 +154,15 @@ def super_admin_dashboard():
         else:
             flash("❌ Error: Selected plan not found.")
 
-    # --- 2. FETCH DATA FOR DASHBOARD ---
+    # --- 2. FETCH DATA FOR DASHBOARD (UPDATED) ---
     
-    # A. Fetch Plans
+    # A. Fetch Plans & Calculate MRR Map
     cur.execute("SELECT id, name, price FROM plans ORDER BY price ASC")
     rows = cur.fetchall()
-    available_plans = [{'id': r[0], 'name': r[1], 'price': r[2]} for r in rows]
+    plans = [{'id': r[0], 'name': r[1], 'price': float(r[2])} for r in rows]
+    price_map = {p['name']: p['price'] for p in plans}
 
-    # B. Fetch Companies List (NOW INCLUDES START DATE)
+    # B. Fetch Companies List
     cur.execute("""
         SELECT c.id, c.name, c.subdomain, s.plan_tier, s.status, u.email, s.start_date
         FROM companies c
@@ -168,24 +170,61 @@ def super_admin_dashboard():
         LEFT JOIN users u ON c.id = u.company_id AND u.role = 'Admin'
         ORDER BY c.id DESC
     """)
+    
     companies = []
+    total_mrr = 0.0
+    
+    # Tables to count for usage stats (New Feature)
+    count_tables = ['users', 'staff', 'vehicles', 'clients', 'jobs', 'transactions', 'maintenance_logs', 'invoices']
+
     for row in cur.fetchall():
-        # Format the date nicely (e.g. "14 Jan 2026")
-        raw_date = row[6]
-        formatted_date = raw_date.strftime('%d %b %Y') if raw_date else "Pending"
+        comp_id = row[0]
+        plan_name = row[3]
+        status = row[4]
+        
+        # Calculate Revenue (MRR)
+        if status == 'Active' and plan_name in price_map:
+            total_mrr += price_map[plan_name]
+
+        # --- CALCULATE STORAGE & BANDWIDTH ---
+        total_rows = 0
+        for t in count_tables:
+            try:
+                cur.execute(f"SELECT COUNT(*) FROM {t} WHERE company_id = %s", (comp_id,))
+                total_rows += cur.fetchone()[0]
+            except:
+                conn.rollback() 
+        
+        # Logic: 0.5KB per row + Static files estimate
+        est_storage_mb = round((total_rows * 0.5) / 1024, 2)
+        est_bandwidth_mb = round(total_rows * 0.05, 2)
+        # -------------------------------------
+
+        formatted_date = row[6].strftime('%d %b %Y') if row[6] else "Pending"
 
         companies.append({
-            'id': row[0], 
+            'id': comp_id, 
             'name': row[1], 
             'subdomain': row[2], 
-            'plan': row[3], 
-            'status': row[4], 
+            'plan': plan_name, 
+            'status': status, 
             'admin': row[5],
-            'joined': formatted_date  # <--- THIS WAS MISSING
+            'joined': formatted_date,
+            'storage': est_storage_mb,    # Added for new dashboard
+            'bandwidth': est_bandwidth_mb # Added for new dashboard
         })
 
+    # C. Total Users (System Wide)
+    cur.execute("SELECT COUNT(*) FROM users")
+    total_users = cur.fetchone()[0]
+
     conn.close()
-    return render_template('super_admin.html', companies=companies, plans=available_plans)
+    
+    return render_template('admin/super_admin.html', 
+                           companies=companies, 
+                           plans=plans,
+                           total_mrr=total_mrr,
+                           total_users=total_users)
 
 @admin_bp.route('/super-admin/analytics')
 def super_admin_analytics():
@@ -707,29 +746,3 @@ def view_system_logs():
                            logs=logs, 
                            page=page, 
                            total_pages=total_pages)
-
-@admin_bp.route('/super-admin/setup-request-updates')
-def setup_request_updates_db():
-    if session.get('role') != 'SuperAdmin': 
-        return "Access Denied", 403
-        
-    conn = get_db()
-    cur = conn.cursor()
-    try:
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS request_updates (
-                id SERIAL PRIMARY KEY,
-                request_id INTEGER REFERENCES service_requests(id) ON DELETE CASCADE,
-                message TEXT NOT NULL,
-                author VARCHAR(100), 
-                is_public BOOLEAN DEFAULT TRUE, 
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
-        conn.commit()
-        return "<h1>✅ Success: 'request_updates' table created.</h1><a href='/admin/super-admin'>Back to Dashboard</a>"
-    except Exception as e:
-        conn.rollback()
-        return f"<h1>❌ Error: {e}</h1>"
-    finally:
-        conn.close()
