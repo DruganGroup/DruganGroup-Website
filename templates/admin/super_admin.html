@@ -4,93 +4,109 @@
 
 {% block styles %}
 <style>
-    /* --- DASHBOARD METRICS --- */
+    /* --- HIGH CONTRAST DARK MODE FIXES --- */
+    
+    /* 1. Force Text Colors */
+    h1, h2, h3, h4, h5, h6 { color: #ffffff !important; }
+    .text-muted { color: #b0b0b0 !important; } /* Lighter grey for readability */
+    .text-dark { color: #000000 !important; } /* Keep badges readable */
+    
+    /* 2. Metric Cards */
     .metric-card {
-        background: var(--card-bg);
-        border: 1px solid var(--border-color);
+        background-color: #1e1e1e; /* Dark Grey Background */
+        border: 1px solid #333;
         border-radius: 12px;
         padding: 25px;
-        transition: 0.3s;
         position: relative;
-        overflow: hidden;
+        transition: 0.3s;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
     .metric-card:hover {
-        transform: translateY(-5px);
         border-color: var(--primary-gold);
+        transform: translateY(-5px);
     }
-    .metric-icon {
-        position: absolute;
-        right: 20px; top: 20px;
-        font-size: 2.5rem; opacity: 0.1;
+    .metric-card h2 { font-size: 2rem; margin-top: 10px; }
+    
+    /* 3. Table Styling */
+    .card-dark {
+        background-color: #1e1e1e;
+        border: 1px solid #333;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .table-dark-custom th {
+        background-color: #1e1e1e;
+        color: var(--primary-gold) !important;
+        border-bottom: 2px solid #333;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 1px;
+    }
+    .table-dark-custom td {
+        background-color: #1e1e1e;
+        color: #ffffff;
+        border-bottom: 1px solid #333;
+        vertical-align: middle;
+        padding: 15px;
+    }
+    .table-dark-custom tr:hover td {
+        background-color: #252525;
     }
 
-    /* --- SEARCH INPUT --- */
+    /* 4. Search Input */
     .search-input {
-        background: #121212;
-        border: 1px solid #333;
-        color: white;
+        background-color: #121212;
+        border: 1px solid #444;
+        color: #ffffff;
         padding: 8px 15px;
         border-radius: 6px;
-        font-size: 0.9rem;
     }
     .search-input:focus {
         border-color: var(--primary-gold);
         outline: none;
+        color: #ffffff;
     }
 
-    /* --- PROGRESS BARS --- */
+    /* 5. Progress Bars */
     .storage-track {
-        background: #333; height: 4px; width: 100%;
-        border-radius: 2px; margin-top: 5px;
+        background-color: #000;
+        height: 6px; width: 100%;
+        border-radius: 3px; margin-top: 8px;
     }
     .storage-fill {
-        height: 100%; background: #3498db; border-radius: 2px;
+        height: 100%; background: #3498db; border-radius: 3px;
     }
 
-    /* --- MODAL FIXES (THE IMPORTANT PART) --- */
+    /* 6. Modal Fixes (Kept from previous success) */
     .modal-content {
-        background-color: #1e1e1e !important; /* Dark Grey Background */
+        background-color: #1e1e1e !important;
         border: 1px solid #444;
-        color: #ffffff !important; /* White Text */
+        color: #ffffff !important;
     }
-    .modal-header, .modal-footer {
-        border-color: #333 !important;
-    }
-    .btn-close {
-        filter: invert(1) grayscale(100%) brightness(200%); /* Makes 'X' White */
-    }
-    
-    /* FIX INPUT FIELDS (No more white boxes) */
+    .modal-header, .modal-footer { border-color: #333 !important; }
+    .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
     .form-control, .form-select {
-        background-color: #2a2a2a !important; /* Dark Input Background */
+        background-color: #2a2a2a !important;
         border: 1px solid #444 !important;
-        color: #ffffff !important; /* White Input Text */
+        color: #ffffff !important;
     }
     .form-control:focus, .form-select:focus {
-        background-color: #333 !important;
-        color: #ffffff !important;
         border-color: var(--primary-gold) !important;
         box-shadow: none;
     }
-    /* FIX LABELS */
-    .form-label {
-        color: #cccccc !important; /* Light Grey Labels */
-        font-weight: 600;
-        font-size: 0.85rem;
-        text-transform: uppercase;
-    }
-    /* FIX PLACEHOLDER TEXT */
-    .form-control::placeholder {
-        color: #666 !important;
-    }
+    .form-label { color: #cccccc !important; }
+    
+    /* 7. Link Colors */
+    a.text-gold { color: var(--primary-gold) !important; text-decoration: none; }
+    a.text-gold:hover { text-decoration: underline; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-end mb-5">
     <div>
-        <h6 class="text-muted text-uppercase mb-1">Overview</h6>
-        <h2 class="fw-bold mb-0 text-white">Super Admin <span style="color: var(--primary-gold);">Console</span></h2>
+        <h6 class="text-uppercase mb-1" style="color: #888;">Overview</h6>
+        <h2 class="fw-bold mb-0">Super Admin <span style="color: var(--primary-gold);">Console</span></h2>
     </div>
     <div class="d-flex gap-2">
         <button class="btn btn-dark border-secondary text-white" data-bs-toggle="modal" data-bs-target="#createCompanyModal">
@@ -105,37 +121,60 @@
 <div class="row g-4 mb-5">
     <div class="col-md-3">
         <div class="metric-card">
-            <i class="fas fa-pound-sign metric-icon text-gold"></i>
-            <h6 class="text-muted text-uppercase small mb-2">Est. Monthly Revenue</h6>
-            <h2 class="text-white fw-bold m-0">£{{ "%.2f"|format(total_mrr) }}</h2>
-            <small class="text-success"><i class="fas fa-arrow-up"></i> Active Subscriptions</small>
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h6 class="text-uppercase small mb-2 text-muted">Est. Monthly Revenue</h6>
+                    <h2 class="fw-bold m-0">£{{ "%.2f"|format(total_mrr) }}</h2>
+                </div>
+                <i class="fas fa-pound-sign fa-2x" style="color: var(--primary-gold); opacity: 0.5;"></i>
+            </div>
+            <div class="mt-3 small text-success">
+                <i class="fas fa-arrow-up me-1"></i> Active Subscriptions
+            </div>
         </div>
     </div>
+
     <div class="col-md-3">
         <div class="metric-card">
-            <i class="fas fa-building metric-icon text-success"></i>
-            <h6 class="text-muted text-uppercase small mb-2">Active Tenants</h6>
-            <h2 class="text-white fw-bold m-0">
-                {{ companies|selectattr("status", "equalto", "Active")|list|length }} 
-                <span class="fs-6 text-muted">/ {{ companies|length }}</span>
-            </h2>
-            <small class="text-muted">Total Deployments</small>
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h6 class="text-uppercase small mb-2 text-muted">Active Tenants</h6>
+                    <h2 class="fw-bold m-0">
+                        {{ companies|selectattr("status", "equalto", "Active")|list|length }} 
+                        <span class="fs-6 text-muted">/ {{ companies|length }}</span>
+                    </h2>
+                </div>
+                <i class="fas fa-building fa-2x text-success" style="opacity: 0.5;"></i>
+            </div>
+            <div class="mt-3 small text-muted">Total Deployments</div>
         </div>
     </div>
+
     <div class="col-md-3">
         <div class="metric-card">
-            <i class="fas fa-users metric-icon text-info"></i>
-            <h6 class="text-muted text-uppercase small mb-2">Total System Users</h6>
-            <h2 class="text-white fw-bold m-0">{{ total_users }}</h2>
-            <small class="text-muted">Across all companies</small>
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h6 class="text-uppercase small mb-2 text-muted">Total System Users</h6>
+                    <h2 class="fw-bold m-0">{{ total_users }}</h2>
+                </div>
+                <i class="fas fa-users fa-2x text-info" style="opacity: 0.5;"></i>
+            </div>
+            <div class="mt-3 small text-muted">Across all companies</div>
         </div>
     </div>
+
     <div class="col-md-3">
         <div class="metric-card">
-            <i class="fas fa-server metric-icon text-danger"></i>
-            <h6 class="text-muted text-uppercase small mb-2">Database Health</h6>
-            <h2 class="text-white fw-bold m-0">Healthy</h2>
-            <small class="text-success"><i class="fas fa-check-circle"></i> Operational</small>
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h6 class="text-uppercase small mb-2 text-muted">Database Health</h6>
+                    <h2 class="fw-bold m-0">Healthy</h2>
+                </div>
+                <i class="fas fa-server fa-2x text-danger" style="opacity: 0.5;"></i>
+            </div>
+            <div class="mt-3 small text-success">
+                <i class="fas fa-check-circle me-1"></i> Operational
+            </div>
         </div>
     </div>
 </div>
@@ -145,7 +184,7 @@
         <h5 class="m-0 text-white"><i class="fas fa-network-wired me-2" style="color: var(--primary-gold);"></i> Tenant Registry</h5>
         
         <form action="{{ url_for('admin.global_search') }}" method="GET" class="d-flex gap-2">
-            <input type="text" name="q" class="search-input" placeholder="Search companies..." style="width: 250px;">
+            <input type="text" name="q" class="search-input" placeholder="Search companies...">
             <button type="submit" class="btn btn-dark border-secondary" style="color: var(--primary-gold);"><i class="fas fa-search"></i></button>
         </form>
     </div>
@@ -168,13 +207,15 @@
                 <tr>
                     <td>
                         <div class="fw-bold text-white">{{ c.name }}</div>
-                        <a href="http://{{ c.subdomain }}.businessbetter.co.uk" target="_blank" class="text-decoration-none text-muted font-monospace small">
-                            {{ c.subdomain }} <i class="fas fa-external-link-alt ms-1" style="font-size: 0.7em;"></i>
+                        <a href="http://{{ c.subdomain }}.businessbetter.co.uk" target="_blank" class="text-gold font-monospace small">
+                            {{ c.subdomain }} <i class="fas fa-external-link-alt ms-1"></i>
                         </a>
                     </td>
-                    <td><span class="badge bg-dark border border-secondary">{{ c.plan }}</span></td>
+                    <td>
+                        <span class="badge bg-dark border border-secondary text-white">{{ c.plan }}</span>
+                    </td>
                     
-                    <td style="min-width: 120px;">
+                    <td style="min-width: 140px;">
                         <div class="d-flex justify-content-between text-white small fw-bold mb-1">
                             <span>{{ c.storage }} MB</span>
                         </div>
@@ -192,9 +233,9 @@
                     
                     <td>
                         {% if c.status == 'Active' %}
-                            <span class="badge bg-success bg-opacity-10 text-success border border-success">Active</span>
+                            <span class="badge bg-success bg-opacity-25 text-success border border-success">Active</span>
                         {% else %}
-                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">{{ c.status }}</span>
+                            <span class="badge bg-danger bg-opacity-25 text-danger border border-danger">{{ c.status }}</span>
                         {% endif %}
                     </td>
                     
