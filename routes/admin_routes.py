@@ -365,72 +365,75 @@ def delete_tenant(company_id):
     conn = get_db()
     cur = conn.cursor()
 
-    # Helper function to delete safely
+    # Helper to prevent crashes if a table is empty/missing
     def safe_delete(query, params):
         try:
             cur.execute(query, params)
         except Exception as e:
-            conn.rollback() # Reset connection to keep going
-            error_msg = str(e)
-            # Only ignore "table does not exist" errors
-            if "does not exist" in error_msg:
-                print(f"Skipped missing table: {query}")
+            conn.rollback()
+            if "does not exist" in str(e):
+                pass # Skip tables that don't exist
             else:
-                print(f"Real Delete Error: {error_msg}")
-                # We re-raise real errors (like foreign keys) so we know if logic is wrong
-                raise e 
+                print(f"Delete Error on {query}: {e}")
 
     try:
-        print(f"--- STARTING WIPE FOR COMPANY {company_id} ---")
-
-        # PHASE 1: Deep Clean (Dependencies)
-        # We wrap EVERY delete in safe_delete so missing tables don't crash the script
-        
-        # Job Dependencies
+        # --- PHASE 1: JOB DEPENDENCIES (The Deepest Links) ---
+        # Deleting items attached to Jobs first
         safe_delete("DELETE FROM job_materials WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        safe_delete("DELETE FROM job_notes WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        safe_delete("DELETE FROM job_logs WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        
-        # Finance Dependencies
+        safe_delete("DELETE FROM job_expenses WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        safe_delete("DELETE FROM job_evidence WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        safe_delete("DELETE FROM job_photos WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        safe_delete("DELETE FROM job_rams WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        safe_delete("DELETE FROM job_items WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        safe_delete("DELETE FROM site_diary WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        safe_delete("DELETE FROM client_notifications WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+
+        # --- PHASE 2: FINANCE & ASSET DEPENDENCIES ---
         safe_delete("DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE company_id = %s)", (company_id,))
         safe_delete("DELETE FROM quote_items WHERE quote_id IN (SELECT id FROM quotes WHERE company_id = %s)", (company_id,))
-        safe_delete("DELETE FROM overhead_items WHERE overhead_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)", (company_id,))
+        safe_delete("DELETE FROM overhead_items WHERE category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)", (company_id,))
         
-        # Asset Dependencies
-        safe_delete("DELETE FROM vehicle_checks WHERE vehicle_id IN (SELECT id FROM vehicles WHERE company_id = %s)", (company_id,))
-        safe_delete("DELETE FROM maintenance_logs WHERE vehicle_id IN (SELECT id FROM vehicles WHERE company_id = %s)", (company_id,))
-        safe_delete("DELETE FROM vehicle_crews WHERE vehicle_id IN (SELECT id FROM vehicles WHERE company_id = %s)", (company_id,))
-        safe_delete("DELETE FROM property_compliance WHERE property_id IN (SELECT id FROM properties WHERE company_id = %s)", (company_id,))
+        # Vehicle & Property Links
+        safe_delete("DELETE FROM vehicle_checks WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM maintenance_logs WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM vehicle_crews WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM certificates WHERE company_id = %s", (company_id,))
         
-        # HR Dependencies
-        safe_delete("DELETE FROM staff_timesheets WHERE user_id IN (SELECT id FROM users WHERE company_id = %s)", (company_id,))
+        # Staff/HR Links
+        safe_delete("DELETE FROM staff_timesheets WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM staff_attendance WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM timesheets WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM team_members WHERE team_id IN (SELECT id FROM teams WHERE company_id = %s)", (company_id,))
 
-        # PHASE 2: Unlink Circular References
+        # --- PHASE 3: UNLINKING (Prevent Foreign Key Locks) ---
         safe_delete("UPDATE jobs SET quote_id = NULL WHERE company_id = %s", (company_id,))
         safe_delete("UPDATE invoices SET job_id = NULL WHERE company_id = %s", (company_id,))
+        safe_delete("UPDATE clients SET company_id = NULL WHERE company_id = %s", (company_id,))
 
-        # PHASE 3: Main Records
+        # --- PHASE 4: MAIN OPERATIONAL TABLES ---
         safe_delete("DELETE FROM jobs WHERE company_id = %s", (company_id,))
         safe_delete("DELETE FROM invoices WHERE company_id = %s", (company_id,))
         safe_delete("DELETE FROM quotes WHERE company_id = %s", (company_id,))
         safe_delete("DELETE FROM transactions WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM tickets WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM maintenance_logs WHERE company_id = %s", (company_id,))
         safe_delete("DELETE FROM service_requests WHERE company_id = %s", (company_id,))
         safe_delete("DELETE FROM overhead_categories WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM suppliers WHERE company_id = %s", (company_id,))
         safe_delete("DELETE FROM materials WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM teams WHERE company_id = %s", (company_id,))
 
-        # PHASE 4: Assets & People
+        # --- PHASE 5: ASSETS & PEOPLE ---
         safe_delete("DELETE FROM vehicles WHERE company_id = %s", (company_id,))
         safe_delete("DELETE FROM properties WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM clients WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM staff WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM clients WHERE company_id = %s", (company_id,)) # Clean up unlinked clients
         safe_delete("DELETE FROM users WHERE company_id = %s", (company_id,))
-        
-        # PHASE 5: Settings & Root
+
+        # --- PHASE 6: CONFIG ---
         safe_delete("DELETE FROM settings WHERE company_id = %s", (company_id,))
         safe_delete("DELETE FROM subscriptions WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM audit_logs WHERE company_id = %s", (company_id,))
 
-        # Finally, delete the company
+        # --- FINAL: DELETE COMPANY ---
         cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
         
         conn.commit()
@@ -438,8 +441,8 @@ def delete_tenant(company_id):
         
     except Exception as e:
         conn.rollback()
+        print(f"CRITICAL DELETE ERROR: {str(e)}")
         flash(f"❌ Database Error: {str(e)}", "error")
-        print(f"CRITICAL ERROR: {str(e)}")
         
     finally:
         conn.close()
