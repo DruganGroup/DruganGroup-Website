@@ -84,9 +84,9 @@
                 </div>
             </div>
             {% else %}
-            {% if loop.first %} 
-            <div class="col-12 text-center text-muted">No trade plans configured yet.</div>
-            {% endif %}
+            <div class="col-12 text-center text-muted">
+                <i class="fas fa-info-circle me-2"></i> No public trade plans configured yet.
+            </div>
             {% endfor %}
 
         </div>
