@@ -357,44 +357,83 @@ def toggle_suspend(company_id):
     conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
 
-# --- ROBUST DELETE COMPANY ---
+# --- ROBUST DELETE COMPANY (routes/admin_routes.py) ---
 @admin_bp.route('/admin/delete-tenant/<int:company_id>')
 def delete_tenant(company_id):
     if session.get('role') != 'SuperAdmin': return "Access Denied"
     
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
+    
     try:
-        # STEP 1: Delete "Grandchildren"
-        grandchildren = ['invoice_items', 'quote_items', 'overhead_items', 'vehicle_crews', 'job_logs']
-        for t in grandchildren:
-            try: cur.execute(f"DELETE FROM {t} USING companies WHERE {t}.company_id = companies.id AND companies.id = %s", (company_id,))
-            except Exception: conn.rollback() 
+        # --- PHASE 1: DELETE "GRANDCHILD" DATA (Items linked to main records) ---
+        # 1. Finance Items
+        # (These usually don't have company_id, so we delete via parent IDs)
+        cur.execute("DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE company_id = %s)", (company_id,))
+        cur.execute("DELETE FROM quote_items WHERE quote_id IN (SELECT id FROM quotes WHERE company_id = %s)", (company_id,))
+        
+        # 2. Job Data (Notes & Logs)
+        # Check if table exists before deleting to prevent errors on older DBs
+        try: cur.execute("DELETE FROM job_notes WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        except: conn.rollback()
+        
+        try: cur.execute("DELETE FROM job_logs WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        except: conn.rollback()
 
-        # STEP 2: Delete "Children"
-        children = ['maintenance_logs', 'materials', 'overhead_categories', 'transactions', 'service_requests', 'invoices', 'quotes', 'jobs']
-        for t in children:
-            try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
-            except Exception: conn.rollback()
+        # 3. Fleet & Property Data
+        try: cur.execute("DELETE FROM vehicle_checks WHERE vehicle_id IN (SELECT id FROM vehicles WHERE company_id = %s)", (company_id,))
+        except: conn.rollback()
 
-        # STEP 3: Delete "Direct Dependents"
-        dependents = ['vehicles', 'staff', 'properties', 'clients', 'users', 'settings', 'subscriptions']
-        for t in dependents:
-            try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
-            except Exception: conn.rollback()
+        try: cur.execute("DELETE FROM property_compliance WHERE property_id IN (SELECT id FROM properties WHERE company_id = %s)", (company_id,))
+        except: conn.rollback()
+        
+        # 4. HR Data
+        try: cur.execute("DELETE FROM staff_timesheets WHERE user_id IN (SELECT id FROM users WHERE company_id = %s)", (company_id,))
+        except: conn.rollback()
 
-        # STEP 4: Delete the Company
+        # --- PHASE 2: DELETE MAIN RECORDS ---
+        # Now it is safe to delete the parents
+        cur.execute("DELETE FROM invoices WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM quotes WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM transactions WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM maintenance_logs WHERE company_id = %s", (company_id,))
+        
+        # The big one causing your error:
+        cur.execute("DELETE FROM jobs WHERE company_id = %s", (company_id,))
+        
+        # Assets
+        cur.execute("DELETE FROM vehicles WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM properties WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM tickets WHERE company_id = %s", (company_id,))
+        
+        # People
+        cur.execute("DELETE FROM clients WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM users WHERE company_id = %s", (company_id,))
+        
+        # Settings & Subscriptions
+        try: cur.execute("DELETE FROM settings WHERE company_id = %s", (company_id,))
+        except: conn.rollback()
+        
+        try: cur.execute("DELETE FROM subscriptions WHERE company_id = %s", (company_id,))
+        except: conn.rollback()
+
+        # --- PHASE 3: DELETE THE COMPANY ---
         cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
         
         conn.commit()
-        log_audit("DELETE COMPANY", f"Company ID {company_id}", "Deleted via Super Admin Dashboard")
-        flash("✅ Company and all associated data deleted permanently.")
+        flash("✅ Tenant and all data deleted successfully.", "success")
         
     except Exception as e:
         conn.rollback()
-        flash(f"❌ Error deleting company: {e}")
+        # This will now tell you exactly WHICH delete command failed
+        print(f"Delete Failed: {str(e)}")
+        flash(f"❌ Error deleting company: {str(e)}", "error")
+        
     finally:
         conn.close()
-    return redirect(url_for('admin.super_admin_dashboard'))
+
+    # Make sure this redirects to the correct existing route
+    return redirect(url_for('super_admin.analytics'))
 
 # --- BACKUP SYSTEM: VIEW LIST ---
 @admin_bp.route('/admin/backup/all')
