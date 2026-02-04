@@ -92,34 +92,34 @@
                         </div>
                         {% endmacro %}
 
-                        <h6 class="text-white text-uppercase mb-3 ps-2 border-start border-gold border-3">Sole Traders & Starters</h6>
+                        <h6 class="text-white text-uppercase mb-3 ps-2 border-start border-gold border-3">Sole Traders</h6>
                         <div class="row g-3 mb-5">
                             {% set has_sole = false %}
-                            {% for plan in plans if plan.price > 0 and plan.price < 40 %}
+                            {% for plan in plans if 'Sole Trader' in plan.name and plan.price > 0 %}
                                 {{ render_plan(plan) }}
                                 {% set has_sole = true %}
                             {% endfor %}
-                            {% if not has_sole %}<p class="text-muted small ps-3">No plans available in this tier.</p>{% endif %}
+                            {% if not has_sole %}<p class="text-muted small ps-3">No trade plans available.</p>{% endif %}
                         </div>
 
-                        <h6 class="text-white text-uppercase mb-3 ps-2 border-start border-gold border-3">Small to Medium Business</h6>
+                        <h6 class="text-white text-uppercase mb-3 ps-2 border-start border-gold border-3">Property Management & Agencies</h6>
                         <div class="row g-3 mb-5">
-                            {% set has_smb = false %}
-                            {% for plan in plans if plan.price >= 40 and plan.price < 200 %}
-                                {{ render_plan(plan) }}
-                                {% set has_smb = true %}
-                            {% endfor %}
-                            {% if not has_smb %}<p class="text-muted small ps-3">No plans available in this tier.</p>{% endif %}
-                        </div>
-
-                        <h6 class="text-white text-uppercase mb-3 ps-2 border-start border-gold border-3">Estate Agency & Enterprise</h6>
-                        <div class="row g-3 mb-4">
                             {% set has_agency = false %}
-                            {% for plan in plans if plan.price >= 200 %}
+                            {% for plan in plans if 'Agency' in plan.name and plan.price > 0 %}
                                 {{ render_plan(plan) }}
                                 {% set has_agency = true %}
                             {% endfor %}
-                            {% if not has_agency %}<p class="text-muted small ps-3">No plans available in this tier.</p>{% endif %}
+                            {% if not has_agency %}<p class="text-muted small ps-3">No agency plans available.</p>{% endif %}
+                        </div>
+
+                        <h6 class="text-white text-uppercase mb-3 ps-2 border-start border-gold border-3">Business Growth & Enterprise</h6>
+                        <div class="row g-3 mb-4">
+                            {% set has_biz = false %}
+                            {% for plan in plans if 'Sole Trader' not in plan.name and 'Agency' not in plan.name and plan.price > 0 %}
+                                {{ render_plan(plan) }}
+                                {% set has_biz = true %}
+                            {% endfor %}
+                            {% if not has_biz %}<p class="text-muted small ps-3">No enterprise plans available.</p>{% endif %}
                         </div>
 
                     {% endif %}
