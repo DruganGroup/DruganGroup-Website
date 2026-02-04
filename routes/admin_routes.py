@@ -364,59 +364,73 @@ def delete_tenant(company_id):
     
     conn = get_db()
     cur = conn.cursor()
-    
+
+    # Helper function to delete safely
+    def safe_delete(query, params):
+        try:
+            cur.execute(query, params)
+        except Exception as e:
+            conn.rollback() # Reset connection to keep going
+            error_msg = str(e)
+            # Only ignore "table does not exist" errors
+            if "does not exist" in error_msg:
+                print(f"Skipped missing table: {query}")
+            else:
+                print(f"Real Delete Error: {error_msg}")
+                # We re-raise real errors (like foreign keys) so we know if logic is wrong
+                raise e 
+
     try:
-        # --- PHASE 1: THE "DEEP CLEAN" (Level 4 Data) ---
-        # These tables depend on Jobs/Invoices/Vehicles. They MUST go first.
-        
-        # 1. Job Dependencies (The specific error you saw)
-        # We find materials linked to jobs that belong to this company
-        cur.execute("DELETE FROM job_materials WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        
-        # 2. Other Job Links
-        cur.execute("DELETE FROM job_notes WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        cur.execute("DELETE FROM job_logs WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        
-        # 3. Finance Line Items
-        cur.execute("DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE company_id = %s)", (company_id,))
-        cur.execute("DELETE FROM quote_items WHERE quote_id IN (SELECT id FROM quotes WHERE company_id = %s)", (company_id,))
-        
-        # 4. Asset Links (Fleet & Property)
-        cur.execute("DELETE FROM vehicle_checks WHERE vehicle_id IN (SELECT id FROM vehicles WHERE company_id = %s)", (company_id,))
-        cur.execute("DELETE FROM maintenance_logs WHERE vehicle_id IN (SELECT id FROM vehicles WHERE company_id = %s)", (company_id,))
-        cur.execute("DELETE FROM property_compliance WHERE property_id IN (SELECT id FROM properties WHERE company_id = %s)", (company_id,))
-        
-        # 5. User Links (HR)
-        cur.execute("DELETE FROM staff_timesheets WHERE user_id IN (SELECT id FROM users WHERE company_id = %s)", (company_id,))
+        print(f"--- STARTING WIPE FOR COMPANY {company_id} ---")
 
-        # --- PHASE 2: UNLINKING (Safety Step) ---
-        # Sometimes Jobs link to Quotes and Quotes link to Jobs. We break that loop.
-        cur.execute("UPDATE jobs SET quote_id = NULL WHERE company_id = %s", (company_id,))
-        cur.execute("UPDATE invoices SET job_id = NULL WHERE company_id = %s", (company_id,))
+        # PHASE 1: Deep Clean (Dependencies)
+        # We wrap EVERY delete in safe_delete so missing tables don't crash the script
+        
+        # Job Dependencies
+        safe_delete("DELETE FROM job_materials WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        safe_delete("DELETE FROM job_notes WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        safe_delete("DELETE FROM job_logs WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        
+        # Finance Dependencies
+        safe_delete("DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE company_id = %s)", (company_id,))
+        safe_delete("DELETE FROM quote_items WHERE quote_id IN (SELECT id FROM quotes WHERE company_id = %s)", (company_id,))
+        safe_delete("DELETE FROM overhead_items WHERE overhead_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)", (company_id,))
+        
+        # Asset Dependencies
+        safe_delete("DELETE FROM vehicle_checks WHERE vehicle_id IN (SELECT id FROM vehicles WHERE company_id = %s)", (company_id,))
+        safe_delete("DELETE FROM maintenance_logs WHERE vehicle_id IN (SELECT id FROM vehicles WHERE company_id = %s)", (company_id,))
+        safe_delete("DELETE FROM vehicle_crews WHERE vehicle_id IN (SELECT id FROM vehicles WHERE company_id = %s)", (company_id,))
+        safe_delete("DELETE FROM property_compliance WHERE property_id IN (SELECT id FROM properties WHERE company_id = %s)", (company_id,))
+        
+        # HR Dependencies
+        safe_delete("DELETE FROM staff_timesheets WHERE user_id IN (SELECT id FROM users WHERE company_id = %s)", (company_id,))
 
-        # --- PHASE 3: MAIN OPERATIONAL DATA (Level 3) ---
-        # Now that the dependencies are gone, we can delete the core records.
-        
-        cur.execute("DELETE FROM jobs WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM invoices WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM quotes WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM transactions WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM tickets WHERE company_id = %s", (company_id,))
-        
-        # --- PHASE 4: ASSETS & PEOPLE (Level 2) ---
-        cur.execute("DELETE FROM vehicles WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM properties WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM clients WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM users WHERE company_id = %s", (company_id,))
-        
-        # --- PHASE 5: CONFIGURATION & ROOT (Level 1) ---
-        try: cur.execute("DELETE FROM settings WHERE company_id = %s", (company_id,))
-        except: pass
-        
-        try: cur.execute("DELETE FROM subscriptions WHERE company_id = %s", (company_id,))
-        except: pass
+        # PHASE 2: Unlink Circular References
+        safe_delete("UPDATE jobs SET quote_id = NULL WHERE company_id = %s", (company_id,))
+        safe_delete("UPDATE invoices SET job_id = NULL WHERE company_id = %s", (company_id,))
 
-        # Finally, kill the company
+        # PHASE 3: Main Records
+        safe_delete("DELETE FROM jobs WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM invoices WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM quotes WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM transactions WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM tickets WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM maintenance_logs WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM service_requests WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM overhead_categories WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM materials WHERE company_id = %s", (company_id,))
+
+        # PHASE 4: Assets & People
+        safe_delete("DELETE FROM vehicles WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM properties WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM clients WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM users WHERE company_id = %s", (company_id,))
+        
+        # PHASE 5: Settings & Root
+        safe_delete("DELETE FROM settings WHERE company_id = %s", (company_id,))
+        safe_delete("DELETE FROM subscriptions WHERE company_id = %s", (company_id,))
+
+        # Finally, delete the company
         cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
         
         conn.commit()
@@ -424,14 +438,12 @@ def delete_tenant(company_id):
         
     except Exception as e:
         conn.rollback()
-        # Log the specific error to the console so we know exactly what table is left
-        print(f"CRITICAL DELETE ERROR: {str(e)}")
         flash(f"❌ Database Error: {str(e)}", "error")
+        print(f"CRITICAL ERROR: {str(e)}")
         
     finally:
         conn.close()
 
-    # Ensure this points to the correct endpoint name
     return redirect(url_for('admin.super_admin_analytics'))
 
 # --- BACKUP SYSTEM: VIEW LIST ---
