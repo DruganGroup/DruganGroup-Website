@@ -32,16 +32,10 @@ def show_signup():
 
 @auth_bp.route('/process-signup', methods=['POST'])
 def process_signup():
-    # 1. Capture Data
-    sub_domain_input = request.form.get('sub_domain')
-    
-    if not sub_domain_input:
-        flash("❌ Error: Company URL is missing.", "error")
-        return redirect(url_for('auth.show_signup'))
-
+    # 1. Capture Form Data
     data = {
         'company_name': request.form.get('company_name'),
-        'sub_domain': sub_domain_input.lower(),
+        'sub_domain': request.form.get('sub_domain', '').lower().strip(),
         'company_type': request.form.get('company_type'),
         'owner_name': request.form.get('owner_name'),
         'owner_email': request.form.get('owner_email'),
@@ -49,76 +43,66 @@ def process_signup():
         'plan_id': request.form.get('plan_id')
     }
 
-    # 2. VALIDATION CHECK
     conn = get_db()
     cur = conn.cursor()
-    
-    cur.execute("SELECT id FROM users WHERE email = %s", (data['owner_email'],))
-    if cur.fetchone():
-        flash("❌ Email already registered. Please login.", "error")
-        conn.close()
-        return redirect(url_for('auth.show_signup'))
 
-    cur.execute("SELECT id FROM companies WHERE sub_domain = %s", (data['sub_domain'],))
-    if cur.fetchone():
-        flash(f"❌ URL '{data['sub_domain']}' is already taken.", "error")
-        conn.close()
-        return redirect(url_for('auth.show_signup'))
-    
-    # --- 3. DYNAMIC STRIPE LOOKUP (THE FIX) ---
-    # We ask the DB for the Stripe Price ID associated with the chosen plan
-    # This replaces the hardcoded 'stripe_prices = {...}' dictionary
-    
-    # Try to find by ID (e.g. '1') OR Name (e.g. 'Enterprise')
-    cur.execute("""
-        SELECT stripe_price_id FROM plans 
-        WHERE id::text = %s OR LOWER(name) = LOWER(%s)
-    """, (str(data['plan_id']), str(data['plan_id'])))
-    
-    row = cur.fetchone()
-    conn.close() # Close connection before redirecting
-
-    if not row or not row[0]:
-        # Fallback for old hardcoded plans if DB lookup fails
-        fallback_prices = {
-            'sole-trader': 'price_1SuRCGFiYl53Yok9fFl5cZK2', 
-            'growing': 'price_1SuRDDFiYl53Yok9W2PRvPuB',
-            'enterprise': 'price_1SuRDDFiYl53Yok9W2PRvPuB'
-        }
-        price_id = fallback_prices.get(data['plan_id'])
-        
-        if not price_id:
-            flash("❌ Error: Plan configuration missing. Please contact support.", "error")
-            return redirect(url_for('auth.show_signup'))
-    else:
-        price_id = row[0] # FOUND IT!
-
-    # 4. CREATE STRIPE CHECKOUT
     try:
+        # 2. GET STRIPE PRICE ID FROM DB
+        # We look up the plan to make sure it exists and get the Stripe ID
+        cur.execute("SELECT id, name, stripe_price_id FROM plans WHERE id = %s", (data['plan_id'],))
+        plan = cur.fetchone()
+
+        # CRITICAL CHECK: Does the plan exist?
+        if not plan:
+            # If this triggers, your 'pricing.html' has old IDs. Refresh that page.
+            flash(f"Error: Plan ID {data['plan_id']} not found. Please refresh the pricing page.", "error")
+            return redirect(url_for('public.pricing'))
+
+        plan_name = plan[1]
+        stripe_price_id = plan[2]
+
+        if not stripe_price_id:
+            flash(f"Configuration Error: Plan '{plan_name}' has no Stripe Price ID.", "error")
+            return redirect(url_for('auth.show_signup'))
+
+        # 3. CHECK FOR DUPLICATES (URL / Email)
+        cur.execute("SELECT id FROM users WHERE email = %s", (data['owner_email'],))
+        if cur.fetchone():
+            flash("That email is already registered. Please login.", "error")
+            return redirect(url_for('auth.show_signup'))
+
+        cur.execute("SELECT id FROM companies WHERE sub_domain = %s", (data['sub_domain'],))
+        if cur.fetchone():
+            flash(f"URL '{data['sub_domain']}' is already taken.", "error")
+            return redirect(url_for('auth.show_signup'))
+
+        # 4. CREATE STRIPE CHECKOUT SESSION
+        # This sends the user to Stripe to pay
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
-            line_items=[{'price': price_id, 'quantity': 1}],
+            line_items=[{'price': stripe_price_id, 'quantity': 1}],
             mode='subscription',
             success_url=url_for('auth.signup_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
             cancel_url=url_for('auth.show_signup', _external=True),
-            
             metadata={
                 'company_name': data['company_name'],
                 'sub_domain': data['sub_domain'],
-                'company_type': data['company_type'],
                 'owner_name': data['owner_name'],
                 'owner_email': data['owner_email'],
+                'password': data['password'], # Note: We hash this later in the webhook or success route
                 'plan_id': data['plan_id']
             }
         )
         
-        create_pending_account(data)
-        
+        # We redirect to the Stripe URL provided by the API
         return redirect(checkout_session.url, code=303)
 
     except Exception as e:
         flash(f"Payment Error: {str(e)}", "error")
+        print(f"STRIPE ERROR: {str(e)}")
         return redirect(url_for('auth.show_signup'))
+    finally:
+        conn.close()
 
 # =========================================================
 #  2. LOGIN / LOGOUT
