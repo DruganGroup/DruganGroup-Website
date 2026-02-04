@@ -365,89 +365,89 @@ def delete_tenant(company_id):
     conn = get_db()
     cur = conn.cursor()
 
-    # Helper to prevent crashes if a table is empty/missing
-    def safe_delete(query, params):
-        try:
-            cur.execute(query, params)
-        except Exception as e:
-            conn.rollback()
-            if "does not exist" in str(e):
-                pass # Skip tables that don't exist
-            else:
-                print(f"Delete Error on {query}: {e}")
-
     try:
-        # --- PHASE 1: JOB DEPENDENCIES (The Deepest Links) ---
-        # Deleting items attached to Jobs first
-        safe_delete("DELETE FROM job_materials WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        safe_delete("DELETE FROM job_expenses WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        safe_delete("DELETE FROM job_evidence WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        safe_delete("DELETE FROM job_photos WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        safe_delete("DELETE FROM job_rams WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        safe_delete("DELETE FROM job_items WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        safe_delete("DELETE FROM site_diary WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        safe_delete("DELETE FROM client_notifications WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        # --- PHASE 1: SEVER THE LINKS (The Nuclear Option) ---
+        # We don't ask permission. We just set the links to NULL.
+        # This prevents Foreign Key constraints from blocking deletions.
 
-        # --- PHASE 2: FINANCE & ASSET DEPENDENCIES ---
-        safe_delete("DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE company_id = %s)", (company_id,))
-        safe_delete("DELETE FROM quote_items WHERE quote_id IN (SELECT id FROM quotes WHERE company_id = %s)", (company_id,))
-        safe_delete("DELETE FROM overhead_items WHERE category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)", (company_id,))
+        # 1. Unlink JOBS (The most common blocker)
+        # We target every table from your schema that has a job_id
+        job_dependents = [
+            'job_materials', 'job_expenses', 'job_evidence', 'job_photos', 
+            'job_rams', 'job_items', 'site_diary', 'client_notifications', 
+            'staff_timesheets', 'invoices'
+        ]
         
-        # Vehicle & Property Links
-        safe_delete("DELETE FROM vehicle_checks WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM maintenance_logs WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM vehicle_crews WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM certificates WHERE company_id = %s", (company_id,))
+        for table in job_dependents:
+            try:
+                # Set job_id to NULL for any record linked to this company's jobs
+                cur.execute(f"""
+                    UPDATE {table} SET job_id = NULL 
+                    WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)
+                """, (company_id,))
+            except Exception as e:
+                # If table doesn't exist, we don't care. Keep going.
+                pass
+
+        # 2. Unlink QUOTES & CLIENTS
+        try: cur.execute("UPDATE jobs SET quote_id = NULL, client_id = NULL WHERE company_id = %s", (company_id,))
+        except: pass
         
-        # Staff/HR Links
-        safe_delete("DELETE FROM staff_timesheets WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM staff_attendance WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM timesheets WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM team_members WHERE team_id IN (SELECT id FROM teams WHERE company_id = %s)", (company_id,))
+        try: cur.execute("UPDATE invoices SET quote_id = NULL, job_id = NULL WHERE company_id = %s", (company_id,))
+        except: pass
 
-        # --- PHASE 3: UNLINKING (Prevent Foreign Key Locks) ---
-        safe_delete("UPDATE jobs SET quote_id = NULL WHERE company_id = %s", (company_id,))
-        safe_delete("UPDATE invoices SET job_id = NULL WHERE company_id = %s", (company_id,))
-        safe_delete("UPDATE clients SET company_id = NULL WHERE company_id = %s", (company_id,))
+        try: cur.execute("UPDATE properties SET client_id = NULL WHERE company_id = %s", (company_id,))
+        except: pass
 
-        # --- PHASE 4: MAIN OPERATIONAL TABLES ---
-        safe_delete("DELETE FROM jobs WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM invoices WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM quotes WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM transactions WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM service_requests WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM overhead_categories WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM suppliers WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM materials WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM teams WHERE company_id = %s", (company_id,))
 
-        # --- PHASE 5: ASSETS & PEOPLE ---
-        safe_delete("DELETE FROM vehicles WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM properties WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM staff WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM clients WHERE company_id = %s", (company_id,)) # Clean up unlinked clients
-        safe_delete("DELETE FROM users WHERE company_id = %s", (company_id,))
+        # --- PHASE 2: DELETE THE MAIN RECORDS ---
+        # Now that nothing is "holding onto" these records, they should delete easily.
+        
+        tables_to_delete = [
+            # Deepest Level
+            'job_materials', 'job_expenses', 'job_evidence', 'job_photos', 'job_rams',
+            'job_items', 'site_diary', 'client_notifications', 'staff_timesheets',
+            'invoice_items', 'quote_items', 'vehicle_checks', 'maintenance_logs',
+            'vehicle_crews', 'certificates',
+            
+            # Mid Level
+            'jobs', 'invoices', 'quotes', 'transactions', 'service_requests',
+            'tickets', 'vehicles', 'properties', 'staff', 'clients', 'users',
+            'teams', 'materials', 'suppliers', 'overhead_categories',
+            
+            # Config Level
+            'settings', 'subscriptions', 'audit_logs'
+        ]
 
-        # --- PHASE 6: CONFIG ---
-        safe_delete("DELETE FROM settings WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM subscriptions WHERE company_id = %s", (company_id,))
-        safe_delete("DELETE FROM audit_logs WHERE company_id = %s", (company_id,))
+        for table in tables_to_delete:
+            try:
+                cur.execute(f"DELETE FROM {table} WHERE company_id = %s", (company_id,))
+            except Exception as e:
+                # We log it but don't stop. The UNLINKING in Phase 1 ensures 
+                # that even if this fails, the Company Delete (Phase 3) will likely succeed.
+                print(f"Warning: Could not delete from {table}: {e}")
 
-        # --- FINAL: DELETE COMPANY ---
+        # --- PHASE 3: DELETE THE COMPANY (The Goal) ---
         cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
         
         conn.commit()
         flash("✅ Tenant deleted successfully.", "success")
-        
+        return redirect(url_for('admin.super_admin_analytics'))
+
     except Exception as e:
         conn.rollback()
-        print(f"CRITICAL DELETE ERROR: {str(e)}")
-        flash(f"❌ Database Error: {str(e)}", "error")
+        # If this fails, we PRINT the error to the browser so we see it.
+        return f"""
+        <div style="padding: 50px; font-family: sans-serif;">
+            <h1 style="color: red;">DELETE FAILED</h1>
+            <p><strong>Error:</strong> {str(e)}</p>
+            <p>Please send this error message to support.</p>
+            <a href="/super-admin/analytics">Return</a>
+        </div>
+        """
         
     finally:
         conn.close()
-
-    return redirect(url_for('admin.super_admin_analytics'))
 
 # --- BACKUP SYSTEM: VIEW LIST ---
 @admin_bp.route('/admin/backup/all')
