@@ -271,6 +271,7 @@ def serve_uploads(filename):
     upload_dir = os.path.join(app.root_path, 'static', 'uploads')
     return send_from_directory(upload_dir, filename)
     
+from werkzeug.security import generate_password_hash
 @app.route('/emergency-restore')
 def emergency_restore():
     # 1. SET YOUR DETAILS HERE
