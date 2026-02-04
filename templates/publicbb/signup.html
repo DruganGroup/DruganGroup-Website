@@ -19,7 +19,7 @@
         </div>
     </div>
     <div class="row justify-content-center">
-        <div class="col-lg-8">
+        <div class="col-lg-9">
             
             <div class="text-center mb-5">
                 <h1 class="fw-bold text-white">Let's set up your <span class="text-gold">Workspace</span></h1>
@@ -44,53 +44,94 @@
                                 <input type="text" name="sub_domain" id="sub_domain" class="form-control bg-black text-white border-secondary" placeholder="acme" pattern="[a-zA-Z0-9-]+" title="No spaces or symbols" required>
                                 <span class="input-group-text bg-secondary text-light border-secondary">.businessbetter.co.uk</span>
                             </div>
-                            <div class="form-text text-muted">This will be your team's login address.</div>
                         </div>
 
                         <div class="col-12">
-                            <label class="form-label text-secondary small fw-bold">Industry Sector (The Gatekeeper)</label>
+                            <label class="form-label text-secondary small fw-bold">Industry Sector</label>
                             <select name="company_type" class="form-select bg-black text-white border-secondary" required>
                                 <option value="" disabled selected>Select your trade...</option>
                                 <option value="Trade">Construction / Trade (Roofing, Building, etc.)</option>
                                 <option value="Agency">Property Management / Estate Agency</option>
                             </select>
-                            <div class="form-text text-muted">This customizes your dashboard features automatically.</div>
                         </div>
                     </div>
 
                     <h5 class="text-gold border-bottom border-secondary pb-2 mb-4 mt-5">2. Select Your Plan</h5>
 
-                    <div class="row g-3 mb-4">
-                        {% for plan in plans %}
+                    {% set selected_plan = request.args.get('plan') %}
+
+                    {# IF A PLAN IS ALREADY SELECTED VIA URL #}
+                    {% if selected_plan %}
+                        
+                        <input type="hidden" name="plan_id" value="{{ selected_plan }}">
+                        
+                        <div class="alert alert-dark border-gold text-center py-4">
+                            <i class="fas fa-check-circle text-gold fa-2x mb-3"></i>
+                            <h5 class="text-white">Plan Pre-Selected</h5>
+                            <p class="text-secondary mb-0">
+                                You are registering for the selected tier. 
+                                <a href="{{ url_for('auth.signup') }}" class="text-gold fw-bold ms-2" style="text-decoration: underline;">Change Plan</a>
+                            </p>
+                        </div>
+
+                    {# ELSE: SHOW THE CARDS IN CATEGORIES #}
+                    {% else %}
+
+                        {# MACRO: Card Template to avoid repeating code #}
+                        {% macro render_plan(plan) %}
                         <div class="col-md-4">
                             <label class="plan-card-option w-100" style="cursor: pointer;">
-                                <input type="radio" name="plan_id" value="{{ plan.id }}" required {% if loop.first %}checked{% endif %}>
-                                
+                                <input type="radio" name="plan_id" value="{{ plan.id }}" required>
                                 <div class="card h-100 bg-black border-secondary p-3 text-center plan-box transition-all">
                                     <h5 class="fw-bold text-white mb-1">{{ plan.name }}</h5>
                                     <h3 class="text-gold mb-2">£{{ "%.2f"|format(plan.price) }}<small class="fs-6 text-muted">/mo</small></h3>
-                                    
                                     <div class="mt-2">
-                                        <span class="badge bg-secondary text-light border border-secondary">Instant Access</span>
+                                        <span class="badge bg-secondary text-light border border-secondary">Select Plan</span>
                                     </div>
                                 </div>
                             </label>
                         </div>
-                        {% else %}
-                        <div class="col-12 text-center py-3 text-muted border border-dashed border-secondary rounded">
-                            <i class="fas fa-exclamation-circle me-2"></i> No public plans configured in Admin Panel.
+                        {% endmacro %}
+
+                        <h6 class="text-white text-uppercase mb-3 ps-2 border-start border-gold border-3">Sole Traders & Starters</h6>
+                        <div class="row g-3 mb-5">
+                            {% set has_sole = false %}
+                            {% for plan in plans if plan.price > 0 and plan.price < 40 %}
+                                {{ render_plan(plan) }}
+                                {% set has_sole = true %}
+                            {% endfor %}
+                            {% if not has_sole %}<p class="text-muted small ps-3">No plans available in this tier.</p>{% endif %}
                         </div>
-                        {% endfor %}
-                    </div>
+
+                        <h6 class="text-white text-uppercase mb-3 ps-2 border-start border-gold border-3">Small to Medium Business</h6>
+                        <div class="row g-3 mb-5">
+                            {% set has_smb = false %}
+                            {% for plan in plans if plan.price >= 40 and plan.price < 200 %}
+                                {{ render_plan(plan) }}
+                                {% set has_smb = true %}
+                            {% endfor %}
+                            {% if not has_smb %}<p class="text-muted small ps-3">No plans available in this tier.</p>{% endif %}
+                        </div>
+
+                        <h6 class="text-white text-uppercase mb-3 ps-2 border-start border-gold border-3">Estate Agency & Enterprise</h6>
+                        <div class="row g-3 mb-4">
+                            {% set has_agency = false %}
+                            {% for plan in plans if plan.price >= 200 %}
+                                {{ render_plan(plan) }}
+                                {% set has_agency = true %}
+                            {% endfor %}
+                            {% if not has_agency %}<p class="text-muted small ps-3">No plans available in this tier.</p>{% endif %}
+                        </div>
+
+                    {% endif %}
 
                     <style>
                         /* Hidden Radio Logic */
                         .plan-card-option input { display: none; } 
-                        
                         /* Selected State */
                         .plan-card-option input:checked + .plan-box {
-                            border-color: #C5A059 !important; /* Gold Border */
-                            background-color: rgba(197, 160, 89, 0.15) !important; /* Slight Gold Tint */
+                            border-color: #C5A059 !important; 
+                            background-color: rgba(197, 160, 89, 0.15) !important;
                             box-shadow: 0 0 15px rgba(197, 160, 89, 0.3);
                         }
                         /* Hover Effect */
@@ -132,7 +173,7 @@
 </div>
 
 <script>
-    // Simple script to force lowercase on subdomain
+    // Force lowercase on subdomain
     document.getElementById('sub_domain').addEventListener('input', function(e) {
         this.value = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
     });
