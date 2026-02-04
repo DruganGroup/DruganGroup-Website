@@ -400,3 +400,8 @@ def create_pending_account(data):
         raise e 
     finally:
         conn.close()
+        
+@auth_bp.route('/signup-success')
+def signup_success():
+    # This renders the success HTML file you already created
+    return render_template('publicbb/signup_success.html')
