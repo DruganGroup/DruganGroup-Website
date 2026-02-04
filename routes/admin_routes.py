@@ -357,97 +357,102 @@ def toggle_suspend(company_id):
     conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
 
-# --- ROBUST DELETE COMPANY (routes/admin_routes.py) ---
+# --- CLEAN DELETE (NO GHOST DATA) ---
 @admin_bp.route('/admin/delete-tenant/<int:company_id>')
 def delete_tenant(company_id):
     if session.get('role') != 'SuperAdmin': return "Access Denied"
     
     conn = get_db()
     cur = conn.cursor()
-
+    
     try:
-        # --- PHASE 1: SEVER THE LINKS (The Nuclear Option) ---
-        # We don't ask permission. We just set the links to NULL.
-        # This prevents Foreign Key constraints from blocking deletions.
+        # --- PHASE 1: DELETE LEAF NODES (Grandchildren) ---
+        # These tables do not have a company_id, so we delete via their parents.
+        # If we don't delete these first, the parents (Jobs/Invoices) cannot be deleted.
 
-        # 1. Unlink JOBS (The most common blocker)
-        # We target every table from your schema that has a job_id
-        job_dependents = [
-            'job_materials', 'job_expenses', 'job_evidence', 'job_photos', 
-            'job_rams', 'job_items', 'site_diary', 'client_notifications', 
-            'staff_timesheets', 'invoices'
-        ]
+        # 1. Job Sub-Data (Must verify via Job ID)
+        cur.execute("DELETE FROM job_materials WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        cur.execute("DELETE FROM job_expenses WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        cur.execute("DELETE FROM job_evidence WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        cur.execute("DELETE FROM job_photos WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        cur.execute("DELETE FROM job_rams WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        cur.execute("DELETE FROM job_items WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        cur.execute("DELETE FROM site_diary WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        cur.execute("DELETE FROM client_notifications WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+
+        # 2. Finance Sub-Data (Verify via Invoice/Quote/Overhead ID)
+        cur.execute("DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE company_id = %s)", (company_id,))
+        cur.execute("DELETE FROM quote_items WHERE quote_id IN (SELECT id FROM quotes WHERE company_id = %s)", (company_id,))
+        cur.execute("DELETE FROM overhead_items WHERE category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)", (company_id,))
+
+        # 3. Team & Staff Links
+        cur.execute("DELETE FROM team_members WHERE team_id IN (SELECT id FROM teams WHERE company_id = %s)", (company_id,))
+        # Note: staff_timesheets has company_id in your schema, so we can delete it directly in Phase 2
         
-        for table in job_dependents:
-            try:
-                # Set job_id to NULL for any record linked to this company's jobs
-                cur.execute(f"""
-                    UPDATE {table} SET job_id = NULL 
-                    WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)
-                """, (company_id,))
-            except Exception as e:
-                # If table doesn't exist, we don't care. Keep going.
-                pass
-
-        # 2. Unlink QUOTES & CLIENTS
-        try: cur.execute("UPDATE jobs SET quote_id = NULL, client_id = NULL WHERE company_id = %s", (company_id,))
-        except: pass
         
-        try: cur.execute("UPDATE invoices SET quote_id = NULL, job_id = NULL WHERE company_id = %s", (company_id,))
-        except: pass
-
-        try: cur.execute("UPDATE properties SET client_id = NULL WHERE company_id = %s", (company_id,))
-        except: pass
-
-
-        # --- PHASE 2: DELETE THE MAIN RECORDS ---
-        # Now that nothing is "holding onto" these records, they should delete easily.
+        # --- PHASE 2: DELETE DIRECT CHILDREN (Tables with company_id) ---
+        # These tables depend on the core assets but block the company delete.
         
-        tables_to_delete = [
-            # Deepest Level
-            'job_materials', 'job_expenses', 'job_evidence', 'job_photos', 'job_rams',
-            'job_items', 'site_diary', 'client_notifications', 'staff_timesheets',
-            'invoice_items', 'quote_items', 'vehicle_checks', 'maintenance_logs',
-            'vehicle_crews', 'certificates',
-            
-            # Mid Level
-            'jobs', 'invoices', 'quotes', 'transactions', 'service_requests',
-            'tickets', 'vehicles', 'properties', 'staff', 'clients', 'users',
-            'teams', 'materials', 'suppliers', 'overhead_categories',
-            
-            # Config Level
-            'settings', 'subscriptions', 'audit_logs'
-        ]
+        # 1. Operational Data
+        cur.execute("DELETE FROM vehicle_checks WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM maintenance_logs WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM vehicle_crews WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM certificates WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM staff_timesheets WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM staff_attendance WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM timesheets WHERE company_id = %s", (company_id,))
+        
+        # 2. Finance Documents (Invoices link to Jobs, so delete Invoices first)
+        cur.execute("DELETE FROM invoices WHERE company_id = %s", (company_id,))
+        
+        # 3. Jobs (Now clear of materials and invoices)
+        # Note: Jobs links to Quotes, so we delete Jobs BEFORE Quotes.
+        cur.execute("DELETE FROM jobs WHERE company_id = %s", (company_id,))
+        
+        # 4. Quotes (Now clear of jobs)
+        cur.execute("DELETE FROM quotes WHERE company_id = %s", (company_id,))
+        
+        # 5. Other Records
+        cur.execute("DELETE FROM transactions WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM service_requests WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM overhead_categories WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM teams WHERE company_id = %s", (company_id,))
+        
+        
+        # --- PHASE 3: DELETE CORE ASSETS (Level 2) ---
+        # These are referenced by the items above, so they go last.
+        
+        cur.execute("DELETE FROM vehicles WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM properties WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM staff WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM materials WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM suppliers WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM clients WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM users WHERE company_id = %s", (company_id,))
 
-        for table in tables_to_delete:
-            try:
-                cur.execute(f"DELETE FROM {table} WHERE company_id = %s", (company_id,))
-            except Exception as e:
-                # We log it but don't stop. The UNLINKING in Phase 1 ensures 
-                # that even if this fails, the Company Delete (Phase 3) will likely succeed.
-                print(f"Warning: Could not delete from {table}: {e}")
+        
+        # --- PHASE 4: SYSTEM CONFIG (Level 1) ---
+        cur.execute("DELETE FROM settings WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM subscriptions WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM audit_logs WHERE company_id = %s", (company_id,))
 
-        # --- PHASE 3: DELETE THE COMPANY (The Goal) ---
+
+        # --- PHASE 5: DELETE TENANT (Root) ---
         cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
         
         conn.commit()
-        flash("✅ Tenant deleted successfully.", "success")
-        return redirect(url_for('admin.super_admin_analytics'))
-
+        flash("✅ Tenant deleted cleanly (No ghost data).", "success")
+        
     except Exception as e:
         conn.rollback()
-        # If this fails, we PRINT the error to the browser so we see it.
-        return f"""
-        <div style="padding: 50px; font-family: sans-serif;">
-            <h1 style="color: red;">DELETE FAILED</h1>
-            <p><strong>Error:</strong> {str(e)}</p>
-            <p>Please send this error message to support.</p>
-            <a href="/super-admin/analytics">Return</a>
-        </div>
-        """
+        # This will print the EXACT error to your console so we know which table failed
+        print(f"CRITICAL DELETE ERROR: {str(e)}")
+        flash(f"❌ Clean Delete Failed: {str(e)}", "error")
         
     finally:
         conn.close()
+
+    return redirect(url_for('admin.super_admin_analytics'))
 
 # --- BACKUP SYSTEM: VIEW LIST ---
 @admin_bp.route('/admin/backup/all')
