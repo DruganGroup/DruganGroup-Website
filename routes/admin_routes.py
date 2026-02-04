@@ -365,86 +365,120 @@ def delete_tenant(company_id):
     conn = get_db()
     cur = conn.cursor()
 
-    # This helper function isolates every delete.
-    # If one fails (like missing job_photos), it resets and CONTINUES.
-    def nuke_table(query):
-        try:
-            cur.execute(query, (company_id,))
-            conn.commit() # SAVE immediately.
-        except Exception as e:
-            conn.rollback() # Reset the connection so the next command works.
-            # We print the error but do NOT stop the script
-            print(f"⚠️ SKIP: {str(e)}")
+    # The Master List of Tables to clean (Order Matters: Children -> Parents)
+    # This matches your 45-table schema exactly.
+    tables_ordered = [
+        # Level 4: Deepest Dependencies (Job/Finance Items)
+        {'name': 'job_materials', 'col': 'job_id', 'parent': 'jobs'},
+        {'name': 'job_expenses', 'col': 'job_id', 'parent': 'jobs'},
+        {'name': 'job_evidence', 'col': 'job_id', 'parent': 'jobs'},
+        {'name': 'job_photos', 'col': 'job_id', 'parent': 'jobs'},
+        {'name': 'job_rams', 'col': 'job_id', 'parent': 'jobs'},
+        {'name': 'job_items', 'col': 'job_id', 'parent': 'jobs'},
+        {'name': 'site_diary', 'col': 'job_id', 'parent': 'jobs'},
+        {'name': 'client_notifications', 'col': 'job_id', 'parent': 'jobs'},
+        {'name': 'invoice_items', 'col': 'invoice_id', 'parent': 'invoices'},
+        {'name': 'quote_items', 'col': 'quote_id', 'parent': 'quotes'},
+        {'name': 'overhead_items', 'col': 'category_id', 'parent': 'overhead_categories'},
+        {'name': 'team_members', 'col': 'team_id', 'parent': 'teams'},
+
+        # Level 3: Direct Children (Linked to Company)
+        {'name': 'vehicle_checks', 'col': 'company_id'},
+        {'name': 'maintenance_logs', 'col': 'company_id'},
+        {'name': 'vehicle_crews', 'col': 'company_id'},
+        {'name': 'certificates', 'col': 'company_id'},
+        {'name': 'staff_timesheets', 'col': 'company_id'},
+        {'name': 'staff_attendance', 'col': 'company_id'},
+        {'name': 'timesheets', 'col': 'company_id'},
+        
+        # Level 2: Main Documents (Invoices/Quotes/Jobs)
+        {'name': 'invoices', 'col': 'company_id'},
+        {'name': 'quotes', 'col': 'company_id'},
+        {'name': 'transactions', 'col': 'company_id'},
+        {'name': 'service_requests', 'col': 'company_id'},
+        {'name': 'overhead_categories', 'col': 'company_id'},
+        {'name': 'teams', 'col': 'company_id'},
+        {'name': 'jobs', 'col': 'company_id'}, # Deleted AFTER invoices/materials are gone
+
+        # Level 1: Assets & Users
+        {'name': 'vehicles', 'col': 'company_id'},
+        {'name': 'properties', 'col': 'company_id'},
+        {'name': 'staff', 'col': 'company_id'},
+        {'name': 'clients', 'col': 'company_id'},
+        {'name': 'users', 'col': 'company_id'},
+        {'name': 'suppliers', 'col': 'company_id'},
+        {'name': 'materials', 'col': 'company_id'},
+
+        # Level 0: System Config
+        {'name': 'settings', 'col': 'company_id'},
+        {'name': 'subscriptions', 'col': 'company_id'},
+        {'name': 'audit_logs', 'col': 'company_id'},
+        {'name': 'plugin_licenses', 'col': 'license_key'} # Placeholder check
+    ]
 
     try:
-        print(f"--- STARTING WIPE FOR COMPANY {company_id} ---")
+        print(f"--- STARTING SMART WIPE FOR COMPANY {company_id} ---")
 
-        # PHASE 1: JOB SUB-DATA (The deepest links)
-        # We try to delete all of them. If a table is missing, it just skips.
-        nuke_table("DELETE FROM job_materials WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)")
-        nuke_table("DELETE FROM job_expenses WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)")
-        nuke_table("DELETE FROM job_evidence WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)")
-        nuke_table("DELETE FROM job_photos WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)")
-        nuke_table("DELETE FROM job_rams WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)")
-        nuke_table("DELETE FROM job_items WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)")
-        nuke_table("DELETE FROM site_diary WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)")
-        nuke_table("DELETE FROM client_notifications WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)")
+        for table in tables_ordered:
+            t_name = table['name']
+            
+            # 1. CHECK IF TABLE EXISTS
+            # This prevents the "Relation does not exist" crash
+            cur.execute("SELECT to_regclass(%s)", (t_name,))
+            if cur.fetchone()[0] is None:
+                # Table doesn't exist in DB -> No ghost data possible. Skip.
+                continue
 
-        # PHASE 2: FINANCE SUB-DATA
-        nuke_table("DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE company_id = %s)")
-        nuke_table("DELETE FROM quote_items WHERE quote_id IN (SELECT id FROM quotes WHERE company_id = %s)")
-        nuke_table("DELETE FROM overhead_items WHERE category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)")
-        nuke_table("DELETE FROM team_members WHERE team_id IN (SELECT id FROM teams WHERE company_id = %s)")
+            # 2. CONSTRUCT QUERY
+            if 'parent' in table:
+                # Delete via Parent ID (e.g., Delete materials linked to Company's Jobs)
+                parent_table = table['parent']
+                query = f"""
+                    DELETE FROM {t_name} 
+                    WHERE {table['col']} IN (
+                        SELECT id FROM {parent_table} WHERE company_id = %s
+                    )
+                """
+            elif t_name == 'plugin_licenses':
+                # Special case, skip
+                continue
+            else:
+                # Direct Company Delete
+                query = f"DELETE FROM {t_name} WHERE {table['col']} = %s"
 
-        # PHASE 3: DIRECT CHILDREN (Tables with company_id)
-        nuke_table("DELETE FROM vehicle_checks WHERE company_id = %s")
-        nuke_table("DELETE FROM maintenance_logs WHERE company_id = %s")
-        nuke_table("DELETE FROM vehicle_crews WHERE company_id = %s")
-        nuke_table("DELETE FROM certificates WHERE company_id = %s")
-        nuke_table("DELETE FROM staff_timesheets WHERE company_id = %s")
-        nuke_table("DELETE FROM staff_attendance WHERE company_id = %s")
-        nuke_table("DELETE FROM timesheets WHERE company_id = %s")
-        
-        # Finance (Invoices link to Jobs, so Invoices go first)
-        nuke_table("DELETE FROM invoices WHERE company_id = %s")
-        nuke_table("DELETE FROM quotes WHERE company_id = %s")
-        nuke_table("DELETE FROM transactions WHERE company_id = %s")
-        nuke_table("DELETE FROM service_requests WHERE company_id = %s")
-        nuke_table("DELETE FROM overhead_categories WHERE company_id = %s")
-        nuke_table("DELETE FROM teams WHERE company_id = %s")
-        
-        # PHASE 4: CORE DATA
-        # We delete Jobs AFTER their invoices/materials are gone
-        nuke_table("DELETE FROM jobs WHERE company_id = %s")
+            # 3. EXECUTE & COMMIT
+            # We commit after every table to prevent "Transaction Aborted" locks
+            try:
+                cur.execute(query, (company_id,))
+                conn.commit()
+            except Exception as e:
+                conn.rollback() # Reset connection for next table
+                print(f"❌ Error on {t_name}: {e}")
+                # We raise the error to STOP the process if a delete fails.
+                # This ensures we don't leave ghost data by continuing.
+                raise e 
 
-        # Assets & People
-        nuke_table("DELETE FROM vehicles WHERE company_id = %s")
-        nuke_table("DELETE FROM properties WHERE company_id = %s")
-        nuke_table("DELETE FROM staff WHERE company_id = %s")
-        nuke_table("DELETE FROM clients WHERE company_id = %s")
-        nuke_table("DELETE FROM users WHERE company_id = %s")
-        nuke_table("DELETE FROM suppliers WHERE company_id = %s")
-        nuke_table("DELETE FROM materials WHERE company_id = %s")
+        # 4. FINAL KILL
+        cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
+        conn.commit()
         
-        # PHASE 5: SYSTEM & ROOT
-        nuke_table("DELETE FROM settings WHERE company_id = %s")
-        nuke_table("DELETE FROM subscriptions WHERE company_id = %s")
-        nuke_table("DELETE FROM audit_logs WHERE company_id = %s")
-        nuke_table("DELETE FROM plugin_licenses WHERE id IN (SELECT id FROM plugin_licenses WHERE date_added < NOW())")
+        flash("✅ Tenant deleted cleanly. No ghost data.", "success")
+        return redirect(url_for('admin.super_admin_analytics'))
 
-        # Final Kill
-        nuke_table("DELETE FROM companies WHERE id = %s")
-        
-        flash("✅ Tenant deleted. (Check console logs if you want to see what was skipped)", "success")
-        
     except Exception as e:
-        print(f"SCRIPT DIED: {str(e)}")
-        flash(f"⚠️ Script finished with warnings.", "warning")
+        conn.rollback()
+        # Print the exact error to screen so we can fix the specific table constraint
+        return f"""
+        <div style="font-family: monospace; padding: 20px;">
+            <h2 style="color:red">DELETE STOPPED TO PREVENT GHOST DATA</h2>
+            <p><strong>Error:</strong> {str(e)}</p>
+            <p>The process was halted. No partial data was left in a broken state.</p>
+            <a href="/super-admin/analytics">Return</a>
+        </div>
+        """
         
     finally:
         conn.close()
-
-    return redirect(url_for('admin.super_admin_analytics'))
 
 # --- BACKUP SYSTEM: VIEW LIST ---
 @admin_bp.route('/admin/backup/all')
