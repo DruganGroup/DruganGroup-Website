@@ -366,54 +366,48 @@ def delete_tenant(company_id):
     cur = conn.cursor()
     
     try:
-        # --- PHASE 1: DELETE "GRANDCHILD" DATA (Items linked to main records) ---
-        # 1. Finance Items
-        # (These usually don't have company_id, so we delete via parent IDs)
+        # --- PHASE 1: DELETE "GRANDCHILD" DATA ---
         cur.execute("DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE company_id = %s)", (company_id,))
         cur.execute("DELETE FROM quote_items WHERE quote_id IN (SELECT id FROM quotes WHERE company_id = %s)", (company_id,))
         
-        # 2. Job Data (Notes & Logs)
-        # Check if table exists before deleting to prevent errors on older DBs
+        # Clear links in JOBS (Fixing your specific error)
+        # We unlink jobs from quotes before deleting either, just to be safe
+        cur.execute("UPDATE jobs SET quote_id = NULL WHERE company_id = %s", (company_id,))
+        
+        # Delete Job Logs/Notes
         try: cur.execute("DELETE FROM job_notes WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
         except: conn.rollback()
-        
         try: cur.execute("DELETE FROM job_logs WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
         except: conn.rollback()
-
-        # 3. Fleet & Property Data
+        
+        # Delete Fleet/Property Child Data
         try: cur.execute("DELETE FROM vehicle_checks WHERE vehicle_id IN (SELECT id FROM vehicles WHERE company_id = %s)", (company_id,))
         except: conn.rollback()
-
         try: cur.execute("DELETE FROM property_compliance WHERE property_id IN (SELECT id FROM properties WHERE company_id = %s)", (company_id,))
         except: conn.rollback()
-        
-        # 4. HR Data
         try: cur.execute("DELETE FROM staff_timesheets WHERE user_id IN (SELECT id FROM users WHERE company_id = %s)", (company_id,))
         except: conn.rollback()
 
-        # --- PHASE 2: DELETE MAIN RECORDS ---
-        # Now it is safe to delete the parents
-        cur.execute("DELETE FROM invoices WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM quotes WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM transactions WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM maintenance_logs WHERE company_id = %s", (company_id,))
+        # --- PHASE 2: DELETE MAIN RECORDS (Re-ordered for Safety) ---
         
-        # The big one causing your error:
+        # 1. Delete JOBS first (Because they point to Quotes)
         cur.execute("DELETE FROM jobs WHERE company_id = %s", (company_id,))
         
-        # Assets
+        # 2. Delete INVOICES & QUOTES (Now safe to delete)
+        cur.execute("DELETE FROM invoices WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM quotes WHERE company_id = %s", (company_id,))
+        
+        # 3. Delete Everything Else
+        cur.execute("DELETE FROM transactions WHERE company_id = %s", (company_id,))
+        cur.execute("DELETE FROM maintenance_logs WHERE company_id = %s", (company_id,))
         cur.execute("DELETE FROM vehicles WHERE company_id = %s", (company_id,))
         cur.execute("DELETE FROM properties WHERE company_id = %s", (company_id,))
         cur.execute("DELETE FROM tickets WHERE company_id = %s", (company_id,))
-        
-        # People
         cur.execute("DELETE FROM clients WHERE company_id = %s", (company_id,))
         cur.execute("DELETE FROM users WHERE company_id = %s", (company_id,))
         
-        # Settings & Subscriptions
         try: cur.execute("DELETE FROM settings WHERE company_id = %s", (company_id,))
         except: conn.rollback()
-        
         try: cur.execute("DELETE FROM subscriptions WHERE company_id = %s", (company_id,))
         except: conn.rollback()
 
@@ -425,14 +419,12 @@ def delete_tenant(company_id):
         
     except Exception as e:
         conn.rollback()
-        # This will now tell you exactly WHICH delete command failed
         print(f"Delete Failed: {str(e)}")
         flash(f"❌ Error deleting company: {str(e)}", "error")
         
     finally:
         conn.close()
 
-    # Make sure this redirects to the correct existing route
     return redirect(url_for('admin.super_admin_analytics'))
 
 # --- BACKUP SYSTEM: VIEW LIST ---
