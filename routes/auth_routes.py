@@ -33,6 +33,8 @@ def show_signup():
 @auth_bp.route('/process-signup', methods=['POST'])
 def process_signup():
     # 1. Capture Form Data
+    raw_plan_id = request.form.get('plan_id')
+    
     data = {
         'company_name': request.form.get('company_name'),
         'sub_domain': request.form.get('sub_domain', '').lower().strip(),
@@ -40,32 +42,38 @@ def process_signup():
         'owner_name': request.form.get('owner_name'),
         'owner_email': request.form.get('owner_email'),
         'password': request.form.get('password'),
-        'plan_id': request.form.get('plan_id')
+        'plan_id': int(raw_plan_id) if raw_plan_id and raw_plan_id.isdigit() else None
     }
 
     conn = get_db()
     cur = conn.cursor()
 
     try:
-        # 2. GET STRIPE PRICE ID FROM DB
-        # We look up the plan to make sure it exists and get the Stripe ID
-        cur.execute("SELECT id, name, stripe_price_id FROM plans WHERE id = %s", (data['plan_id'],))
-        plan = cur.fetchone()
-
-        # CRITICAL CHECK: Does the plan exist?
-        if not plan:
-            # If this triggers, your 'pricing.html' has old IDs. Refresh that page.
-            flash(f"Error: Plan ID {data['plan_id']} not found. Please refresh the pricing page.", "error")
-            return redirect(url_for('public.pricing'))
-
-        plan_name = plan[1]
-        stripe_price_id = plan[2]
-
-        if not stripe_price_id:
-            flash(f"Configuration Error: Plan '{plan_name}' has no Stripe Price ID.", "error")
+        # 2. VALIDATE PLAN (With Debugging)
+        if not data['plan_id']:
+            flash("Error: No plan selected.", "error")
             return redirect(url_for('auth.show_signup'))
 
-        # 3. CHECK FOR DUPLICATES (URL / Email)
+        # Simple Lookup
+        cur.execute("SELECT id, name, price, stripe_price_id FROM plans WHERE id = %s", (data['plan_id'],))
+        plan = cur.fetchone()
+
+        # CRITICAL DEBUG: If not found, show us what IS in the DB
+        if not plan:
+            print(f"❌ ERROR: Database could not find Plan ID {data['plan_id']}")
+            cur.execute("SELECT id, name FROM plans")
+            all_plans = cur.fetchall()
+            print(f"ℹ️ DATABASE SEES THESE PLANS: {all_plans}")
+            
+            flash(f"System Error: Plan ID {data['plan_id']} not recognized by database.", "error")
+            return redirect(url_for('public.pricing'))
+
+        # Plan Found - Extract Data
+        plan_name = plan[1]
+        plan_price = float(plan[2])
+        stripe_price_id = plan[3]
+
+        # 3. CHECK DUPLICATES
         cur.execute("SELECT id FROM users WHERE email = %s", (data['owner_email'],))
         if cur.fetchone():
             flash("That email is already registered. Please login.", "error")
@@ -76,30 +84,56 @@ def process_signup():
             flash(f"URL '{data['sub_domain']}' is already taken.", "error")
             return redirect(url_for('auth.show_signup'))
 
-        # 4. CREATE STRIPE CHECKOUT SESSION
-        # This sends the user to Stripe to pay
-        checkout_session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
-            line_items=[{'price': stripe_price_id, 'quantity': 1}],
-            mode='subscription',
-            success_url=url_for('auth.signup_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
-            cancel_url=url_for('auth.show_signup', _external=True),
-            metadata={
-                'company_name': data['company_name'],
-                'sub_domain': data['sub_domain'],
-                'owner_name': data['owner_name'],
-                'owner_email': data['owner_email'],
-                'password': data['password'], # Note: We hash this later in the webhook or success route
-                'plan_id': data['plan_id']
-            }
-        )
-        
-        # We redirect to the Stripe URL provided by the API
-        return redirect(checkout_session.url, code=303)
+        # 4. PROCESS PAYMENT (OR SKIP IF FREE)
+        if plan_price <= 0:
+            # FREE PLAN LOGIC (No Stripe)
+            # Create Company
+            cur.execute("INSERT INTO companies (name, sub_domain, contact_email) VALUES (%s, %s, %s) RETURNING id", 
+                       (data['company_name'], data['sub_domain'], data['owner_email']))
+            company_id = cur.fetchone()[0]
+
+            # Create User
+            from werkzeug.security import generate_password_hash
+            hashed_pw = generate_password_hash(data['password'])
+            cur.execute("INSERT INTO users (email, password_hash, name, role, company_id, is_active) VALUES (%s, %s, %s, 'Admin', %s, true) RETURNING id",
+                       (data['owner_email'], hashed_pw, data['owner_name'], company_id))
+            
+            # Create Sub
+            import datetime
+            now = datetime.datetime.now()
+            cur.execute("INSERT INTO subscriptions (company_id, plan_id, status, start_date, renewal_date) VALUES (%s, %s, 'Active', %s, %s)",
+                       (company_id, data['plan_id'], now, now + datetime.timedelta(days=3650)))
+            
+            conn.commit()
+            return redirect(url_for('auth.signup_success'))
+
+        else:
+            # PAID PLAN LOGIC (Stripe)
+            if not stripe_price_id:
+                flash(f"Configuration Error: Plan '{plan_name}' has no Stripe Price ID.", "error")
+                return redirect(url_for('auth.show_signup'))
+
+            checkout_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[{'price': stripe_price_id, 'quantity': 1}],
+                mode='subscription',
+                success_url=url_for('auth.signup_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+                cancel_url=url_for('auth.show_signup', _external=True),
+                metadata={
+                    'company_name': data['company_name'],
+                    'sub_domain': data['sub_domain'],
+                    'owner_name': data['owner_name'],
+                    'owner_email': data['owner_email'],
+                    'password': data['password'], # Note: We hash this later in the webhook
+                    'plan_id': str(data['plan_id'])
+                }
+            )
+            return redirect(checkout_session.url, code=303)
 
     except Exception as e:
-        flash(f"Payment Error: {str(e)}", "error")
-        print(f"STRIPE ERROR: {str(e)}")
+        conn.rollback()
+        print(f"SIGNUP EXCEPTION: {str(e)}")
+        flash(f"Error: {str(e)}", "error")
         return redirect(url_for('auth.show_signup'))
     finally:
         conn.close()
