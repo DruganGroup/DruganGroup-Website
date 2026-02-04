@@ -433,7 +433,7 @@ def delete_tenant(company_id):
         conn.close()
 
     # Make sure this redirects to the correct existing route
-    return redirect(url_for('super_admin.analytics'))
+    return redirect(url_for('admin.super_admin_analytics'))
 
 # --- BACKUP SYSTEM: VIEW LIST ---
 @admin_bp.route('/admin/backup/all')
