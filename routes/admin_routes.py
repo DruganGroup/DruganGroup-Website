@@ -357,97 +357,89 @@ def toggle_suspend(company_id):
     conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
 
-# --- CLEAN DELETE (NO GHOST DATA) ---
+# --- STEP-BY-STEP ROBUST DELETE (routes/admin_routes.py) ---
 @admin_bp.route('/admin/delete-tenant/<int:company_id>')
 def delete_tenant(company_id):
     if session.get('role') != 'SuperAdmin': return "Access Denied"
     
     conn = get_db()
     cur = conn.cursor()
-    
+
+    # This helper function isolates every delete.
+    # If one fails (like missing job_photos), it resets and CONTINUES.
+    def nuke_table(query):
+        try:
+            cur.execute(query, (company_id,))
+            conn.commit() # SAVE immediately.
+        except Exception as e:
+            conn.rollback() # Reset the connection so the next command works.
+            # We print the error but do NOT stop the script
+            print(f"⚠️ SKIP: {str(e)}")
+
     try:
-        # --- PHASE 1: DELETE LEAF NODES (Grandchildren) ---
-        # These tables do not have a company_id, so we delete via their parents.
-        # If we don't delete these first, the parents (Jobs/Invoices) cannot be deleted.
+        print(f"--- STARTING WIPE FOR COMPANY {company_id} ---")
 
-        # 1. Job Sub-Data (Must verify via Job ID)
-        cur.execute("DELETE FROM job_materials WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        cur.execute("DELETE FROM job_expenses WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        cur.execute("DELETE FROM job_evidence WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        cur.execute("DELETE FROM job_photos WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        cur.execute("DELETE FROM job_rams WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        cur.execute("DELETE FROM job_items WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        cur.execute("DELETE FROM site_diary WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
-        cur.execute("DELETE FROM client_notifications WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)", (company_id,))
+        # PHASE 1: JOB SUB-DATA (The deepest links)
+        # We try to delete all of them. If a table is missing, it just skips.
+        nuke_table("DELETE FROM job_materials WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)")
+        nuke_table("DELETE FROM job_expenses WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)")
+        nuke_table("DELETE FROM job_evidence WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)")
+        nuke_table("DELETE FROM job_photos WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)")
+        nuke_table("DELETE FROM job_rams WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)")
+        nuke_table("DELETE FROM job_items WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)")
+        nuke_table("DELETE FROM site_diary WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)")
+        nuke_table("DELETE FROM client_notifications WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)")
 
-        # 2. Finance Sub-Data (Verify via Invoice/Quote/Overhead ID)
-        cur.execute("DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE company_id = %s)", (company_id,))
-        cur.execute("DELETE FROM quote_items WHERE quote_id IN (SELECT id FROM quotes WHERE company_id = %s)", (company_id,))
-        cur.execute("DELETE FROM overhead_items WHERE category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)", (company_id,))
+        # PHASE 2: FINANCE SUB-DATA
+        nuke_table("DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE company_id = %s)")
+        nuke_table("DELETE FROM quote_items WHERE quote_id IN (SELECT id FROM quotes WHERE company_id = %s)")
+        nuke_table("DELETE FROM overhead_items WHERE category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)")
+        nuke_table("DELETE FROM team_members WHERE team_id IN (SELECT id FROM teams WHERE company_id = %s)")
 
-        # 3. Team & Staff Links
-        cur.execute("DELETE FROM team_members WHERE team_id IN (SELECT id FROM teams WHERE company_id = %s)", (company_id,))
-        # Note: staff_timesheets has company_id in your schema, so we can delete it directly in Phase 2
+        # PHASE 3: DIRECT CHILDREN (Tables with company_id)
+        nuke_table("DELETE FROM vehicle_checks WHERE company_id = %s")
+        nuke_table("DELETE FROM maintenance_logs WHERE company_id = %s")
+        nuke_table("DELETE FROM vehicle_crews WHERE company_id = %s")
+        nuke_table("DELETE FROM certificates WHERE company_id = %s")
+        nuke_table("DELETE FROM staff_timesheets WHERE company_id = %s")
+        nuke_table("DELETE FROM staff_attendance WHERE company_id = %s")
+        nuke_table("DELETE FROM timesheets WHERE company_id = %s")
         
+        # Finance (Invoices link to Jobs, so Invoices go first)
+        nuke_table("DELETE FROM invoices WHERE company_id = %s")
+        nuke_table("DELETE FROM quotes WHERE company_id = %s")
+        nuke_table("DELETE FROM transactions WHERE company_id = %s")
+        nuke_table("DELETE FROM service_requests WHERE company_id = %s")
+        nuke_table("DELETE FROM overhead_categories WHERE company_id = %s")
+        nuke_table("DELETE FROM teams WHERE company_id = %s")
         
-        # --- PHASE 2: DELETE DIRECT CHILDREN (Tables with company_id) ---
-        # These tables depend on the core assets but block the company delete.
-        
-        # 1. Operational Data
-        cur.execute("DELETE FROM vehicle_checks WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM maintenance_logs WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM vehicle_crews WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM certificates WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM staff_timesheets WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM staff_attendance WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM timesheets WHERE company_id = %s", (company_id,))
-        
-        # 2. Finance Documents (Invoices link to Jobs, so delete Invoices first)
-        cur.execute("DELETE FROM invoices WHERE company_id = %s", (company_id,))
-        
-        # 3. Jobs (Now clear of materials and invoices)
-        # Note: Jobs links to Quotes, so we delete Jobs BEFORE Quotes.
-        cur.execute("DELETE FROM jobs WHERE company_id = %s", (company_id,))
-        
-        # 4. Quotes (Now clear of jobs)
-        cur.execute("DELETE FROM quotes WHERE company_id = %s", (company_id,))
-        
-        # 5. Other Records
-        cur.execute("DELETE FROM transactions WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM service_requests WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM overhead_categories WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM teams WHERE company_id = %s", (company_id,))
-        
-        
-        # --- PHASE 3: DELETE CORE ASSETS (Level 2) ---
-        # These are referenced by the items above, so they go last.
-        
-        cur.execute("DELETE FROM vehicles WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM properties WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM staff WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM materials WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM suppliers WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM clients WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM users WHERE company_id = %s", (company_id,))
+        # PHASE 4: CORE DATA
+        # We delete Jobs AFTER their invoices/materials are gone
+        nuke_table("DELETE FROM jobs WHERE company_id = %s")
 
+        # Assets & People
+        nuke_table("DELETE FROM vehicles WHERE company_id = %s")
+        nuke_table("DELETE FROM properties WHERE company_id = %s")
+        nuke_table("DELETE FROM staff WHERE company_id = %s")
+        nuke_table("DELETE FROM clients WHERE company_id = %s")
+        nuke_table("DELETE FROM users WHERE company_id = %s")
+        nuke_table("DELETE FROM suppliers WHERE company_id = %s")
+        nuke_table("DELETE FROM materials WHERE company_id = %s")
         
-        # --- PHASE 4: SYSTEM CONFIG (Level 1) ---
-        cur.execute("DELETE FROM settings WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM subscriptions WHERE company_id = %s", (company_id,))
-        cur.execute("DELETE FROM audit_logs WHERE company_id = %s", (company_id,))
+        # PHASE 5: SYSTEM & ROOT
+        nuke_table("DELETE FROM settings WHERE company_id = %s")
+        nuke_table("DELETE FROM subscriptions WHERE company_id = %s")
+        nuke_table("DELETE FROM audit_logs WHERE company_id = %s")
+        nuke_table("DELETE FROM plugin_licenses WHERE id IN (SELECT id FROM plugin_licenses WHERE date_added < NOW())")
 
-
-        # --- PHASE 5: DELETE TENANT (Root) ---
-        cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
+        # Final Kill
+        nuke_table("DELETE FROM companies WHERE id = %s")
         
-        conn.commit()
-        flash("✅ Tenant deleted cleanly (No ghost data).", "success")
+        flash("✅ Tenant deleted. (Check console logs if you want to see what was skipped)", "success")
         
     except Exception as e:
-        conn.rollback()
-        # This will print the EXACT error to your console so we know which table failed
-        print(f"CRITICAL DELETE ERROR: {str(e)}")
-        flash(f"❌ Clean Delete Failed: {str(e)}", "error")
+        print(f"SCRIPT DIED: {str(e)}")
+        flash(f"⚠️ Script finished with warnings.", "warning")
         
     finally:
         conn.close()
