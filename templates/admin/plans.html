@@ -1,6 +1,6 @@
 {% extends "admin/base.html" %}
 
-{% block title %}Plan Management | Drugan Group{% endblock %}
+{% block title %}Plan Management | Business Better{% endblock %}
 
 {% block styles %}
 <style>
@@ -102,7 +102,7 @@
             <h6 class="text-muted text-uppercase mb-1">Monetization</h6>
             <h2 class="fw-bold mb-0 text-white">Subscription <span style="color: var(--primary-gold);">Plans</span></h2>
         </div>
-        <button class="btn-gold shadow-lg" data-bs-toggle="modal" data-bs-target="#planModal">
+        <button class="btn-gold shadow-lg" onclick="openPlanModal()">
             <i class="fas fa-plus me-2"></i> Add New Tier
         </button>
     </div>
@@ -139,9 +139,14 @@
                     </div>
                 </div>
 
-                <div class="btn-action-group">
-                    <a href="{{ url_for('plans.delete_plan', plan_id=plan.id) }}" class="btn btn-outline-danger w-100" onclick="return confirm('Delete this plan? Users on this plan will need to be migrated.');">
-                        <i class="fas fa-trash me-2"></i> Delete Plan
+                <div class="btn-action-group d-flex gap-2">
+                    <button class="btn btn-outline-light w-50" 
+                        onclick='editPlan({{ plan | tojson }})'>
+                        <i class="fas fa-edit me-2"></i> Edit
+                    </button>
+                    
+                    <a href="{{ url_for('plans.delete_plan', plan_id=plan.id) }}" class="btn btn-outline-danger w-50" onclick="return confirm('Delete this plan? Users on this plan will need to be migrated.');">
+                        <i class="fas fa-trash"></i>
                     </a>
                 </div>
             </div>
@@ -158,22 +163,24 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title text-white">Create Subscription Tier</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title text-white" id="modalTitle">Create Subscription Tier</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <form action="{{ url_for('plans.save_plan') }}" method="POST">
+                <form action="{{ url_for('plans.save_plan') }}" method="POST" id="planForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <input type="hidden" name="plan_id" id="plan_id">
 
                     <div class="modal-body">
                         
                         <div class="row g-3 mb-4">
                             <div class="col-md-8">
                                 <label class="form-label">Plan Name</label>
-                                <input type="text" name="name" class="form-control" placeholder="e.g. Enterprise Gold" required>
+                                <input type="text" name="name" id="name" class="form-control" placeholder="e.g. Enterprise Gold" required>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Monthly Price (£)</label>
-                                <input type="number" step="0.01" name="price" class="form-control" placeholder="0.00" required>
+                                <input type="number" step="0.01" name="price" id="price" class="form-control" placeholder="0.00" required>
                             </div>
                         </div>
 
@@ -181,27 +188,27 @@
                         <div class="row g-3 mb-4">
                             <div class="col-md-4">
                                 <label class="form-label">Max Staff</label>
-                                <input type="number" name="max_users" class="form-control" value="5">
+                                <input type="number" name="max_users" id="max_users" class="form-control" value="5">
                                 <div class="form-text">0 for unlimited users</div>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Max Vehicles</label>
-                                <input type="number" name="max_vehicles" class="form-control" value="2">
+                                <input type="number" name="max_vehicles" id="max_vehicles" class="form-control" value="2">
                                 <div class="form-text">0 for unlimited fleet</div>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Storage (GB)</label>
-                                <input type="number" name="max_storage" class="form-control" value="10">
+                                <input type="number" name="max_storage" id="max_storage" class="form-control" value="10">
                                 <div class="form-text">File upload limit</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Max Clients</label>
-                                <input type="number" name="max_clients" class="form-control" value="0">
+                                <input type="number" name="max_clients" id="max_clients" class="form-control" value="0">
                                 <div class="form-text">Active client limit</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Max Properties</label>
-                                <input type="number" name="max_properties" class="form-control" value="0">
+                                <input type="number" name="max_properties" id="max_properties" class="form-control" value="0">
                                 <div class="form-text">Managed properties</div>
                             </div>
                         </div>
@@ -210,7 +217,7 @@
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="module-check">
-                                    <input type="checkbox" name="modules" value="Finance" checked>
+                                    <input type="checkbox" name="modules" value="Finance" id="mod_Finance" checked>
                                     <span class="checkmark"></span>
                                     <span class="text-white fw-bold">Finance Suite</span>
                                     <div class="text-muted small">Invoicing, Quotes & Pricing</div>
@@ -218,7 +225,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="module-check">
-                                    <input type="checkbox" name="modules" value="Fleet">
+                                    <input type="checkbox" name="modules" value="Fleet" id="mod_Fleet">
                                     <span class="checkmark"></span>
                                     <span class="text-white fw-bold">Fleet Command</span>
                                     <div class="text-muted small">Vehicle Checks & Logs</div>
@@ -226,7 +233,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="module-check">
-                                    <input type="checkbox" name="modules" value="Compliance">
+                                    <input type="checkbox" name="modules" value="Compliance" id="mod_Compliance">
                                     <span class="checkmark"></span>
                                     <span class="text-white fw-bold">Certificates</span>
                                     <div class="text-muted small">Gas (CP12) & Elec (EICR)</div>
@@ -234,7 +241,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="module-check">
-                                    <input type="checkbox" name="modules" value="RAMS">
+                                    <input type="checkbox" name="modules" value="RAMS" id="mod_RAMS">
                                     <span class="checkmark"></span>
                                     <span class="text-white fw-bold text-gold">RAMS Studio</span>
                                     <div class="text-muted small">Risk Assessments</div>
@@ -242,7 +249,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="module-check">
-                                    <input type="checkbox" name="modules" value="HR">
+                                    <input type="checkbox" name="modules" value="HR" id="mod_HR">
                                     <span class="checkmark"></span>
                                     <span class="text-white fw-bold">HR & Staff</span>
                                     <div class="text-muted small">Timesheets & Contracts</div>
@@ -250,7 +257,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="module-check">
-                                    <input type="checkbox" name="modules" value="Portal">
+                                    <input type="checkbox" name="modules" value="Portal" id="mod_Portal">
                                     <span class="checkmark"></span>
                                     <span class="text-white fw-bold">Client Portal</span>
                                     <div class="text-muted small">Allow Client Logins</div>
@@ -258,7 +265,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="module-check">
-                                    <input type="checkbox" name="modules" value="ServiceDesk">
+                                    <input type="checkbox" name="modules" value="ServiceDesk" id="mod_ServiceDesk">
                                     <span class="checkmark"></span>
                                     <span class="text-white fw-bold">Service Desk</span>
                                     <div class="text-muted small">Ticket Management</div>
@@ -266,7 +273,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="module-check">
-                                    <input type="checkbox" name="modules" value="API">
+                                    <input type="checkbox" name="modules" value="API" id="mod_API">
                                     <span class="checkmark"></span>
                                     <span class="text-white fw-bold text-danger">API Access</span>
                                     <div class="text-muted small">Developer Integrations</div>
@@ -282,5 +289,57 @@
             </div>
         </div>
     </div>
+
+    <script>
+        var planModal;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var el = document.getElementById('planModal');
+            if(el) {
+                planModal = new bootstrap.Modal(el);
+            }
+        });
+
+        function openPlanModal() {
+            // Reset form for "Create New"
+            document.getElementById('planForm').reset();
+            document.getElementById('plan_id').value = ""; // Clear ID to force insert
+            document.getElementById('modalTitle').innerText = "Create Subscription Tier";
+            
+            // Uncheck all first
+            document.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false);
+            // Default check Finance (optional)
+            if(document.getElementById('mod_Finance')) document.getElementById('mod_Finance').checked = true;
+            
+            if(planModal) planModal.show();
+        }
+
+        function editPlan(plan) {
+            // Populate form for "Edit"
+            document.getElementById('plan_id').value = plan.id;
+            document.getElementById('name').value = plan.name;
+            document.getElementById('price').value = plan.price;
+            document.getElementById('max_users').value = plan.max_users;
+            document.getElementById('max_vehicles').value = plan.max_vehicles;
+            document.getElementById('max_clients').value = plan.max_clients;
+            document.getElementById('max_properties').value = plan.max_properties;
+            document.getElementById('max_storage').value = plan.max_storage;
+            document.getElementById('modalTitle').innerText = "Edit " + plan.name;
+
+            // Handle Checkboxes
+            // First clear all
+            document.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false);
+            
+            // Then check the active ones
+            if (plan.modules) {
+                plan.modules.forEach(mod => {
+                    let checkbox = document.getElementById('mod_' + mod);
+                    if (checkbox) checkbox.checked = true;
+                });
+            }
+
+            if(planModal) planModal.show();
+        }
+    </script>
 
 {% endblock %}

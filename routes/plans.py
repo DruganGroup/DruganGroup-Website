@@ -37,12 +37,11 @@ def view_plans():
 def save_plan():
     if session.get('role') != 'SuperAdmin': return "Access Denied"
     
-    # 1. Capture Local Data
+    # 1. Get Form Data
+    plan_id = request.form.get('plan_id') # <--- Check if this exists
     name = request.form.get('name')
-    try:
-        price_val = float(request.form.get('price'))
-    except:
-        price_val = 0.0
+    try: price_val = float(request.form.get('price'))
+    except: price_val = 0.0
         
     users = request.form.get('max_users') or 0
     vehicles = request.form.get('max_vehicles') or 0
@@ -53,49 +52,74 @@ def save_plan():
     modules_list = request.form.getlist('modules')
     modules_json = json.dumps(modules_list)
 
-    # 2. TALK TO STRIPE (The Magic Step)
-    stripe_prod_id = None
-    stripe_price_id = None
-    
+    conn = get_db()
+    cur = conn.cursor()
+
     try:
-        if stripe.api_key:
-            # A. Create Product on Stripe
-            product = stripe.Product.create(name=name)
-            stripe_prod_id = product.id
+        # 2. UPDATE EXISTING PLAN
+        if plan_id:
+            # First, get the old Stripe ID so we can update it
+            cur.execute("SELECT stripe_price_id, stripe_product_id FROM plans WHERE id = %s", (plan_id,))
+            old_plan = cur.fetchone()
             
-            # B. Create Price on Stripe (Amount is in pennies, e.g. £10.00 -> 1000)
-            price_obj = stripe.Price.create(
-                product=stripe_prod_id,
-                unit_amount=int(price_val * 100), 
-                currency='gbp',
-                recurring={'interval': 'month'}
-            )
-            stripe_price_id = price_obj.id
-            print(f"✅ Synced with Stripe: {stripe_price_id}")
+            # Update Stripe Price (We create a NEW price object because Stripe doesn't let you change price amounts)
+            new_stripe_price_id = old_plan[0]
+            if stripe.api_key and old_plan[1]:
+                try:
+                    price_obj = stripe.Price.create(
+                        product=old_plan[1],
+                        unit_amount=int(price_val * 100),
+                        currency='gbp',
+                        recurring={'interval': 'month'}
+                    )
+                    new_stripe_price_id = price_obj.id
+                except Exception as e:
+                    print(f"Stripe Update Error: {e}")
+
+            # Update Local DB
+            cur.execute("""
+                UPDATE plans SET 
+                name=%s, price=%s, max_users=%s, max_vehicles=%s, 
+                max_clients=%s, max_properties=%s, max_storage=%s, 
+                modules_enabled=%s, stripe_price_id=%s
+                WHERE id=%s
+            """, (name, price_val, users, vehicles, clients, props, storage, modules_json, new_stripe_price_id, plan_id))
+            
+            flash(f"✅ Plan '{name}' Updated Successfully!", "success")
+
+        # 3. CREATE NEW PLAN (Existing Logic)
         else:
-            print("⚠️ Stripe Key Missing - Plan created locally only.")
+            # ... (Your existing create logic here) ...
+            # Copy your existing Stripe Create code here or leave it if you merge the logic.
+            # Ideally, wrap the Stripe Create logic in a block like:
+            stripe_prod_id = None
+            stripe_price_id = None
+            if stripe.api_key:
+                product = stripe.Product.create(name=name)
+                stripe_prod_id = product.id
+                price_obj = stripe.Price.create(
+                    product=stripe_prod_id,
+                    unit_amount=int(price_val * 100), 
+                    currency='gbp',
+                    recurring={'interval': 'month'}
+                )
+                stripe_price_id = price_obj.id
+            
+            cur.execute("""
+                INSERT INTO plans (
+                    name, price, max_users, max_vehicles, max_clients, max_properties, 
+                    max_storage, modules_enabled, stripe_product_id, stripe_price_id
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (name, price_val, users, vehicles, clients, props, storage, modules_json, stripe_prod_id, stripe_price_id))
+            
+            flash(f"✅ Plan '{name}' Created!", "success")
 
-    except Exception as e:
-        flash(f"❌ Stripe Error: {str(e)}", "error")
-        return redirect(url_for('plans.view_plans'))
-
-    # 3. SAVE TO LOCAL DB (With Stripe IDs)
-    conn = get_db(); cur = conn.cursor()
-    try:
-        cur.execute("""
-            INSERT INTO plans (
-                name, price, max_users, max_vehicles, max_clients, max_properties, 
-                max_storage, modules_enabled, stripe_product_id, stripe_price_id
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (name, price_val, users, vehicles, clients, props, storage, modules_json, stripe_prod_id, stripe_price_id))
-        
         conn.commit()
-        flash(f"✅ Plan '{name}' Created & Live on Stripe!", "success")
         
     except Exception as e:
         conn.rollback()
-        flash(f"❌ DB Error: {e}", "error")
+        flash(f"❌ Error: {e}", "error")
     finally:
         conn.close()
         
