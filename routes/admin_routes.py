@@ -357,125 +357,73 @@ def toggle_suspend(company_id):
     conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
 
-# --- STEP-BY-STEP ROBUST DELETE (routes/admin_routes.py) ---
-@admin_bp.route('/admin/delete-tenant/<int:company_id>')
-def delete_tenant(company_id):
+@admin_bp.route('/admin/nuke-user')
+def nuke_user_by_email():
+    # USAGE: /admin/nuke-user?email=info@drugangroup.co.uk
+    
     if session.get('role') != 'SuperAdmin': return "Access Denied"
+    target_email = request.args.get('email')
+    if not target_email: return "Error: You must provide an email (e.g., ?email=info@...)"
     
     conn = get_db()
     cur = conn.cursor()
 
-    # The Master List of Tables to clean (Order Matters: Children -> Parents)
-    # This matches your 45-table schema exactly.
-    tables_ordered = [
-        # Level 4: Deepest Dependencies (Job/Finance Items)
-        {'name': 'job_materials', 'col': 'job_id', 'parent': 'jobs'},
-        {'name': 'job_expenses', 'col': 'job_id', 'parent': 'jobs'},
-        {'name': 'job_evidence', 'col': 'job_id', 'parent': 'jobs'},
-        {'name': 'job_photos', 'col': 'job_id', 'parent': 'jobs'},
-        {'name': 'job_rams', 'col': 'job_id', 'parent': 'jobs'},
-        {'name': 'job_items', 'col': 'job_id', 'parent': 'jobs'},
-        {'name': 'site_diary', 'col': 'job_id', 'parent': 'jobs'},
-        {'name': 'client_notifications', 'col': 'job_id', 'parent': 'jobs'},
-        {'name': 'invoice_items', 'col': 'invoice_id', 'parent': 'invoices'},
-        {'name': 'quote_items', 'col': 'quote_id', 'parent': 'quotes'},
-        {'name': 'overhead_items', 'col': 'category_id', 'parent': 'overhead_categories'},
-        {'name': 'team_members', 'col': 'team_id', 'parent': 'teams'},
-
-        # Level 3: Direct Children (Linked to Company)
-        {'name': 'vehicle_checks', 'col': 'company_id'},
-        {'name': 'maintenance_logs', 'col': 'company_id'},
-        {'name': 'vehicle_crews', 'col': 'company_id'},
-        {'name': 'certificates', 'col': 'company_id'},
-        {'name': 'staff_timesheets', 'col': 'company_id'},
-        {'name': 'staff_attendance', 'col': 'company_id'},
-        {'name': 'timesheets', 'col': 'company_id'},
-        
-        # Level 2: Main Documents (Invoices/Quotes/Jobs)
-        {'name': 'invoices', 'col': 'company_id'},
-        {'name': 'quotes', 'col': 'company_id'},
-        {'name': 'transactions', 'col': 'company_id'},
-        {'name': 'service_requests', 'col': 'company_id'},
-        {'name': 'overhead_categories', 'col': 'company_id'},
-        {'name': 'teams', 'col': 'company_id'},
-        {'name': 'jobs', 'col': 'company_id'}, # Deleted AFTER invoices/materials are gone
-
-        # Level 1: Assets & Users
-        {'name': 'vehicles', 'col': 'company_id'},
-        {'name': 'properties', 'col': 'company_id'},
-        {'name': 'staff', 'col': 'company_id'},
-        {'name': 'clients', 'col': 'company_id'},
-        {'name': 'users', 'col': 'company_id'},
-        {'name': 'suppliers', 'col': 'company_id'},
-        {'name': 'materials', 'col': 'company_id'},
-
-        # Level 0: System Config
-        {'name': 'settings', 'col': 'company_id'},
-        {'name': 'subscriptions', 'col': 'company_id'},
-        {'name': 'audit_logs', 'col': 'company_id'},
-        {'name': 'plugin_licenses', 'col': 'license_key'} # Placeholder check
-    ]
+    def force_exec(query, params=()):
+        try:
+            cur.execute(query, params)
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            # We ignore errors because we just want to force-kill whatever exists
+            if "does not exist" not in str(e):
+                print(f"⚠️ Ignored Error: {str(e)}")
 
     try:
-        print(f"--- STARTING SMART WIPE FOR COMPANY {company_id} ---")
+        print(f"--- HUNTING DOWN {target_email} ---")
 
-        for table in tables_ordered:
-            t_name = table['name']
-            
-            # 1. CHECK IF TABLE EXISTS
-            # This prevents the "Relation does not exist" crash
-            cur.execute("SELECT to_regclass(%s)", (t_name,))
-            if cur.fetchone()[0] is None:
-                # Table doesn't exist in DB -> No ghost data possible. Skip.
-                continue
-
-            # 2. CONSTRUCT QUERY
-            if 'parent' in table:
-                # Delete via Parent ID (e.g., Delete materials linked to Company's Jobs)
-                parent_table = table['parent']
-                query = f"""
-                    DELETE FROM {t_name} 
-                    WHERE {table['col']} IN (
-                        SELECT id FROM {parent_table} WHERE company_id = %s
-                    )
-                """
-            elif t_name == 'plugin_licenses':
-                # Special case, skip
-                continue
-            else:
-                # Direct Company Delete
-                query = f"DELETE FROM {t_name} WHERE {table['col']} = %s"
-
-            # 3. EXECUTE & COMMIT
-            # We commit after every table to prevent "Transaction Aborted" locks
-            try:
-                cur.execute(query, (company_id,))
-                conn.commit()
-            except Exception as e:
-                conn.rollback() # Reset connection for next table
-                print(f"❌ Error on {t_name}: {e}")
-                # We raise the error to STOP the process if a delete fails.
-                # This ensures we don't leave ghost data by continuing.
-                raise e 
-
-        # 4. FINAL KILL
-        cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
-        conn.commit()
+        # 1. FIND THE VICTIM
+        cur.execute("SELECT id, company_id FROM users WHERE email = %s", (target_email,))
+        user = cur.fetchone()
         
-        flash("✅ Tenant deleted cleanly. No ghost data.", "success")
+        if not user:
+            return f"<h1>User {target_email} not found. They are already gone.</h1>"
+
+        user_id = user[0]
+        company_id = user[1]
+        
+        print(f"FOUND: User ID {user_id} linked to Company ID {company_id}")
+
+        # 2. UNLOCK THE DEADLOCK (The 'Ghost Data' Fix)
+        # This breaks the link between Jobs and Quotes that stopped you before.
+        if company_id:
+            force_exec("UPDATE jobs SET quote_id = NULL WHERE company_id = %s", (company_id,))
+            force_exec("UPDATE invoices SET job_id = NULL WHERE company_id = %s", (company_id,))
+            force_exec("UPDATE jobs SET client_id = NULL WHERE company_id = %s", (company_id,))
+
+            # 3. WIPE COMPANY DATA
+            # We delete the main blockers blindly.
+            tables = [
+                'job_materials', 'job_expenses', 'job_evidence', 'job_photos', 'job_rams',
+                'invoice_items', 'quote_items', 'staff_timesheets',
+                'vehicle_checks', 'maintenance_logs', 'certificates',
+                'invoices', 'quotes', 'jobs', 'vehicles', 'properties', 'clients'
+            ]
+            for t in tables:
+                force_exec(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
+
+        # 4. DELETE THE USER (The main goal)
+        force_exec("DELETE FROM staff_timesheets WHERE user_id = %s", (user_id,))
+        force_exec("DELETE FROM users WHERE id = %s", (user_id,))
+        
+        # 5. DELETE THE COMPANY
+        if company_id:
+            force_exec("DELETE FROM companies WHERE id = %s", (company_id,))
+
+        flash(f"✅ User {target_email} and Company {company_id} have been nuked.", "success")
         return redirect(url_for('admin.super_admin_analytics'))
 
     except Exception as e:
-        conn.rollback()
-        # Print the exact error to screen so we can fix the specific table constraint
-        return f"""
-        <div style="font-family: monospace; padding: 20px;">
-            <h2 style="color:red">DELETE STOPPED TO PREVENT GHOST DATA</h2>
-            <p><strong>Error:</strong> {str(e)}</p>
-            <p>The process was halted. No partial data was left in a broken state.</p>
-            <a href="/super-admin/analytics">Return</a>
-        </div>
-        """
+        return f"<h1>Error: {str(e)}</h1>"
         
     finally:
         conn.close()
