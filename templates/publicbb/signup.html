@@ -70,14 +70,13 @@
                             <h5 class="text-white">Plan Pre-Selected</h5>
                             <p class="text-secondary mb-0">
                                 You are registering for the selected tier. 
-                                <a href="{{ url_for('auth.signup') }}" class="text-gold fw-bold ms-2" style="text-decoration: underline;">Change Plan</a>
+                                <a href="{{ url_for('auth.show_signup') }}" class="text-gold fw-bold ms-2" style="text-decoration: underline;">Change Plan</a>
                             </p>
                         </div>
 
                     {# ELSE: SHOW THE CARDS IN CATEGORIES #}
                     {% else %}
 
-                        {# MACRO: Card Template to avoid repeating code #}
                         {% macro render_plan(plan) %}
                         <div class="col-md-4">
                             <label class="plan-card-option w-100" style="cursor: pointer;">
@@ -126,15 +125,12 @@
                     {% endif %}
 
                     <style>
-                        /* Hidden Radio Logic */
                         .plan-card-option input { display: none; } 
-                        /* Selected State */
                         .plan-card-option input:checked + .plan-box {
                             border-color: #C5A059 !important; 
                             background-color: rgba(197, 160, 89, 0.15) !important;
                             box-shadow: 0 0 15px rgba(197, 160, 89, 0.3);
                         }
-                        /* Hover Effect */
                         .plan-box { transition: 0.3s all; }
                         .plan-box:hover { transform: translateY(-3px); border-color: #666; }
                     </style>
@@ -173,7 +169,6 @@
 </div>
 
 <script>
-    // Force lowercase on subdomain
     document.getElementById('sub_domain').addEventListener('input', function(e) {
         this.value = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
     });
