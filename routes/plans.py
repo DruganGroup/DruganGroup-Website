@@ -1,284 +1,122 @@
-{% extends "admin/base.html" %}
+import stripe
+import os
+import json
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from db import get_db
 
-{% block title %}Plan Management | Drugan Group{% endblock %}
+plans_bp = Blueprint('plans', __name__)
 
-{% block styles %}
-<style>
-    /* --- PLAN CARD STYLING --- */
-    .plan-card {
-        background: #1f1f1f;
-        border: 1px solid #333;
-        border-radius: 12px;
-        padding: 0;
-        text-align: center;
-        transition: 0.3s;
-        height: 100%;
-        position: relative;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-    }
-    .plan-card:hover {
-        transform: translateY(-5px);
-        border-color: var(--primary-gold);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }
+# --- CONFIGURATION ---
+stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
+
+# --- 1. VIEW PLANS (DASHBOARD) ---
+@plans_bp.route('/admin/plans')
+def view_plans():
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
     
-    .plan-header {
-        padding: 25px;
-        background: rgba(255,255,255,0.02);
-        border-bottom: 1px solid #333;
-    }
-    .plan-name { font-size: 1.2rem; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 2px; margin: 0; }
-    .plan-price { font-size: 2.2rem; font-weight: 700; color: var(--primary-gold); margin: 15px 0 0 0; }
-    .plan-period { font-size: 0.8rem; color: #888; font-weight: 400; text-transform: uppercase; }
+    conn = get_db(); cur = conn.cursor()
     
-    .plan-body { padding: 25px; flex-grow: 1; text-align: left; }
+    # Fetch Plans
+    cur.execute("SELECT * FROM plans ORDER BY price ASC")
+    plans = []
+    if cur.description:
+        cols = [desc[0] for desc in cur.description]
+        for row in cur.fetchall():
+            p = dict(zip(cols, row))
+            try:
+                p['modules'] = json.loads(p['modules_enabled']) if p.get('modules_enabled') else []
+            except:
+                p['modules'] = []
+            plans.append(p)
     
-    /* Limits Grid */
-    .limit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-    .limit-item { background: #2a2a2a; padding: 8px 12px; border-radius: 6px; font-size: 0.8rem; color: #ccc; border: 1px solid #444; }
-    .limit-item strong { display: block; color: #fff; font-size: 1rem; margin-bottom: 2px; }
+    conn.close()
+    return render_template('admin/plans.html', plans=plans)
+
+# --- 2. CREATE & SYNC PLAN (THE AUTOMATION ENGINE) ---
+@plans_bp.route('/admin/plans/save', methods=['POST'])
+def save_plan():
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
     
-    /* Modules List */
-    .module-badge { 
-        display: inline-block; padding: 4px 8px; margin: 0 4px 4px 0;
-        border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-        background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3);
-    }
-    .module-badge.missing {
-        background: rgba(231, 76, 60, 0.1); color: #666; border-color: #444; text-decoration: line-through;
-    }
+    # 1. Capture Local Data
+    name = request.form.get('name')
+    try:
+        price_val = float(request.form.get('price'))
+    except:
+        price_val = 0.0
+        
+    users = request.form.get('max_users') or 0
+    vehicles = request.form.get('max_vehicles') or 0
+    clients = request.form.get('max_clients') or 0
+    props = request.form.get('max_properties') or 0
+    storage = request.form.get('max_storage') or 0
     
-    .btn-action-group { padding: 20px; border-top: 1px solid #333; }
+    modules_list = request.form.getlist('modules')
+    modules_json = json.dumps(modules_list)
 
-    /* --- DARK MODE MODAL FIXES --- */
-    .modal-content { background-color: #1e1e1e !important; border: 1px solid #444; color: #fff !important; }
-    .modal-header, .modal-footer { border-color: #333 !important; }
-    .btn-close { filter: invert(1) grayscale(100%) brightness(200%); } /* White X */
+    # 2. TALK TO STRIPE (The Magic Step)
+    stripe_prod_id = None
+    stripe_price_id = None
     
-    /* Dark Inputs */
-    .form-control, .form-select {
-        background-color: #2a2a2a !important;
-        border: 1px solid #444 !important;
-        color: #fff !important;
-        font-weight: 500;
-    }
-    .form-control:focus, .form-select:focus {
-        border-color: var(--primary-gold) !important;
-        box-shadow: none;
-        background-color: #333 !important;
-    }
-    .form-control::placeholder { color: #666 !important; }
-    .form-label { color: #ccc !important; font-size: 0.8rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
-    .form-text { color: #888 !important; font-size: 0.75rem; }
+    try:
+        if stripe.api_key:
+            # A. Create Product on Stripe
+            product = stripe.Product.create(name=name)
+            stripe_prod_id = product.id
+            
+            # B. Create Price on Stripe (Amount is in pennies, e.g. £10.00 -> 1000)
+            price_obj = stripe.Price.create(
+                product=stripe_prod_id,
+                unit_amount=int(price_val * 100), 
+                currency='gbp',
+                recurring={'interval': 'month'}
+            )
+            stripe_price_id = price_obj.id
+            print(f"✅ Synced with Stripe: {stripe_price_id}")
+        else:
+            print("⚠️ Stripe Key Missing - Plan created locally only.")
 
-    /* Checkbox Toggles */
-    .module-check {
-        display: block; position: relative; padding: 10px 10px 10px 45px;
-        background: #2a2a2a; border: 1px solid #444; border-radius: 6px;
-        cursor: pointer; transition: 0.2s;
-    }
-    .module-check:hover { border-color: var(--primary-gold); }
-    .module-check input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
-    .checkmark {
-        position: absolute; top: 12px; left: 12px; height: 18px; width: 18px;
-        background-color: #444; border-radius: 4px;
-    }
-    .module-check input:checked ~ .checkmark { background-color: var(--primary-gold); }
-    .checkmark:after {
-        content: ""; position: absolute; display: none;
-        left: 6px; top: 2px; width: 5px; height: 10px;
-        border: solid black; border-width: 0 2px 2px 0; transform: rotate(45deg);
-    }
-    .module-check input:checked ~ .checkmark:after { display: block; }
-</style>
-{% endblock %}
+    except Exception as e:
+        flash(f"❌ Stripe Error: {str(e)}", "error")
+        return redirect(url_for('plans.view_plans'))
 
-{% block content %}
+    # 3. SAVE TO LOCAL DB (With Stripe IDs)
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO plans (
+                name, price, max_users, max_vehicles, max_clients, max_properties, 
+                max_storage, modules_enabled, stripe_product_id, stripe_price_id
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (name, price_val, users, vehicles, clients, props, storage, modules_json, stripe_prod_id, stripe_price_id))
+        
+        conn.commit()
+        flash(f"✅ Plan '{name}' Created & Live on Stripe!", "success")
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ DB Error: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('plans.view_plans'))
 
-    <div class="d-flex justify-content-between align-items-center mb-5">
-        <div>
-            <h6 class="text-muted text-uppercase mb-1">Monetization</h6>
-            <h2 class="fw-bold mb-0 text-white">Subscription <span style="color: var(--primary-gold);">Plans</span></h2>
-        </div>
-        <button class="btn-gold shadow-lg" data-bs-toggle="modal" data-bs-target="#planModal">
-            <i class="fas fa-plus me-2"></i> Add New Tier
-        </button>
-    </div>
-
-    <div class="row g-4">
-        {% for plan in plans %}
-        <div class="col-md-4">
-            <div class="plan-card">
-                <div class="plan-header">
-                    <h3 class="plan-name">{{ plan.name }}</h3>
-                    <div class="plan-price">£{{ plan.price }}<span class="plan-period">/mo</span></div>
-                </div>
-                
-                <div class="plan-body">
-                    <label class="text-muted small fw-bold mb-2">USAGE LIMITS</label>
-                    <div class="limit-grid">
-                        <div class="limit-item"><strong>{{ plan.max_users }}</strong> Users</div>
-                        <div class="limit-item"><strong>{{ plan.max_vehicles }}</strong> Vehicles</div>
-                        <div class="limit-item"><strong>{{ plan.max_clients }}</strong> Clients</div>
-                        <div class="limit-item"><strong>{{ plan.max_properties }}</strong> Properties</div>
-                        <div class="limit-item" style="grid-column: span 2;"><strong>{{ plan.max_storage }} GB</strong> Data Storage</div>
-                    </div>
-
-                    <label class="text-muted small fw-bold mb-2 mt-2">ENABLED MODULES</label>
-                    <div class="d-flex flex-wrap">
-                        {% set all_mods = ['Finance', 'Fleet', 'Compliance', 'RAMS', 'HR', 'Portal', 'ServiceDesk', 'API'] %}
-                        {% for mod in all_mods %}
-                            {% if mod in plan.modules %}
-                                <span class="module-badge"><i class="fas fa-check me-1"></i> {{ mod }}</span>
-                            {% else %}
-                                <span class="module-badge missing">{{ mod }}</span>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                </div>
-
-                <div class="btn-action-group">
-                    <a href="{{ url_for('plans.delete_plan', plan_id=plan.id) }}" class="btn btn-outline-danger w-100" onclick="return confirm('Delete this plan? Users on this plan will need to be migrated.');">
-                        <i class="fas fa-trash me-2"></i> Delete Plan
-                    </a>
-                </div>
-            </div>
-        </div>
-        {% else %}
-        <div class="col-12 text-center py-5">
-            <h4 class="text-muted">No Plans Configured</h4>
-            <p class="text-secondary">Define your service tiers to get started.</p>
-        </div>
-        {% endfor %}
-    </div>
-
-    <div class="modal fade" id="planModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title text-white">Create Subscription Tier</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form action="{{ url_for('plans.save_plan') }}" method="POST">
-                    <div class="modal-body">
-                        
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-8">
-                                <label class="form-label">Plan Name</label>
-                                <input type="text" name="name" class="form-control" placeholder="e.g. Enterprise Gold" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Monthly Price (£)</label>
-                                <input type="number" step="0.01" name="price" class="form-control" placeholder="0.00" required>
-                            </div>
-                        </div>
-
-                        <h6 class="text-white border-bottom border-secondary pb-2 mb-3">Usage Allowances</h6>
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-4">
-                                <label class="form-label">Max Staff</label>
-                                <input type="number" name="max_users" class="form-control" value="5">
-                                <div class="form-text">User accounts limit</div>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Max Vehicles</label>
-                                <input type="number" name="max_vehicles" class="form-control" value="2">
-                                <div class="form-text">Fleet size limit</div>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Storage (GB)</label>
-                                <input type="number" name="max_storage" class="form-control" value="10">
-                                <div class="form-text">File upload limit</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Max Clients</label>
-                                <input type="number" name="max_clients" class="form-control" value="0">
-                                <div class="form-text">Active client limit (0 = Unlimited)</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Max Properties</label>
-                                <input type="number" name="max_properties" class="form-control" value="0">
-                                <div class="form-text">Managed properties (0 = Unlimited)</div>
-                            </div>
-                        </div>
-
-                        <h6 class="text-white border-bottom border-secondary pb-2 mb-3">Enabled Modules (Gatekeepers)</h6>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="module-check">
-                                    <input type="checkbox" name="modules" value="Finance" checked>
-                                    <span class="checkmark"></span>
-                                    <span class="text-white fw-bold">Finance Suite</span>
-                                    <div class="text-muted small">Invoicing, Quotes & Pricing</div>
-                                </label>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="module-check">
-                                    <input type="checkbox" name="modules" value="Fleet">
-                                    <span class="checkmark"></span>
-                                    <span class="text-white fw-bold">Fleet Command</span>
-                                    <div class="text-muted small">Vehicle Checks & Logs</div>
-                                </label>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="module-check">
-                                    <input type="checkbox" name="modules" value="Compliance">
-                                    <span class="checkmark"></span>
-                                    <span class="text-white fw-bold">Certificates</span>
-                                    <div class="text-muted small">Gas (CP12) & Elec (EICR)</div>
-                                </label>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="module-check">
-                                    <input type="checkbox" name="modules" value="RAMS">
-                                    <span class="checkmark"></span>
-                                    <span class="text-white fw-bold text-gold">RAMS Studio</span>
-                                    <div class="text-muted small">Risk Assessments</div>
-                                </label>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="module-check">
-                                    <input type="checkbox" name="modules" value="HR">
-                                    <span class="checkmark"></span>
-                                    <span class="text-white fw-bold">HR & Staff</span>
-                                    <div class="text-muted small">Timesheets & Contracts</div>
-                                </label>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="module-check">
-                                    <input type="checkbox" name="modules" value="Portal">
-                                    <span class="checkmark"></span>
-                                    <span class="text-white fw-bold">Client Portal</span>
-                                    <div class="text-muted small">Allow Client Logins</div>
-                                </label>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="module-check">
-                                    <input type="checkbox" name="modules" value="ServiceDesk">
-                                    <span class="checkmark"></span>
-                                    <span class="text-white fw-bold">Service Desk</span>
-                                    <div class="text-muted small">Ticket Management</div>
-                                </label>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="module-check">
-                                    <input type="checkbox" name="modules" value="API">
-                                    <span class="checkmark"></span>
-                                    <span class="text-white fw-bold text-danger">API Access</span>
-                                    <div class="text-muted small">Developer Integrations</div>
-                                </label>
-                            </div>
-                        </div>
-
-                    </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn-gold w-100 fw-bold">Save Plan Configuration</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-{% endblock %}
+# --- 3. DELETE PLAN (CLEAN UP) ---
+@plans_bp.route('/admin/plans/delete/<int:plan_id>')
+def delete_plan(plan_id):
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Optional: Deactivate on Stripe first?
+        # For now, we just remove it from your dashboard so nobody new can buy it.
+        cur.execute("DELETE FROM plans WHERE id = %s", (plan_id,))
+        conn.commit()
+        flash("🗑️ Plan deleted from dashboard (Stripe remains active for existing users).", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('plans.view_plans'))

@@ -4,7 +4,7 @@
 
 {% block styles %}
 <style>
-    /* --- Plan Card Styling --- */
+    /* --- PLAN CARD STYLING --- */
     .plan-card {
         background: #1f1f1f;
         border: 1px solid #333;
@@ -29,7 +29,6 @@
         background: rgba(255,255,255,0.02);
         border-bottom: 1px solid #333;
     }
-    
     .plan-name { font-size: 1.2rem; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 2px; margin: 0; }
     .plan-price { font-size: 2.2rem; font-weight: 700; color: var(--primary-gold); margin: 15px 0 0 0; }
     .plan-period { font-size: 0.8rem; color: #888; font-weight: 400; text-transform: uppercase; }
@@ -53,23 +52,26 @@
     
     .btn-action-group { padding: 20px; border-top: 1px solid #333; }
 
-    /* --- FORM STYLES (Fixed Visibility) --- */
-    .modal-content { background: #1f1f1f; border: 1px solid #444; color: #fff; }
-    .modal-header { border-bottom: 1px solid #333; }
-    .modal-footer { border-top: 1px solid #333; }
+    /* --- DARK MODE MODAL FIXES --- */
+    .modal-content { background-color: #1e1e1e !important; border: 1px solid #444; color: #fff !important; }
+    .modal-header, .modal-footer { border-color: #333 !important; }
+    .btn-close { filter: invert(1) grayscale(100%) brightness(200%); } /* White X */
     
-    .form-control {
-        background: #fff !important;   /* Bright White Background */
-        color: #000 !important;        /* Black Text */
-        border: 1px solid #ccc;
-        font-weight: 600;
+    /* Dark Inputs */
+    .form-control, .form-select {
+        background-color: #2a2a2a !important;
+        border: 1px solid #444 !important;
+        color: #fff !important;
+        font-weight: 500;
     }
-    .form-control:focus {
-        border-color: var(--primary-gold);
-        box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.25);
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary-gold) !important;
+        box-shadow: none;
+        background-color: #333 !important;
     }
-    .form-label { color: #ccc; font-size: 0.8rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
-    .form-text { color: #888; font-size: 0.75rem; }
+    .form-control::placeholder { color: #666 !important; }
+    .form-label { color: #ccc !important; font-size: 0.8rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+    .form-text { color: #888 !important; font-size: 0.75rem; }
 
     /* Checkbox Toggles */
     .module-check {
@@ -126,7 +128,7 @@
 
                     <label class="text-muted small fw-bold mb-2 mt-2">ENABLED MODULES</label>
                     <div class="d-flex flex-wrap">
-                        {% set all_mods = ['Finance', 'Fleet', 'Compliance', 'HR', 'Portal', 'ServiceDesk'] %}
+                        {% set all_mods = ['Finance', 'Fleet', 'Compliance', 'RAMS', 'HR', 'Portal', 'ServiceDesk', 'API'] %}
                         {% for mod in all_mods %}
                             {% if mod in plan.modules %}
                                 <span class="module-badge"><i class="fas fa-check me-1"></i> {{ mod }}</span>
@@ -138,7 +140,7 @@
                 </div>
 
                 <div class="btn-action-group">
-                    <a href="{{ url_for('plans.delete_plan', plan_id=plan.id) }}" class="btn btn-outline-danger w-100" onclick="return confirm('Delete this plan?');">
+                    <a href="{{ url_for('plans.delete_plan', plan_id=plan.id) }}" class="btn btn-outline-danger w-100" onclick="return confirm('Delete this plan? Users on this plan will need to be migrated.');">
                         <i class="fas fa-trash me-2"></i> Delete Plan
                     </a>
                 </div>
@@ -157,7 +159,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title text-white">Create Subscription Tier</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form action="{{ url_for('plans.save_plan') }}" method="POST">
                     <div class="modal-body">
@@ -192,64 +194,80 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Max Clients</label>
-                                <input type="number" name="max_clients" class="form-control" value="20">
-                                <div class="form-text">Limit active client list</div>
+                                <input type="number" name="max_clients" class="form-control" value="0">
+                                <div class="form-text">Active client limit (0 = Unlimited)</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Max Properties</label>
-                                <input type="number" name="max_properties" class="form-control" value="50">
-                                <div class="form-text">Total managed properties</div>
+                                <input type="number" name="max_properties" class="form-control" value="0">
+                                <div class="form-text">Managed properties (0 = Unlimited)</div>
                             </div>
                         </div>
 
-                        <h6 class="text-white border-bottom border-secondary pb-2 mb-3">Enabled Modules</h6>
+                        <h6 class="text-white border-bottom border-secondary pb-2 mb-3">Enabled Modules (Gatekeepers)</h6>
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="module-check">
                                     <input type="checkbox" name="modules" value="Finance" checked>
                                     <span class="checkmark"></span>
-                                    <span class="text-white fw-bold">Finance</span>
-                                    <div class="text-muted small">Invoicing & Quotes</div>
+                                    <span class="text-white fw-bold">Finance Suite</span>
+                                    <div class="text-muted small">Invoicing, Quotes & Pricing</div>
                                 </label>
                             </div>
                             <div class="col-md-4">
                                 <label class="module-check">
-                                    <input type="checkbox" name="modules" value="Fleet" checked>
+                                    <input type="checkbox" name="modules" value="Fleet">
                                     <span class="checkmark"></span>
-                                    <span class="text-white fw-bold">Fleet</span>
+                                    <span class="text-white fw-bold">Fleet Command</span>
                                     <div class="text-muted small">Vehicle Checks & Logs</div>
                                 </label>
                             </div>
                             <div class="col-md-4">
                                 <label class="module-check">
-                                    <input type="checkbox" name="modules" value="Compliance" checked>
+                                    <input type="checkbox" name="modules" value="Compliance">
                                     <span class="checkmark"></span>
-                                    <span class="text-white fw-bold">Compliance</span>
-                                    <div class="text-muted small">Gas/Elec Certificates</div>
+                                    <span class="text-white fw-bold">Certificates</span>
+                                    <div class="text-muted small">Gas (CP12) & Elec (EICR)</div>
                                 </label>
                             </div>
                             <div class="col-md-4">
                                 <label class="module-check">
-                                    <input type="checkbox" name="modules" value="HR" checked>
+                                    <input type="checkbox" name="modules" value="RAMS">
+                                    <span class="checkmark"></span>
+                                    <span class="text-white fw-bold text-gold">RAMS Studio</span>
+                                    <div class="text-muted small">Risk Assessments</div>
+                                </label>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="module-check">
+                                    <input type="checkbox" name="modules" value="HR">
                                     <span class="checkmark"></span>
                                     <span class="text-white fw-bold">HR & Staff</span>
-                                    <div class="text-muted small">Timesheets & Profiles</div>
+                                    <div class="text-muted small">Timesheets & Contracts</div>
                                 </label>
                             </div>
                             <div class="col-md-4">
                                 <label class="module-check">
-                                    <input type="checkbox" name="modules" value="Portal" checked>
+                                    <input type="checkbox" name="modules" value="Portal">
                                     <span class="checkmark"></span>
                                     <span class="text-white fw-bold">Client Portal</span>
                                     <div class="text-muted small">Allow Client Logins</div>
                                 </label>
                             </div>
-                             <div class="col-md-4">
+                            <div class="col-md-4">
                                 <label class="module-check">
-                                    <input type="checkbox" name="modules" value="ServiceDesk" checked>
+                                    <input type="checkbox" name="modules" value="ServiceDesk">
                                     <span class="checkmark"></span>
                                     <span class="text-white fw-bold">Service Desk</span>
-                                    <div class="text-muted small">Ticket & Repairs System</div>
+                                    <div class="text-muted small">Ticket Management</div>
+                                </label>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="module-check">
+                                    <input type="checkbox" name="modules" value="API">
+                                    <span class="checkmark"></span>
+                                    <span class="text-white fw-bold text-danger">API Access</span>
+                                    <div class="text-muted small">Developer Integrations</div>
                                 </label>
                             </div>
                         </div>
