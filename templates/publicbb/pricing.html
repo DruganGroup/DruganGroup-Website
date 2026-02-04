@@ -23,81 +23,85 @@
 
         <div class="row g-4 justify-content-center align-items-center mb-5">
             
+            {% for plan in plans if 'Agency' not in plan.name %}
             <div class="col-lg-4 col-md-6">
-                <div class="card h-100 border-secondary bg-dark text-white rounded-4 hover-lift">
-                    <div class="card-body p-5 text-center">
-                        <h4 class="fw-bold text-secondary mb-3">Sole Trader</h4>
-                        <div class="display-4 fw-bold mb-3 text-white">£99<span class="fs-6 text-secondary fw-normal">/mo</span></div>
-                        <p class="text-secondary small mb-4">Perfect for getting organized.</p>
-                        
-                        <div class="d-grid mb-4">
-                            <a href="/register?plan=sole-trader" class="btn btn-outline-light rounded-pill">Start Free Trial</a>
-                        </div>
-                        
-                        <ul class="list-unstyled text-start small mx-auto text-secondary" style="max-width: 260px;">
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Unlimited Quotes & Invoices</li>
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Client Database (CRM)</li>
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>2</strong> Staff Members</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-4 col-md-6">
-                <div class="card h-100 border-warning shadow-lg bg-black text-white rounded-4 position-relative transform-scale">
+                {% set is_popular = 'Growing' in plan.name %}
+                
+                <div class="card h-100 {{ 'border-warning shadow-lg bg-black transform-scale' if is_popular else 'border-secondary bg-dark hover-lift' }} text-white rounded-4 position-relative">
+                    
+                    {% if is_popular %}
                     <div class="position-absolute top-0 start-50 translate-middle badge bg-warning text-dark px-3 py-2 rounded-pill shadow-sm">
                         MOST POPULAR
                     </div>
+                    {% endif %}
 
                     <div class="card-body p-5 text-center">
-                        <h4 class="fw-bold text-gold mb-3">Growing Team</h4>
-                        <div class="display-4 fw-bold mb-3 text-white">£199<span class="fs-6 text-secondary fw-normal">/mo</span></div>
-                        <p class="text-secondary small mb-4">Connect the office to the van.</p>
+                        <h4 class="fw-bold {{ 'text-gold' if is_popular else 'text-secondary' }} mb-3">{{ plan.name }}</h4>
+                        <div class="display-4 fw-bold mb-3 text-white">£{{ "%.0f"|format(plan.price) }}<span class="fs-6 text-secondary fw-normal">/mo</span></div>
+                        
+                        <p class="text-secondary small mb-4">
+                            {% if plan.price < 50 %}Perfect for getting organized.
+                            {% elif plan.price < 150 %}Connect the office to the van.
+                            {% else %}Total control for larger firms.{% endif %}
+                        </p>
                         
                         <div class="d-grid mb-4">
-                            <a href="/register?plan=growing" class="btn btn-brand rounded-pill fw-bold">Start Free Trial</a>
+                            <a href="/register?plan={{ plan.id }}" class="btn {{ 'btn-brand fw-bold' if is_popular else 'btn-outline-light' }} rounded-pill">Start Free Trial</a>
                         </div>
                         
                         <ul class="list-unstyled text-start small mx-auto text-secondary" style="max-width: 260px;">
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>Everything in Starter</strong></li>
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>Site Companion App</strong></li>
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>10</strong> Staff Members</li>
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Live Job Status Updates</li>
+                            <li class="mb-3"><i class="fas fa-user {{ 'text-gold' if is_popular else 'text-secondary' }} me-2"></i> 
+                                <strong>{{ plan.max_users if plan.max_users > 0 else 'Unlimited' }}</strong> Staff Members
+                            </li>
+                            
+                            {% if plan.max_vehicles > 0 %}
+                            <li class="mb-3"><i class="fas fa-truck {{ 'text-gold' if is_popular else 'text-secondary' }} me-2"></i> 
+                                <strong>{{ plan.max_vehicles }}</strong> Vehicles
+                            </li>
+                            {% endif %}
+
+                            {% if 'Finance' in plan.modules %}
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Quotes & Invoices</li>
+                            {% endif %}
+                            
+                            {% if 'Portal' in plan.modules %}
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Client Portal</li>
+                            {% endif %}
+
+                            {% if 'Fleet' in plan.modules %}
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Vehicle Checks (MOT)</li>
+                            {% endif %}
+
+                            {% if 'Compliance' in plan.modules %}
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> CP12/EICR Certs</li>
+                            {% endif %}
+                            
+                            {% if 'RAMS' in plan.modules %}
+                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>RAMS Studio</strong></li>
+                            {% endif %}
                         </ul>
                     </div>
                 </div>
             </div>
-
-            <div class="col-lg-4 col-md-6">
-                <div class="card h-100 border-secondary bg-dark text-white rounded-4 hover-lift">
-                    <div class="card-body p-5 text-center">
-                        <h4 class="fw-bold text-white mb-3">Fleet Command</h4>
-                        <div class="display-4 fw-bold mb-3 text-white">£349<span class="fs-6 text-secondary fw-normal">/mo</span></div>
-                        <p class="text-secondary small mb-4">Total control for larger firms.</p>
-                        
-                        <div class="d-grid mb-4">
-                            <a href="/register?plan=enterprise" class="btn btn-outline-light rounded-pill">Start Free Trial</a>
-                        </div>
-                        
-                        <ul class="list-unstyled text-start small mx-auto text-secondary" style="max-width: 260px;">
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>Everything in Growth</strong></li>
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>20</strong> Staff Members</li>
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Fleet Mgmt (MOT/Tax Alerts)</li>
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Priority Support Line</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
+            {% else %}
+            {% if loop.first %} 
+            <div class="col-12 text-center text-muted">No trade plans configured yet.</div>
+            {% endif %}
+            {% endfor %}
 
         </div>
 
+        {% set agency_plans = plans | selectattr("name", "contains", "Agency") | list %}
+        
+        {% if agency_plans %}
         <div class="row justify-content-center mt-5">
-            <div class="col-lg-8">
+            {% for plan in agency_plans %}
+            <div class="col-lg-8 mb-4">
                 <div class="card border-info bg-black text-white rounded-4 position-relative overflow-hidden">
                     <div class="row g-0 align-items-center">
                         <div class="col-md-5 p-4 bg-dark border-end border-secondary text-center d-flex flex-column justify-content-center h-100">
-                            <h4 class="fw-bold text-info mb-2">Property Management</h4>
-                            <div class="display-5 fw-bold text-white mb-2">£149<span class="fs-6 text-secondary fw-normal">/mo</span></div>
+                            <h4 class="fw-bold text-info mb-2">{{ plan.name }}</h4>
+                            <div class="display-5 fw-bold text-white mb-2">£{{ "%.0f"|format(plan.price) }}<span class="fs-6 text-secondary fw-normal">/mo</span></div>
                             <small class="text-secondary">For Estate Agents & Block Managers</small>
                         </div>
                         <div class="col-md-7 p-4">
@@ -105,17 +109,23 @@
                                 Connect your tenants directly to your maintenance desk.
                             </p>
                             <div class="row g-2 mb-4">
-                                <div class="col-6"><small class="text-white"><i class="fas fa-check text-info me-2"></i> Tenant Fault Reporting</small></div>
-                                <div class="col-6"><small class="text-white"><i class="fas fa-check text-info me-2"></i> Auto-Dispatch Logic</small></div>
-                                <div class="col-6"><small class="text-white"><i class="fas fa-check text-info me-2"></i> Up to 100 Properties</small></div>
+                                <div class="col-6"><small class="text-white"><i class="fas fa-check text-info me-2"></i> <strong>{{ plan.max_properties if plan.max_properties > 0 else 'Unlimited' }}</strong> Properties</small></div>
+                                <div class="col-6"><small class="text-white"><i class="fas fa-check text-info me-2"></i> Tenant Reporting</small></div>
+                                
+                                {% if 'Compliance' in plan.modules %}
                                 <div class="col-6"><small class="text-white"><i class="fas fa-check text-info me-2"></i> Compliance Tracking</small></div>
+                                {% endif %}
+                                
+                                <div class="col-6"><small class="text-white"><i class="fas fa-check text-info me-2"></i> Auto-Dispatch Logic</small></div>
                             </div>
-                            <a href="/register?plan=agency" class="btn btn-outline-info rounded-pill w-100">Start Agency Trial</a>
+                            <a href="/register?plan={{ plan.id }}" class="btn btn-outline-info rounded-pill w-100">Start {{ plan.name }} Trial</a>
                         </div>
                     </div>
                 </div>
             </div>
+            {% endfor %}
         </div>
+        {% endif %}
 
     </div>
 </section>

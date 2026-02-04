@@ -81,11 +81,32 @@ def contact():
 
 @public_bp.route('/pricing')
 def pricing():
-    host = request.host.lower()
-    if DOMAIN_SOFTWARE in host:
-        return render_template('publicbb/pricing.html')
-    else:
-        return render_template('public/index.html')
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # 1. Fetch ALL public plans (Price > 0)
+    # We order by price so they appear Cheap -> Expensive
+    cur.execute("SELECT * FROM plans WHERE price > 0 ORDER BY price ASC")
+    
+    plans = []
+    if cur.description:
+        cols = [desc[0] for desc in cur.description]
+        for row in cur.fetchall():
+            p = dict(zip(cols, row))
+            
+            # 2. Parse Modules to list
+            try:
+                import json
+                p['modules'] = json.loads(p['modules_enabled']) if p.get('modules_enabled') else []
+            except:
+                p['modules'] = []
+            
+            plans.append(p)
+    
+    conn.close()
+    
+    # 3. Render the page with the live data
+    return render_template('publicbb/pricing.html', plans=plans)
 
 # --- FEATURES / SALES FUNNEL ROUTES ---
 
