@@ -124,6 +124,68 @@ def save_plan():
         conn.close()
         
     return redirect(url_for('plans.view_plans'))
+    
+@plans_bp.route('/admin/danger/reset-database')
+def reset_database():
+    # 1. Security Check: Only Super Admin can do this
+    if session.get('role') != 'SuperAdmin':
+        return "ACCESS DENIED: You must be a Super Admin to perform a system wipe."
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    try:
+        # 2. PROTECT THE SUPER ADMIN
+        # We set your company_id to NULL so you aren't deleted when we wipe the companies table.
+        # We also ensure your email is exactly what you want it to be.
+        target_email = 'admin@drugangroup.co.uk'
+        
+        # Check if you exist first
+        cur.execute("SELECT id FROM users WHERE email = %s", (target_email,))
+        if not cur.fetchone():
+            return f"STOP! The account '{target_email}' does not exist yet. Create it or rename your current account first."
+
+        # Detach you from any company (Safety measure)
+        cur.execute("UPDATE users SET company_id = NULL WHERE email = %s", (target_email,))
+        
+        # 3. THE WIPE (Order is important because of links between tables)
+        # We delete child data first, then parents.
+        
+        tables_to_wipe = [
+            "job_notes", "jobs", "quotes", "invoices",       # Finance & Work
+            "vehicle_checks", "vehicles",                    # Fleet
+            "property_compliance", "properties", "clients",  # CRM
+            "tickets", "staff_timesheets"                    # Service Desk & HR
+        ]
+        
+        for table in tables_to_wipe:
+            # We use 'TRUNCATE' or 'DELETE' depending on your DB, DELETE is safer for now.
+            # We wrap in try/except in case a table doesn't exist yet.
+            try:
+                cur.execute(f"DELETE FROM {table}")
+            except:
+                pass 
+
+        # 4. DELETE COMPANIES (This kills all tenant data)
+        cur.execute("DELETE FROM companies")
+
+        # 5. DELETE USERS (Everyone except YOU)
+        cur.execute("DELETE FROM users WHERE email != %s", (target_email,))
+
+        conn.commit()
+        return f"""
+            <h1 style='color:green; font-family:sans-serif;'>SYSTEM WIPED SUCCESSFULLY</h1>
+            <p>All users, companies, and jobs have been deleted.</p>
+            <p>The only survivor is: <strong>{target_email}</strong></p>
+            <p><a href='/admin/plans'>Return to Admin Panel</a></p>
+        """
+
+    except Exception as e:
+        conn.rollback()
+        return f"<h1>ERROR during wipe: {str(e)}</h1>"
+        
+    finally:
+        conn.close()
 
 # --- 3. DELETE PLAN (CLEAN UP) ---
 @plans_bp.route('/admin/plans/delete/<int:plan_id>')
