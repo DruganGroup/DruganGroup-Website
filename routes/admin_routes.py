@@ -778,39 +778,3 @@ def view_system_logs():
                            logs=logs, 
                            page=page, 
                            total_pages=total_pages)
-                           
-from werkzeug.security import generate_password_hash
-
-@admin_bp.route('/emergency-reset-nathan')
-def emergency_reset_nathan():
-    # 1. Connect to the DB
-    conn = get_db()
-    cur = conn.cursor()
-    
-    try:
-        # 2. Set the exact email and the temporary password
-        target_email = 'nathan@drugangroup.co.uk'
-        temp_password = 'Password123!'
-        
-        # 3. Hash the new password
-        hashed_pw = generate_password_hash(temp_password)
-        
-        # 4. UPDATE ONLY THIS SPECIFIC USER (The WHERE clause is your safety net)
-        cur.execute("""
-            UPDATE users 
-            SET password_hash = %s 
-            WHERE email = %s
-        """, (hashed_pw, target_email))
-        
-        # Check if it actually found and updated the row
-        if cur.rowcount == 0:
-            return f"❌ No account found with the email: {target_email}"
-            
-        conn.commit()
-        return f"✅ Success! Password for {target_email} has been reset to: <b>{temp_password}</b>"
-        
-    except Exception as e:
-        conn.rollback()
-        return f"Error: {str(e)}"
-    finally:
-        conn.close()
