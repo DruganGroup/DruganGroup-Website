@@ -1,11 +1,10 @@
-from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify, current_app
 import stripe
 import os
 from db import get_db
 from werkzeug.security import check_password_hash, generate_password_hash
 from email_service import send_company_email
 from itsdangerous import URLSafeTimedSerializer
-import current_app
 
 auth_bp = Blueprint('auth', __name__)
 
