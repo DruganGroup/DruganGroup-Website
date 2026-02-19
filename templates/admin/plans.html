@@ -31,7 +31,15 @@
     }
     .plan-name { font-size: 1.2rem; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 2px; margin: 0; }
     .plan-price { font-size: 2.2rem; font-weight: 700; color: var(--primary-gold); margin: 15px 0 0 0; }
-    .plan-period { font-size: 0.8rem; color: #888; font-weight: 400; text-transform: uppercase; }
+    
+    /* TAGS FOR AGENCY VS TRADE */
+    .plan-tag {
+        position: absolute; top: 15px; right: 15px; 
+        font-size: 0.7rem; font-weight: bold; padding: 4px 8px; border-radius: 4px;
+        text-transform: uppercase;
+    }
+    .tag-trade { background: rgba(52, 152, 219, 0.2); color: #3498db; border: 1px solid #3498db; }
+    .tag-agency { background: rgba(155, 89, 182, 0.2); color: #9b59b6; border: 1px solid #9b59b6; }
     
     .plan-body { padding: 25px; flex-grow: 1; text-align: left; }
     
@@ -107,10 +115,12 @@
         </button>
     </div>
 
-    <div class="row g-4">
-        {% for plan in plans %}
+    <h5 class="text-white border-bottom border-secondary pb-2 mb-4"><i class="fas fa-tools text-gold me-2"></i> Trade & Construction Tiers</h5>
+    <div class="row g-4 mb-5">
+        {% for plan in plans if 'Agency' not in plan.name and 'Complete' not in plan.name and 'Ultimate' not in plan.name %}
         <div class="col-md-4">
             <div class="plan-card">
+                <div class="plan-tag tag-trade">Trade</div>
                 <div class="plan-header">
                     <h3 class="plan-name"><span class="text-muted small fs-6 me-2">#{{ plan.id }}</span>{{ plan.name }}</h3>
                     <div class="plan-price">£{{ plan.price }}<span class="plan-period">/mo</span></div>
@@ -119,10 +129,10 @@
                 <div class="plan-body">
                     <label class="text-muted small fw-bold mb-2">USAGE LIMITS</label>
                     <div class="limit-grid">
-                        <div class="limit-item"><strong>{{ plan.max_users if plan.max_users > 0 else '∞' }}</strong> Users</div>
-                        <div class="limit-item"><strong>{{ plan.max_vehicles if plan.max_vehicles > 0 else '∞' }}</strong> Vehicles</div>
-                        <div class="limit-item"><strong>{{ plan.max_clients if plan.max_clients > 0 else '∞' }}</strong> Clients</div>
-                        <div class="limit-item"><strong>{{ plan.max_properties if plan.max_properties > 0 else '∞' }}</strong> Properties</div>
+                        <div class="limit-item"><strong>{{ plan.max_users }}</strong> Users</div>
+                        <div class="limit-item"><strong>{{ plan.max_vehicles }}</strong> Vehicles</div>
+                        <div class="limit-item"><strong>Unlimited</strong> Clients</div>
+                        <div class="limit-item"><strong>Unlimited</strong> Properties</div>
                         <div class="limit-item" style="grid-column: span 2;"><strong>{{ plan.max_storage }} GB</strong> Data Storage</div>
                     </div>
 
@@ -149,22 +159,67 @@
                 </div>
 
                 <div class="btn-action-group d-flex gap-2">
-                    <button class="btn btn-outline-light w-50" 
-                        onclick='editPlan({{ plan | tojson }})'>
-                        <i class="fas fa-edit me-2"></i> Edit
-                    </button>
-                    
-                    <a href="{{ url_for('plans.delete_plan', plan_id=plan.id) }}" class="btn btn-outline-danger w-50" onclick="return confirm('Delete this plan? Users on this plan will need to be migrated.');">
-                        <i class="fas fa-trash"></i>
-                    </a>
+                    <button class="btn btn-outline-light w-50" onclick='editPlan({{ plan | tojson }})'><i class="fas fa-edit me-2"></i> Edit</button>
+                    <a href="{{ url_for('plans.delete_plan', plan_id=plan.id) }}" class="btn btn-outline-danger w-50" onclick="return confirm('Delete?');"><i class="fas fa-trash"></i></a>
                 </div>
             </div>
         </div>
         {% else %}
-        <div class="col-12 text-center py-5">
-            <h4 class="text-muted">No Plans Configured</h4>
-            <p class="text-secondary">Define your service tiers to get started.</p>
+        <div class="col-12"><p class="text-muted">No Trade plans configured.</p></div>
+        {% endfor %}
+    </div>
+
+    <h5 class="text-white border-bottom border-secondary pb-2 mb-4"><i class="fas fa-building text-info me-2"></i> Property Management Tiers</h5>
+    <div class="row g-4">
+        {% for plan in plans if 'Agency' in plan.name or 'Complete' in plan.name or 'Ultimate' in plan.name %}
+        <div class="col-md-4">
+            <div class="plan-card">
+                <div class="plan-tag tag-agency">Agency</div>
+                <div class="plan-header">
+                    <h3 class="plan-name"><span class="text-muted small fs-6 me-2">#{{ plan.id }}</span>{{ plan.name }}</h3>
+                    <div class="plan-price">£{{ plan.price }}<span class="plan-period">/mo</span></div>
+                </div>
+                
+                <div class="plan-body">
+                    <label class="text-muted small fw-bold mb-2">USAGE LIMITS</label>
+                    <div class="limit-grid">
+                        <div class="limit-item" style="grid-column: span 2; border-color: #2ecc71;">
+                            <strong class="text-success">UNLIMITED STAFF</strong>
+                        </div>
+                        <div class="limit-item"><strong>{{ plan.max_properties if plan.max_properties > 0 else 'UNLIMITED' }}</strong> Props</div>
+                        <div class="limit-item"><strong>{{ plan.max_storage }} GB</strong> Data Storage</div>
+                    </div>
+
+                    <label class="text-muted small fw-bold mb-2 mt-2">ENABLED MODULES</label>
+                    <div class="d-flex flex-wrap">
+                        {% set all_mods = ['Finance', 'Fleet', 'Compliance', 'RAMS', 'HR', 'Portal', 'ServiceDesk', 'API'] %}
+                        {% for mod in all_mods %}
+                            {% if mod in plan.modules %}
+                                <span class="module-badge"><i class="fas fa-check me-1"></i> {{ mod }}</span>
+                            {% else %}
+                                <span class="module-badge missing">{{ mod }}</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    <div class="mt-3 pt-2 border-top border-secondary">
+                        <small class="text-muted d-block" style="font-size: 0.7rem;">STRIPE LINK</small>
+                        {% if plan.stripe_price_id %}
+                            <code class="text-gold small">{{ plan.stripe_price_id }}</code>
+                        {% else %}
+                            <span class="badge bg-danger">Not Linked</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="btn-action-group d-flex gap-2">
+                    <button class="btn btn-outline-light w-50" onclick='editPlan({{ plan | tojson }})'><i class="fas fa-edit me-2"></i> Edit</button>
+                    <a href="{{ url_for('plans.delete_plan', plan_id=plan.id) }}" class="btn btn-outline-danger w-50" onclick="return confirm('Delete?');"><i class="fas fa-trash"></i></a>
+                </div>
+            </div>
         </div>
+        {% else %}
+        <div class="col-12"><p class="text-muted">No Agency plans configured.</p></div>
         {% endfor %}
     </div>
 
@@ -193,7 +248,6 @@
                             <div class="col-md-4">
                                 <label class="form-label text-warning"><i class="fab fa-stripe me-1"></i> Stripe Price ID</label>
                                 <input type="text" name="stripe_price_id" id="stripe_price_id" class="form-control border-warning" placeholder="price_1Qxy...">
-                                <div class="form-text text-muted" style="font-size: 0.7em;">Copy from Stripe Product Catalog</div>
                             </div>
                         </div>
 
@@ -202,7 +256,7 @@
                             <div class="col-md-4">
                                 <label class="form-label">Max Staff</label>
                                 <input type="number" name="max_users" id="max_users" class="form-control" value="5">
-                                <div class="form-text">0 for unlimited users</div>
+                                <div class="form-text">Set to 0 for Agency Unlimited</div>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Max Vehicles</label>
@@ -212,17 +266,15 @@
                             <div class="col-md-4">
                                 <label class="form-label">Storage (GB)</label>
                                 <input type="number" name="max_storage" id="max_storage" class="form-control" value="10">
-                                <div class="form-text">File upload limit</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Max Clients</label>
                                 <input type="number" name="max_clients" id="max_clients" class="form-control" value="0">
-                                <div class="form-text">Active client limit</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Max Properties</label>
                                 <input type="number" name="max_properties" id="max_properties" class="form-control" value="0">
-                                <div class="form-text">Managed properties</div>
+                                <div class="form-text">Use this to limit Agencies</div>
                             </div>
                         </div>
 
@@ -314,36 +366,20 @@
         });
 
         function openPlanModal() {
-            // Reset form for "Create New"
             document.getElementById('planForm').reset();
-            document.getElementById('plan_id').value = ""; // Clear ID to force insert
+            document.getElementById('plan_id').value = "";
+            document.getElementById('stripe_price_id').value = "";
             document.getElementById('modalTitle').innerText = "Create Subscription Tier";
-            
-            // NEW: Clear the Stripe ID field
-            if(document.getElementById('stripe_price_id')) {
-                document.getElementById('stripe_price_id').value = "";
-            }
-
-            // Uncheck all first
             document.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false);
-            // Default check Finance (optional)
             if(document.getElementById('mod_Finance')) document.getElementById('mod_Finance').checked = true;
-            
             if(planModal) planModal.show();
         }
 
         function editPlan(plan) {
-            // Populate form for "Edit"
             document.getElementById('plan_id').value = plan.id;
             document.getElementById('name').value = plan.name;
             document.getElementById('price').value = plan.price;
-            
-            // NEW: Populate the Stripe ID field
-            // Note: plan.stripe_price_id might be null in DB, so we handle that
-            if(document.getElementById('stripe_price_id')) {
-                document.getElementById('stripe_price_id').value = plan.stripe_price_id || "";
-            }
-
+            document.getElementById('stripe_price_id').value = plan.stripe_price_id || "";
             document.getElementById('max_users').value = plan.max_users;
             document.getElementById('max_vehicles').value = plan.max_vehicles;
             document.getElementById('max_clients').value = plan.max_clients;
@@ -351,20 +387,14 @@
             document.getElementById('max_storage').value = plan.max_storage;
             document.getElementById('modalTitle').innerText = "Edit " + plan.name;
 
-            // Handle Checkboxes
-            // First clear all
             document.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false);
-            
-            // Then check the active ones
             if (plan.modules) {
                 plan.modules.forEach(mod => {
                     let checkbox = document.getElementById('mod_' + mod);
                     if (checkbox) checkbox.checked = true;
                 });
             }
-
             if(planModal) planModal.show();
         }
     </script>
-
 {% endblock %}
