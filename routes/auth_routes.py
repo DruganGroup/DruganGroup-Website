@@ -4,6 +4,8 @@ import os
 from db import get_db
 from werkzeug.security import check_password_hash, generate_password_hash
 from email_service import send_company_email
+from itsdangerous import URLSafeTimedSerializer
+import current_app
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -171,6 +173,97 @@ def logout():
     session.clear()
     flash("🔒 You have been logged out securely.")
     return redirect(url_for('auth.login'))
+    
+# --- HELPER: Secure Token Generator ---
+def get_reset_serializer():
+    return URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+
+# --- 1. FORGOT PASSWORD (REQUEST LINK) ---
+@auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        
+        conn = get_db()
+        cur = conn.cursor()
+        
+        # Find the user using the same logic as your login route
+        cur.execute("""
+            SELECT id, company_id, name 
+            FROM users 
+            WHERE LOWER(TRIM(email)) = LOWER(TRIM(%s))
+        """, (email,))
+        user = cur.fetchone()
+        
+        if user:
+            user_id, comp_id, user_name = user
+            
+            # Generate a secure token
+            serializer = get_reset_serializer()
+            token = serializer.dumps(email, salt='password-reset-salt')
+            
+            # Create the full URL (e.g., https://yourdomain.com/reset-password/TOKEN123)
+            reset_url = url_for('auth.reset_password_with_token', token=token, _external=True)
+            
+            # Build the email
+            subject = "Business Better - Password Reset Request"
+            body = f"""
+            <h3>Password Reset Request</h3>
+            <p>Hi {user_name},</p>
+            <p>You recently requested to reset your password. Click the link below to set a new one. This link will expire in 1 hour.</p>
+            <p><a href="{reset_url}">Click here to reset your password</a></p>
+            <p>If you didn't request this, you can safely ignore this email.</p>
+            """
+            
+            # Send the email using your existing service
+            send_company_email(comp_id, email, subject, body)
+            
+        conn.close()
+        
+        # We ALWAYS show success to prevent hackers from guessing which emails exist in your DB
+        flash("If an account exists with that email, a reset link has been sent.", "success")
+        return redirect(url_for('auth.login'))
+        
+    return render_template('publicbb/forgot_password.html')
+
+# --- 2. RESET PASSWORD (SET NEW PASSWORD) ---
+@auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password_with_token(token):
+    serializer = get_reset_serializer()
+    
+    try:
+        # Verify token. max_age=3600 means it expires in 1 hour (3600 seconds)
+        email = serializer.loads(token, salt='password-reset-salt', max_age=3600)
+    except Exception:
+        flash("❌ The password reset link is invalid or has expired.", "error")
+        return redirect(url_for('auth.forgot_password'))
+
+    if request.method == 'POST':
+        new_password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if new_password != confirm_password:
+            flash("❌ Passwords do not match. Please try again.", "error")
+            return redirect(request.url)
+            
+        # Hash and update the password
+        hashed_pw = generate_password_hash(new_password)
+        conn = get_db()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            UPDATE users 
+            SET password_hash = %s 
+            WHERE LOWER(TRIM(email)) = LOWER(TRIM(%s))
+        """, (hashed_pw, email))
+        
+        conn.commit()
+        conn.close()
+        
+        flash("✅ Your password has been updated! You can now log in.", "success")
+        return redirect(url_for('auth.login'))
+
+    return render_template('publicbb/reset_password.html', token=token)
 
 # =========================================================
 #  3. LAUNCHER & PROFILES
