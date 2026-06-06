@@ -96,7 +96,18 @@ def view_client(client_id):
     if 'user_id' not in session: return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
+    if not comp_id:
+        return redirect(url_for('auth.login'))
+    
     conn = get_db(); cur = conn.cursor()
+    
+    # ✅ SECURITY FIX: Verify client belongs to user's company
+    cur.execute("SELECT company_id FROM clients WHERE id = %s", (client_id,))
+    client_row = cur.fetchone()
+    if not client_row or client_row[0] != comp_id:
+        conn.close()
+        return "Unauthorized: Client not found or belongs to different company", 403
+    
     
     # 1. Fetch Client Details (With Billing & Notes)
     cur.execute("""

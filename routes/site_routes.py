@@ -55,14 +55,19 @@ def get_staff_identity(user_id, cur):
     return staff_id, staff_name, comp_id, vehicle_id
 
 def send_email_notification(company_id, to_email, client_name, job_ref, address):
-    conn = get_db()
+    conn = None
     try:
+        conn = get_db()
+        if not conn:
+            return False
+        
         cur = conn.cursor()
         cur.execute("SELECT key, value FROM settings WHERE company_id = %s AND key IN ('smtp_host', 'smtp_port', 'smtp_email', 'smtp_password')", (company_id,))
         settings = {row[0]: row[1] for row in cur.fetchall()}
         
         required = ['smtp_host', 'smtp_port', 'smtp_email', 'smtp_password']
-        if not all(k in settings for k in required): return False
+        if not all(k in settings for k in required):
+            return False
 
         msg = MIMEMultipart()
         msg['From'] = settings['smtp_email']
@@ -77,8 +82,12 @@ def send_email_notification(company_id, to_email, client_name, job_ref, address)
         server.send_message(msg)
         server.quit()
         return True
-    except Exception: return False
-    finally: conn.close()
+    except Exception as e:
+        print(f"Email notification error: {e}")
+        return False
+    finally:
+        if conn:
+            conn.close()
 
 # --- ROUTE: SITE DASHBOARD ---
 @site_bp.route('/site-hub')
@@ -284,66 +293,9 @@ def toggle_site_time(job_id):
     return redirect(url_for('site.job_details', job_id=job_id))     
 
 # =========================================================
-# 4. VAN CHECK 
+# 4. VAN CHECK (UNIFIED - REMOVED DUPLICATE)
 # =========================================================
-@site_bp.route('/site/van-check', methods=['GET', 'POST'])
-def van_check_page():
-    if not check_site_access(): return redirect(url_for('auth.login'))
-    
-    conn = get_db(); cur = conn.cursor()
-    
-    # 1. Identify Driver & Assigned Van (Using new Helper)
-    staff_id, _, comp_id, vehicle_id = get_staff_identity(session['user_id'], cur)
-    
-    # If vehicle_id found in staff profile, lookup the reg
-    assigned_van = None
-    if vehicle_id:
-        cur.execute("SELECT id, reg_plate FROM vehicles WHERE id = %s", (vehicle_id,))
-        assigned_van = cur.fetchone()
-
-    if request.method == 'POST':
-        reg = assigned_van[1] if assigned_van else request.form.get('reg_plate')
-        mileage = request.form.get('mileage')
-        defects = request.form.get('defects') or "No Defects Reported"
-        signature = request.form.get('signature')
-        
-        # Save Photo Logic
-        if 'photo' in request.files:
-            file = request.files['photo']
-            if file.filename != '':
-                # SECURITY UPDATE
-                save_dir = os.path.join(current_app.static_folder, 'uploads', f"company_{comp_id}", 'van_checks')
-                os.makedirs(save_dir, exist_ok=True)
-                filename = secure_filename(f"{date.today()}_{reg}_{file.filename}")
-                file.save(os.path.join(save_dir, filename))
-
-        try:
-            # Re-verify ID
-            cur.execute("SELECT id FROM vehicles WHERE reg_plate = %s", (reg,))
-            v_row = cur.fetchone()
-            
-            if v_row:
-                v_id = v_row[0]
-                is_safe = False if (defects and defects != "No Defects Reported") else True
-                status_log = 'Check Failed' if not is_safe else 'Daily Check'
-                full_desc = f"Walkaround Complete. Signed: {signature}. Mileage: {mileage}. Notes: {defects}"
-                
-                cur.execute("INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost) VALUES (%s, %s, CURRENT_DATE, %s, %s, 0)", (comp_id, v_id, status_log, full_desc))
-                conn.commit()
-                flash("✅ Safety Check Logged!")
-                return redirect(request.referrer or url_for('site.site_dashboard'))
-            else:
-                flash("❌ Vehicle not found.")
-        except Exception as e: conn.rollback(); flash(f"Error: {e}")
-
-    # Dropdown Fallback
-    vehicles = []
-    if not assigned_van:
-        cur.execute("SELECT reg_plate FROM vehicles WHERE company_id = %s AND status='Active' ORDER BY reg_plate", (comp_id,))
-        vehicles = [r[0] for r in cur.fetchall()]
-    
-    conn.close()
-    return render_template('site/van_check_form.html', vehicles=vehicles, assigned_van=assigned_van)
+# Note: Duplicate route definition removed. Using single van_check_page function below.
 
 # =========================================================
 # 5. JOB DETAILS & ACTIONS
@@ -631,7 +583,7 @@ def site_log_fuel():
     return render_template('site/fuel_form.html', reg=reg_plate)
     
 @site_bp.route('/site/van-check', methods=['GET', 'POST'])
-def site_van_check():
+def van_check_page():
     if not check_site_access(): return redirect(url_for('auth.login'))
     
     conn = get_db(); cur = conn.cursor()

@@ -14,7 +14,7 @@ def check_limit(company_id, limit_type):
         cur.execute("""
             SELECT p.max_users, p.max_vehicles, p.max_clients, p.max_properties, p.max_storage, p.name
             FROM subscriptions s
-            JOIN plans p ON s.plan_tier = p.name  -- Assuming plan_tier matches plan name
+            JOIN plans p ON s.plan_id = p.id
             WHERE s.company_id = %s AND s.status = 'Active'
         """, (company_id,))
         

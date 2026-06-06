@@ -17,6 +17,14 @@ from werkzeug.security import generate_password_hash
 
 admin_bp = Blueprint('admin', __name__)
 
+# --- WHITELIST: ALLOWED TABLES FOR DYNAMIC QUERIES (SQL INJECTION PREVENTION) ---
+ALLOWED_TABLES = {
+    'users', 'staff', 'vehicles', 'clients', 'jobs', 'transactions', 
+    'maintenance_logs', 'materials', 'companies', 'properties', 
+    'service_requests', 'settings', 'subscriptions', 'invoices',
+    'certificates', 'vehicle_crews', 'staff_attendance'
+}
+
 # --- HELPER: RECORD AUDIT LOG ---
 def log_audit(action, target, details=""):
     try:
@@ -44,8 +52,12 @@ def get_real_company_usage(company_id, cur):
     row_count = 0
     for t in tables:
         try:
+            if t not in ALLOWED_TABLES:
+                continue
             cur.execute(f"SELECT COUNT(*) FROM {t} WHERE company_id = %s", (company_id,))
-            row_count += cur.fetchone()[0]
+            row = cur.fetchone()
+            if row:
+                row_count += row[0]
         except:
             # FIX: If a table is missing, rollback so the DB connection stays alive
             cur.connection.rollback()
@@ -117,8 +129,8 @@ def super_admin_dashboard():
             final_slug = base_slug
             
             try:
-                # Create Company
-                cur.execute("INSERT INTO companies (name, contact_email, subdomain) VALUES (%s, %s, %s) RETURNING id", (c_name, owner_email, final_slug))
+                # Create Company (using sub_domain for consistency)
+                cur.execute("INSERT INTO companies (name, contact_email, sub_domain) VALUES (%s, %s, %s) RETURNING id", (c_name, owner_email, final_slug))
                 new_id = cur.fetchone()[0]
                 
                 # Create Subscription
@@ -164,7 +176,7 @@ def super_admin_dashboard():
 
     # B. Fetch Companies List
     cur.execute("""
-        SELECT c.id, c.name, c.subdomain, s.plan_tier, s.status, u.email, s.start_date
+        SELECT c.id, c.name, c.sub_domain, s.plan_tier, s.status, u.email, s.start_date
         FROM companies c
         LEFT JOIN subscriptions s ON c.id = s.company_id
         LEFT JOIN users u ON c.id = u.company_id AND u.role = 'Admin'
@@ -190,8 +202,12 @@ def super_admin_dashboard():
         total_rows = 0
         for t in count_tables:
             try:
+                if t not in ALLOWED_TABLES:
+                    continue
                 cur.execute(f"SELECT COUNT(*) FROM {t} WHERE company_id = %s", (comp_id,))
-                total_rows += cur.fetchone()[0]
+                row = cur.fetchone()
+                if row:
+                    total_rows += row[0]
             except:
                 conn.rollback() 
         
@@ -244,8 +260,12 @@ def super_admin_analytics():
         tables = [row[0] for row in cur.fetchall()]
         for t in tables:
             try:
+                if t not in ALLOWED_TABLES:
+                    continue
                 cur.execute(f"SELECT COUNT(*) FROM {t}")
-                db_inventory.append({'name': t, 'rows': cur.fetchone()[0]})
+                row = cur.fetchone()
+                if row:
+                    db_inventory.append({'name': t, 'rows': row[0]})
             except:
                 cur.connection.rollback()
                 db_inventory.append({'name': t, 'rows': 'Error'})
@@ -260,12 +280,14 @@ def super_admin_analytics():
     for comp in raw_comps:
         stat = {'name': comp[1], 'id': comp[0], 'total_rows': 0, 'breakdown': {}}
         for t in ['users', 'staff', 'vehicles', 'clients', 'jobs', 'transactions', 'maintenance_logs']:
-            if t in existing_table_names:
+            if t in existing_table_names and t in ALLOWED_TABLES:
                 try:
                     cur.execute(f"SELECT COUNT(*) FROM {t} WHERE company_id = %s", (comp[0],))
-                    c = cur.fetchone()[0]
-                    stat['breakdown'][t] = c
-                    stat['total_rows'] += c
+                    row = cur.fetchone()
+                    if row:
+                        c = row[0]
+                        stat['breakdown'][t] = c
+                        stat['total_rows'] += c
                 except: cur.connection.rollback()
         
         stat['est_size_mb'] = round((stat['total_rows'] * 0.5) / 1024, 2)
@@ -292,11 +314,11 @@ def reset_user_password():
             
             cur.execute("SELECT key, value FROM system_settings")
             settings = {row[0]: row[1] for row in cur.fetchall()}
-            if settings.get('smtp_server') and settings.get('smtp_email'):
+            if settings.get('smtp_host') and settings.get('smtp_email'):
                 msg = MIMEMultipart()
                 msg['From'] = settings['smtp_email']; msg['To'] = user[1]; msg['Subject'] = "Password Reset"
                 msg.attach(MIMEText(f"Hello {user[0]},\n\nYour new password is: {secure_pass}", 'plain'))
-                server = smtplib.SMTP(settings['smtp_server'], int(settings.get('smtp_port', 587)))
+                server = smtplib.SMTP(settings['smtp_host'], int(settings.get('smtp_port', 587)))
                 server.starttls(); server.login(settings['smtp_email'], settings['smtp_password'])
                 server.send_message(msg); server.quit()
                 flash(f"✅ Password emailed to {user[1]}")

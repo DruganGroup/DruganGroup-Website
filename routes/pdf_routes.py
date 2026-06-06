@@ -52,6 +52,17 @@ def download_invoice_pdf(invoice_id):
         
     conn = get_db(); cur = conn.cursor()
     comp_id = session.get('company_id')
+    
+    # ✅ SECURITY FIX: Verify invoice belongs to user's company
+    if not comp_id:
+        cur.close(); conn.close()
+        return redirect(url_for('auth.login'))
+    
+    cur.execute("SELECT company_id FROM invoices WHERE id = %s", (invoice_id,))
+    invoice_row = cur.fetchone()
+    if not invoice_row or invoice_row[0] != comp_id:
+        cur.close(); conn.close()
+        return "Unauthorized: Invoice not found or belongs to different company", 403
 
     # 1. Fetch Invoice + Linked Data
     cur.execute("""
@@ -271,6 +282,18 @@ def download_material_list(job_id):
     if not check_access(): return redirect(url_for('auth.login'))
     
     conn = get_db(); cur = conn.cursor()
+    comp_id = session.get('company_id')
+    
+    # ✅ SECURITY FIX: Verify job belongs to user's company
+    if not comp_id:
+        cur.close(); conn.close()
+        return redirect(url_for('auth.login'))
+    
+    cur.execute("SELECT company_id FROM jobs WHERE id = %s", (job_id,))
+    job_check = cur.fetchone()
+    if not job_check or job_check[0] != comp_id:
+        conn.close()
+        return "Unauthorized: Job not found or belongs to different company", 403
     
     # 1. Fetch Job Details
     cur.execute("SELECT ref, address_line1 FROM jobs JOIN properties ON jobs.property_id = properties.id WHERE jobs.id = %s", (job_id,))
@@ -290,13 +313,25 @@ def download_material_list(job_id):
         'config': get_site_config(session.get('company_id'))
     }
     
-    return generate_pdf('finance/pdf_materials.html', context, f"Materials_{job[0]}.pdf")
+    return generate_pdf('office/pdf_materials.html', context, f"Materials_{job[0]}.pdf")
     
 @pdf_bp.route('/office/job/<int:job_id>/rams/create')
 def create_rams_form(job_id):
     if not check_access(): return redirect(url_for('auth.login'))
     
     conn = get_db(); cur = conn.cursor()
+    comp_id = session.get('company_id')
+    
+    # ✅ SECURITY FIX: Verify job belongs to user's company
+    if not comp_id:
+        cur.close(); conn.close()
+        return redirect(url_for('auth.login'))
+    
+    cur.execute("SELECT company_id FROM jobs WHERE id = %s", (job_id,))
+    job_check = cur.fetchone()
+    if not job_check or job_check[0] != comp_id:
+        conn.close()
+        return "Unauthorized: Job not found or belongs to different company", 403
     
     # 1. Fetch Job Info
     cur.execute("""
@@ -351,6 +386,19 @@ def save_and_download_rams(job_id):
     if not check_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
+    
+    # ✅ SECURITY FIX: Verify job belongs to user's company
+    if not comp_id:
+        return redirect(url_for('auth.login'))
+    
+    conn_check = get_db()
+    cur_check = conn_check.cursor()
+    cur_check.execute("SELECT company_id FROM jobs WHERE id = %s", (job_id,))
+    job_check = cur_check.fetchone()
+    cur_check.close(); conn_check.close()
+    
+    if not job_check or job_check[0] != comp_id:
+        return "Unauthorized: Job not found or belongs to different company", 403
 
     # 1. GET DATA
     ref = request.form.get('ref')

@@ -707,7 +707,6 @@ def job_materials_pdf(job_id):
         'grouped_items': None
     }
     
-    # 5. Generate and Return (The One-Line Fix)
+    # 5. Generate and Return PDF
     from services.pdf_generator import generate_pdf
-    # Note: 'office/pdf_materials.html' must exist in your templates folder
     return generate_pdf('office/pdf_materials.html', context, f"Materials_{job[0]}.pdf")
