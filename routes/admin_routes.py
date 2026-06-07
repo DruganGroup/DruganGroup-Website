@@ -205,9 +205,9 @@ def super_admin_dashboard():
                 if t not in ALLOWED_TABLES:
                     continue
                 cur.execute(f"SELECT COUNT(*) FROM {t} WHERE company_id = %s", (comp_id,))
-                row = cur.fetchone()
-                if row:
-                    total_rows += row[0]
+                count_row = cur.fetchone()
+                if count_row:
+                    total_rows += count_row[0]
             except:
                 conn.rollback() 
         
