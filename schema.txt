@@ -1,0 +1,596 @@
+DATABASE SCHEMA DUMP — 40 tables
+============================================================
+
+TABLE: audit_logs
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('audit_logs_id_seq'::regclass)
+  admin_email                  character varying    NULL
+  action                       character varying    NULL
+  target                       character varying    NULL
+  details                      text                 NULL
+  ip_address                   character varying    NULL
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  company_id                   integer              NULL
+  [rows: 92]
+
+TABLE: banned_ips
+------------------------------------------------------------
+  ip_address                   text                 NOT NULL
+  reason                       text                 NULL
+  banned_at                    timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  [rows: 3]
+
+TABLE: certificates
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('certificates_id_seq'::regclass)
+  company_id                   integer              NULL
+  property_id                  integer              NULL
+  type                         character varying    NULL
+  status                       character varying    NULL
+  data                         jsonb                NULL
+  engineer_name                character varying    NULL
+  date_issued                  date                 NULL
+  expiry_date                  date                 NULL
+  pdf_path                     text                 NULL
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  [rows: 0]
+
+TABLE: client_notifications
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('client_notifications_id_seq'::regclass)
+  job_id                       integer              NULL
+  client_id                    integer              NULL
+  message                      text                 NULL
+  sent_at                      timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  status                       text                 NULL
+  [rows: 1]
+
+TABLE: clients
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('clients_id_seq'::regclass)
+  name                         text                 NULL
+  address                      text                 NULL
+  phone                        text                 NULL
+  email                        text                 NULL
+  notes                        text                 NULL
+  is_active                    integer              NULL DEFAULT 1
+  portal_access                integer              NULL DEFAULT 0
+  password_hash                text                 NULL
+  company_id                   integer              NULL DEFAULT 1
+  site_address                 text                 NULL
+  gate_code                    text                 NULL
+  billing_address              text                 NULL
+  status                       text                 NULL DEFAULT 'Active'::text
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  internal_notes               text                 NULL
+  [rows: 3]
+
+TABLE: companies
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('companies_id_seq'::regclass)
+  name                         text                 NOT NULL
+  sub_domain                   text                 NULL
+  contact_email                text                 NULL
+  phone                        text                 NULL
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  subdomain                    text                 NULL
+  [rows: 1]
+
+TABLE: invoice_items
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('invoice_items_id_seq'::regclass)
+  invoice_id                   integer              NULL
+  description                  text                 NULL
+  quantity                     numeric              NULL
+  unit_price                   numeric              NULL
+  total                        numeric              NULL
+  [rows: 0]
+
+TABLE: invoices
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('invoices_id_seq'::regclass)
+  company_id                   integer              NOT NULL
+  client_id                    integer              NOT NULL
+  reference                    character varying    NULL
+  date                         date                 NULL
+  total                        numeric              NULL
+  status                       character varying    NULL DEFAULT 'Unpaid'::character varying
+  file_path                    text                 NULL
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  due_date                     date                 NULL
+  quote_ref                    text                 NULL
+  subtotal                     numeric              NULL DEFAULT 0
+  tax                          numeric              NULL DEFAULT 0
+  notes                        text                 NULL
+  job_id                       integer              NULL
+  ref                          character varying    NULL
+  date_created                 date                 NULL DEFAULT CURRENT_DATE
+  total_amount                 numeric              NULL DEFAULT 0.00
+  quote_id                     integer              NULL
+  [rows: 0]
+
+TABLE: job_evidence
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('job_evidence_id_seq'::regclass)
+  job_id                       integer              NULL
+  filepath                     text                 NULL
+  uploaded_at                  timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  uploaded_by                  integer              NULL
+  file_type                    text                 NULL DEFAULT 'Site Photo'::text
+  document_date                date                 NULL
+  [rows: 8]
+
+TABLE: job_expenses
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('job_expenses_id_seq'::regclass)
+  job_id                       integer              NULL
+  description                  text                 NULL
+  cost                         real                 NULL
+  receipt_path                 text                 NULL
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  company_id                   integer              NULL DEFAULT 1
+  date                         date                 NULL DEFAULT CURRENT_DATE
+  [rows: 0]
+
+TABLE: job_materials
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('job_materials_id_seq'::regclass)
+  job_id                       integer              NULL
+  description                  character varying    NOT NULL
+  quantity                     integer              NULL DEFAULT 1
+  unit_price                   numeric              NULL DEFAULT 0.00
+  added_at                     timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  date_added                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  [rows: 0]
+
+TABLE: job_rams
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('job_rams_id_seq'::regclass)
+  job_id                       integer              NULL
+  company_id                   integer              NULL
+  hazards                      jsonb                NULL
+  ppe                          jsonb                NULL
+  method_statement             text                 NULL
+  risk_level                   character varying    NULL
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  pdf_path                     text                 NULL
+  [rows: 0]
+
+TABLE: jobs
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('jobs_id_seq'::regclass)
+  client_id                    integer              NULL
+  site_address                 text                 NULL
+  description                  text                 NULL
+  status                       text                 NULL
+  start_date                   text                 NULL
+  duration_days                integer              NULL
+  total_price                  real                 NULL
+  deposit_amount               real                 NULL
+  display_ref                  text                 NULL
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  site_lat                     real                 NULL DEFAULT 0
+  site_lon                     real                 NULL DEFAULT 0
+  invoice_date                 text                 NULL
+  due_date                     text                 NULL
+  ref                          text                 NULL
+  created_date                 date                 NULL
+  company_id                   integer              NULL DEFAULT 1
+  staff_id                     integer              NULL
+  property_id                  integer              NULL
+  engineer_id                  integer              NULL
+  end_date                     timestamp without time zone NULL
+  private_notes                text                 NULL
+  work_summary                 text                 NULL
+  quote_id                     integer              NULL
+  sub_contractor_cost          numeric              NULL DEFAULT 0
+  client_signature             text                 NULL
+  vehicle_id                   integer              NULL
+  quote_total                  numeric              NULL DEFAULT 0.00
+  estimated_days               integer              NULL DEFAULT 1
+  [rows: 0]
+
+TABLE: maintenance_logs
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('maintenance_logs_id_seq'::regclass)
+  company_id                   integer              NOT NULL
+  vehicle_id                   integer              NOT NULL
+  date                         date                 NULL DEFAULT CURRENT_DATE
+  type                         character varying    NULL
+  description                  text                 NULL
+  cost                         numeric              NULL DEFAULT 0.00
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  receipt_path                 text                 NULL
+  litres                       numeric              NULL
+  fuel_type                    character varying    NULL
+  [rows: 0]
+
+TABLE: materials
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('materials_id_seq'::regclass)
+  company_id                   integer              NULL
+  sku                          text                 NULL
+  name                         text                 NULL
+  category                     text                 NULL
+  unit                         text                 NULL
+  cost_price                   numeric              NULL
+  supplier                     text                 NULL
+  supplier_id                  integer              NULL
+  [rows: 0]
+
+TABLE: modules
+------------------------------------------------------------
+  id                           text                 NOT NULL
+  name                         text                 NULL
+  is_active                    integer              NULL DEFAULT 0
+  version                      text                 NULL
+  [rows: 5]
+
+TABLE: overhead_categories
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('overhead_categories_id_seq'::regclass)
+  company_id                   integer              NOT NULL
+  name                         character varying    NOT NULL
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  [rows: 2]
+
+TABLE: overhead_items
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('overhead_items_id_seq'::regclass)
+  category_id                  integer              NOT NULL
+  name                         character varying    NOT NULL
+  amount                       numeric              NULL DEFAULT 0.00
+  frequency                    character varying    NULL DEFAULT 'Monthly'::character varying
+  date_incurred                date                 NULL DEFAULT CURRENT_DATE
+  receipt_path                 text                 NULL
+  [rows: 2]
+
+TABLE: pg_stat_statements
+------------------------------------------------------------
+  userid                       oid                  NULL
+  dbid                         oid                  NULL
+  toplevel                     boolean              NULL
+  queryid                      bigint               NULL
+  query                        text                 NULL
+  plans                        bigint               NULL
+  total_plan_time              double precision     NULL
+  min_plan_time                double precision     NULL
+  max_plan_time                double precision     NULL
+  mean_plan_time               double precision     NULL
+  stddev_plan_time             double precision     NULL
+  calls                        bigint               NULL
+  total_exec_time              double precision     NULL
+  min_exec_time                double precision     NULL
+  max_exec_time                double precision     NULL
+  mean_exec_time               double precision     NULL
+  stddev_exec_time             double precision     NULL
+  rows                         bigint               NULL
+  shared_blks_hit              bigint               NULL
+  shared_blks_read             bigint               NULL
+  shared_blks_dirtied          bigint               NULL
+  shared_blks_written          bigint               NULL
+  local_blks_hit               bigint               NULL
+  local_blks_read              bigint               NULL
+  local_blks_dirtied           bigint               NULL
+  local_blks_written           bigint               NULL
+  temp_blks_read               bigint               NULL
+  temp_blks_written            bigint               NULL
+  shared_blk_read_time         double precision     NULL
+  shared_blk_write_time        double precision     NULL
+  local_blk_read_time          double precision     NULL
+  local_blk_write_time         double precision     NULL
+  temp_blk_read_time           double precision     NULL
+  temp_blk_write_time          double precision     NULL
+  wal_records                  bigint               NULL
+  wal_fpi                      bigint               NULL
+  wal_bytes                    numeric              NULL
+  wal_buffers_full             bigint               NULL
+  jit_functions                bigint               NULL
+  jit_generation_time          double precision     NULL
+  jit_inlining_count           bigint               NULL
+  jit_inlining_time            double precision     NULL
+  jit_optimization_count       bigint               NULL
+  jit_optimization_time        double precision     NULL
+  jit_emission_count           bigint               NULL
+  jit_emission_time            double precision     NULL
+  jit_deform_count             bigint               NULL
+  jit_deform_time              double precision     NULL
+  parallel_workers_to_launch   bigint               NULL
+  parallel_workers_launched    bigint               NULL
+  stats_since                  timestamp with time zone NULL
+  minmax_stats_since           timestamp with time zone NULL
+  [rows: 174]
+
+TABLE: pg_stat_statements_info
+------------------------------------------------------------
+  dealloc                      bigint               NULL
+  stats_reset                  timestamp with time zone NULL
+  [rows: 1]
+
+TABLE: plans
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('plans_id_seq'::regclass)
+  name                         character varying    NOT NULL
+  price                        numeric              NULL DEFAULT 0.00
+  max_users                    integer              NULL DEFAULT 5
+  max_storage                  integer              NULL DEFAULT 10
+  max_rows                     integer              NULL DEFAULT 10000
+  max_vehicles                 integer              NULL DEFAULT 0
+  max_clients                  integer              NULL DEFAULT 10
+  max_properties               integer              NULL DEFAULT 20
+  modules_enabled              text                 NULL DEFAULT '[]'::text
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  modules                      text                 NULL DEFAULT 'Finance,Fleet,HR'::text
+  stripe_product_id            character varying    NULL
+  stripe_price_id              character varying    NULL
+  [rows: 9]
+
+TABLE: plugin_licenses
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('plugin_licenses_id_seq'::regclass)
+  plugin_id                    text                 NULL
+  license_key                  text                 NULL
+  date_added                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  [rows: 0]
+
+TABLE: properties
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('properties_id_seq'::regclass)
+  client_id                    integer              NULL
+  company_id                   integer              NULL
+  address_line1                text                 NOT NULL
+  tenant_name                  text                 NULL
+  tenant_phone                 text                 NULL
+  access_info                  text                 NULL
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  gas_safety_due               date                 NULL
+  eicr_due                     date                 NULL
+  pat_test_due                 date                 NULL
+  fire_risk_due                date                 NULL
+  epc_expiry                   date                 NULL
+  postcode                     text                 NULL
+  type                         character varying    NULL DEFAULT 'Property'::character varying
+  key_code                     character varying    NULL
+  gas_expiry                   date                 NULL
+  eicr_expiry                  date                 NULL
+  pat_expiry                   date                 NULL
+  fire_expiry                  date                 NULL
+  address_line2                character varying    NULL
+  city                         character varying    NULL
+  county                       character varying    NULL
+  tenant                       character varying    NULL
+  fire_alarm_expiry            date                 NULL
+  status                       character varying    NULL DEFAULT 'Active'::character varying
+  [rows: 3]
+
+TABLE: quote_items
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('quote_items_id_seq'::regclass)
+  quote_id                     integer              NULL
+  description                  text                 NULL
+  quantity                     numeric              NULL
+  unit_price                   numeric              NULL
+  total                        numeric              NULL
+  [rows: 42]
+
+TABLE: quotes
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('quotes_id_seq'::regclass)
+  company_id                   integer              NULL
+  client_id                    integer              NULL
+  date                         date                 NULL DEFAULT CURRENT_DATE
+  reference                    text                 NULL
+  status                       text                 NULL DEFAULT 'Draft'::text
+  subtotal                     numeric              NULL
+  tax                          numeric              NULL
+  total                        numeric              NULL
+  notes                        text                 NULL
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  expiry_date                  date                 NULL
+  job_title                    text                 NULL
+  job_description              text                 NULL
+  estimated_days               numeric              NULL DEFAULT 1.0
+  preferred_vehicle_id         integer              NULL
+  property_id                  integer              NULL
+  [rows: 7]
+
+TABLE: request_updates
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('request_updates_id_seq'::regclass)
+  request_id                   integer              NULL
+  message                      text                 NOT NULL
+  author                       character varying    NULL
+  is_public                    boolean              NULL DEFAULT true
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  [rows: 0]
+
+TABLE: service_requests
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('service_requests_id_seq'::regclass)
+  property_id                  integer              NULL
+  client_id                    integer              NULL
+  company_id                   integer              NULL
+  issue_description            text                 NULL
+  severity                     text                 NULL
+  status                       text                 NULL DEFAULT 'Pending'::text
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  image_url                    text                 NULL
+  [rows: 0]
+
+TABLE: settings
+------------------------------------------------------------
+  company_id                   integer              NOT NULL
+  key                          text                 NOT NULL
+  value                        text                 NULL
+  [rows: 28]
+
+TABLE: site_diary
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('site_diary_id_seq'::regclass)
+  job_id                       integer              NULL
+  staff_name                   text                 NULL
+  entry_text                   text                 NULL
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  [rows: 0]
+
+TABLE: staff
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('staff_id_seq'::regclass)
+  name                         text                 NULL
+  dept                         text                 NULL
+  position                     text                 NULL
+  email                        text                 NULL
+  phone                        text                 NULL
+  staff_type                   text                 NULL
+  pay_model                    text                 NULL
+  pay_rate                     real                 NULL
+  access_level                 text                 NULL
+  is_active                    integer              NULL DEFAULT 1
+  company_id                   integer              NULL DEFAULT 1
+  address                      text                 NULL
+  employment_type              text                 NULL
+  tax_id                       text                 NULL
+  role                         character varying    NULL
+  status                       character varying    NULL DEFAULT 'Active'::character varying
+  license_path                 text                 NULL
+  next_of_kin_name             text                 NULL
+  next_of_kin_phone            text                 NULL
+  nok_name                     character varying    NULL
+  nok_phone                    character varying    NULL
+  nok_relationship             character varying    NULL
+  nok_address                  text                 NULL
+  driving_license              text                 NULL
+  profile_photo                text                 NULL
+  [rows: 2]
+
+TABLE: staff_attendance
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('staff_attendance_id_seq'::regclass)
+  company_id                   integer              NULL
+  staff_id                     integer              NULL
+  date                         date                 NULL DEFAULT CURRENT_DATE
+  clock_in                     timestamp without time zone NULL
+  clock_out                    timestamp without time zone NULL
+  total_hours                  numeric              NULL
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  [rows: 7]
+
+TABLE: staff_timesheets
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('staff_timesheets_id_seq'::regclass)
+  staff_id                     integer              NULL
+  company_id                   integer              NULL
+  clock_in                     timestamp without time zone NULL
+  clock_out                    timestamp without time zone NULL
+  date                         date                 NULL
+  total_hours                  numeric              NULL
+  job_id                       integer              NULL
+  [rows: 0]
+
+TABLE: subscriptions
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('subscriptions_id_seq'::regclass)
+  company_id                   integer              NULL
+  plan_tier                    text                 NULL DEFAULT 'Basic'::text
+  status                       text                 NULL DEFAULT 'Active'::text
+  start_date                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  renewal_date                 timestamp without time zone NULL
+  stripe_customer_id           text                 NULL
+  is_auto_renew                integer              NULL DEFAULT 1
+  plan_id                      integer              NULL
+  max_users                    integer              NULL DEFAULT 5
+  max_vehicles                 integer              NULL DEFAULT 2
+  max_clients                  integer              NULL DEFAULT 50
+  max_properties               integer              NULL DEFAULT 50
+  max_storage                  integer              NULL DEFAULT 10
+  modules                      text                 NULL
+  [rows: 1]
+
+TABLE: suppliers
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('suppliers_id_seq'::regclass)
+  company_id                   integer              NULL
+  name                         character varying    NULL
+  email                        text                 NULL
+  [rows: 0]
+
+TABLE: system_logs
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('system_logs_id_seq'::regclass)
+  level                        character varying    NULL DEFAULT 'ERROR'::character varying
+  message                      text                 NULL
+  traceback                    text                 NULL
+  route                        character varying    NULL
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  ip_address                   text                 NULL
+  company_id                   integer              NULL
+  user_id                      integer              NULL
+  status_code                  integer              NULL DEFAULT 500
+  [rows: 52977]
+
+TABLE: system_settings
+------------------------------------------------------------
+  key                          text                 NOT NULL
+  value                        text                 NULL
+  [rows: 5]
+
+TABLE: transactions
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('transactions_id_seq'::regclass)
+  date                         text                 NULL
+  type                         text                 NULL
+  category                     text                 NULL
+  description                  text                 NULL
+  amount                       real                 NULL
+  reference                    text                 NULL
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  company_id                   integer              NULL DEFAULT 1
+  [rows: 0]
+
+TABLE: users
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('users_id_seq'::regclass)
+  username                     text                 NULL
+  password_hash                character varying    NULL
+  role                         text                 NULL
+  theme_preference             text                 NULL DEFAULT 'System'::text
+  scale_preference             real                 NULL DEFAULT 1.0
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  company_id                   integer              NULL DEFAULT 1
+  email                        text                 NULL
+  name                         text                 NULL
+  [rows: 2]
+
+TABLE: vehicle_crews
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('vehicle_crews_id_seq'::regclass)
+  company_id                   integer              NOT NULL
+  vehicle_id                   integer              NOT NULL
+  staff_id                     integer              NOT NULL
+  created_at                   timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP
+  [rows: 0]
+
+TABLE: vehicles
+------------------------------------------------------------
+  id                           integer              NOT NULL DEFAULT nextval('vehicles_id_seq'::regclass)
+  reg_plate                    text                 NULL
+  make_model                   text                 NULL
+  daily_cost                   real                 NULL
+  status                       text                 NULL
+  tracker_url                  text                 NULL
+  notes                        text                 NULL
+  company_id                   integer              NULL DEFAULT 1
+  defect_notes                 text                 NULL
+  repair_cost                  numeric              NULL DEFAULT 0.00
+  assigned_driver_id           integer              NULL
+  defect_image_url             text                 NULL
+  telematics_provider          character varying    NULL
+  tracking_device_id           text                 NULL
+  mileage                      integer              NULL DEFAULT 0
+  telematics_data              jsonb                NULL
+  last_updated_time            timestamp without time zone NULL
+  mot_expiry                   date                 NULL
+  tax_expiry                   date                 NULL
+  ins_expiry                   date                 NULL
+  service_expiry               date                 NULL
+  [rows: 1]

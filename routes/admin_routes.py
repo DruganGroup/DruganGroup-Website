@@ -592,7 +592,7 @@ def global_search():
     conn = get_db(); cur = conn.cursor()
     results = {'companies': [], 'users': [], 'invoices': [], 'vehicles': []}
     try:
-        cur.execute("SELECT id, name, subdomain, contact_email FROM companies WHERE name ILIKE %s OR subdomain ILIKE %s", (f'%{query}%', f'%{query}%'))
+        cur.execute("SELECT id, name, sub_domain, contact_email FROM companies WHERE name ILIKE %s OR sub_domain ILIKE %s", (f'%{query}%', f'%{query}%'))
         results['companies'] = cur.fetchall()
         cur.execute("SELECT u.id, u.email, u.role, c.name, c.id FROM users u LEFT JOIN companies c ON u.company_id = c.id WHERE u.email ILIKE %s OR u.username ILIKE %s", (f'%{query}%', f'%{query}%'))
         results['users'] = cur.fetchall()
@@ -613,7 +613,7 @@ def global_search():
 def company_details(company_id):
     if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT c.id, c.name, c.subdomain, c.contact_email, s.plan_tier, s.status, s.start_date FROM companies c LEFT JOIN subscriptions s ON c.id = s.company_id WHERE c.id = %s", (company_id,))
+    cur.execute("SELECT c.id, c.name, c.sub_domain, c.contact_email, s.plan_tier, s.status, s.start_date FROM companies c LEFT JOIN subscriptions s ON c.id = s.company_id WHERE c.id = %s", (company_id,))
     comp = cur.fetchone()
     if not comp: conn.close(); return "Company not found", 404
     company = {'id': comp[0], 'name': comp[1], 'subdomain': comp[2], 'email': comp[3], 'plan': comp[4], 'status': comp[5], 'joined': comp[6]}

@@ -344,13 +344,48 @@ def job_details(job_id):
     cur.execute("SELECT filepath FROM job_evidence WHERE job_id = %s", (job_id,))
     photos = [row[0] for row in cur.fetchall()]
 
+    # Site Diary (Notes from workers to office)
+    cur.execute("""
+        SELECT staff_name, entry_text, created_at
+        FROM site_diary WHERE job_id = %s ORDER BY created_at DESC
+    """, (job_id,))
+    diary = cur.fetchall()
+
     # Branding
     comp_id = session.get('company_id')
     cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'logo'", (comp_id,))
     logo_url = cur.fetchone()[0] if cur.rowcount > 0 else None
     
     conn.close()
-    return render_template('site/job_details.html', job=job, materials=materials, photos=photos, user_is_clocked_in=user_is_clocked_in, logo_url=logo_url)
+    return render_template('site/job_details.html', job=job, materials=materials, photos=photos, diary=diary, user_is_clocked_in=user_is_clocked_in, logo_url=logo_url)
+
+# --- ADD SITE DIARY NOTE (Worker -> Office) ---
+@site_bp.route('/site/job/<int:job_id>/add-note', methods=['POST'])
+def add_site_note(job_id):
+    if not check_site_access(): return redirect(url_for('auth.login'))
+
+    conn = get_db(); cur = conn.cursor()
+    staff_id, staff_name, comp_id, _ = get_staff_identity(session['user_id'], cur)
+    entry_text = request.form.get('entry_text', '').strip()
+
+    try:
+        if entry_text:
+            cur.execute(
+                "INSERT INTO site_diary (job_id, staff_name, entry_text) VALUES (%s, %s, %s)",
+                (job_id, staff_name or "Site Worker", entry_text)
+            )
+            conn.commit()
+            flash("📝 Note sent to the office.", "success")
+        else:
+            flash("⚠️ Note cannot be empty.", "warning")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}", "error")
+    finally:
+        conn.close()
+
+    return redirect(url_for('site.job_details', job_id=job_id))
+
 
 # --- ROUTE: UPDATE JOB (COMPLETE & INVOICE) ---
 @site_bp.route('/site/job/<int:job_id>/update', methods=['POST'])
@@ -478,7 +513,7 @@ def update_job(job_id):
                     file.save(os.path.join(save_dir, filename))
                     
                     # DB Path must match app.py bouncer logic
-                    db_path = f"/uploads/{relative_folder}/{filename}"
+                    db_path = f"/uploads/{relative_path}/{filename}"
                     cur.execute("INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type) VALUES (%s, %s, %s, 'Site Photo')", (job_id, db_path, session['user_id']))
                     flash("📷 Photo Uploaded")
 
@@ -561,7 +596,7 @@ def site_log_fuel():
                     
                     fname = secure_filename(f"FUEL_{date.today()}_{f.filename}")
                     f.save(os.path.join(save_dir, fname))
-                    receipt_path = f"/uploads/{relative_folder}/{fname}"
+                    receipt_path = f"/uploads/{relative_path}/{fname}"
 
             # Save to Database (Maintenance Logs)
             cur.execute("""

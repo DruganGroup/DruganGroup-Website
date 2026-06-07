@@ -237,8 +237,32 @@
             </div>
 
             <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white fw-bold py-3">
+                    <i class="fas fa-book me-2 text-dark"></i> Site Diary
+                    <span class="badge bg-secondary-subtle text-secondary ms-1">{{ diary|length }}</span>
+                </div>
+                <div class="card-body" style="max-height: 320px; overflow-y: auto;">
+                    {% for d in diary %}
+                    <div class="border-start border-3 border-dark ps-2 mb-3">
+                        <div class="d-flex justify-content-between">
+                            <strong class="small">{{ d[0] }}</strong>
+                            <span class="text-muted" style="font-size: 0.7rem;">{{ d[2].strftime('%d/%m %H:%M') if d[2] else '' }}</span>
+                        </div>
+                        <div class="small text-dark">{{ d[1] }}</div>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted small py-3">
+                        <i class="fas fa-book-open fa-2x mb-2 opacity-25 d-block"></i>
+                        No notes from site workers yet.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body">
                     <h6 class="fw-bold mb-3 small text-uppercase text-muted">Budget Remaining</h6>
+
                     {% set pct = 0 %}
                     {% if quote_total > 0 %} {% set pct = (total_cost / quote_total) * 100 %} {% endif %}
                     

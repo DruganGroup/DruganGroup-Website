@@ -295,7 +295,7 @@ def delete_vehicle(id):
     try:
         cur.execute("UPDATE jobs SET vehicle_id = NULL WHERE vehicle_id = %s AND status != 'Completed'", (id,))
         cur.execute("UPDATE quotes SET preferred_vehicle_id = NULL WHERE preferred_vehicle_id = %s", (id,))
-        cur.execute("DELETE FROM vehicle_crew WHERE vehicle_id = %s", (id,))
+        cur.execute("DELETE FROM vehicle_crews WHERE vehicle_id = %s", (id,))
         cur.execute("""
             UPDATE vehicles 
             SET status = 'Archived', 

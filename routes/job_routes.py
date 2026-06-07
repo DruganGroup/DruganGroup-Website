@@ -154,6 +154,14 @@ def job_files(job_id):
     
     cur.execute("SELECT id, name FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
     staff_list = cur.fetchall()
+
+    # Site Diary (Notes left by site workers for the office)
+    cur.execute("""
+        SELECT staff_name, entry_text, created_at
+        FROM site_diary WHERE job_id = %s ORDER BY created_at DESC
+    """, (job_id,))
+    diary = cur.fetchall()
+
     conn.close()
     
     return render_template('office/job_files.html', 
@@ -161,7 +169,8 @@ def job_files(job_id):
                            total_cost=total_cost, total_billed=total_billed,
                            profit=profit, quote_total=quote_total,
                            budget_remaining=budget_remaining, 
-                           staff=staff_list, today=date.today())
+                           staff=staff_list, diary=diary, today=date.today())
+
 
 # --- MANUAL COST ENTRY ---
 @jobs_bp.route('/office/job/<job_ref>/add-manual-cost', methods=['POST'])
