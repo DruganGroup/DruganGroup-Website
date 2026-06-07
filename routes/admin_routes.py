@@ -761,6 +761,36 @@ def view_audit_logs():
                            page=page, 
                            total_pages=total_pages)
     
+@admin_bp.route('/admin/system-logs/delete', methods=['POST'])
+def delete_system_logs():
+    if session.get('role') != 'SuperAdmin': return "Access Denied", 403
+    mode = request.form.get('mode')
+    conn = get_db(); cur = conn.cursor()
+    try:
+        if mode == 'all':
+            cur.execute("SELECT COUNT(*) FROM system_logs")
+            count = cur.fetchone()[0]
+            cur.execute("DELETE FROM system_logs")
+            conn.commit()
+            log_audit("DELETE SYSTEM LOGS", "system_logs", f"Wiped ALL {count} log entries")
+            flash(f"🗑️ All {count} system log entries have been deleted.")
+        elif mode == 'older_than':
+            days = int(request.form.get('days', 30))
+            cur.execute("SELECT COUNT(*) FROM system_logs WHERE created_at < NOW() - INTERVAL '%s days'", (days,))
+            count = cur.fetchone()[0]
+            cur.execute("DELETE FROM system_logs WHERE created_at < NOW() - INTERVAL '%s days'", (days,))
+            conn.commit()
+            log_audit("DELETE SYSTEM LOGS", "system_logs", f"Deleted {count} entries older than {days} days")
+            flash(f"🗑️ Deleted {count} log entries older than {days} days.")
+        else:
+            flash("❌ Invalid delete mode.")
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error: {e}")
+    finally:
+        conn.close()
+    return redirect(url_for('admin.view_system_logs'))
+
 @admin_bp.route('/admin/system-logs')
 def view_system_logs():
     page = request.args.get('page', 1, type=int)
@@ -799,4 +829,5 @@ def view_system_logs():
     return render_template('admin/system_logs.html', 
                            logs=logs, 
                            page=page, 
-                           total_pages=total_pages)
+                           total_pages=total_pages,
+                           total_logs=total_logs)
