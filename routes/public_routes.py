@@ -137,6 +137,15 @@ def features_agents():
     else:
         return render_template('public/index.html')
 
+# 4. Comparison Page (Why Switch)
+@public_bp.route('/comparison')
+def comparison():
+    host = request.host.lower()
+    if DOMAIN_SOFTWARE in host:
+        return render_template('publicbb/comparison.html')
+    else:
+        return render_template('public/index.html')
+
 # --- SHARED/TRADE ROUTES (Drugan Group) ---
 @public_bp.route('/services')
 @public_bp.route('/services.html')
