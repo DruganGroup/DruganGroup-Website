@@ -73,6 +73,7 @@
 
         <!-- DELETE OLDER THAN -->
         <form method="POST" action="{{ url_for('admin.delete_system_logs') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="mode" value="older_than">
             <label class="small text-muted d-block mb-1">Delete logs older than:</label>
             <div class="d-flex gap-2 align-items-center">
@@ -117,6 +118,7 @@
             <div class="modal-footer" style="border-color:#333;">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                 <form method="POST" action="{{ url_for('admin.delete_system_logs') }}" id="wipeAllForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="mode" value="all">
                     <button type="submit" id="wipeConfirmBtn" class="btn btn-danger" disabled>
                         <i class="fas fa-radiation me-1"></i> Confirm Wipe
