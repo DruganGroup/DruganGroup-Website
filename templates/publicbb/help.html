@@ -3,61 +3,106 @@
 {% block title %}Help Center | Business Better{% endblock %}
 
 {% block content %}
-<header class="bg-primary text-white py-5 text-center">
-    <div class="container py-4">
-        <h1 class="fw-bold display-5">Knowledge Base</h1>
-        <p class="lead opacity-75">Guides, FAQs, and Setup Instructions.</p>
+<header class="py-5 text-center" style="background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%); padding-top: 100px !important;">
+    <div class="container py-5">
+        <div class="d-inline-block px-4 py-2 mb-4 border border-warning rounded-pill bg-dark">
+            <span class="text-gold text-uppercase small fw-bold"><i class="fas fa-book me-2"></i>Knowledge Base</span>
+        </div>
+        <h1 class="display-3 fw-bold text-white mb-4">
+            One System. <span class="text-gold">One Knowledge Base.</span>
+        </h1>
+        <p class="lead text-secondary mx-auto" style="max-width: 700px;">
+            Unlike juggling 6 different help centers, everything you need to know about Business Better is right here.
+        </p>
     </div>
 </header>
 
-<section class="py-5 bg-light">
+<section class="py-5" style="background-color: #0f1014;">
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-8">
                 
-                <div class="input-group mb-5 shadow-sm">
-                    <span class="input-group-text bg-white border-0 ps-4"><i class="fas fa-search text-muted"></i></span>
-                    <input type="text" class="form-control border-0 py-3" placeholder="Search for help articles (e.g. 'SMTP' or 'Drivers')...">
-                    <button class="btn btn-dark px-4 fw-bold">Search</button>
+                <!-- Search Bar -->
+                <div class="input-group mb-5 shadow-lg">
+                    <span class="input-group-text bg-dark border-secondary ps-4"><i class="fas fa-search text-gold"></i></span>
+                    <input type="text" class="form-control bg-dark border-secondary text-white py-3" placeholder="Search for help articles (e.g. 'SMTP' or 'Fleet')...">
+                    <button class="btn btn-brand px-4 fw-bold">Search</button>
                 </div>
 
-                <div class="accordion custom-accordion" id="helpAccordion">
+                <!-- Quick Links -->
+                <div class="row g-4 mb-5">
+                    <div class="col-md-4">
+                        <a href="#estimator" class="text-decoration-none">
+                            <div class="p-4 bg-dark border border-secondary rounded-4 text-center h-100 hover-card">
+                                <i class="fas fa-calculator fa-3x text-gold mb-3"></i>
+                                <h5 class="text-white fw-bold">Estimator</h5>
+                                <p class="text-secondary small mb-0">Quotes & Materials</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="#fleet" class="text-decoration-none">
+                            <div class="p-4 bg-dark border border-secondary rounded-4 text-center h-100 hover-card">
+                                <i class="fas fa-truck fa-3x text-gold mb-3"></i>
+                                <h5 class="text-white fw-bold">Fleet</h5>
+                                <p class="text-secondary small mb-0">Vehicles & Tracking</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="#compliance" class="text-decoration-none">
+                            <div class="p-4 bg-dark border border-secondary rounded-4 text-center h-100 hover-card">
+                                <i class="fas fa-clipboard-check fa-3x text-gold mb-3"></i>
+                                <h5 class="text-white fw-bold">Compliance</h5>
+                                <p class="text-secondary small mb-0">RAMS & Certificates</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
 
-                    <h5 class="fw-bold text-muted mb-3 mt-5 text-uppercase small ls-1">System Setup</h5>
+                <!-- FAQ Accordion -->
+                <div class="accordion" id="helpAccordion">
+
+                    <!-- SYSTEM SETUP -->
+                    <h5 class="fw-bold text-gold mb-3 mt-5 text-uppercase small">System Setup</h5>
                     
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden">
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark">
                         <h2 class="accordion-header">
-                            <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faq-smtp">
-                                <i class="fas fa-envelope-open-text text-primary me-3"></i> How do I set up SMTP Email?
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-smtp">
+                                <i class="fas fa-envelope-open-text text-gold me-3"></i> How do I set up SMTP Email?
                             </button>
                         </h2>
                         <div id="faq-smtp" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-                            <div class="accordion-body text-muted bg-white">
+                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
                                 <p>By default, invoices come from <em>noreply@businessbetter.co.uk</em>. To send them from <strong>your</strong> email address:</p>
                                 <ol>
                                     <li>Go to <strong>Settings</strong> > <strong>Email Configuration</strong>.</li>
                                     <li>Toggle "Use Custom SMTP" to ON.</li>
                                     <li>Enter your provider details (e.g., Gmail, Outlook, or Fasthosts).</li>
-                                    <li><strong>Host:</strong> <code>smtp.livemail.co.uk</code> (for Fasthosts) or <code>smtp.gmail.com</code>.</li>
-                                    <li><strong>Port:</strong> Usually <code>587</code> (TLS) or <code>465</code> (SSL).</li>
+                                    <li><strong>Host:</strong> <code class="text-gold">smtp.livemail.co.uk</code> (for Fasthosts) or <code class="text-gold">smtp.gmail.com</code>.</li>
+                                    <li><strong>Port:</strong> Usually <code class="text-gold">587</code> (TLS) or <code class="text-gold">465</code> (SSL).</li>
                                     <li>Enter your email address and password.</li>
                                     <li>Click <strong>"Test Connection"</strong>.</li>
                                 </ol>
-                                <div class="alert alert-warning small"><i class="fas fa-exclamation-triangle me-2"></i> <strong>Note:</strong> If using Gmail, you must generate an "App Password" in your Google Account settings first.</div>
+                                <div class="alert alert-dark border-warning small">
+                                    <i class="fas fa-exclamation-triangle text-warning me-2"></i> 
+                                    <strong>Note:</strong> If using Gmail, you must generate an "App Password" in your Google Account settings first.
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <h5 class="fw-bold text-muted mb-3 mt-5 text-uppercase small ls-1">Fleet & Staff</h5>
+                    <!-- FLEET & STAFF -->
+                    <h5 id="fleet" class="fw-bold text-gold mb-3 mt-5 text-uppercase small">Fleet & Staff</h5>
 
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden">
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark">
                         <h2 class="accordion-header">
-                            <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faq-vans">
-                                <i class="fas fa-truck text-primary me-3"></i> How do I add a new Van?
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-vans">
+                                <i class="fas fa-truck text-gold me-3"></i> How do I add a new Van?
                             </button>
                         </h2>
                         <div id="faq-vans" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-                            <div class="accordion-body text-muted bg-white">
+                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
                                 <p>To track a vehicle's MOT, Tax, and Service history:</p>
                                 <ol>
                                     <li>Navigate to the <strong>Fleet</strong> tab in your dashboard.</li>
@@ -66,18 +111,22 @@
                                     <li>Our system will automatically pull the Make/Model from the DVLA database.</li>
                                     <li>Assign a "Default Driver" if one person uses this van permanently.</li>
                                 </ol>
+                                <div class="alert alert-dark border-gold small">
+                                    <i class="fas fa-lightbulb text-gold me-2"></i> 
+                                    <strong>Pro Tip:</strong> Unlike separate fleet tracking tools, your vehicle data automatically links to job costs and compliance checks.
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden">
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark">
                         <h2 class="accordion-header">
-                            <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faq-crew">
-                                <i class="fas fa-users-cog text-primary me-3"></i> How do I assign drivers and crew?
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-crew">
+                                <i class="fas fa-users-cog text-gold me-3"></i> How do I assign drivers and crew?
                             </button>
                         </h2>
                         <div id="faq-crew" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-                            <div class="accordion-body text-muted bg-white">
+                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
                                 <p><strong>Drivers:</strong> Are assigned to a vehicle in the Fleet tab.</p>
                                 <p><strong>Crew/Engineers:</strong> Are assigned to Jobs.</p>
                                 <ul>
@@ -90,13 +139,92 @@
                         </div>
                     </div>
 
-                </div> <div class="text-center mt-5">
-                    <p class="text-muted">Can't find what you need?</p>
-                    <a href="/contact" class="btn btn-outline-primary fw-bold">Contact Support Team</a>
+                    <!-- ESTIMATOR & QUOTES -->
+                    <h5 id="estimator" class="fw-bold text-gold mb-3 mt-5 text-uppercase small">Estimator & Quotes</h5>
+
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-quote">
+                                <i class="fas fa-calculator text-gold me-3"></i> How do I create a quote?
+                            </button>
+                        </h2>
+                        <div id="faq-quote" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
+                                <p>The Unified Estimator calculates materials, labor, and fleet costs automatically:</p>
+                                <ol>
+                                    <li>Go to <strong>Quotes</strong> > <strong>Create New Quote</strong></li>
+                                    <li>Select your client (or create a new one)</li>
+                                    <li>Add line items: Materials, Labor hours, or Custom items</li>
+                                    <li>The system auto-calculates based on your configured rates</li>
+                                    <li>Preview and send via email or download as PDF</li>
+                                </ol>
+                                <div class="alert alert-dark border-gold small">
+                                    <i class="fas fa-star text-gold me-2"></i> 
+                                    <strong>Why it's better:</strong> Unlike standalone estimating tools, quotes automatically convert to jobs with live profit tracking.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- COMPLIANCE -->
+                    <h5 id="compliance" class="fw-bold text-gold mb-3 mt-5 text-uppercase small">Compliance & Safety</h5>
+
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-rams">
+                                <i class="fas fa-file-contract text-gold me-3"></i> How do I generate RAMS documents?
+                            </button>
+                        </h2>
+                        <div id="faq-rams" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
+                                <p>Generate professional Risk Assessments and Method Statements in 60 seconds:</p>
+                                <ol>
+                                    <li>Go to <strong>Compliance</strong> > <strong>RAMS Studio</strong></li>
+                                    <li>Select the job or create a new document</li>
+                                    <li>Choose from pre-built templates or create custom</li>
+                                    <li>Fill in site-specific details</li>
+                                    <li>Download as PDF or send directly to client</li>
+                                </ol>
+                                <p class="text-gold small mb-0"><i class="fas fa-check me-2"></i> All RAMS are automatically linked to jobs and stored in your audit trail.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Still Need Help -->
+                <div class="text-center mt-5 p-5 bg-dark border border-warning rounded-4">
+                    <h4 class="text-white fw-bold mb-3">Still Using Multiple Tools?</h4>
+                    <p class="text-secondary mb-4">See how Business Better consolidates everything into one system</p>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="/comparison" class="btn btn-outline-light">See Comparison</a>
+                        <a href="/contact" class="btn btn-brand">Contact Support</a>
+                    </div>
                 </div>
 
             </div>
         </div>
     </div>
 </section>
+
+<style>
+    .hover-card {
+        transition: all 0.3s;
+    }
+    .hover-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--bb-gold) !important;
+        background: rgba(212, 175, 55, 0.05) !important;
+    }
+    
+    .accordion-button:not(.collapsed) {
+        background-color: rgba(212, 175, 55, 0.1);
+        color: var(--bb-gold);
+    }
+    
+    .accordion-button:focus {
+        box-shadow: none;
+        border-color: var(--bb-gold);
+    }
+</style>
 {% endblock %}

@@ -3,10 +3,35 @@
 {% block title %}Legal Center | Business Better{% endblock %}
 
 {% block content %}
-<header class="py-5 text-center" style="background-color: var(--bb-bg);">
-    <div class="container py-4">
-        <h1 class="fw-bold display-5 text-white">Legal Center</h1>
-        <p class="lead text-secondary">Transparency, Security, and Trust.</p>
+<header class="py-5 text-center" style="background-color: var(--bb-bg); padding-top: 100px !important;">
+    <div class="container py-5">
+        <div class="d-inline-block px-4 py-2 mb-3 border border-warning rounded-pill bg-dark">
+            <span class="text-gold text-uppercase small fw-bold"><i class="fas fa-shield-alt me-2"></i>Security & Compliance</span>
+        </div>
+        <h1 class="fw-bold display-4 text-white mb-3">Legal Center</h1>
+        <p class="lead text-secondary mb-4">Transparency, Security, and Trust.</p>
+        
+        <!-- Security Badges -->
+        <div class="row justify-content-center g-3 mt-4">
+            <div class="col-auto">
+                <div class="px-4 py-2 bg-dark border border-success rounded">
+                    <i class="fas fa-lock text-success me-2"></i>
+                    <span class="text-white small fw-bold">AES-256 Encrypted</span>
+                </div>
+            </div>
+            <div class="col-auto">
+                <div class="px-4 py-2 bg-dark border border-success rounded">
+                    <i class="fas fa-server text-success me-2"></i>
+                    <span class="text-white small fw-bold">UK/EU Servers</span>
+                </div>
+            </div>
+            <div class="col-auto">
+                <div class="px-4 py-2 bg-dark border border-success rounded">
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    <span class="text-white small fw-bold">GDPR Compliant</span>
+                </div>
+            </div>
+        </div>
     </div>
 </header>
 

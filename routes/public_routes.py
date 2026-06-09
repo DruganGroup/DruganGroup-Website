@@ -146,6 +146,15 @@ def comparison():
     else:
         return render_template('public/index.html')
 
+# 5. Demo Video Page
+@public_bp.route('/demo')
+def demo():
+    host = request.host.lower()
+    if DOMAIN_SOFTWARE in host:
+        return render_template('publicbb/demo.html')
+    else:
+        return render_template('public/index.html')
+
 # --- SHARED/TRADE ROUTES (Drugan Group) ---
 @public_bp.route('/services')
 @public_bp.route('/services.html')

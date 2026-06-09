@@ -1,0 +1,258 @@
+{% extends "publicbb/base.html" %}
+
+{% block title %}Watch Demo | Business Better{% endblock %}
+
+{% block head %}
+<style>
+    .video-container {
+        position: relative;
+        padding-bottom: 56.25%; /* 16:9 aspect ratio */
+        height: 0;
+        overflow: hidden;
+        background: #000;
+        border-radius: 8px;
+        border: 2px solid var(--bb-gold);
+    }
+    
+    .video-container iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    .timestamp-link {
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .timestamp-link:hover {
+        background: rgba(212, 175, 55, 0.1);
+        border-color: var(--bb-gold) !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<header class="py-5 text-center" style="background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%); padding-top: 100px !important;">
+    <div class="container py-5">
+        <div class="d-inline-block px-4 py-2 mb-4 border border-warning rounded-pill bg-dark">
+            <span class="text-gold text-uppercase small fw-bold"><i class="fas fa-play-circle me-2"></i>Product Demo</span>
+        </div>
+        <h1 class="display-3 fw-bold text-white mb-4">
+            See Business Better <span class="text-gold">In Action</span>
+        </h1>
+        <p class="lead text-secondary mx-auto" style="max-width: 700px;">
+            Watch how Business Better replaces 6+ tools and transforms your trade business operations in under 10 minutes.
+        </p>
+    </div>
+</header>
+
+<!-- VIDEO SECTION -->
+<section class="py-5" style="background-color: #0f1014;">
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                
+                <!-- Video Player -->
+                <div class="video-container shadow-lg mb-5">
+                    <!-- PLACEHOLDER: Replace 'YOUR_YOUTUBE_VIDEO_ID' with your actual YouTube video ID -->
+                    <!-- Example: If your video URL is https://www.youtube.com/watch?v=dQw4w9WgXcQ -->
+                    <!-- Then use: dQw4w9WgXcQ -->
+                    <iframe 
+                        src="https://www.youtube.com/embed/YOUR_YOUTUBE_VIDEO_ID?rel=0&modestbranding=1" 
+                        title="Business Better Demo Video" 
+                        frameborder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                        allowfullscreen>
+                    </iframe>
+                </div>
+
+                <!-- Video Info -->
+                <div class="text-center mb-5">
+                    <p class="text-secondary mb-3">
+                        <i class="fas fa-clock text-gold me-2"></i> Duration: 9 minutes 30 seconds
+                    </p>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="/pricing" class="btn btn-brand btn-lg px-5">Start Free Trial</a>
+                        <a href="/contact" class="btn btn-outline-light btn-lg px-5">Contact Sales</a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- TIMESTAMPS SECTION -->
+<section class="py-5">
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="text-center mb-5">
+                    <h2 class="display-5 fw-bold text-white mb-3">What You'll See</h2>
+                    <p class="text-secondary">Jump to specific sections of the demo</p>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="p-4 bg-dark border border-secondary rounded-4 timestamp-link">
+                            <div class="d-flex align-items-start">
+                                <div class="text-gold me-3 mt-1">
+                                    <i class="fas fa-calculator fa-2x"></i>
+                                </div>
+                                <div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="badge bg-gold text-dark me-2">0:30</span>
+                                        <h5 class="text-white mb-0">The Unified Estimator</h5>
+                                    </div>
+                                    <p class="text-secondary small mb-0">See how to create quotes with materials, labor, and fleet costs in seconds</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="p-4 bg-dark border border-secondary rounded-4 timestamp-link">
+                            <div class="d-flex align-items-start">
+                                <div class="text-gold me-3 mt-1">
+                                    <i class="fas fa-briefcase fa-2x"></i>
+                                </div>
+                                <div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="badge bg-gold text-dark me-2">2:15</span>
+                                        <h5 class="text-white mb-0">Job Management</h5>
+                                    </div>
+                                    <p class="text-secondary small mb-0">Track jobs from quote to completion with live profit tracking</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="p-4 bg-dark border border-secondary rounded-4 timestamp-link">
+                            <div class="d-flex align-items-start">
+                                <div class="text-gold me-3 mt-1">
+                                    <i class="fas fa-truck fa-2x"></i>
+                                </div>
+                                <div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="badge bg-gold text-dark me-2">4:00</span>
+                                        <h5 class="text-white mb-0">Fleet Operations</h5>
+                                    </div>
+                                    <p class="text-secondary small mb-0">GPS tracking, safety checks, and compliance management</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="p-4 bg-dark border border-secondary rounded-4 timestamp-link">
+                            <div class="d-flex align-items-start">
+                                <div class="text-gold me-3 mt-1">
+                                    <i class="fas fa-file-invoice fa-2x"></i>
+                                </div>
+                                <div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="badge bg-gold text-dark me-2">5:45</span>
+                                        <h5 class="text-white mb-0">Invoicing & Finance</h5>
+                                    </div>
+                                    <p class="text-secondary small mb-0">Automatic invoice generation and payment tracking</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="p-4 bg-dark border border-secondary rounded-4 timestamp-link">
+                            <div class="d-flex align-items-start">
+                                <div class="text-gold me-3 mt-1">
+                                    <i class="fas fa-clipboard-check fa-2x"></i>
+                                </div>
+                                <div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="badge bg-gold text-dark me-2">7:00</span>
+                                        <h5 class="text-white mb-0">Compliance Tools</h5>
+                                    </div>
+                                    <p class="text-secondary small mb-0">RAMS generation, certificate tracking, and audit trails</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="p-4 bg-dark border border-secondary rounded-4 timestamp-link">
+                            <div class="d-flex align-items-start">
+                                <div class="text-gold me-3 mt-1">
+                                    <i class="fas fa-globe fa-2x"></i>
+                                </div>
+                                <div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="badge bg-gold text-dark me-2">8:15</span>
+                                        <h5 class="text-white mb-0">Client Portal</h5>
+                                    </div>
+                                    <p class="text-secondary small mb-0">White-label portal for clients to view jobs and invoices</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- KEY BENEFITS -->
+<section class="py-5" style="background-color: #0f1014;">
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="p-5 border border-warning rounded-4 bg-dark text-center">
+                    <h3 class="text-white fw-bold mb-4">Why Businesses Choose Business Better</h3>
+                    <div class="row g-4 mb-4">
+                        <div class="col-md-4">
+                            <div class="h1 text-gold mb-2">6+</div>
+                            <p class="text-white fw-bold mb-1">Tools Replaced</p>
+                            <p class="text-secondary small mb-0">One system for everything</p>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="h1 text-gold mb-2">£86</div>
+                            <p class="text-white fw-bold mb-1">Monthly Savings</p>
+                            <p class="text-secondary small mb-0">vs traditional software stack</p>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="h1 text-gold mb-2">20+</div>
+                            <p class="text-white fw-bold mb-1">Hours Saved</p>
+                            <p class="text-secondary small mb-0">Every week on admin</p>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="/comparison" class="btn btn-outline-light">See Full Comparison</a>
+                        <a href="/pricing" class="btn btn-brand">View Pricing</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="py-5">
+    <div class="container py-5 text-center">
+        <h2 class="display-5 fw-bold text-white mb-4">Ready to Transform Your Business?</h2>
+        <p class="lead text-secondary mb-5 mx-auto" style="max-width: 600px;">
+            Join hundreds of trade businesses who've already made the switch to Business Better.
+        </p>
+        <div class="d-flex justify-content-center gap-3 flex-wrap">
+            <a href="/pricing" class="btn btn-brand btn-lg px-5">Start Free Trial</a>
+            <a href="/contact" class="btn btn-outline-light btn-lg px-5">Contact Sales</a>
+        </div>
+        <p class="small text-muted mt-4">
+            <i class="fas fa-shield-alt me-2"></i> No credit card required | 14-day free trial | Cancel anytime
+        </p>
+    </div>
+</section>
+
+{% endblock %}
