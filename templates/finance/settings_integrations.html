@@ -105,6 +105,47 @@
                     </div>
                 </div>
 
+                <div class="mb-4 border-bottom pb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-bold m-0"><i class="fas fa-envelope text-primary me-2"></i> Email Settings (SMTP/IMAP)</label>
+                    </div>
+                    <div class="alert alert-info small">
+                        Configure these settings to allow sending outgoing emails (SMTP) and reading incoming emails (IMAP) from the Office Hub.
+                    </div>
+                    
+                    <h6 class="fw-bold mt-3 mb-2 small text-secondary">Outgoing Email (SMTP)</h6>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-8">
+                            <input type="text" name="smtp_host" class="form-control" value="{{ settings.get('smtp_host', '') }}" placeholder="SMTP Host (e.g. smtp.gmail.com)">
+                        </div>
+                        <div class="col-md-4">
+                            <input type="number" name="smtp_port" class="form-control" value="{{ settings.get('smtp_port', '') }}" placeholder="Port (e.g. 587)">
+                        </div>
+                        <div class="col-md-6">
+                            <input type="email" name="smtp_email" class="form-control" value="{{ settings.get('smtp_email', '') }}" placeholder="SMTP Email Address">
+                        </div>
+                        <div class="col-md-6">
+                            <input type="password" name="smtp_password" class="form-control" value="{{ settings.get('smtp_password', '') }}" placeholder="SMTP Password / App Password">
+                        </div>
+                    </div>
+
+                    <h6 class="fw-bold mt-3 mb-2 small text-secondary">Incoming Email (IMAP)</h6>
+                    <div class="row g-2">
+                        <div class="col-md-8">
+                            <input type="text" name="imap_server" class="form-control" value="{{ settings.get('imap_server', '') }}" placeholder="IMAP Host (e.g. imap.gmail.com)">
+                        </div>
+                        <div class="col-md-4">
+                            <input type="number" name="imap_port" class="form-control" value="{{ settings.get('imap_port', '') }}" placeholder="Port (e.g. 993)">
+                        </div>
+                        <div class="col-md-6">
+                            <input type="email" name="imap_user" class="form-control" value="{{ settings.get('imap_user', '') }}" placeholder="IMAP Username / Email">
+                        </div>
+                        <div class="col-md-6">
+                            <input type="password" name="imap_password" class="form-control" value="{{ settings.get('imap_password', '') }}" placeholder="IMAP Password / App Password">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="text-end">
                     <button type="submit" class="btn btn-primary fw-bold px-4">
                         <i class="fas fa-save me-2"></i> Save Keys

@@ -179,6 +179,21 @@ def handle_exception(e):
     return render_template('error.html', error=e), code
 
 # --- DEBUG ROUTE ---
+@app.route('/update-db-temp')
+def update_db_temp():
+    conn = get_db()
+    if conn:
+        try:
+            cur = conn.cursor()
+            cur.execute("ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending';")
+            conn.commit()
+            return "SUCCESS"
+        except Exception as e:
+            return f"ERROR: {e}"
+        finally:
+            conn.close()
+    return "NO CONN"
+
 @app.route('/debug-files')
 def debug_files():
     output = "<h1>File System Debug</h1>"

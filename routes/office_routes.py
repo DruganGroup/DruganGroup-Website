@@ -524,6 +524,29 @@ def api_email_summarize(email_id):
     finally:
         conn.close()
 
+@office_bp.route('/office/inbox/send', methods=['POST'])
+def send_office_email():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    to_email = request.form.get('to_email')
+    subject = request.form.get('subject')
+    body = request.form.get('body')
+    
+    if not to_email or not subject or not body:
+        flash("❌ All fields are required to send an email.", "error")
+        return redirect(url_for('office.inbox'))
+        
+    from email_service import send_company_email
+    success, msg = send_company_email(comp_id, to_email, subject, body)
+    
+    if success:
+        flash("✅ Email sent successfully!", "success")
+    else:
+        flash(f"❌ {msg}", "error")
+        
+    return redirect(url_for('office.inbox'))
+
 @office_bp.route('/office/api/email/<int:email_id>/draft')
 def api_email_draft(email_id):
     if not check_office_access(): return jsonify({'error': 'Unauthorized'}), 401
