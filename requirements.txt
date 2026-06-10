@@ -6,3 +6,4 @@ requests
 Flask-WTF
 stripe
 cryptography
+Flask-Limiter
