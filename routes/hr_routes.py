@@ -91,13 +91,18 @@ def approve_timesheet():
     
     att_id = request.form.get('attendance_id')
     action = request.form.get('action') # 'approve' or 'reject'
+    adjusted_hours = request.form.get('adjusted_hours')
     
     conn = get_db()
     cur = conn.cursor()
     try:
         new_status = 'Approved' if action == 'approve' else 'Rejected'
-        # Approve the Day
-        cur.execute("UPDATE staff_attendance SET status = %s WHERE id = %s", (new_status, att_id))
+        
+        # Approve the Day and apply any hour corrections
+        if adjusted_hours:
+            cur.execute("UPDATE staff_attendance SET status = %s, total_hours = %s WHERE id = %s", (new_status, adjusted_hours, att_id))
+        else:
+            cur.execute("UPDATE staff_attendance SET status = %s WHERE id = %s", (new_status, att_id))
         
         # Also auto-approve all underlying job timesheets for that day
         if new_status == 'Approved':
@@ -223,11 +228,26 @@ def hr_dashboard():
         cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS tax_limit NUMERIC DEFAULT 0;")
         cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS ni_limit NUMERIC DEFAULT 0;")
         cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS holiday_entitled BOOLEAN DEFAULT TRUE;")
+        
+        # Bank Details
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS bank_name VARCHAR(100);")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS account_number VARCHAR(20);")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS sort_code VARCHAR(20);")
+        
+        # Missing Timesheets Status
+        cur.execute("ALTER TABLE staff_timesheets ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending';")
+        
         conn.commit()
     except:
         conn.rollback()
 
-    cur.execute("SELECT id, name, position, dept, pay_rate, pay_model, access_level, email, phone, employment_type, address, tax_id, driving_license, profile_photo, tax_limit, ni_limit, holiday_entitled FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
+    cur.execute("""
+        SELECT id, name, position, dept, pay_rate, pay_model, access_level, email, phone, 
+               employment_type, address, tax_id, driving_license, profile_photo, 
+               tax_limit, ni_limit, holiday_entitled,
+               bank_name, account_number, sort_code
+        FROM staff WHERE company_id = %s ORDER BY name
+    """, (comp_id,))
     cols = [desc[0] for desc in cur.description]
     staff = [dict(zip(cols, row)) for row in cur.fetchall()]
     
@@ -396,6 +416,11 @@ def save_staff():
     ni_limit = request.form.get('ni_limit') or 0
     holiday_entitled = request.form.get('holiday_entitled') == 'on'
     
+    # Bank Details
+    bank_name = request.form.get('bank_name')
+    acc_num = request.form.get('account_number')
+    sort_code = request.form.get('sort_code')
+    
     nok_name = request.form.get('nok_name')
     nok_phone = request.form.get('nok_phone')
     nok_rel = request.form.get('nok_relationship')
@@ -445,9 +470,10 @@ def save_staff():
                 name=%s, email=%s, phone=%s, position=%s, dept=%s, 
                 pay_rate=%s, pay_model=%s, employment_type=%s, access_level=%s,
                 nok_name=%s, nok_phone=%s, nok_relationship=%s, nok_address=%s,
-                tax_id=%s, address=%s, tax_limit=%s, ni_limit=%s, holiday_entitled=%s
+                tax_id=%s, address=%s, tax_limit=%s, ni_limit=%s, holiday_entitled=%s,
+                bank_name=%s, account_number=%s, sort_code=%s
             """
-            params = [name, email, phone, position, dept, pay_rate, pay_model, emp_type, access, nok_name, nok_phone, nok_rel, nok_addr, tax_id, address, tax_limit, ni_limit, holiday_entitled]
+            params = [name, email, phone, position, dept, pay_rate, pay_model, emp_type, access, nok_name, nok_phone, nok_rel, nok_addr, tax_id, address, tax_limit, ni_limit, holiday_entitled, bank_name, acc_num, sort_code]
             
             if license_path:
                 sql += ", driving_license=%s"
@@ -467,9 +493,9 @@ def save_staff():
         else:
             # INSERT
             cur.execute("""
-                INSERT INTO staff (company_id, name, email, phone, position, dept, pay_rate, pay_model, employment_type, access_level, nok_name, nok_phone, nok_relationship, nok_address, driving_license, profile_photo, tax_id, address, tax_limit, ni_limit, holiday_entitled)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (comp_id, name, email, phone, position, dept, pay_rate, pay_model, emp_type, access, nok_name, nok_phone, nok_rel, nok_addr, license_path, photo_path, tax_id, address, tax_limit, ni_limit, holiday_entitled))
+                INSERT INTO staff (company_id, name, email, phone, position, dept, pay_rate, pay_model, employment_type, access_level, nok_name, nok_phone, nok_relationship, nok_address, driving_license, profile_photo, tax_id, address, tax_limit, ni_limit, holiday_entitled, bank_name, account_number, sort_code)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (comp_id, name, email, phone, position, dept, pay_rate, pay_model, emp_type, access, nok_name, nok_phone, nok_rel, nok_addr, license_path, photo_path, tax_id, address, tax_limit, ni_limit, holiday_entitled, bank_name, acc_num, sort_code))
             
             if access != "None" and email:
                 cur.execute("SELECT id FROM users WHERE email=%s", (email,))

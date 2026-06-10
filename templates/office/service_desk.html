@@ -1,18 +1,18 @@
 {% extends "office/office_base.html" %}
 {% from "components/_macros.html" import status_badge %}
 
-{% block title %}Service Desk | Business Better{% endblock %}
+{% block title %}Service Desk & Compliance | Business Better{% endblock %}
 
 {% block content %}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold m-0">Service Desk</h2>
+            <h2 class="fw-bold m-0"><i class="fas fa-headset text-primary me-2"></i> Service Desk</h2>
             <p class="text-muted mb-0">Incoming tickets from Client Portals</p>
         </div>
-        <button class="btn btn-dark shadow-sm"><i class="fas fa-plus me-2"></i> Log Manual Ticket</button>
+        <button class="btn btn-primary shadow-sm fw-bold"><i class="fas fa-plus me-2"></i> Log Manual Ticket</button>
     </div>
     
-    <div class="card p-0 shadow-sm border-0 rounded-4 overflow-hidden">
+    <div class="card p-0 shadow-sm border-0 rounded-4 overflow-hidden mb-5">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light text-uppercase small">
                 <tr>
@@ -28,19 +28,20 @@
             <tbody>
                 {% for r in requests %}
                 <tr>
-                    <td class="ps-4 text-muted">#{{ r.id }}</td>
-                    
+                    <td class="ps-4 text-muted">#{{ r.id }}<br><small>{{ r.date }}</small></td>
                     <td>{{ status_badge(r.severity) }}</td>
-
                     <td class="fw-bold">{{ r.property_address }}</td>
-                    <td class="small text-muted text-truncate" style="max-width: 200px;">{{ r.issue_description }}</td>
+                    <td class="small text-muted text-truncate" style="max-width: 200px;">
+                        {{ r.issue_description }}
+                        {% if r.photo_path %}
+                            <br><a href="{{ r.photo_path }}" target="_blank" class="badge bg-secondary text-decoration-none mt-1"><i class="fas fa-image"></i> View Photo</a>
+                        {% endif %}
+                    </td>
                     <td>{{ r.client_name }}</td>
-                    
                     <td>{{ status_badge(r.status) }}</td>
-                    
                     <td class="text-end pe-4">
                         <button class="btn btn-sm btn-primary fw-bold" 
-                            onclick="openDispatchModal('{{ r.id }}', '{{ r.property_address }}', '{{ r.issue_description }}')">
+                            onclick="openDispatchModal('{{ r.id }}', '{{ r.property_address|escape }}', '{{ r.issue_description|escape }}')">
                             <i class="fas fa-hard-hat me-1"></i> Dispatch
                         </button>
                     </td>
@@ -52,27 +53,84 @@
         </table>
     </div>
 
+    <!-- COMPLIANCE ALERTS SECTION -->
+    <div class="d-flex justify-content-between align-items-center mb-4 mt-5">
+        <div>
+            <h3 class="fw-bold m-0"><i class="fas fa-exclamation-triangle text-warning me-2"></i> Compliance Alerts</h3>
+            <p class="text-muted mb-0">Certificates expiring within 30 days or already expired</p>
+        </div>
+    </div>
+    
+    <div class="card p-0 shadow-sm border-0 rounded-4 overflow-hidden mb-5">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light text-uppercase small">
+                <tr>
+                    <th class="ps-4">Property</th>
+                    <th>Client</th>
+                    <th>Gas (CP12)</th>
+                    <th>Electric (EICR)</th>
+                    <th>Energy (EPC)</th>
+                    <th>PAT</th>
+                    <th class="text-end pe-4">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in expiring_props %}
+                <tr>
+                    <td class="ps-4 fw-bold">{{ p.address }}</td>
+                    <td>{{ p.client }}</td>
+                    
+                    <td class="{{ 'text-danger fw-bold' if p.gas and p.gas|string < now().strftime('%Y-%m-%d') else ('text-warning fw-bold' if p.gas else 'text-muted') }}">
+                        {{ p.gas.strftime('%d/%m/%Y') if p.gas else '-' }}
+                    </td>
+                    <td class="{{ 'text-danger fw-bold' if p.eicr and p.eicr|string < now().strftime('%Y-%m-%d') else ('text-warning fw-bold' if p.eicr else 'text-muted') }}">
+                        {{ p.eicr.strftime('%d/%m/%Y') if p.eicr else '-' }}
+                    </td>
+                    <td class="{{ 'text-danger fw-bold' if p.epc and p.epc|string < now().strftime('%Y-%m-%d') else ('text-warning fw-bold' if p.epc else 'text-muted') }}">
+                        {{ p.epc.strftime('%d/%m/%Y') if p.epc else '-' }}
+                    </td>
+                    <td class="{{ 'text-danger fw-bold' if p.pat and p.pat|string < now().strftime('%Y-%m-%d') else ('text-warning fw-bold' if p.pat else 'text-muted') }}">
+                        {{ p.pat.strftime('%d/%m/%Y') if p.pat else '-' }}
+                    </td>
+                    
+                    <td class="text-end pe-4">
+                        <a href="/office/quote/new?client_id={{ p.client_id }}&property_id={{ p.prop_id }}" class="btn btn-sm btn-outline-primary fw-bold">Quote Repair</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center p-5 text-muted">
+                        <i class="fas fa-check-circle fa-2x mb-2 text-success opacity-50"></i><br>
+                        All compliance certificates are up to date!
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- DISPATCH MODAL -->
     <div class="modal fade" id="dispatchModal" tabindex="-1">
         <div class="modal-dialog">
-            <div class="modal-content">
+            <div class="modal-content border-0 shadow">
                 <form action="/office/create-work-order" method="POST">
-                    <div class="modal-header">
-                        <h5 class="modal-title fw-bold">Dispatch Job</h5>
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title fw-bold"><i class="fas fa-truck me-2 text-primary"></i> Dispatch Job</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <input type="hidden" name="request_id" id="modalRequestID">
                         <div class="mb-3">
-                            <label class="small fw-bold text-muted">LOCATION</label>
+                            <label class="small fw-bold text-muted text-uppercase">Location</label>
                             <input type="text" class="form-control-plaintext fw-bold" id="modalAddress" readonly>
                         </div>
                         <div class="mb-3">
-                            <label class="small fw-bold text-muted">ISSUE</label>
-                            <div id="modalIssue" class="p-2 bg-light rounded border small"></div>
+                            <label class="small fw-bold text-muted text-uppercase">Issue Details</label>
+                            <div id="modalIssue" class="p-3 bg-light rounded-3 border small"></div>
                         </div>
-                        <div class="row g-2">
+                        <div class="row g-3 mt-2">
                             <div class="col-6">
-                                <label class="small fw-bold">Assign Staff</label>
+                                <label class="small fw-bold text-muted text-uppercase">Assign Staff</label>
                                 <select name="assigned_staff_id" class="form-select" required>
                                     <option value="" disabled selected>Select...</option>
                                     {% for s in staff %}
@@ -81,13 +139,13 @@
                                 </select>
                             </div>
                             <div class="col-6">
-                                <label class="small fw-bold">Date</label>
+                                <label class="small fw-bold text-muted text-uppercase">Schedule Date</label>
                                 <input type="date" name="schedule_date" class="form-control" required>
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-success fw-bold w-100">Confirm Dispatch</button>
+                    <div class="modal-footer bg-light">
+                        <button type="submit" class="btn btn-primary fw-bold px-4">Confirm Dispatch</button>
                     </div>
                 </form>
             </div>

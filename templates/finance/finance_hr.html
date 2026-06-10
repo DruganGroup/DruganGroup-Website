@@ -164,6 +164,24 @@
 								</div>
 							</div>
 
+                            <div class="card shadow-sm border-0 mb-3">
+								<div class="card-header bg-white fw-bold"><i class="fas fa-university me-2 text-secondary"></i>Bank Details</div>
+								<div class="card-body row g-3">
+									<div class="col-md-4">
+										<label class="small fw-bold text-muted">Bank Name</label>
+										<input type="text" name="bank_name" id="edit_bank_name" class="form-control" placeholder="e.g. Barclays">
+									</div>
+									<div class="col-md-4">
+										<label class="small fw-bold text-muted">Account Number</label>
+										<input type="text" name="account_number" id="edit_acc_num" class="form-control" placeholder="8 digit number">
+									</div>
+									<div class="col-md-4">
+										<label class="small fw-bold text-muted">Sort Code</label>
+										<input type="text" name="sort_code" id="edit_sort_code" class="form-control" placeholder="00-00-00">
+									</div>
+								</div>
+							</div>
+
 							<div class="card shadow-sm border-0 mb-3">
 								<div class="card-header bg-white fw-bold"><i class="fas fa-file-upload me-2 text-secondary"></i>Documents & Media</div>
 								<div class="card-body row g-3">
@@ -243,6 +261,11 @@
 			document.getElementById('edit_tax_limit').value = btn.getAttribute('data-tax-limit') || '';
 			document.getElementById('edit_ni_limit').value = btn.getAttribute('data-ni-limit') || '';
 			document.getElementById('edit_holiday').checked = btn.getAttribute('data-holiday') !== 'False';
+			
+			// Bank Details
+			document.getElementById('edit_bank_name').value = btn.getAttribute('data-bank') || '';
+			document.getElementById('edit_acc_num').value = btn.getAttribute('data-acc') || '';
+			document.getElementById('edit_sort_code').value = btn.getAttribute('data-sort') || '';
 			
 			toggleEmploymentFields();
 		}

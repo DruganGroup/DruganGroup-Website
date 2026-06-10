@@ -1,0 +1,32 @@
+<!-- QUICK ADD FLOATING BUTTON -->
+<div class="dropdown position-fixed" style="bottom: 30px; right: 30px; z-index: 9999;">
+    <button class="btn btn-primary rounded-circle shadow-lg d-flex align-items-center justify-content-center" 
+            type="button" data-bs-toggle="dropdown" 
+            style="width: 60px; height: 60px; font-size: 24px; transition: transform 0.2s;">
+        <i class="fas fa-plus"></i>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-4 p-2 mb-2" style="width: 200px;">
+        <li><h6 class="dropdown-header fw-bold text-uppercase small">Quick Create</h6></li>
+        <li><a class="dropdown-item py-2 fw-bold" href="/office/quote/new"><i class="fas fa-file-signature text-primary me-2"></i> New Quote</a></li>
+        <li><a class="dropdown-item py-2 fw-bold" href="/clients"><i class="fas fa-user-plus text-success me-2"></i> New Client</a></li>
+        <li><a class="dropdown-item py-2 fw-bold" href="/finance/invoices"><i class="fas fa-file-invoice-dollar text-warning me-2"></i> New Invoice</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item py-2 fw-bold" href="/finance/hr"><i class="fas fa-user-tie text-info me-2"></i> Add Staff</a></li>
+    </ul>
+</div>
+
+<style>
+    /* Global modern UI improvements */
+    body { background-color: #f8f9fa; font-family: 'Inter', 'Segoe UI', sans-serif; }
+    .card { border: none !important; border-radius: 16px !important; box-shadow: 0 4px 20px rgba(0,0,0,0.03) !important; }
+    .card-header { background-color: transparent !important; border-bottom: 1px solid rgba(0,0,0,0.05) !important; padding: 1.5rem !important; }
+    .btn { border-radius: 8px !important; font-weight: 600 !important; padding: 0.5rem 1rem !important; }
+    .btn-sm { padding: 0.35rem 0.75rem !important; border-radius: 6px !important; }
+    .table-hover tbody tr:hover { background-color: rgba(0,0,0,0.02) !important; }
+    .badge { padding: 0.4em 0.8em !important; border-radius: 6px !important; font-weight: 600 !important; }
+    
+    .sidebar { border-right: 1px solid rgba(0,0,0,0.05); }
+    .sidebar a { border-radius: 8px; margin: 2px 12px; padding: 10px 15px; }
+    .sidebar a:hover { background-color: rgba(255,255,255,0.1) !important; transform: translateX(3px); }
+    .sidebar a.active { background-color: rgba(255,255,255,0.2) !important; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+</style>

@@ -1081,6 +1081,87 @@ def finance_payroll():
                            currency=currency,
                            brand_color=brand_color,
                            logo_url=logo)
+
+@finance_bp.route('/finance/payroll/export', methods=['POST'])
+def export_payroll():
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    country = settings.get('country_code', 'UK') 
+
+    today = date.today()
+    start_of_week = today - timedelta(days=today.weekday()) 
+    end_of_week = start_of_week + timedelta(days=6)         
+    
+    from services.tax_engine import TaxEngine
+    import io
+    import csv
+    
+    cur.execute("""
+        SELECT 
+            s.id, s.name, s.position, s.employment_type, s.pay_rate, s.pay_model,
+            COALESCE(SUM(a.total_hours), 0) as total_hours,
+            COUNT(DISTINCT a.date) as days_worked,
+            s.tax_limit, s.ni_limit, s.holiday_entitled,
+            s.account_number, s.sort_code, s.bank_name
+        FROM staff s
+        LEFT JOIN staff_attendance a ON s.id = a.staff_id 
+            AND a.date >= %s AND a.date <= %s
+            AND a.status = 'Approved'
+        WHERE s.company_id = %s
+        GROUP BY s.id
+        ORDER BY s.name ASC
+    """, (start_of_week, end_of_week, comp_id))
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Standard Bank CSV Format
+    writer.writerow(['Account Name', 'Account Number', 'Sort Code', 'Bank Name', 'Amount', 'Reference'])
+    
+    for r in cur.fetchall():
+        name = r[1]
+        role_type = r[3]
+        rate = float(r[4] or 0)
+        model = r[5]
+        hours = float(r[6])
+        days = int(r[7])
+        tax_limit = float(r[8] or 0)
+        ni_limit = float(r[9] or 0)
+        acc_num = r[11] or ''
+        sort_code = r[12] or ''
+        bank = r[13] or ''
+        
+        gross = 0
+        if model == 'Hour': gross = hours * rate
+        elif model == 'Day': gross = days * rate
+        elif model == 'Year': gross = (rate / 52)
+            
+        tax = 0.0
+        social = 0.0
+        
+        if role_type != 'Sub-Contractor':
+            est_tax, est_social = TaxEngine.calculate(gross, country)
+            tax = est_tax if tax_limit == 0 else min(est_tax, tax_limit)
+            social = est_social if ni_limit == 0 else min(est_social, ni_limit)
+                
+        deductions = tax + social
+        net = round(gross - deductions, 2)
+        
+        if net > 0:
+            writer.writerow([name, acc_num, sort_code, bank, f"{net:.2f}", f"Wages W/C {start_of_week.strftime('%d%b')}"])
+            
+    conn.close()
+    
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-disposition": f"attachment; filename=Payroll_Export_WC_{start_of_week.strftime('%Y-%m-%d')}.csv"}
+    )
                           
 # --- SETTINGS: IMPORT CENTER ---
 @finance_bp.route('/finance/settings/import', methods=['GET', 'POST'])

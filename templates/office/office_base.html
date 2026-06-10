@@ -103,21 +103,12 @@
             <i class="fas fa-home me-3"></i> Dashboard
         </a>
 
-        {% if 'ServiceDesk' in session.get('modules', []) %}
-            <a href="/office/service-desk" class="{% if 'service-desk' in request.path %}active{% endif %}">
-                <i class="fas fa-headset me-3"></i> Service Desk
-            </a>
-        {% else %}
-            <a href="#" class="text-white-50" style="cursor: not-allowed;" onclick="alert('🔒 Premium Feature\n\nThe Service Desk module is not included in your current plan.\n\nPlease contact support to upgrade.'); return false;">
-                <i class="fas fa-headset me-3"></i> Service Desk <i class="fas fa-lock ms-2 small"></i>
-            </a>
-        {% endif %}     
+        <a href="/office/service-desk" class="{% if 'service-desk' in request.path %}active{% endif %}">
+            <i class="fas fa-headset me-3"></i> Desk & Compliance
+        </a>
            
         <a href="/office/calendar" class="{% if 'calendar' in request.path %}active{% endif %}">
             <i class="fas fa-calendar-alt me-3"></i> Master Calendar
-        </a>
-        <a href="/office/compliance" class="{% if 'compliance' in request.path %}active{% endif %}">
-            <i class="fas fa-exclamation-triangle me-3"></i> Compliance
         </a>
         <a href="/office/inbox" class="{% if 'inbox' in request.path %}active{% endif %}">
             <i class="fas fa-inbox me-3"></i> Client Inbox
@@ -157,6 +148,8 @@
 
         {% block content %}{% endblock %}
     </div>
+
+    {% include "components/quick_add.html" ignore missing %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     {% block scripts %}{% endblock %}

@@ -28,6 +28,97 @@ def format_date(d, fmt_str='%d/%m/%Y'):
     except:
         return str(d)
 
+@office_bp.route('/office/service-desk')
+def service_desk():
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Office']: return redirect(url_for('auth.login'))
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. FETCH SERVICE REQUESTS (TICKETS)
+    cur.execute("""
+        SELECT sr.id, sr.priority, p.address_line1, sr.issue_description, c.name, sr.status, sr.photo_path, sr.created_at
+        FROM service_requests sr
+        JOIN properties p ON sr.property_id = p.id
+        JOIN clients c ON sr.client_id = c.id
+        WHERE sr.company_id = %s AND sr.status != 'Completed'
+        ORDER BY sr.created_at DESC
+    """, (comp_id,))
+    
+    raw_reqs = cur.fetchall()
+    requests = []
+    for r in raw_reqs:
+        requests.append({
+            'id': r[0], 'severity': r[1], 'property_address': r[2],
+            'issue_description': r[3], 'client_name': r[4], 'status': r[5],
+            'photo_path': r[6], 'date': r[7].strftime('%d/%m/%Y %H:%M') if r[7] else ''
+        })
+
+    # 2. FETCH COMPLIANCE ALERTS
+    cur.execute("""
+        SELECT p.id, p.address_line1, p.postcode, c.name,
+               p.gas_expiry, p.eicr_expiry, p.epc_expiry, p.pat_expiry
+        FROM properties p
+        LEFT JOIN clients c ON p.client_id = c.id
+        WHERE p.company_id = %s
+          AND (
+               (p.gas_expiry IS NOT NULL AND p.gas_expiry <= CURRENT_DATE + INTERVAL '30 days') OR
+               (p.eicr_expiry IS NOT NULL AND p.eicr_expiry <= CURRENT_DATE + INTERVAL '30 days') OR
+               (p.epc_expiry IS NOT NULL AND p.epc_expiry <= CURRENT_DATE + INTERVAL '30 days') OR
+               (p.pat_expiry IS NOT NULL AND p.pat_expiry <= CURRENT_DATE + INTERVAL '30 days')
+          )
+        ORDER BY p.gas_expiry ASC NULLS LAST
+    """, (comp_id,))
+    
+    expiring_props = []
+    for row in cur.fetchall():
+        expiring_props.append({
+            'prop_id': row[0], 'address': f"{row[1]}, {row[2]}", 'client': row[3],
+            'client_id': row[3], # Need actual client_id for quote generation, wait, let's fix this
+            'gas': row[4], 'eicr': row[5], 'epc': row[6], 'pat': row[7]
+        })
+        
+    # Re-fetch with client_id
+    cur.execute("""
+        SELECT p.id, p.address_line1, p.postcode, c.name, c.id,
+               p.gas_expiry, p.eicr_expiry, p.epc_expiry, p.pat_expiry
+        FROM properties p
+        LEFT JOIN clients c ON p.client_id = c.id
+        WHERE p.company_id = %s
+          AND (
+               (p.gas_expiry IS NOT NULL AND p.gas_expiry <= CURRENT_DATE + INTERVAL '30 days') OR
+               (p.eicr_expiry IS NOT NULL AND p.eicr_expiry <= CURRENT_DATE + INTERVAL '30 days') OR
+               (p.epc_expiry IS NOT NULL AND p.epc_expiry <= CURRENT_DATE + INTERVAL '30 days') OR
+               (p.pat_expiry IS NOT NULL AND p.pat_expiry <= CURRENT_DATE + INTERVAL '30 days')
+          )
+        ORDER BY p.gas_expiry ASC NULLS LAST
+    """, (comp_id,))
+    
+    expiring_props = []
+    for row in cur.fetchall():
+        expiring_props.append({
+            'prop_id': row[0], 'address': f"{row[1]}, {row[2]}", 'client': row[3],
+            'client_id': row[4],
+            'gas': row[5], 'eicr': row[6], 'epc': row[7], 'pat': row[8]
+        })
+
+    # 3. FETCH STAFF FOR DISPATCH MODAL
+    cur.execute("SELECT id, name FROM staff WHERE company_id=%s AND status='Active'", (comp_id,))
+    staff = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
+
+    conn.close()
+    
+    from datetime import datetime
+    now_func = datetime.now
+    
+    return render_template('office/service_desk.html', 
+                           requests=requests, 
+                           expiring_props=expiring_props,
+                           staff=staff,
+                           brand_color=config['color'], 
+                           logo=config['logo'],
+                           now=now_func)
+
 @office_bp.route('/office-hub')
 def office_dashboard():
     if not check_office_access(): return redirect(url_for('auth.login'))

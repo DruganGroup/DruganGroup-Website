@@ -272,6 +272,55 @@ def property_detail(property_id):
                          compliance=compliance, job_history=job_history)
 
 # --- 6. ARCHIVE PROPERTY (WAS DELETE) ---
+@portal_bp.route('/portal/request/submit', methods=['POST'])
+def portal_request_submit():
+    if not check_portal_access(): return redirect(get_login_url())
+    client_id = session['portal_client_id']
+    comp_id = session['portal_company_id']
+    
+    prop_id = request.form.get('property_id')
+    desc = request.form.get('description')
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    # DB Update for photo_path
+    try:
+        cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS photo_path TEXT;")
+        conn.commit()
+    except:
+        conn.rollback()
+
+    photo_path = None
+    if 'photo' in request.files:
+        f = request.files['photo']
+        if f and f.filename != '':
+            from werkzeug.utils import secure_filename
+            import os
+            from flask import current_app
+            save_dir = os.path.join(current_app.static_folder, 'uploads', f"company_{comp_id}", 'requests')
+            os.makedirs(save_dir, exist_ok=True)
+            from datetime import datetime
+            fn = secure_filename(f"req_{int(datetime.now().timestamp())}_{f.filename}")
+            f.save(os.path.join(save_dir, fn))
+            photo_path = f"/uploads/company_{comp_id}/requests/{fn}"
+
+    try:
+        cur.execute("""
+            INSERT INTO service_requests (company_id, client_id, property_id, issue_description, priority, status, photo_path)
+            VALUES (%s, %s, %s, %s, 'High', 'Pending', %s)
+        """, (comp_id, client_id, prop_id, desc, photo_path))
+        conn.commit()
+        from flask import flash
+        flash("✅ Issue reported successfully. The office has been notified.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error submitting request: {e}", "error")
+    finally:
+        conn.close()
+
+    return redirect(f'/portal/property/{prop_id}')
+
+# --- 6. ARCHIVE PROPERTY (WAS DELETE) ---
 @portal_bp.route('/portal/property/archive/<int:property_id>', methods=['POST'])
 def archive_property(property_id):
     if not check_portal_access(): return redirect(get_login_url())

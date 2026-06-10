@@ -16,9 +16,12 @@
         <button class="btn btn-outline-dark fw-bold" onclick="window.print()">
             <i class="fas fa-print me-2"></i> Print Report
         </button>
-        <button class="btn btn-success fw-bold shadow-sm">
-            <i class="fas fa-lock me-2"></i> Finalize & Pay
-        </button>
+        <form action="/finance/payroll/export" method="POST" class="m-0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-success fw-bold shadow-sm">
+                <i class="fas fa-file-csv me-2"></i> Finalize & Export Bank CSV
+            </button>
+        </form>
     </div>
 </div>
 

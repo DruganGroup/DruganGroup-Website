@@ -72,12 +72,16 @@
                 <i class="fas fa-exclamation-triangle me-2"></i>Report an Issue
             </div>
             <div class="card-body">
-                <form action="/portal/request/submit" method="POST">
-				<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <input type="hidden" name="property_id" value="{{ prop[0] }}">
+                <form action="/portal/request/submit" method="POST" enctype="multipart/form-data">
+				    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="property_id" value="{{ prop[0] }}">
                     <div class="mb-3">
                         <label class="small fw-bold mb-1">Issue Description</label>
                         <textarea name="description" class="form-control" rows="3" placeholder="Describe the fault..." required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small fw-bold mb-1">Upload Photo (Optional)</label>
+                        <input type="file" name="photo" class="form-control" accept="image/*">
                     </div>
                     <div class="mb-3">
                         <label class="small fw-bold mb-1">Urgency</label>
