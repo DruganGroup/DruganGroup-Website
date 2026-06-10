@@ -23,17 +23,19 @@
         <!-- Folders Sidebar -->
         <div class="col-md-3 col-lg-2">
             <div class="list-group shadow-sm border-0 rounded-3">
-                <a href="#" class="list-group-item list-group-item-action active fw-bold border-0 py-3" aria-current="true">
+                <a href="{{ url_for('office.inbox', folder='Inbox') }}" class="list-group-item list-group-item-action {% if current_folder == 'Inbox' %}active text-primary bg-white border-primary border-start border-4{% else %}text-muted border-0{% endif %} fw-bold py-3" aria-current="true">
                     <i class="fas fa-inbox me-2"></i> Inbox
-                    <span class="badge bg-white text-primary rounded-pill float-end">{{ emails|length }}</span>
+                    {% if current_folder == 'Inbox' %}
+                    <span class="badge bg-primary-subtle text-primary rounded-pill float-end">{{ inbox_count }}</span>
+                    {% endif %}
                 </a>
-                <a href="#" class="list-group-item list-group-item-action fw-bold border-0 py-3 text-muted">
+                <a href="{{ url_for('office.inbox', folder='Sent') }}" class="list-group-item list-group-item-action {% if current_folder == 'Sent' %}active text-primary bg-white border-primary border-start border-4{% else %}text-muted border-0{% endif %} fw-bold py-3">
                     <i class="fas fa-paper-plane me-2"></i> Sent
                 </a>
-                <a href="#" class="list-group-item list-group-item-action fw-bold border-0 py-3 text-muted">
+                <a href="{{ url_for('office.inbox', folder='Drafts') }}" class="list-group-item list-group-item-action {% if current_folder == 'Drafts' %}active text-primary bg-white border-primary border-start border-4{% else %}text-muted border-0{% endif %} fw-bold py-3">
                     <i class="fas fa-file-alt me-2"></i> Drafts
                 </a>
-                <a href="#" class="list-group-item list-group-item-action fw-bold border-0 py-3 text-muted">
+                <a href="{{ url_for('office.inbox', folder='Trash') }}" class="list-group-item list-group-item-action {% if current_folder == 'Trash' %}active text-primary bg-white border-primary border-start border-4{% else %}text-muted border-0{% endif %} fw-bold py-3">
                     <i class="fas fa-trash me-2"></i> Trash
                 </a>
             </div>
@@ -156,10 +158,10 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <form id="composeForm" action="{{ url_for('office.send_office_email') }}" method="POST">
+                <form id="composeForm" action="{{ url_for('office.send_office_email') }}" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
-                        <input type="email" name="to_email" class="form-control border-0 border-bottom rounded-0 px-0" placeholder="To" required>
+                        <input type="email" name="to_email" id="composeToEmail" class="form-control border-0 border-bottom rounded-0 px-0" placeholder="To" required>
                     </div>
                     <div class="mb-3">
                         <input type="text" name="subject" class="form-control border-0 border-bottom rounded-0 px-0 fw-bold" placeholder="Subject" required>
@@ -167,8 +169,35 @@
                     <div class="mb-3">
                         <textarea name="body" class="form-control border-0 px-0" rows="10" placeholder="Write your message here..." required></textarea>
                     </div>
-                    <div class="modal-footer bg-light border-0 mt-3 px-0 pb-0">
-                        <button type="button" class="btn btn-outline-secondary fw-bold" disabled><i class="fas fa-paperclip me-1"></i> Attach (Coming soon)</button>
+                    
+                    <!-- Hidden input for DB files -->
+                    <input type="hidden" name="db_attachment" id="dbAttachmentPath">
+                    
+                    <div id="attachmentPreview" class="d-none mb-3 p-2 bg-light border rounded">
+                        <span class="fw-bold text-primary"><i class="fas fa-paperclip"></i> Attached: </span>
+                        <span id="attachmentName" class="text-dark"></span>
+                        <button type="button" class="btn-close btn-sm float-end" onclick="clearAttachment()"></button>
+                    </div>
+                    
+                    <div class="modal-footer bg-light border-0 mt-3 px-0 pb-0 d-flex justify-content-between">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary fw-bold dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-paperclip me-1"></i> Attach
+                            </button>
+                            <ul class="dropdown-menu shadow">
+                                <li>
+                                    <label class="dropdown-item" style="cursor:pointer;">
+                                        <i class="fas fa-desktop me-2 text-muted"></i> Upload from PC
+                                        <input type="file" name="local_attachment" id="localAttachment" class="d-none" onchange="handleLocalAttachment(this)">
+                                    </label>
+                                </li>
+                                <li>
+                                    <button type="button" class="dropdown-item" onclick="fetchClientFiles()">
+                                        <i class="fas fa-folder-open me-2 text-muted"></i> Recent Client Files
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
                         <button type="submit" class="btn btn-primary fw-bold px-4"><i class="fas fa-paper-plane me-2"></i> Send</button>
                     </div>
                 </form>
@@ -245,6 +274,96 @@ async function draftReply() {
     } catch(e) {
         draftContent.value = 'Error drafting reply. Please check your AI API key settings.';
     }
+}
+
+// Attachment Logic
+function handleLocalAttachment(input) {
+    if (input.files && input.files[0]) {
+        document.getElementById('dbAttachmentPath').value = ''; // clear db path
+        document.getElementById('attachmentName').innerText = input.files[0].name;
+        document.getElementById('attachmentPreview').classList.remove('d-none');
+    }
+}
+
+function clearAttachment() {
+    document.getElementById('localAttachment').value = '';
+    document.getElementById('dbAttachmentPath').value = '';
+    document.getElementById('attachmentPreview').classList.add('d-none');
+}
+
+async function fetchClientFiles() {
+    const email = document.getElementById('composeToEmail').value;
+    if (!email) {
+        alert("Please enter a client email address in the 'To' field first.");
+        return;
+    }
+    
+    // Create or show modal for file selection
+    let modalEl = document.getElementById('clientFilesModal');
+    if (!modalEl) {
+        const modalHtml = `
+        <div class="modal fade" id="clientFilesModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content shadow-lg border-0 rounded-4">
+                    <div class="modal-header bg-light border-0">
+                        <h5 class="modal-title fw-bold"><i class="fas fa-folder-open me-2 text-primary"></i> Client Files</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-0">
+                        <div class="list-group list-group-flush" id="clientFilesList">
+                            <div class="p-4 text-center"><i class="fas fa-spinner fa-spin me-2"></i> Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modalEl = document.getElementById('clientFilesModal');
+    }
+    
+    const bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show();
+    
+    const listEl = document.getElementById('clientFilesList');
+    listEl.innerHTML = '<div class="p-4 text-center"><i class="fas fa-spinner fa-spin me-2"></i> Loading files...</div>';
+    
+    try {
+        const res = await fetch(`/office/api/client_files?email=${encodeURIComponent(email)}`);
+        const files = await res.json();
+        
+        if (files.length === 0) {
+            listEl.innerHTML = '<div class="p-4 text-center text-muted">No recent files found for this client.</div>';
+            return;
+        }
+        
+        let html = '';
+        files.forEach(f => {
+            html += `
+            <button type="button" class="list-group-item list-group-item-action p-3" onclick="selectDbFile('${f.path}', '${f.name}')">
+                <div class="d-flex w-100 justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1 fw-bold text-dark"><i class="fas fa-file-pdf text-danger me-2"></i> ${f.name}</h6>
+                        <small class="text-muted">${f.type}</small>
+                    </div>
+                    <i class="fas fa-plus-circle text-primary"></i>
+                </div>
+            </button>`;
+        });
+        listEl.innerHTML = html;
+    } catch(e) {
+        listEl.innerHTML = '<div class="p-4 text-center text-danger">Error loading files.</div>';
+    }
+}
+
+function selectDbFile(path, name) {
+    document.getElementById('localAttachment').value = ''; // clear local file
+    document.getElementById('dbAttachmentPath').value = path;
+    document.getElementById('attachmentName').innerText = name;
+    document.getElementById('attachmentPreview').classList.remove('d-none');
+    
+    const modalEl = document.getElementById('clientFilesModal');
+    const bsModal = bootstrap.Modal.getInstance(modalEl);
+    bsModal.hide();
 }
 </script>
 {% endblock %}

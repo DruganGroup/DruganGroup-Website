@@ -131,7 +131,8 @@ def login():
         # Fetch user AND settings
         cur.execute("""
             SELECT u.id, u.name, u.password_hash, u.role, u.company_id, u.email,
-                   s.value as status
+                   s.value as status,
+                   (SELECT value FROM settings WHERE company_id = u.company_id AND key = 'company_name' LIMIT 1) as company_name
             FROM users u 
             LEFT JOIN settings s ON u.company_id = s.company_id AND s.key = 'subscription_status'
             WHERE LOWER(TRIM(u.email)) = LOWER(TRIM(%s))
@@ -148,6 +149,7 @@ def login():
             session['role'] = user[3]
             session['company_id'] = user[4]
             session['user_email'] = user[5] 
+            session['company_name'] = user[7] or 'My Company'
             
             # Load Modules (The Gatekeeper)
             cur.execute("SELECT modules FROM subscriptions WHERE company_id = %s", (user[4],))

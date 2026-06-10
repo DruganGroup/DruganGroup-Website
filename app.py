@@ -186,6 +186,7 @@ def update_db_temp():
         try:
             cur = conn.cursor()
             cur.execute("ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending';")
+            cur.execute("ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS notes TEXT;")
             conn.commit()
             return "SUCCESS"
         except Exception as e:
@@ -247,19 +248,21 @@ def inject_branding():
     # 1. IF LOGGED IN (Use Session Data)
     if 'company_id' in session:
         # If session data is missing, try to fetch it
-        if not session.get('brand_color') or not session.get('logo'):
+        if not session.get('brand_color') or not session.get('logo') or not session.get('company_name'):
             try:
                 conn = get_db()
                 cur = conn.cursor()
-                cur.execute("SELECT key, value FROM settings WHERE company_id = %s AND key IN ('brand_color', 'logo')", (session['company_id'],))
+                cur.execute("SELECT key, value FROM settings WHERE company_id = %s AND key IN ('brand_color', 'logo', 'company_name')", (session['company_id'],))
                 settings = dict(cur.fetchall())
                 conn.close()
                 session['brand_color'] = settings.get('brand_color', default_color)
                 session['logo'] = settings.get('logo', default_logo)
+                session['company_name'] = settings.get('company_name', 'My Company')
             except: pass
             
         return dict(brand_color=session.get('brand_color', default_color), 
-                    logo=session.get('logo', default_logo))
+                    logo=session.get('logo', default_logo),
+                    company_name=session.get('company_name', 'My Company'))
 
     # 2. IF NOT LOGGED IN BUT ON SUBDOMAIN (Use Interceptor Data)
     if hasattr(g, 'is_white_label') and g.is_white_label:

@@ -475,22 +475,87 @@ def schedule_job():
 def inbox():
     if not check_office_access(): return redirect(url_for('auth.login'))
     comp_id = session.get('company_id')
+    folder = request.args.get('folder', 'Inbox')
+    
     conn = get_db(); cur = conn.cursor()
     
     try:
-        cur.execute("SELECT id, msg_id, sender, subject, body, date, client_id, status FROM emails WHERE company_id = %s ORDER BY date DESC LIMIT 50", (comp_id,))
+        # Ensure folder column exists
+        cur.execute("ALTER TABLE emails ADD COLUMN IF NOT EXISTS folder VARCHAR(20) DEFAULT 'Inbox';")
+        conn.commit()
+        
+        cur.execute("""
+            SELECT id, msg_id, sender, subject, body, date, client_id, status 
+            FROM emails 
+            WHERE company_id = %s AND folder = %s 
+            ORDER BY date DESC LIMIT 50
+        """, (comp_id, folder))
+        
         emails = []
         for r in cur.fetchall():
             emails.append({
                 'id': r[0], 'msg_id': r[1], 'sender': r[2], 'subject': r[3],
                 'body': r[4], 'date': r[5], 'client_id': r[6], 'status': r[7]
             })
-    except:
+            
+        # Get counts
+        cur.execute("SELECT COUNT(*) FROM emails WHERE company_id = %s AND folder = 'Inbox'", (comp_id,))
+        inbox_count = cur.fetchone()[0]
+    except Exception as e:
         emails = []
+        inbox_count = 0
     finally:
         conn.close()
         
-    return render_template('office/inbox.html', emails=emails)
+    return render_template('office/inbox.html', emails=emails, current_folder=folder, inbox_count=inbox_count)
+
+@office_bp.route('/office/api/client_files')
+def api_client_files():
+    if not check_office_access(): return jsonify({'error': 'Unauthorized'}), 401
+    
+    email = request.args.get('email')
+    if not email: return jsonify([])
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    
+    try:
+        # Find client_id by email
+        cur.execute("SELECT id FROM clients WHERE email = %s AND company_id = %s", (email, comp_id))
+        client_row = cur.fetchone()
+        
+        if not client_row:
+            return jsonify([])
+            
+        client_id = client_row[0]
+        
+        # Fetch files from job_evidence related to this client
+        cur.execute("""
+            SELECT f.id, f.file_type, f.filepath, j.ref
+            FROM job_evidence f
+            JOIN jobs j ON f.job_id = j.id
+            WHERE j.client_id = %s AND j.company_id = %s
+            ORDER BY f.uploaded_at DESC LIMIT 20
+        """, (client_id, comp_id))
+        
+        files = []
+        for r in cur.fetchall():
+            # Extract filename from path
+            path = r[2] or ""
+            filename = path.split('/')[-1] if '/' in path else path
+            files.append({
+                'id': r[0],
+                'type': r[1],
+                'path': path,
+                'name': f"{r[3]} - {filename}"
+            })
+            
+        return jsonify(files)
+    except Exception as e:
+        print(f"Error fetching client files: {e}")
+        return jsonify([])
+    finally:
+        conn.close()
 
 @office_bp.route('/office/inbox/sync')
 def sync_emails():
@@ -537,10 +602,54 @@ def send_office_email():
         flash("❌ All fields are required to send an email.", "error")
         return redirect(url_for('office.inbox'))
         
+    # Check for attachments
+    from werkzeug.utils import secure_filename
+    import os
+    
+    local_file = request.files.get('local_attachment')
+    db_file_path = request.form.get('db_attachment')
+    
+    attachment_path = None
+    if local_file and local_file.filename:
+        filename = secure_filename(local_file.filename)
+        temp_dir = os.path.join(current_app.static_folder, 'uploads', 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        temp_path = os.path.join(temp_dir, filename)
+        local_file.save(temp_path)
+        attachment_path = temp_path
+    elif db_file_path:
+        # Convert web path to absolute path
+        clean_path = db_file_path.lstrip('/')
+        if clean_path.startswith('static/'):
+            clean_path = clean_path.replace('static/', '', 1)
+        attachment_path = os.path.join(current_app.static_folder, clean_path)
+        
     from email_service import send_company_email
-    success, msg = send_company_email(comp_id, to_email, subject, body)
+    success, msg = send_company_email(comp_id, to_email, subject, body, pdf_path=attachment_path)
     
     if success:
+        # Log to 'Sent' folder
+        conn = get_db(); cur = conn.cursor()
+        try:
+            # Ensure folder column exists
+            cur.execute("ALTER TABLE emails ADD COLUMN IF NOT EXISTS folder VARCHAR(20) DEFAULT 'Inbox';")
+            
+            # Try to find client_id
+            cur.execute("SELECT id FROM clients WHERE email = %s AND company_id = %s", (to_email, comp_id))
+            client_row = cur.fetchone()
+            client_id = client_row[0] if client_row else None
+            
+            from datetime import datetime
+            cur.execute("""
+                INSERT INTO emails (company_id, msg_id, sender, subject, body, date, client_id, status, folder)
+                VALUES (%s, %s, %s, %s, %s, NOW(), %s, 'Read', 'Sent')
+            """, (comp_id, f"sent-{datetime.now().timestamp()}", "You", subject, body, client_id))
+            conn.commit()
+        except Exception as e:
+            print(f"Error logging sent email: {e}")
+        finally:
+            conn.close()
+            
         flash("✅ Email sent successfully!", "success")
     else:
         flash(f"❌ {msg}", "error")
