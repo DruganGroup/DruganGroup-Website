@@ -1,0 +1,64 @@
+{% extends "office/office_base.html" %}
+
+{% block title %}Expiring Compliance Certificates{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-exclamation-triangle text-warning me-2"></i> Expiring Certificates</h2>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <p class="text-muted mb-4">Properties with certificates expiring in the next 30 days or already expired.</p>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Property</th>
+                        <th>Client</th>
+                        <th>Gas (CP12)</th>
+                        <th>Electric (EICR)</th>
+                        <th>Energy (EPC)</th>
+                        <th>PAT</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in expiring_props %}
+                    <tr>
+                        <td class="fw-bold">{{ p.address }}</td>
+                        <td>{{ p.client }}</td>
+                        
+                        {% set today = now() if now else None %}
+                        
+                        <td class="{{ 'text-danger fw-bold' if p.gas and p.gas|string < today|string else ('text-warning fw-bold' if p.gas else 'text-muted') }}">
+                            {{ p.gas.strftime('%d/%m/%Y') if p.gas else '-' }}
+                        </td>
+                        <td class="{{ 'text-danger fw-bold' if p.eicr and p.eicr|string < today|string else ('text-warning fw-bold' if p.eicr else 'text-muted') }}">
+                            {{ p.eicr.strftime('%d/%m/%Y') if p.eicr else '-' }}
+                        </td>
+                        <td class="{{ 'text-danger fw-bold' if p.epc and p.epc|string < today|string else ('text-warning fw-bold' if p.epc else 'text-muted') }}">
+                            {{ p.epc.strftime('%d/%m/%Y') if p.epc else '-' }}
+                        </td>
+                        <td class="{{ 'text-danger fw-bold' if p.pat and p.pat|string < today|string else ('text-warning fw-bold' if p.pat else 'text-muted') }}">
+                            {{ p.pat.strftime('%d/%m/%Y') if p.pat else '-' }}
+                        </td>
+                        
+                        <td>
+                            <a href="/office/quote/new?client_id={{ p.client_id }}&property_id={{ p.prop_id }}" class="btn btn-sm btn-outline-primary">Create Quote</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="fas fa-check-circle fa-2x mb-2 text-success"></i><br>
+                            All compliance certificates are up to date!
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -66,11 +66,12 @@ def job_files(job_id):
             j.ref, j.description, j.site_address, j.status, 
             j.quote_id, COALESCE(j.quote_total, 0),
             c.name, c.email, c.phone, q.job_title,
-            v.daily_cost, v.reg_plate  -- <--- NEW: Get Van Cost
+            v.daily_cost, v.reg_plate, j.property_id, p.key_code
         FROM jobs j 
         LEFT JOIN clients c ON j.client_id = c.id
         LEFT JOIN quotes q ON j.quote_id = q.id
         LEFT JOIN vehicles v ON j.vehicle_id = v.id
+        LEFT JOIN properties p ON j.property_id = p.id
         WHERE j.id = %s AND j.company_id = %s
     """, (job_id, comp_id))
     
@@ -83,7 +84,9 @@ def job_files(job_id):
 
     job = {
         'id': job_id, 'ref': job_row[0], 'desc': job_row[1], 'address': job_row[2],
-        'status': job_row[3], 'client': job_row[6], 'title': job_row[9] or f"Job {job_row[0]}"
+        'status': job_row[3], 'client': job_row[6], 'title': job_row[9] or f"Job {job_row[0]}",
+        'property_id': job_row[12] or '',
+        'key_code': job_row[13] or ''
     }
     quote_total = float(job_row[5])
     

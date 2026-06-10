@@ -708,34 +708,23 @@ def get_client_properties(client_id):
 def generate_job_rams(job_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
     
-    # 1. Fetch Job Data
+    # Check if a RAMS exists
     conn = get_db(); cur = conn.cursor()
-    cur.execute("""
-        SELECT j.ref, j.description, j.site_address, c.name
-        FROM jobs j
-        LEFT JOIN clients c ON j.client_id = c.id
-        WHERE j.id = %s
-    """, (job_id,))
-    job = cur.fetchone()
+    comp_id = session.get('company_id')
+    cur.execute("SELECT pdf_path FROM job_rams WHERE job_id = %s AND company_id = %s ORDER BY created_at DESC LIMIT 1", (job_id, comp_id))
+    rams_row = cur.fetchone()
     conn.close()
     
-    if not job: return "Job not found", 404
+    if rams_row and rams_row[0]:
+        # Existing PDF
+        import os
+        from flask import current_app, send_from_directory
+        file_path = os.path.join(current_app.static_folder, 'uploads', 'documents')
+        return send_from_directory(file_path, rams_row[0])
+    
+    # Generate new style via the create route
+    return redirect(url_for('pdf.create_rams_form', job_id=job_id))
 
-    # 2. Generate PDF (Placeholder logic - requires your PDF service)
-    # If you have a specific RAMS generator service, call it here.
-    # For now, we return a simple PDF to prove the link works.
-    try:
-        from services.pdf_generator import create_simple_pdf
-        pdf_bytes = create_simple_pdf(f"RAMS DOCUMENT\nRef: {job[0]}\nClient: {job[3]}\nRisk Assessment & Method Statement")
-        return send_file(
-            io.BytesIO(pdf_bytes),
-            mimetype='application/pdf',
-            as_attachment=False,
-            download_name=f"RAMS_{job[0]}.pdf"
-        )
-    except ImportError:
-        return "PDF Service Missing. Please check backend services.", 500   
-        
 @office_bp.route('/office/job/<int:job_id>/materials/pdf')
 def job_materials_pdf(job_id):
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -744,10 +733,20 @@ def job_materials_pdf(job_id):
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
     
-    # 1. Fetch Job Details
-    cur.execute("SELECT ref, site_address FROM jobs WHERE id = %s AND company_id = %s", (job_id, comp_id))
+    # 1. Fetch Job Details + Property Address
+    cur.execute("""
+        SELECT j.ref, p.address_line1, p.postcode, j.site_address, c.name 
+        FROM jobs j 
+        LEFT JOIN properties p ON j.property_id = p.id 
+        LEFT JOIN clients c ON j.client_id = c.id
+        WHERE j.id = %s AND j.company_id = %s
+    """, (job_id, comp_id))
     job = cur.fetchone()
-    if not job: return "Job not found", 404
+    if not job: 
+        conn.close()
+        return "Job not found", 404
+        
+    delivery_address = f"{job[1]}, {job[2]}" if job[1] else (job[3] or "No delivery address logged")
     
     # 2. Fetch Materials
     cur.execute("SELECT description, quantity FROM job_materials WHERE job_id = %s", (job_id,))
@@ -762,11 +761,88 @@ def job_materials_pdf(job_id):
         'config': config,
         'ref': job[0],
         'date': date.today().strftime('%d/%m/%Y'),
-        'address': job[1],
+        'address': delivery_address,
+        'client_name': job[4],
         'items': items,
         'grouped_items': None
     }
     
     # 5. Generate and Return PDF
     from services.pdf_generator import generate_pdf
-    return generate_pdf('office/pdf_materials.html', context, f"Materials_{job[0]}.pdf")
+    return generate_pdf('office/pdf_materials.html', context, f"Materials_Delivery_{job[0]}.pdf")
+
+@office_bp.route('/office/job/<int:job_id>/materials/email', methods=['POST'])
+def email_materials_supplier(job_id):
+    if not check_office_access(): return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    supplier_email = data.get('email')
+    if not supplier_email: return jsonify({'error': 'No email provided'}), 400
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    
+    try:
+        cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+        settings = {row[0]: row[1] for row in cur.fetchall()}
+        
+        if 'smtp_host' not in settings:
+            return jsonify({'error': 'SMTP not configured'}), 400
+
+        cur.execute("""
+            SELECT j.ref, p.address_line1, p.postcode, j.site_address, c.name 
+            FROM jobs j 
+            LEFT JOIN properties p ON j.property_id = p.id 
+            LEFT JOIN clients c ON j.client_id = c.id
+            WHERE j.id = %s AND j.company_id = %s
+        """, (job_id, comp_id))
+        job = cur.fetchone()
+        delivery_address = f"{job[1]}, {job[2]}" if job[1] else (job[3] or "No delivery address logged")
+
+        cur.execute("SELECT description, quantity FROM job_materials WHERE job_id = %s", (job_id,))
+        items = [{'desc': r[0], 'qty': r[1], 'supplier': 'General'} for r in cur.fetchall()]
+        
+        config = get_site_config(comp_id)
+        context = {
+            'config': config,
+            'ref': job[0],
+            'date': date.today().strftime('%d/%m/%Y'),
+            'address': delivery_address,
+            'client_name': job[4],
+            'items': items,
+            'grouped_items': None
+        }
+        
+        from services.pdf_generator import generate_pdf
+        filename = f"Materials_{job[0]}.pdf"
+        pdf_path = generate_pdf('office/pdf_materials.html', context, filename)
+        
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.application import MIMEApplication
+        
+        msg = MIMEMultipart()
+        msg['From'] = settings.get('smtp_email')
+        msg['To'] = supplier_email
+        msg['Subject'] = f"Material Order - Ref: {job[0]}"
+        
+        body = f"Please find attached the material order for delivery.\n\nDelivery Address:\n{delivery_address}\n\nThank you,\n{session.get('company_name')}"
+        msg.attach(MIMEText(body, 'plain'))
+        
+        with open(pdf_path, "rb") as f:
+            part = MIMEApplication(f.read(), Name=filename)
+            part['Content-Disposition'] = f'attachment; filename="{filename}"'
+            msg.attach(part)
+            
+        server = smtplib.SMTP(settings['smtp_host'], int(settings.get('smtp_port', 587)))
+        server.starttls()
+        server.login(settings['smtp_email'], settings['smtp_password'])
+        server.send_message(msg)
+        server.quit()
+        
+        return jsonify({'success': 'Email sent successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()

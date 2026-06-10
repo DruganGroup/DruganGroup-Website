@@ -54,9 +54,9 @@
                 <h6 class="text-muted fw-bold text-uppercase small">Location</h6>
                 <h5 class="fw-bold mb-1">{{ job.address }}</h5> 
                 
-                {% if job.gate_code %}
+                {% if job.gate_code or job.key_code %}
                 <div class="mt-2">
-                    <span class="badge bg-dark text-warning"><i class="fas fa-key me-1"></i> Gate: {{ job.gate_code }}</span>
+                    <span class="badge bg-dark text-warning"><i class="fas fa-key me-1"></i> Access/Key: {{ job.key_code or job.gate_code }}</span>
                 </div>
                 {% endif %}
 

@@ -381,6 +381,80 @@ def create_rams_form(job_id):
 
     return render_template('office/rams/create_rams.html', data=data)
 
+@pdf_bp.route('/office/cert/cp12/create')
+def create_cp12():
+    if not check_access(): return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    prop_id = request.args.get('prop_id')
+    job_id = request.args.get('job_id')
+    
+    cur.execute("""
+        SELECT p.id, p.address_line1, p.postcode, c.name, c.email 
+        FROM properties p 
+        JOIN clients c ON p.client_id = c.id 
+        WHERE p.id = %s
+    """, (prop_id,))
+    p_row = cur.fetchone()
+    conn.close()
+    
+    if not p_row: return "Property not found", 404
+    prop = {'id': p_row[0], 'address': f"{p_row[1]}, {p_row[2]}", 'client': p_row[3], 'client_email': p_row[4], 'job_id': job_id}
+    
+    next_year_date = (datetime.now().replace(year=datetime.now().year + 1)).strftime('%Y-%m-%d')
+    return render_template('office/certs/uk/cp12.html', prop=prop, next_year_date=next_year_date, data={'job_id': job_id})
+
+@pdf_bp.route('/office/cert/eicr/create')
+def create_eicr():
+    if not check_access(): return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    prop_id = request.args.get('prop_id')
+    job_id = request.args.get('job_id')
+    
+    cur.execute("""
+        SELECT p.id, p.address_line1, p.postcode, c.name, c.email 
+        FROM properties p 
+        JOIN clients c ON p.client_id = c.id 
+        WHERE p.id = %s
+    """, (prop_id,))
+    p_row = cur.fetchone()
+    conn.close()
+    
+    if not p_row: return "Property not found", 404
+    prop = {'id': p_row[0], 'address': f"{p_row[1]}, {p_row[2]}", 'client': p_row[3], 'client_email': p_row[4], 'job_id': job_id}
+    
+    next_year_date = (datetime.now().replace(year=datetime.now().year + 5)).strftime('%Y-%m-%d')
+    return render_template('office/certs/uk/eicr.html', prop=prop, next_year_date=next_year_date, data={'job_id': job_id})
+
+@pdf_bp.route('/office/cert/epc/create')
+def create_epc():
+    if not check_access(): return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    prop_id = request.args.get('prop_id')
+    cur.execute("SELECT p.id, p.address_line1, p.postcode, c.name FROM properties p JOIN clients c ON p.client_id = c.id WHERE p.id = %s", (prop_id,))
+    p_row = cur.fetchone()
+    conn.close()
+    if not p_row: return "Property not found", 404
+    prop = {'id': p_row[0], 'address': f"{p_row[1]}, {p_row[2]}", 'client': p_row[3]}
+    
+    # 10 years for EPC
+    next_year_date = (datetime.now().replace(year=datetime.now().year + 10)).strftime('%Y-%m-%d')
+    return render_template('office/certs/uk/epc.html', prop=prop, next_year_date=next_year_date)
+
+@pdf_bp.route('/office/cert/legionella/create')
+def create_legionella():
+    if not check_access(): return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    prop_id = request.args.get('prop_id')
+    cur.execute("SELECT p.id, p.address_line1, p.postcode, c.name FROM properties p JOIN clients c ON p.client_id = c.id WHERE p.id = %s", (prop_id,))
+    p_row = cur.fetchone()
+    conn.close()
+    if not p_row: return "Property not found", 404
+    prop = {'id': p_row[0], 'address': f"{p_row[1]}, {p_row[2]}", 'client': p_row[3]}
+    
+    # 1 year for Legionella
+    next_year_date = (datetime.now().replace(year=datetime.now().year + 1)).strftime('%Y-%m-%d')
+    return render_template('office/certs/uk/legionella.html', prop=prop, next_year_date=next_year_date)
+
 @pdf_bp.route('/office/job/<int:job_id>/rams/save', methods=['POST'])
 def save_and_download_rams(job_id):
     if not check_access(): return redirect(url_for('auth.login'))

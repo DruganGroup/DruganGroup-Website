@@ -311,7 +311,7 @@ def job_details(job_id):
         SELECT j.id, j.ref, j.status, c.name, c.phone, 
                COALESCE(p.address_line1, j.site_address, 'No Address Logged') as address,
                p.postcode, 
-               j.description, c.gate_code,
+               j.description, p.key_code,
                j.property_id
         FROM jobs j
         LEFT JOIN clients c ON j.client_id = c.id
@@ -555,7 +555,15 @@ def create_site_cp12():
 @site_bp.route('/site/cert/eicr/create')
 def create_site_eicr():
     return redirect(f"/office/cert/eicr/create?job_id={request.args.get('job_id')}&prop_id={request.args.get('prop_id')}")
-    
+
+@site_bp.route('/site/cert/epc/create')
+def create_site_epc():
+    return redirect(f"/office/cert/epc/create?job_id={request.args.get('job_id')}&prop_id={request.args.get('prop_id')}")
+
+@site_bp.route('/site/cert/legionella/create')
+def create_site_legionella():
+    return redirect(f"/office/cert/legionella/create?job_id={request.args.get('job_id')}&prop_id={request.args.get('prop_id')}")
+
 # =========================================================
 # LOG FUEL ROUTE (Fixes 404 Error)
 # =========================================================

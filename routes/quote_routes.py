@@ -576,39 +576,113 @@ def convert_to_invoice(quote_id):
     if not check_access(): return redirect(url_for('auth.login'))
     conn = get_db(); cur = conn.cursor(); comp_id = session.get('company_id')
 
-    # 1. Fetch Quote Data
-    cur.execute("SELECT client_id, total, status, reference FROM quotes WHERE id = %s AND company_id = %s", (quote_id, comp_id))
-    quote = cur.fetchone()
-    if not quote: return "Quote not found", 404
-    if quote[2] == 'Converted': return redirect(url_for('quote.view_quote', quote_id=quote_id))
-
-    # 2. Find Linked Job
-    cur.execute("SELECT id FROM jobs WHERE quote_id = %s", (quote_id,))
-    job_row = cur.fetchone(); job_id = job_row[0] if job_row else None
-
-    # 3. Get Payment Days (RESTORED)
-    cur.execute("SELECT value FROM settings WHERE key = 'payment_days' AND company_id = %s", (comp_id,))
-    res = cur.fetchone(); days = int(res[0]) if res and res[0] else 14 
-
-    # 4. Create Invoice (UPDATED: Writes to reference, date, total)
-    new_ref = f"INV-{quote[3]}" 
     try:
+        # 1. Fetch Quote Data
+        cur.execute("SELECT client_id, total, status, reference FROM quotes WHERE id = %s AND company_id = %s", (quote_id, comp_id))
+        quote = cur.fetchone()
+        if not quote: return "Quote not found", 404
+        if quote[2] == 'Converted': return redirect(url_for('quote.view_quote', quote_id=quote_id))
+
+        # 2. Find Linked Job
+        cur.execute("SELECT id, status FROM jobs WHERE quote_id = %s", (quote_id,))
+        job_row = cur.fetchone()
+        job_id = job_row[0] if job_row else None
+        job_status = job_row[1] if job_row else None
+
+        # 3. Get Payment Days and Settings
+        cur.execute("""
+            SELECT key, value FROM settings 
+            WHERE company_id = %s 
+            AND key IN ('payment_days', 'labour_markup_percent', 'material_markup_percent', 'vat_registered', 'country_code')
+        """, (comp_id,))
+        settings = {row[0]: row[1] for row in cur.fetchall()}
+        days = int(settings.get('payment_days', 14))
+
+        # 4. Create Invoice Header
+        new_ref = f"INV-{quote[3]}" 
         cur.execute(f"""
-            INSERT INTO invoices (company_id, client_id, job_id, quote_id, reference, date, due_date, status, total)
-            VALUES (%s, %s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE + INTERVAL '{days} days', 'Unpaid', %s)
+            INSERT INTO invoices (company_id, client_id, job_id, quote_id, reference, date, due_date, status, subtotal, tax, total)
+            VALUES (%s, %s, %s, %s, %s, CURRENT_DATE, CURRENT_DATE + INTERVAL '{days} days', 'Unpaid', 0, 0, 0)
             RETURNING id
-        """, (comp_id, quote[0], job_id, quote_id, new_ref, quote[1]))
-        
+        """, (comp_id, quote[0], job_id, quote_id, new_ref))
         new_inv_id = cur.fetchone()[0]
 
-        cur.execute("INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) SELECT %s, description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (new_inv_id, quote_id))
+        # 5. Populate Items (Smart logic based on Job Status)
+        subtotal = 0.0
+        
+        if job_status == 'Completed':
+            # Use real logged items (Labour + Materials)
+            labour_markup = float(settings.get('labour_markup_percent', 0)) / 100
+            material_markup = float(settings.get('material_markup_percent', 0)) / 100
+
+            # Fetch Labour
+            cur.execute("""
+                SELECT t.staff_id, SUM(t.total_hours) 
+                FROM staff_timesheets t 
+                WHERE t.job_id = %s 
+                GROUP BY t.staff_id
+            """, (job_id,))
+            time_entries = cur.fetchall()
+
+            for s_id, hours in time_entries:
+                if not hours: continue
+                hours = float(hours)
+                cur.execute("SELECT name, pay_rate FROM staff WHERE id = %s", (s_id,))
+                staff_row = cur.fetchone()
+                if not staff_row: continue
+                s_name = staff_row[0]
+                base_rate = float(staff_row[1] or 0)
+                charge_rate = base_rate + (base_rate * labour_markup)
+                line_total = hours * charge_rate
+                subtotal += line_total
+                
+                cur.execute("""
+                    INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) 
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (new_inv_id, f"Labour: {s_name}", hours, charge_rate, line_total))
+
+            # Fetch Materials
+            cur.execute("SELECT description, quantity, unit_price FROM job_materials WHERE job_id = %s", (job_id,))
+            for mat in cur.fetchall():
+                qty = float(mat[1] or 0)
+                cost_price = float(mat[2] or 0)
+                sell_price = cost_price + (cost_price * material_markup)
+                line_total = qty * sell_price
+                subtotal += line_total
+                
+                cur.execute("""
+                    INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) 
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (new_inv_id, f"Material: {mat[0]}", qty, sell_price, line_total))
+                
+        else:
+            # Job not completed (or doesn't exist) - use original Quote items
+            cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
+            for item in cur.fetchall():
+                subtotal += float(item[3] or 0)
+                cur.execute("""
+                    INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) 
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (new_inv_id, item[0], item[1], item[2], item[3]))
+
+        # 6. Calculate Tax & Final Total
+        is_vat = (settings.get('vat_registered') == 'yes')
+        tax_rate = 0.20 if (is_vat and settings.get('country_code', 'UK') == 'UK') else 0.0
+        tax_amt = float(subtotal) * tax_rate
+        final_total = float(subtotal) + tax_amt
+
+        cur.execute("UPDATE invoices SET subtotal = %s, tax = %s, total = %s WHERE id = %s", (subtotal, tax_amt, final_total, new_inv_id))
         cur.execute("UPDATE quotes SET status = 'Converted' WHERE id = %s", (quote_id,))
+        
         conn.commit()
         flash(f"✅ Converted to Invoice {new_ref}", "success")
         return redirect(f"/office/job/{job_id}/files") if job_id else redirect(url_for('finance.finance_invoices'))
     except Exception as e:
-        conn.rollback(); flash(f"Error: {e}", "error"); return redirect(url_for('quote.view_quote', quote_id=quote_id))
-    finally: conn.close()
+        conn.rollback()
+        flash(f"Error: {e}", "error")
+        return redirect(url_for('quote.view_quote', quote_id=quote_id))
+    finally:
+        conn.close()
     
 # =========================================================
 # 6. PDF REDIRECT

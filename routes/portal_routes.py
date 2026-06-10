@@ -229,7 +229,9 @@ def property_detail(property_id):
     cert_map = {
         'Gas Safety': ['CP12', 'Gas Safe', 'Landlord Cert'],
         'EICR': ['EICR', 'Electrical', 'Electrical Installation'],
-        'EPC': ['EPC', 'Energy Performance']
+        'EPC': ['EPC', 'Energy Performance'],
+        'Legionella Risk': ['Legionella', 'Legionella Risk', 'LRA'],
+        'PAT Test': ['PAT Test', 'Portable Appliance Testing']
     }
 
     compliance = {}

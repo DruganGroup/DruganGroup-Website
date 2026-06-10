@@ -798,24 +798,48 @@ def view_system_logs():
     total_pages = math.ceil(total_logs / per_page)
     
     # Fetch Logs with User/Company Joins
-    cur.execute("""
-        SELECT 
-            s.id,
-            TO_CHAR(s.created_at, 'DD Mon HH24:MI') as time_str,
-            s.level,
-            s.message,
-            s.traceback,
-            s.route,
-            s.ip_address,
-            u.username,
-            c.name as company_name,
-            s.status_code
-        FROM system_logs s
-        LEFT JOIN users u ON s.user_id = u.id
-        LEFT JOIN companies c ON s.company_id = c.id
-        ORDER BY s.created_at DESC
-        LIMIT %s OFFSET %s
-    """, (per_page, offset))
+    comp_id = session.get('company_id')
+    if session.get('role') == 'SuperAdmin' and session.get('is_global_admin', False):
+        query = """
+            SELECT 
+                s.id,
+                TO_CHAR(s.created_at, 'DD Mon HH24:MI') as time_str,
+                s.level,
+                s.message,
+                s.traceback,
+                s.route,
+                s.ip_address,
+                u.username,
+                c.name as company_name,
+                s.status_code
+            FROM system_logs s
+            LEFT JOIN users u ON s.user_id = u.id
+            LEFT JOIN companies c ON s.company_id = c.id
+            ORDER BY s.created_at DESC
+            LIMIT %s OFFSET %s
+        """
+        cur.execute(query, (per_page, offset))
+    else:
+        query = """
+            SELECT 
+                s.id,
+                TO_CHAR(s.created_at, 'DD Mon HH24:MI') as time_str,
+                s.level,
+                s.message,
+                s.traceback,
+                s.route,
+                s.ip_address,
+                u.username,
+                c.name as company_name,
+                s.status_code
+            FROM system_logs s
+            LEFT JOIN users u ON s.user_id = u.id
+            LEFT JOIN companies c ON s.company_id = c.id
+            WHERE s.company_id = %s
+            ORDER BY s.created_at DESC
+            LIMIT %s OFFSET %s
+        """
+        cur.execute(query, (comp_id, per_page, offset))
     logs = cur.fetchall()
     conn.close()
     

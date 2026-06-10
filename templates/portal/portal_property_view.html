@@ -31,7 +31,7 @@
                 <div class="d-flex justify-content-between align-items-end mt-1">
                     <h6 class="fw-bold m-0">{{ data.date }}</h6>
                     {% if data.download_url %}
-                        <a href="{{ data.download_url }}" target="_blank" class="badge bg-{{ data.class }} text-white text-decoration-none" title="Download Certificate">
+                        <a href="/{{ data.download_url }}" target="_blank" class="badge bg-{{ data.class }} text-white text-decoration-none" title="Download Certificate">
                             <i class="fas fa-download me-1"></i> {{ data.label }}
                         </a>
                     {% else %}
