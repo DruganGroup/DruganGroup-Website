@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash
 import secrets
 import string
+from utils.encryption import get_encryptor
 import os
 import csv
 import shutil
@@ -529,6 +530,7 @@ def settings_general():
     
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
+    encryptor = get_encryptor()
 
     if request.method == 'POST':
         try:
@@ -543,6 +545,10 @@ def settings_general():
             for field in fields:
                 val = request.form.get(field)
                 if val is not None:
+                    # Encrypt sensitive fields before saving
+                    if encryptor.is_encrypted_key(field) and val:
+                        val = encryptor.encrypt(val)
+                    
                     cur.execute("""
                         INSERT INTO settings (company_id, key, value) 
                         VALUES (%s, %s, %s) 
@@ -580,7 +586,16 @@ def settings_general():
             flash(f"Error saving settings: {e}")
 
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
-    settings = {row[0]: row[1] for row in cur.fetchall()}
+    raw_settings = cur.fetchall()
+    
+    # Decrypt sensitive settings before displaying
+    settings = {}
+    for key, value in raw_settings:
+        if encryptor.is_encrypted_key(key) and value:
+            settings[key] = encryptor.decrypt(value) or ''
+        else:
+            settings[key] = value
+    
     conn.close()
 
     return render_template('finance/settings_general.html', settings=settings, active_tab='general')
@@ -923,23 +938,37 @@ def settings_integrations():
     
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
+    encryptor = get_encryptor()
 
     if request.method == 'POST':
-        # Save Keys to Settings Table
-        keys = ['samsara_api_key', 'geotab_user', 'geotab_database', 'geotab_password']
+        # Save Keys to Settings Table with encryption
+        keys = ['samsara_api_key', 'geotab_user', 'geotab_database', 'geotab_password', 'google_ai_key']
         for k in keys:
             val = request.form.get(k)
-            # Upsert (Update if exists, Insert if not)
-            cur.execute("""
-                INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s)
-                ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
-            """, (comp_id, k, val))
+            if val:
+                # Encrypt sensitive keys before saving
+                if encryptor.is_encrypted_key(k):
+                    val = encryptor.encrypt(val)
+                
+                # Upsert (Update if exists, Insert if not)
+                cur.execute("""
+                    INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s)
+                    ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+                """, (comp_id, k, val))
         conn.commit()
-        flash("✅ Integration Keys Saved")
+        flash("✅ Integration Keys Saved Securely")
 
-    # Load Settings
+    # Load Settings with decryption
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
-    settings = {row[0]: row[1] for row in cur.fetchall()}
+    raw_settings = cur.fetchall()
+    
+    settings = {}
+    for key, value in raw_settings:
+        if encryptor.is_encrypted_key(key) and value:
+            settings[key] = encryptor.decrypt(value) or ''
+        else:
+            settings[key] = value
+    
     conn.close()
 
     return render_template('finance/settings_integrations.html', settings=settings, active_tab='integrations')
