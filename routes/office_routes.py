@@ -35,9 +35,37 @@ def service_desk():
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
     
+    # --- SMART MIGRATIONS ---
+    try:
+        cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS priority VARCHAR(50) DEFAULT 'Medium';")
+        cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS photo_path TEXT;")
+        cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS partner_company_id INTEGER;")
+        cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS parent_request_id INTEGER;")
+        cur.execute("ALTER TABLE companies ADD COLUMN IF NOT EXISTS partner_code VARCHAR(20);")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS company_partners (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER,
+                partner_id INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(company_id, partner_id)
+            )
+        """)
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print("Smart Migration Error:", e)
+
     # 1. FETCH SERVICE REQUESTS (TICKETS)
+    # Modified to show if it's from a partner
     cur.execute("""
-        SELECT sr.id, sr.priority, p.address_line1, sr.issue_description, c.name, sr.status, sr.photo_path, sr.created_at
+        SELECT sr.id, sr.priority, 
+               COALESCE(p.address_line1, sr.partner_address_snapshot), 
+               sr.issue_description, 
+               COALESCE(c.name, 'Partner Network Job'), 
+               sr.status, sr.photo_path, sr.created_at,
+               sr.partner_company_id,
+               sr.parent_request_id
         FROM service_requests sr
         JOIN properties p ON sr.property_id = p.id
         JOIN clients c ON sr.client_id = c.id
