@@ -1,0 +1,98 @@
+{% extends "finance/finance_base.html" %}
+
+{% block title %}Holiday & Leave Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold m-0"><i class="fas fa-calendar-times text-primary me-2"></i> Holiday & Leave</h2>
+    <button class="btn btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#logLeaveModal">
+        <i class="fas fa-plus me-1"></i> Log Leave
+    </button>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-muted small text-uppercase">
+                    <tr>
+                        <th class="ps-4">Staff Member</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Reason</th>
+                        <th class="text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in leaves %}
+                    <tr>
+                        <td class="ps-4 fw-bold text-dark">{{ l[1] }}</td>
+                        <td>{{ l[2].strftime('%d %b %Y') }}</td>
+                        <td>{{ l[3].strftime('%d %b %Y') }}</td>
+                        <td>{{ l[4] }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-success"><i class="fas fa-check"></i> {{ l[5] }}</span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">
+                            <i class="fas fa-calendar fa-3x mb-3 opacity-50"></i>
+                            <h5 class="fw-bold text-dark">No Leave Logged</h5>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="logLeaveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Log Staff Absence</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 pt-0">
+                <form method="POST" action="{{ url_for('hr_bp.manage_leave') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-3">
+                        <label class="small fw-bold text-muted">Staff Member</label>
+                        <select name="staff_id" class="form-select fw-bold" required>
+                            {% for s in staff %}
+                            <option value="{{ s[0] }}">{{ s[1] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="small fw-bold text-muted">Start Date</label>
+                            <input type="date" name="start_date" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="small fw-bold text-muted">End Date</label>
+                            <input type="date" name="end_date" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small fw-bold text-muted">Reason</label>
+                        <select name="reason" class="form-select fw-bold">
+                            <option>Annual Leave (Holiday)</option>
+                            <option>Sick Leave</option>
+                            <option>Unpaid Leave</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary fw-bold">Save Absence</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

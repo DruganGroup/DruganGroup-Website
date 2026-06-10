@@ -256,7 +256,7 @@ def log_hours(job_id):
         
         cur.execute("""
             INSERT INTO staff_timesheets (company_id, staff_id, job_id, total_hours, date, status)
-            VALUES (%s, %s, %s, %s, %s, 'Approved')
+            VALUES (%s, %s, %s, %s, %s, 'Pending')
         """, (session.get('company_id'), staff_id, job_id, hours, date_worked))
         
         conn.commit()

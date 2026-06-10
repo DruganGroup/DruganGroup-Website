@@ -135,7 +135,11 @@
         
         <div class="header-bar">
             <div class="brand-container">
-                <h1 class="brand-title">Business<span style="color:#3498DB">Better</span></h1>
+                {% if logo_url %}
+                    <img src="{{ logo_url }}" alt="Logo" style="max-height: 45px; margin-bottom: 8px; border-radius: 4px; background: rgba(255,255,255,0.9); padding: 4px;">
+                {% endif %}
+                <h1 class="brand-title" style="font-size: 1.8rem; color: {{ brand_color or '#3498DB' }};">{{ company_name }}</h1>
+                <div class="brand-sub">Powered by Business Better</div>
             </div>
 
             <div class="d-flex gap-2 align-items-center">

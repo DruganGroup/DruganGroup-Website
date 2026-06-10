@@ -134,7 +134,12 @@ def download_invoice_pdf(invoice_id):
     country = settings.get('country_code', 'UK')
     ref_display = inv[1] if inv[1] else "DRAFT"
 
+    # Add Stripe payment link context if configured
+    stripe_key = settings.get('stripe_secret_key')
+    payment_link = f"{request.host_url}pay/invoice/{invoice_id}" if stripe_key else None
+
     context = {
+        'payment_link': payment_link,
         'invoice': {
             'ref': ref_display, 
             'date': format_date_local(inv[2], country),

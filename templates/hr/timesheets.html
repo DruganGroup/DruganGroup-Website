@@ -1,0 +1,73 @@
+{% extends "finance/finance_base.html" %}
+
+{% block title %}Timesheet Approvals{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold m-0"><i class="fas fa-clock text-primary me-2"></i> Timesheet Approvals</h2>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-muted small text-uppercase">
+                    <tr>
+                        <th class="ps-4">Date</th>
+                        <th>Staff Member</th>
+                        <th>Job Reference</th>
+                        <th class="text-end">Hours Logged</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end pe-4">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in timesheets %}
+                    <tr>
+                        <td class="ps-4">{{ t.date.strftime('%d %b %Y') if t.date else '' }}</td>
+                        <td class="fw-bold text-dark">{{ t.staff_name }}</td>
+                        <td><span class="badge bg-secondary-subtle text-dark border">{{ t.job_ref }}</span></td>
+                        <td class="text-end fw-bold">{{ "%.2f"|format(t.hours) }}</td>
+                        <td class="text-center">
+                            {% if t.status == 'Approved' %}
+                                <span class="badge bg-success"><i class="fas fa-check"></i> Approved</span>
+                            {% elif t.status == 'Rejected' %}
+                                <span class="badge bg-danger"><i class="fas fa-times"></i> Rejected</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark"><i class="fas fa-hourglass-half"></i> Pending</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            {% if t.status == 'Pending' %}
+                            <form action="{{ url_for('hr_bp.approve_timesheet') }}" method="POST" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="timesheet_id" value="{{ t.id }}">
+                                <input type="hidden" name="action" value="approve">
+                                <button type="submit" class="btn btn-sm btn-success fw-bold"><i class="fas fa-check"></i></button>
+                            </form>
+                            <form action="{{ url_for('hr_bp.approve_timesheet') }}" method="POST" class="d-inline ms-1">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="timesheet_id" value="{{ t.id }}">
+                                <input type="hidden" name="action" value="reject">
+                                <button type="submit" class="btn btn-sm btn-danger fw-bold"><i class="fas fa-times"></i></button>
+                            </form>
+                            {% else %}
+                            <button class="btn btn-sm btn-light text-muted" disabled>Processed</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="fas fa-check-circle fa-3x mb-3 text-success opacity-50"></i>
+                            <h5 class="fw-bold text-dark">All Caught Up!</h5>
+                            <p>No timesheets are waiting for your approval.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1009,6 +1009,7 @@ def finance_payroll():
         FROM staff s
         LEFT JOIN staff_attendance a ON s.id = a.staff_id 
             AND a.date >= %s AND a.date <= %s
+            AND a.status = 'Approved'
         WHERE s.company_id = %s
         GROUP BY s.id
         ORDER BY s.name ASC

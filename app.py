@@ -29,6 +29,7 @@ app = Flask(__name__)
 
 # --- SECURITY: INITIALIZE CSRF PROTECTION ---
 csrf = CSRFProtect(app)
+csrf.exempt(admin_bp) # Webhooks are in admin_bp
 
 # Configuration
 app.secret_key = os.environ.get("SECRET_KEY")

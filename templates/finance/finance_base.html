@@ -123,8 +123,14 @@
         </a>
 
         <div class="sidebar-heading">Human Resources</div>
-        <a href="/finance/hr" class="{% if 'hr' in request.path %}active{% endif %}">
+        <a href="/finance/hr" class="{% if 'finance/hr' in request.path %}active{% endif %}">
             <i class="fas fa-users me-3"></i> Staff Manager
+        </a>
+        <a href="/hr/timesheets" class="{% if 'timesheets' in request.path %}active{% endif %}">
+            <i class="fas fa-clock me-3"></i> Timesheet Approvals
+        </a>
+        <a href="/hr/leave" class="{% if 'leave' in request.path %}active{% endif %}">
+            <i class="fas fa-calendar-times me-3"></i> Holiday & Leave
         </a>
         <a href="/finance/payroll" class="{% if 'payroll' in request.path %}active{% endif %}">
             <i class="fas fa-file-invoice-dollar me-3"></i> Run Weekly Payroll

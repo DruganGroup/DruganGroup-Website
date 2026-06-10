@@ -383,19 +383,74 @@ def schedule_job():
     
     try:
         data = request.get_json()
-        print(f"DEBUG: Received Schedule Data: {data}") # Check your server logs for this!
         
         comp_id = session.get('company_id')
         job_id = data.get('job_id')
         date_str = data.get('date')
         vehicle_id = data.get('vehicle_id')
         lead_id = data.get('lead_id')
-        crew_ids = data.get('crew_ids', [])
-
+        force = data.get('force', False)
+        
         if not job_id or not date_str:
             return jsonify({'status': 'error', 'message': 'Missing Data'}), 400
 
         conn = get_db(); cur = conn.cursor()
+        
+        # Conflict Checking Logic
+        if not force:
+            # Check if this job has estimated_days
+            cur.execute("SELECT estimated_days FROM jobs WHERE id = %s", (job_id,))
+            j_row = cur.fetchone()
+            j_days = int(j_row[0] or 1)
+            new_start = datetime.strptime(date_str, '%Y-%m-%d').date()
+            new_end = new_start + timedelta(days=j_days - 1)
+            
+            # Check Vehicle Conflicts
+            if vehicle_id:
+                cur.execute("""
+                    SELECT id, ref, start_date, estimated_days 
+                    FROM jobs 
+                    WHERE company_id = %s AND vehicle_id = %s AND id != %s AND status IN ('Scheduled', 'In Progress')
+                """, (comp_id, vehicle_id, job_id))
+                for r in cur.fetchall():
+                    ex_start = r[2]
+                    if isinstance(ex_start, datetime): ex_start = ex_start.date()
+                    elif isinstance(ex_start, str): ex_start = datetime.strptime(ex_start, '%Y-%m-%d').date()
+                    ex_end = ex_start + timedelta(days=int(r[3] or 1) - 1)
+                    if (new_start <= ex_end) and (ex_start <= new_end):
+                        conn.close()
+                        return jsonify({'status': 'conflict', 'message': f'Vehicle is already assigned to {r[1]} on these dates.'})
+
+            # Check Engineer Conflicts
+            if lead_id:
+                cur.execute("""
+                    SELECT id, ref, start_date, estimated_days 
+                    FROM jobs 
+                    WHERE company_id = %s AND engineer_id = %s AND id != %s AND status IN ('Scheduled', 'In Progress')
+                """, (comp_id, lead_id, job_id))
+                for r in cur.fetchall():
+                    ex_start = r[2]
+                    if isinstance(ex_start, datetime): ex_start = ex_start.date()
+                    elif isinstance(ex_start, str): ex_start = datetime.strptime(ex_start, '%Y-%m-%d').date()
+                    ex_end = ex_start + timedelta(days=int(r[3] or 1) - 1)
+                    if (new_start <= ex_end) and (ex_start <= new_end):
+                        conn.close()
+                        return jsonify({'status': 'conflict', 'message': f'Engineer is already assigned to {r[1]} on these dates.'})
+
+                # Check Leave Conflicts
+                cur.execute("""
+                    SELECT start_date, end_date, reason
+                    FROM staff_leave
+                    WHERE company_id = %s AND staff_id = %s AND status = 'Approved'
+                """, (comp_id, lead_id))
+                for r in cur.fetchall():
+                    l_start = r[0]
+                    if isinstance(l_start, str): l_start = datetime.strptime(l_start, '%Y-%m-%d').date()
+                    l_end = r[1]
+                    if isinstance(l_end, str): l_end = datetime.strptime(l_end, '%Y-%m-%d').date()
+                    if (new_start <= l_end) and (l_start <= new_end):
+                        conn.close()
+                        return jsonify({'status': 'conflict', 'message': f'Engineer is on leave ({r[2]}) during these dates.'})
         
         # 1. Update Job
         cur.execute("""

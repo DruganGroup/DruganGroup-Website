@@ -619,7 +619,7 @@ def convert_to_invoice(quote_id):
             cur.execute("""
                 SELECT t.staff_id, SUM(t.total_hours) 
                 FROM staff_timesheets t 
-                WHERE t.job_id = %s 
+                WHERE t.job_id = %s AND t.status = 'Approved'
                 GROUP BY t.staff_id
             """, (job_id,))
             time_entries = cur.fetchall()

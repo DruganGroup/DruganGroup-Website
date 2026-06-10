@@ -290,6 +290,57 @@ def super_admin_analytics():
     conn.close()
     return render_template('admin/super_admin_analytics.html', data=analytics_data, db_inventory=db_inventory)
 
+import stripe
+
+@admin_bp.route('/webhooks/stripe', methods=['POST'])
+def stripe_webhook():
+    payload = request.data
+    sig_header = request.headers.get('Stripe-Signature', '')
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # We'd fetch the master webhook secret from env or db, but for simplicity:
+    endpoint_secret = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+    
+    try:
+        if endpoint_secret:
+            event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+        else:
+            # Fallback if no secret configured (not secure for prod, but works for testing)
+            event = json.loads(payload)
+            
+        if event['type'] == 'invoice.payment_failed':
+            customer_id = event['data']['object']['customer']
+            # Assume we stored stripe_customer_id in companies or subscriptions
+            cur.execute("""
+                UPDATE subscriptions 
+                SET status = 'Suspended' 
+                WHERE company_id IN (
+                    SELECT company_id FROM settings WHERE key = 'stripe_customer_id' AND value = %s
+                )
+            """, (customer_id,))
+            conn.commit()
+            
+        elif event['type'] == 'invoice.payment_succeeded':
+            customer_id = event['data']['object']['customer']
+            cur.execute("""
+                UPDATE subscriptions 
+                SET status = 'Active' 
+                WHERE company_id IN (
+                    SELECT company_id FROM settings WHERE key = 'stripe_customer_id' AND value = %s
+                )
+            """, (customer_id,))
+            conn.commit()
+            
+        return jsonify({'status': 'success'})
+        
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 400
+    finally:
+        conn.close()
+
 # --- 3. UTILITIES ---
 @admin_bp.route('/admin/reset-password', methods=['POST'])
 def reset_user_password():

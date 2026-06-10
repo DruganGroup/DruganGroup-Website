@@ -303,12 +303,19 @@ def main_launcher():
         cols = [desc[0] for desc in cur.description]
         my_profile = dict(zip(cols, profile_data))
 
+    # C. FETCH BRANDING
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+
     conn.close()
     
     return render_template('main_launcher.html', 
                            role=session.get('role'), 
                            my_profile=my_profile,
-                           is_at_work=is_at_work)
+                           is_at_work=is_at_work,
+                           company_name=session.get('company_name', 'My Company'),
+                           logo_url=config.get('logo'),
+                           brand_color=config.get('color'))
 
 @auth_bp.route('/auth/update_profile', methods=['POST'])
 def update_profile():

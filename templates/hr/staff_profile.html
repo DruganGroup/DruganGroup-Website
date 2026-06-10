@@ -161,7 +161,11 @@
                                                 <span class="text-muted fst-italic">No specific job linked</span>
                                             {% endif %}
                                         </td>
-                                        <td class="text-center">{{ day.hours|round(2) }}</td>
+                                        <td class="text-center">
+                                            <div class="fw-bold">{{ day.hours|round(2) }}</div>
+                                            <div class="small text-muted">Job: {{ day.job_hours|round(2) }}</div>
+                                            <div class="small text-danger">Unallocated: {{ day.unallocated_hours|round(2) }}</div>
+                                        </td>
                                         <td class="text-end pe-3 fw-bold">{{ currency }}{{ day.cost }}</td>
                                     </tr>
                                     {% endfor %}

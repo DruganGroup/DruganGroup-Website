@@ -27,6 +27,129 @@ def calculate_wage(hours, rate, model):
     return 0.00 # Salary/Yearly usually doesn't track per-hour costs here
 
 # --- 1. HR DASHBOARD ---
+@hr_bp.route('/hr/timesheets', methods=['GET'])
+def review_timesheets():
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # We fetch daily attendance to approve the day
+    cur.execute("""
+        SELECT a.id, s.name, a.date, a.total_hours, a.status, a.staff_id
+        FROM staff_attendance a
+        JOIN staff s ON a.staff_id = s.id
+        WHERE s.company_id = %s
+        ORDER BY a.date DESC
+    """, (comp_id,))
+    
+    timesheets = []
+    for r in cur.fetchall():
+        day_hours = float(r[3] or 0)
+        
+        # Calculate Job Hours for that day
+        cur.execute("SELECT SUM(total_hours) FROM staff_timesheets WHERE staff_id = %s AND date = %s", (r[5], r[2]))
+        job_row = cur.fetchone()
+        job_hours = float(job_row[0] or 0)
+        
+        unallocated = max(0, day_hours - job_hours)
+        
+        timesheets.append({
+            'id': r[0], 'staff_name': r[1], 'date': r[2], 
+            'hours': day_hours, 'job_hours': job_hours, 'unallocated': unallocated,
+            'status': r[4] or 'Pending'
+        })
+        
+    conn.close()
+    return render_template('hr/timesheets.html', timesheets=timesheets)
+
+@hr_bp.route('/hr/timesheets/approve', methods=['POST'])
+def approve_timesheet():
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    att_id = request.form.get('attendance_id')
+    action = request.form.get('action') # 'approve' or 'reject'
+    
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        new_status = 'Approved' if action == 'approve' else 'Rejected'
+        # Approve the Day
+        cur.execute("UPDATE staff_attendance SET status = %s WHERE id = %s", (new_status, att_id))
+        
+        # Also auto-approve all underlying job timesheets for that day
+        if new_status == 'Approved':
+            cur.execute("SELECT staff_id, date FROM staff_attendance WHERE id = %s", (att_id,))
+            row = cur.fetchone()
+            if row:
+                cur.execute("UPDATE staff_timesheets SET status = 'Approved' WHERE staff_id = %s AND date = %s", (row[0], row[1]))
+                
+        conn.commit()
+        flash(f"Day Shift marked as {new_status}.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error updating timesheet: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('hr.review_timesheets'))
+
+@hr_bp.route('/hr/leave', methods=['GET', 'POST'])
+def manage_leave():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    comp_id = session.get('company_id')
+    
+    try:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS staff_leave (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER,
+                staff_id INTEGER,
+                start_date DATE,
+                end_date DATE,
+                reason VARCHAR(100),
+                status VARCHAR(50) DEFAULT 'Approved',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+    except:
+        conn.rollback()
+
+    if request.method == 'POST':
+        staff_id = request.form.get('staff_id')
+        start_date = request.form.get('start_date')
+        end_date = request.form.get('end_date')
+        reason = request.form.get('reason')
+        try:
+            cur.execute("""
+                INSERT INTO staff_leave (company_id, staff_id, start_date, end_date, reason, status)
+                VALUES (%s, %s, %s, %s, %s, 'Approved')
+            """, (comp_id, staff_id, start_date, end_date, reason))
+            conn.commit()
+            flash("✅ Leave recorded successfully.", "success")
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error recording leave: {e}", "error")
+        return redirect(url_for('hr_bp.manage_leave'))
+
+    cur.execute("SELECT id, name FROM staff WHERE company_id = %s AND status = 'Active'", (comp_id,))
+    staff = cur.fetchall()
+    
+    cur.execute("""
+        SELECT l.id, s.name, l.start_date, l.end_date, l.reason, l.status 
+        FROM staff_leave l
+        JOIN staff s ON l.staff_id = s.id
+        WHERE l.company_id = %s
+        ORDER BY l.start_date DESC
+    """, (comp_id,))
+    leaves = cur.fetchall()
+    
+    conn.close()
+    return render_template('hr/leave.html', staff=staff, leaves=leaves)
+
 @hr_bp.route('/hr/dashboard')
 def hr_dashboard():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -108,20 +231,31 @@ def staff_profile(staff_id):
             cost = calculate_wage(hours, staff['pay_rate'], staff['pay_model'])
 
             cur.execute("""
-                SELECT id, ref, site_address FROM jobs 
-                WHERE engineer_id = %s 
-                AND start_date::DATE = %s
+                SELECT j.id, j.ref, t.total_hours 
+                FROM staff_timesheets t
+                JOIN jobs j ON t.job_id = j.id
+                WHERE t.staff_id = %s 
+                AND t.date = %s
             """, (staff_id, r[0]))
             
-            daily_jobs = [{'id': j[0], 'ref': j[1], 'site': j[2]} for j in cur.fetchall()]
+            job_hours_sum = 0
+            daily_jobs = []
+            for j in cur.fetchall():
+                j_hours = float(j[2] or 0)
+                job_hours_sum += j_hours
+                daily_jobs.append({'id': j[0], 'ref': j[1], 'hours': j_hours})
+
+            unallocated_hours = max(0, hours - job_hours_sum)
 
             week_data['days'].append({
                 'date': r[0].strftime('%a %d %b'),
                 'clock_in': c_in,
                 'clock_out': c_out,
                 'hours': hours,
+                'job_hours': job_hours_sum,
+                'unallocated_hours': unallocated_hours,
                 'cost': cost,
-                'linked_jobs': daily_jobs # <--- SENDING JOBS TO TEMPLATE
+                'linked_jobs': daily_jobs 
             })
             
             week_data['total_hours'] += hours

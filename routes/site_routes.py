@@ -264,10 +264,15 @@ def toggle_site_time(job_id):
                 AND clock_in < NOW() - INTERVAL '14 hours'
             """, (staff_id,))
 
+            # Auto-Start Day Clock if not running
+            cur.execute("SELECT id FROM staff_attendance WHERE staff_id = %s AND clock_out IS NULL", (staff_id,))
+            if not cur.fetchone():
+                cur.execute("INSERT INTO staff_attendance (staff_id, date, clock_in, notes) VALUES (%s, CURRENT_DATE, CURRENT_TIMESTAMP, 'Auto-started by Job')", (staff_id,))
+
             # Start New Timer
             cur.execute("""
-                INSERT INTO staff_timesheets (company_id, staff_id, job_id, date, clock_in)
-                VALUES (%s, %s, %s, CURRENT_DATE, CURRENT_TIMESTAMP)
+                INSERT INTO staff_timesheets (company_id, staff_id, job_id, date, clock_in, status)
+                VALUES (%s, %s, %s, CURRENT_DATE, CURRENT_TIMESTAMP, 'Pending')
             """, (comp_id, staff_id, job_id))
             
             # Update Job Status
@@ -279,7 +284,8 @@ def toggle_site_time(job_id):
             cur.execute("""
                 UPDATE staff_timesheets 
                 SET clock_out = CURRENT_TIMESTAMP, 
-                    total_hours = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - clock_in))/3600 
+                    total_hours = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - clock_in))/3600,
+                    status = 'Pending'
                 WHERE staff_id = %s AND job_id = %s AND clock_out IS NULL
             """, (staff_id, job_id))
             flash("⏸️ Job Paused.", "success")
@@ -443,11 +449,11 @@ def update_job(job_id):
             material_markup = float(settings.get('material_markup_percent', 0)) / 100
 
             # 4. CALCULATE LABOUR (Real Data)
-            # Fetch actual hours from timesheets for this job
+            # Fetch actual hours from timesheets for this job (Only Approved hours are billed)
             cur.execute("""
                 SELECT t.staff_id, SUM(t.total_hours) 
                 FROM staff_timesheets t 
-                WHERE t.job_id = %s 
+                WHERE t.job_id = %s AND t.status = 'Approved'
                 GROUP BY t.staff_id
             """, (job_id,))
             time_entries = cur.fetchall()
