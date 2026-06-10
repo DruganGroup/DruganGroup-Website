@@ -55,17 +55,32 @@
                                 <i class="fas fa-clipboard-check fa-3x text-gold mb-3"></i>
                                 <h5 class="text-white fw-bold">Compliance</h5>
                                 <p class="text-secondary small mb-0">RAMS & Certificates</p>
-                            </div>
-                        </a>
-                    </div>
-                </div>
 
-                <!-- FAQ Accordion -->
-                <div class="accordion" id="helpAccordion">
+{% endblock %}
 
-                    <!-- SYSTEM SETUP -->
-                    <h5 class="fw-bold text-gold mb-3 mt-5 text-uppercase small">System Setup</h5>
-                    
+<h5 id="gps" class="fw-bold text-gold mb-3 mt-5 text-uppercase small">GPS & Tracking</h5>
+
+<div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark">
+<h2 class="accordion-header">
+<button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-gps">
+<i class="fas fa-map-marked-alt text-gold me-3"></i> How do I track my fleet's GPS?
+</button>
+</h2>
+<div id="faq-gps" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+<div class="accordion-body text-secondary bg-black border-top border-secondary">
+<p>Our fleet management system comes with integrated GPS and tracking capabilities. Here’s how you can track your vehicles:</p>
+<ol>
+<li>Navigate to the <strong>Fleet</strong> tab in your dashboard.</li>
+<li>Click on any vehicle to view its real-time location and historical data.</li>
+<li>Use the map to see where each van is currently located.</li>
+</ol>
+<p><strong>Note:</strong> GPS tracking is provided by a third-party carrier. Ensure you have active tracking with them for accurate results.</p>
+</div>
+</div>
+</div>
+
+{% endblock %}
+
                     <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-smtp">
