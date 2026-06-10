@@ -6,6 +6,7 @@ from flask import Flask, render_template, request, session, send_from_directory,
 from werkzeug.exceptions import HTTPException
 from db import get_db
 from flask_wtf.csrf import CSRFProtect
+from utils.extensions import limiter
 
 # 1. Import all Blueprints
 from routes.portal_routes import portal_bp
@@ -30,6 +31,9 @@ app = Flask(__name__)
 # --- SECURITY: INITIALIZE CSRF PROTECTION ---
 csrf = CSRFProtect(app)
 csrf.exempt(admin_bp) # Webhooks are in admin_bp
+
+# --- SECURITY: INITIALIZE RATE LIMITING ---
+limiter.init_app(app)
 
 # Configuration
 app.secret_key = os.environ.get("SECRET_KEY")
@@ -177,36 +181,6 @@ def handle_exception(e):
 
     # 4. Return standard error page
     return render_template('error.html', error=e), code
-
-# --- DEBUG ROUTE ---
-@app.route('/update-db-temp')
-def update_db_temp():
-    conn = get_db()
-    if conn:
-        try:
-            cur = conn.cursor()
-            cur.execute("ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending';")
-            cur.execute("ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS notes TEXT;")
-            conn.commit()
-            return "SUCCESS"
-        except Exception as e:
-            return f"ERROR: {e}"
-        finally:
-            conn.close()
-    return "NO CONN"
-
-@app.route('/debug-files')
-def debug_files():
-    output = "<h1>File System Debug</h1>"
-    root_dir = os.path.join(os.getcwd(), 'templates')
-    for root, dirs, files in os.walk(root_dir):
-        level = root.replace(root_dir, '').count(os.sep)
-        indent = '&nbsp;' * 4 * (level)
-        output += f"{indent}<b>{os.path.basename(root)}/</b><br>"
-        subindent = '&nbsp;' * 4 * (level + 1)
-        for f in files:
-            output += f"{subindent}{f}<br>"
-    return output
 
 # --- CONTEXT PROCESSORS ---
 @app.context_processor

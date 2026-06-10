@@ -151,7 +151,7 @@ def super_admin_dashboard():
                 """, (new_id, owner_name, owner_email))
 
                 conn.commit()
-                flash(f"✅ Company '{c_name}' created on '{plan_name}' Plan! Password: {temp_pass}")
+                flash(f"✅ Company '{c_name}' created on '{plan_name}' Plan!")
                 
             except Exception as e:
                 conn.rollback()
@@ -367,7 +367,7 @@ def reset_user_password():
                 server.send_message(msg); server.quit()
                 flash(f"✅ Password emailed to {user[1]}")
             else:
-                flash(f"⚠️ Password reset to: {secure_pass} (SMTP Not Configured)")
+                flash("⚠️ Password reset successful, but SMTP is not configured. User will need an admin to set a temporary password or configure SMTP.")
             
             log_audit("RESET PASSWORD", user[1], "Admin reset via dashboard")
             conn.commit()
@@ -422,77 +422,6 @@ def toggle_suspend(company_id):
     log_audit("TOGGLE SUSPEND", f"Company ID {company_id}", "Changed subscription status")
     conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
-
-@admin_bp.route('/admin/nuke-user')
-def nuke_user_by_email():
-    # USAGE: /admin/nuke-user?email=info@drugangroup.co.uk
-    
-    if session.get('role') != 'SuperAdmin': return "Access Denied"
-    target_email = request.args.get('email')
-    if not target_email: return "Error: You must provide an email (e.g., ?email=info@...)"
-    
-    conn = get_db()
-    cur = conn.cursor()
-
-    def force_exec(query, params=()):
-        try:
-            cur.execute(query, params)
-            conn.commit()
-        except Exception as e:
-            conn.rollback()
-            # We ignore errors because we just want to force-kill whatever exists
-            if "does not exist" not in str(e):
-                print(f"⚠️ Ignored Error: {str(e)}")
-
-    try:
-        print(f"--- HUNTING DOWN {target_email} ---")
-
-        # 1. FIND THE VICTIM
-        cur.execute("SELECT id, company_id FROM users WHERE email = %s", (target_email,))
-        user = cur.fetchone()
-        
-        if not user:
-            return f"<h1>User {target_email} not found. They are already gone.</h1>"
-
-        user_id = user[0]
-        company_id = user[1]
-        
-        print(f"FOUND: User ID {user_id} linked to Company ID {company_id}")
-
-        # 2. UNLOCK THE DEADLOCK (The 'Ghost Data' Fix)
-        # This breaks the link between Jobs and Quotes that stopped you before.
-        if company_id:
-            force_exec("UPDATE jobs SET quote_id = NULL WHERE company_id = %s", (company_id,))
-            force_exec("UPDATE invoices SET job_id = NULL WHERE company_id = %s", (company_id,))
-            force_exec("UPDATE jobs SET client_id = NULL WHERE company_id = %s", (company_id,))
-
-            # 3. WIPE COMPANY DATA
-            # We delete the main blockers blindly.
-            tables = [
-                'job_materials', 'job_expenses', 'job_evidence', 'job_photos', 'job_rams',
-                'invoice_items', 'quote_items', 'staff_timesheets',
-                'vehicle_checks', 'maintenance_logs', 'certificates',
-                'invoices', 'quotes', 'jobs', 'vehicles', 'properties', 'clients'
-            ]
-            for t in tables:
-                force_exec(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
-
-        # 4. DELETE THE USER (The main goal)
-        force_exec("DELETE FROM staff_timesheets WHERE user_id = %s", (user_id,))
-        force_exec("DELETE FROM users WHERE id = %s", (user_id,))
-        
-        # 5. DELETE THE COMPANY
-        if company_id:
-            force_exec("DELETE FROM companies WHERE id = %s", (company_id,))
-
-        flash(f"✅ User {target_email} and Company {company_id} have been nuked.", "success")
-        return redirect(url_for('admin.super_admin_analytics'))
-
-    except Exception as e:
-        return f"<h1>Error: {str(e)}</h1>"
-        
-    finally:
-        conn.close()
 
 # --- BACKUP SYSTEM: VIEW LIST ---
 @admin_bp.route('/admin/backup/all')

@@ -5,6 +5,7 @@ from db import get_db, get_site_config
 from werkzeug.security import check_password_hash, generate_password_hash
 from email_service import send_company_email
 from itsdangerous import URLSafeTimedSerializer
+from utils.extensions import limiter
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -32,6 +33,7 @@ def show_signup():
     return render_template('publicbb/signup.html', plans=plans)
 
 @auth_bp.route('/process-signup', methods=['POST'])
+@limiter.limit("5 per hour")
 def process_signup():
     # 1. Capture Form Data
     raw_plan_id = request.form.get('plan_id')
@@ -117,6 +119,7 @@ def process_signup():
 # =========================================================
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def login():
     if 'user_id' in session:
         return redirect(url_for('auth.main_launcher'))
@@ -181,6 +184,7 @@ def get_reset_serializer():
 
 # --- 1. FORGOT PASSWORD (REQUEST LINK) ---
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+@limiter.limit("3 per hour")
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email')
@@ -229,6 +233,7 @@ def forgot_password():
 
 # --- 2. RESET PASSWORD (SET NEW PASSWORD) ---
 @auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+@limiter.limit("5 per hour")
 def reset_password_with_token(token):
     serializer = get_reset_serializer()
     
