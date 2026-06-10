@@ -51,9 +51,15 @@
                     <hr>
                     
                     <label class="form-label fw-bold small text-muted">Site Address / Property</label>
-                    <select name="property_id" id="propertySelect" class="form-select mb-3">
-                        <option value="">-- Select Client First --</option>
-                    </select>
+                    <div id="existingPropertyDiv">
+                        <select name="property_id" id="propertySelect" class="form-select mb-3">
+                            <option value="">-- Select Client First --</option>
+                        </select>
+                    </div>
+                    <div id="newPropertyDiv" class="d-none mb-3">
+                        <input type="text" name="new_property_address" class="form-control mb-2" placeholder="Address Line 1">
+                        <input type="text" name="new_property_postcode" class="form-control" placeholder="Postcode">
+                    </div>
 
                     <label class="form-label fw-bold small text-muted">Job Title</label>
                     <input type="text" name="job_title" class="form-control mb-3" placeholder="e.g. Garden Fencing" required>
@@ -187,8 +193,25 @@
     // 3. TOGGLE CLIENT (New vs Existing)
     function toggleClientMode() {
         const isNew = document.getElementById('newClientToggle').checked;
-        document.getElementById('existingClientDiv').classList.toggle('d-none', isNew);
-        document.getElementById('newClientDiv').classList.toggle('d-none', !isNew);
+        const exDiv = document.getElementById('existingClientDiv');
+        const newDiv = document.getElementById('newClientDiv');
+        
+        const exPropDiv = document.getElementById('existingPropertyDiv');
+        const newPropDiv = document.getElementById('newPropertyDiv');
+        
+        if(isNew) {
+            exDiv.classList.add('d-none');
+            newDiv.classList.remove('d-none');
+            
+            exPropDiv.classList.add('d-none');
+            newPropDiv.classList.remove('d-none');
+        } else {
+            exDiv.classList.remove('d-none');
+            newDiv.classList.add('d-none');
+            
+            exPropDiv.classList.remove('d-none');
+            newPropDiv.classList.add('d-none');
+        }
     }
 
     // 4. LOAD CALCULATORS (ON PAGE LOAD)

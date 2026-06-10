@@ -241,13 +241,27 @@ def save_unified_quote():
     try:
         # 1. Quick Lead Logic
         client_id = request.form.get('client_id')
+        prop_id = request.form.get('property_id') or None
+        
         if not client_id and request.form.get('new_client_name'):
+            new_addr = request.form.get('new_property_address') or ''
+            new_post = request.form.get('new_property_postcode') or ''
+            full_billing = f"{new_addr}, {new_post}".strip(', ')
+            
             cur.execute("""
                 INSERT INTO clients (company_id, name, email, phone, status, billing_address)
                 VALUES (%s, %s, %s, %s, 'Lead', %s) RETURNING id
             """, (comp_id, request.form.get('new_client_name'), request.form.get('new_client_email'), 
-                  request.form.get('new_client_phone'), request.form.get('new_client_address')))
+                  request.form.get('new_client_phone'), full_billing))
             client_id = cur.fetchone()[0]
+            
+            # Auto-create the property for the new client
+            if new_addr or new_post:
+                cur.execute("""
+                    INSERT INTO properties (company_id, client_id, address_line1, postcode, status)
+                    VALUES (%s, %s, %s, %s, 'Active') RETURNING id
+                """, (comp_id, client_id, new_addr, new_post))
+                prop_id = cur.fetchone()[0]
 
         if not client_id:
             flash("❌ Error: No Client Selected", "error")
@@ -263,7 +277,6 @@ def save_unified_quote():
         job_desc = request.form.get('job_description')
         est_days = float(request.form.get('estimated_days') or 1)
         pref_van = request.form.get('preferred_vehicle_id') or None
-        prop_id = request.form.get('property_id') or None
 
         # 4. Insert Header
         cur.execute("""

@@ -989,6 +989,19 @@ def finance_payroll():
     
     # 1. Fetch Config
     conn = get_db(); cur = conn.cursor()
+    
+    # SMART MIGRATION: Ensure HR columns exist if they jumped straight to Payroll
+    try:
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS tax_limit NUMERIC DEFAULT 0;")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS ni_limit NUMERIC DEFAULT 0;")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS holiday_entitled BOOLEAN DEFAULT TRUE;")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS bank_name VARCHAR(100);")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS account_number VARCHAR(20);")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS sort_code VARCHAR(20);")
+        conn.commit()
+    except:
+        conn.rollback()
+        
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     
