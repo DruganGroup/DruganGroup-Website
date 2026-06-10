@@ -31,16 +31,48 @@ app = Flask(__name__)
 csrf = CSRFProtect(app)
 
 # Configuration
-app.secret_key = os.environ.get("SECRET_KEY", "dev_key_123")
+app.secret_key = os.environ.get("SECRET_KEY")
+if not app.secret_key:
+    if os.environ.get("FLASK_ENV") == "production":
+        raise RuntimeError("SECRET_KEY environment variable must be set in production!")
+    else:
+        # Only use fallback in development
+        app.secret_key = "dev_key_123_CHANGE_IN_PRODUCTION"
+        print("⚠️  WARNING: Using development secret key. Set SECRET_KEY environment variable!")
+
 app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'static', 'uploads', 'logos')
 
 # --- SECURITY: SESSION HARDENING (HTTPS ENABLED) ---
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=12)
-app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
-# 3. REGISTER BLUEPRINTS
+# 3. SECURITY HEADERS
+@app.after_request
+def set_security_headers(response):
+    """Add security headers to all responses"""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    
+    # Only set HSTS in production
+    if os.environ.get('FLASK_ENV') == 'production':
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    
+    # Basic CSP - adjust as needed for your application
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://js.stripe.com; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self' https://api.stripe.com;"
+    )
+    
+    return response
+
+# 4. REGISTER BLUEPRINTS
 app.register_blueprint(portal_bp)
 app.register_blueprint(public_bp)
 app.register_blueprint(auth_bp)

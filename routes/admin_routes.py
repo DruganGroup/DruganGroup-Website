@@ -14,16 +14,9 @@ from email.mime.multipart import MIMEMultipart
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, send_from_directory, current_app
 from db import get_db, get_site_config
 from werkzeug.security import generate_password_hash
+from utils.validators import validate_table_name, ALLOWED_TABLES
 
 admin_bp = Blueprint('admin', __name__)
-
-# --- WHITELIST: ALLOWED TABLES FOR DYNAMIC QUERIES (SQL INJECTION PREVENTION) ---
-ALLOWED_TABLES = {
-    'users', 'staff', 'vehicles', 'clients', 'jobs', 'transactions', 
-    'maintenance_logs', 'materials', 'companies', 'properties', 
-    'service_requests', 'settings', 'subscriptions', 'invoices',
-    'certificates', 'vehicle_crews', 'staff_attendance'
-}
 
 # --- HELPER: RECORD AUDIT LOG ---
 def log_audit(action, target, details=""):
