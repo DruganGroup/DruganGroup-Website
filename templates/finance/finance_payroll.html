@@ -56,6 +56,7 @@
                     <th>Status</th>
                     <th>Hours</th>
                     <th class="text-end text-light">Gross Pay</th>
+                    <th class="text-end text-light">Hol Banked</th>
                     <th class="text-end text-danger">Tax</th>
                     <th class="text-end text-danger">
                         {% if settings.get('country_code') == 'UK' %}NI{% elif settings.get('country_code') == 'US' %}FICA{% else %}Social{% endif %}
@@ -84,6 +85,9 @@
                     </td>
                     <td class="text-end fw-bold text-dark bg-light border-start">
                         {{ currency }}{{ "%.2f"|format(p.gross) }}
+                    </td>
+                    <td class="text-end small bg-light border-end border-opacity-50 text-success">
+                        {% if p.holiday > 0 %}+ {{ currency }}{{ "%.2f"|format(p.holiday) }}{% else %}-{% endif %}
                     </td>
                     <td class="text-end text-danger small">
                         {% if p.tax > 0 %}- {{ currency }}{{ "%.2f"|format(p.tax) }}{% else %}-{% endif %}

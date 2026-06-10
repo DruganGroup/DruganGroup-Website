@@ -47,18 +47,39 @@ def review_timesheets():
     timesheets = []
     for r in cur.fetchall():
         day_hours = float(r[3] or 0)
+        staff_id = r[5]
+        date = r[2]
         
-        # Calculate Job Hours for that day
-        cur.execute("SELECT SUM(total_hours) FROM staff_timesheets WHERE staff_id = %s AND date = %s", (r[5], r[2]))
-        job_row = cur.fetchone()
-        job_hours = float(job_row[0] or 0)
+        # Fetch Job Hours and Details for that day
+        cur.execute("""
+            SELECT j.ref, t.total_hours, t.clock_in, t.clock_out, j.id
+            FROM staff_timesheets t 
+            JOIN jobs j ON t.job_id = j.id
+            WHERE t.staff_id = %s AND t.date = %s
+        """, (staff_id, date))
         
+        jobs_worked = []
+        job_hours = 0.0
+        for jt in cur.fetchall():
+            hours = float(jt[1] or 0)
+            job_hours += hours
+            c_in = jt[2].strftime('%H:%M') if jt[2] else '-'
+            c_out = jt[3].strftime('%H:%M') if jt[3] else '-'
+            jobs_worked.append({
+                'ref': jt[0],
+                'hours': hours,
+                'clock_in': c_in,
+                'clock_out': c_out,
+                'id': jt[4]
+            })
+            
         unallocated = max(0, day_hours - job_hours)
         
         timesheets.append({
-            'id': r[0], 'staff_name': r[1], 'date': r[2], 
+            'id': r[0], 'staff_name': r[1], 'date': date, 
             'hours': day_hours, 'job_hours': job_hours, 'unallocated': unallocated,
-            'status': r[4] or 'Pending'
+            'status': r[4] or 'Pending',
+            'jobs_worked': jobs_worked
         })
         
     conn.close()
@@ -93,7 +114,7 @@ def approve_timesheet():
     finally:
         conn.close()
         
-    return redirect(url_for('hr.review_timesheets'))
+    return redirect(url_for('hr_bp.review_timesheets'))
 
 @hr_bp.route('/hr/leave', methods=['GET', 'POST'])
 def manage_leave():
@@ -124,10 +145,47 @@ def manage_leave():
         end_date = request.form.get('end_date')
         reason = request.form.get('reason')
         try:
+            # 1. Insert into staff_leave
             cur.execute("""
                 INSERT INTO staff_leave (company_id, staff_id, start_date, end_date, reason, status)
                 VALUES (%s, %s, %s, %s, %s, 'Approved')
             """, (comp_id, staff_id, start_date, end_date, reason))
+            
+            # 2. Automated Holiday Payroll & Auto-Cap Protection
+            if reason in ['Annual Leave', 'Holiday']:
+                # Calculate exactly how much holiday they have currently banked
+                cur.execute("""
+                    SELECT COALESCE(SUM(total_hours), 0) FROM staff_attendance 
+                    WHERE staff_id = %s AND status = 'Approved' AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE) AND notes != 'Annual Leave'
+                """, (staff_id,))
+                worked_hours_ytd = float(cur.fetchone()[0] or 0)
+                
+                cur.execute("""
+                    SELECT COALESCE(SUM(total_hours), 0) FROM staff_attendance 
+                    WHERE staff_id = %s AND notes = 'Annual Leave' AND status = 'Approved' AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
+                """, (staff_id,))
+                holiday_taken_ytd = float(cur.fetchone()[0] or 0)
+                
+                # Accrued is 12.07% of worked hours
+                holiday_balance = (worked_hours_ytd * 0.1207) - holiday_taken_ytd
+                
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+                delta = end_dt - start_dt
+                
+                # Loop through each day of the leave
+                for i in range(delta.days + 1):
+                    current_day = start_dt + timedelta(days=i)
+                    # Skip weekends (5=Sat, 6=Sun)
+                    if current_day.weekday() < 5:
+                        if holiday_balance > 0:
+                            pay_hours = min(8.0, holiday_balance)
+                            cur.execute("""
+                                INSERT INTO staff_attendance (staff_id, date, total_hours, notes, status, clock_in)
+                                VALUES (%s, %s, %s, 'Annual Leave', 'Approved', CURRENT_TIMESTAMP)
+                            """, (staff_id, current_day.strftime('%Y-%m-%d'), pay_hours))
+                            holiday_balance -= pay_hours
+                            
             conn.commit()
             flash("✅ Leave recorded successfully.", "success")
         except Exception as e:
@@ -162,11 +220,14 @@ def hr_dashboard():
     # SMART MIGRATION: Check if profile_photo exists, if not add it
     try:
         cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS profile_photo TEXT;")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS tax_limit NUMERIC DEFAULT 0;")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS ni_limit NUMERIC DEFAULT 0;")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS holiday_entitled BOOLEAN DEFAULT TRUE;")
         conn.commit()
     except:
         conn.rollback()
 
-    cur.execute("SELECT id, name, position, dept, pay_rate, pay_model, access_level, email, phone, employment_type, address, tax_id, driving_license, profile_photo FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
+    cur.execute("SELECT id, name, position, dept, pay_rate, pay_model, access_level, email, phone, employment_type, address, tax_id, driving_license, profile_photo, tax_limit, ni_limit, holiday_entitled FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
     cols = [desc[0] for desc in cur.description]
     staff = [dict(zip(cols, row)) for row in cur.fetchall()]
     
@@ -195,6 +256,32 @@ def staff_profile(staff_id):
     colnames = [desc[0] for desc in cur.description]
     staff = dict(zip(colnames, staff_raw))
     
+    # --- HOLIDAY CALCULATION ---
+    # Total hours worked this year
+    cur.execute("""
+        SELECT COALESCE(SUM(total_hours), 0) FROM staff_attendance 
+        WHERE staff_id = %s AND status = 'Approved' AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE) AND notes != 'Annual Leave'
+    """, (staff_id,))
+    worked_hours_ytd = float(cur.fetchone()[0] or 0)
+    
+    # Total holiday taken this year
+    cur.execute("""
+        SELECT COALESCE(SUM(total_hours), 0) FROM staff_attendance 
+        WHERE staff_id = %s AND notes = 'Annual Leave' AND status = 'Approved' AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
+    """, (staff_id,))
+    holiday_taken_ytd = float(cur.fetchone()[0] or 0)
+    
+    holiday_accrued = 0.0
+    holiday_balance = 0.0
+    
+    if staff.get('holiday_entitled'):
+        holiday_accrued = worked_hours_ytd * 0.1207
+        holiday_balance = holiday_accrued - holiday_taken_ytd
+        
+    staff['holiday_accrued'] = round(holiday_accrued, 2)
+    staff['holiday_taken'] = round(holiday_taken_ytd, 2)
+    staff['holiday_balance'] = round(holiday_balance, 2)
+
     # --- 1. JOBS HISTORY ---
     cur.execute("""
         SELECT id, ref, status, start_date, site_address 
@@ -304,6 +391,11 @@ def save_staff():
     tax_id = request.form.get('tax_id')
     address = request.form.get('address')
     
+    # New limits and flags
+    tax_limit = request.form.get('tax_limit') or 0
+    ni_limit = request.form.get('ni_limit') or 0
+    holiday_entitled = request.form.get('holiday_entitled') == 'on'
+    
     nok_name = request.form.get('nok_name')
     nok_phone = request.form.get('nok_phone')
     nok_rel = request.form.get('nok_relationship')
@@ -353,9 +445,9 @@ def save_staff():
                 name=%s, email=%s, phone=%s, position=%s, dept=%s, 
                 pay_rate=%s, pay_model=%s, employment_type=%s, access_level=%s,
                 nok_name=%s, nok_phone=%s, nok_relationship=%s, nok_address=%s,
-                tax_id=%s, address=%s
+                tax_id=%s, address=%s, tax_limit=%s, ni_limit=%s, holiday_entitled=%s
             """
-            params = [name, email, phone, position, dept, pay_rate, pay_model, emp_type, access, nok_name, nok_phone, nok_rel, nok_addr, tax_id, address]
+            params = [name, email, phone, position, dept, pay_rate, pay_model, emp_type, access, nok_name, nok_phone, nok_rel, nok_addr, tax_id, address, tax_limit, ni_limit, holiday_entitled]
             
             if license_path:
                 sql += ", driving_license=%s"
@@ -375,9 +467,9 @@ def save_staff():
         else:
             # INSERT
             cur.execute("""
-                INSERT INTO staff (company_id, name, email, phone, position, dept, pay_rate, pay_model, employment_type, access_level, nok_name, nok_phone, nok_relationship, nok_address, driving_license, profile_photo, tax_id, address)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (comp_id, name, email, phone, position, dept, pay_rate, pay_model, emp_type, access, nok_name, nok_phone, nok_rel, nok_addr, license_path, photo_path, tax_id, address))
+                INSERT INTO staff (company_id, name, email, phone, position, dept, pay_rate, pay_model, employment_type, access_level, nok_name, nok_phone, nok_relationship, nok_address, driving_license, profile_photo, tax_id, address, tax_limit, ni_limit, holiday_entitled)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (comp_id, name, email, phone, position, dept, pay_rate, pay_model, emp_type, access, nok_name, nok_phone, nok_rel, nok_addr, license_path, photo_path, tax_id, address, tax_limit, ni_limit, holiday_entitled))
             
             if access != "None" and email:
                 cur.execute("SELECT id FROM users WHERE email=%s", (email,))

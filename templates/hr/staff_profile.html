@@ -59,6 +59,37 @@
             </div>
         </div>
 
+        {% if staff.holiday_entitled %}
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-success bg-opacity-25 fw-bold text-dark">
+                <i class="fas fa-umbrella-beach me-2"></i> Holiday Balance (YTD)
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-3">
+                    <div class="col-4 border-end">
+                        <div class="small text-muted mb-1">Accrued</div>
+                        <div class="fw-bold text-success">{{ staff.holiday_accrued }}h</div>
+                    </div>
+                    <div class="col-4 border-end">
+                        <div class="small text-muted mb-1">Taken</div>
+                        <div class="fw-bold text-warning">{{ staff.holiday_taken }}h</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="small text-muted mb-1">Remaining</div>
+                        <div class="fw-bold text-primary">{{ staff.holiday_balance }}h</div>
+                    </div>
+                </div>
+                <div class="progress" style="height: 6px;">
+                    {% set percent = (staff.holiday_taken / staff.holiday_accrued * 100) if staff.holiday_accrued > 0 else 0 %}
+                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ percent }}%;"></div>
+                </div>
+                <div class="small text-muted text-center mt-2">
+                    ≈ {{ (staff.holiday_balance / 8)|round(1) }} days remaining
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="card border-0 shadow-sm rounded-4 mb-4">
             <div class="card-header bg-warning bg-opacity-25 fw-bold text-dark">
                 <i class="fas fa-id-card me-2"></i> Compliance & ID

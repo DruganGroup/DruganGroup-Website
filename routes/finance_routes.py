@@ -1003,11 +1003,13 @@ def finance_payroll():
     end_of_week = start_of_week + timedelta(days=6)         
     
     # 3. FETCH DATA (FIXED: NOW READING FROM staff_attendance)
+    from services.tax_engine import TaxEngine
     cur.execute("""
         SELECT 
             s.id, s.name, s.position, s.employment_type, s.pay_rate, s.pay_model,
             COALESCE(SUM(a.total_hours), 0) as total_hours,
-            COUNT(DISTINCT a.date) as days_worked
+            COUNT(DISTINCT a.date) as days_worked,
+            s.tax_limit, s.ni_limit, s.holiday_entitled
         FROM staff s
         LEFT JOIN staff_attendance a ON s.id = a.staff_id 
             AND a.date >= %s AND a.date <= %s
@@ -1018,7 +1020,7 @@ def finance_payroll():
     """, (start_of_week, end_of_week, comp_id))
     
     payroll = []
-    totals = {'gross': 0, 'tax': 0, 'net': 0}
+    totals = {'gross': 0, 'tax': 0, 'holiday': 0, 'net': 0}
     
     for r in cur.fetchall():
         hours = float(r[6])
@@ -1026,6 +1028,9 @@ def finance_payroll():
         rate = float(r[4] or 0)
         model = r[5]
         role_type = r[3]
+        tax_limit = float(r[8] or 0)
+        ni_limit = float(r[9] or 0)
+        holiday_entitled = r[10]
         
         # A. Gross Pay Calculation
         gross = 0
@@ -1036,28 +1041,33 @@ def finance_payroll():
         elif model == 'Year': 
             gross = (rate / 52)
         
-        # B. Tax Calculation (Simple Estimation)
+        # B. Tax Calculation using TaxEngine
         tax = 0.0
         social = 0.0
+        holiday_accrued = 0.0
         
-        # Only calculate tax for PAYE (Not Sub-Contractors)
+        # Calculate Tax & NI (Taking limits into account if set, otherwise fallback to Engine)
         if role_type != 'Sub-Contractor':
-            # Basic UK/General Logic: 20% Tax, 8% Social/NI
-            # (In a real app, use the TaxEngine service here)
-            tax = gross * 0.20
-            social = gross * 0.08
+            est_tax, est_social = TaxEngine.calculate(gross, country)
+            tax = est_tax if tax_limit == 0 else min(est_tax, tax_limit)
+            social = est_social if ni_limit == 0 else min(est_social, ni_limit)
             
+            # Holiday Accrual Calculation (Common ~12.07% estimate)
+            if holiday_entitled:
+                holiday_accrued = round(gross * 0.1207, 2)
+                
         deductions = tax + social
         net = gross - deductions
         
         payroll.append({
             'id': r[0], 'name': r[1], 'role': r[2], 'type': role_type,
             'hours': hours, 'days': days, 'rate': rate, 'model': model,
-            'gross': gross, 'tax': tax, 'social': social, 'net': net
+            'gross': gross, 'tax': tax, 'social': social, 'holiday': holiday_accrued, 'net': net
         })
         
         totals['gross'] += gross
         totals['tax'] += deductions
+        totals['holiday'] += holiday_accrued
         totals['net'] += net
 
     conn.close()

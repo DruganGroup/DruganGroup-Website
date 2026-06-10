@@ -26,8 +26,24 @@
                     <tr>
                         <td class="ps-4">{{ t.date.strftime('%d %b %Y') if t.date else '' }}</td>
                         <td class="fw-bold text-dark">{{ t.staff_name }}</td>
-                        <td><span class="badge bg-secondary-subtle text-dark border">{{ t.job_ref }}</span></td>
-                        <td class="text-end fw-bold">{{ "%.2f"|format(t.hours) }}</td>
+                        <td>
+                            {% if t.jobs_worked %}
+                                {% for j in t.jobs_worked %}
+                                    <div class="mb-1">
+                                        <a href="/office/job/{{ j.id }}/files" class="badge bg-primary text-decoration-none me-1">
+                                            <i class="fas fa-hard-hat me-1"></i> {{ j.ref }}
+                                        </a>
+                                        <small class="text-muted">{{ j.clock_in }} - {{ j.clock_out }} ({{ "%.2f"|format(j.hours) }}h)</small>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted fst-italic">No jobs assigned</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-bold">
+                            {{ "%.2f"|format(t.hours) }}<br>
+                            <small class="text-muted fw-normal">Unallocated: {{ "%.2f"|format(t.unallocated) }}</small>
+                        </td>
                         <td class="text-center">
                             {% if t.status == 'Approved' %}
                                 <span class="badge bg-success"><i class="fas fa-check"></i> Approved</span>
@@ -41,13 +57,13 @@
                             {% if t.status == 'Pending' %}
                             <form action="{{ url_for('hr_bp.approve_timesheet') }}" method="POST" class="d-inline">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <input type="hidden" name="timesheet_id" value="{{ t.id }}">
+                                <input type="hidden" name="attendance_id" value="{{ t.id }}">
                                 <input type="hidden" name="action" value="approve">
                                 <button type="submit" class="btn btn-sm btn-success fw-bold"><i class="fas fa-check"></i></button>
                             </form>
                             <form action="{{ url_for('hr_bp.approve_timesheet') }}" method="POST" class="d-inline ms-1">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <input type="hidden" name="timesheet_id" value="{{ t.id }}">
+                                <input type="hidden" name="attendance_id" value="{{ t.id }}">
                                 <input type="hidden" name="action" value="reject">
                                 <button type="submit" class="btn btn-sm btn-danger fw-bold"><i class="fas fa-times"></i></button>
                             </form>
