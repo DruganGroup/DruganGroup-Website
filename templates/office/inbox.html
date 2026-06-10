@@ -1,85 +1,249 @@
 {% extends "office/office_base.html" %}
 
-{% block title %}Email Inbox{% endblock %}
+{% block title %}Communications Hub{% endblock %}
 
-{% block office_content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-inbox text-primary me-2"></i> Client Inbox</h2>
-    <a href="{{ url_for('office.sync_emails') }}" class="btn btn-outline-primary">
-        <i class="fas fa-sync-alt me-1"></i> Sync Now
-    </a>
-</div>
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold m-0"><i class="fas fa-envelope-open-text text-primary me-2"></i> Communications Hub</h2>
+            <p class="text-muted mb-0 small">Manage your client emails and AI interactions</p>
+        </div>
+        <div>
+            <a href="{{ url_for('office.sync_emails') }}" class="btn btn-outline-dark fw-bold shadow-sm">
+                <i class="fas fa-sync-alt me-1"></i> Sync IMAP
+            </a>
+            <button class="btn btn-primary fw-bold shadow-sm ms-2" data-bs-toggle="modal" data-bs-target="#composeModal">
+                <i class="fas fa-pen me-1"></i> Compose
+            </button>
+        </div>
+    </div>
 
-<div class="card shadow-sm border-0">
-    <div class="card-body p-0">
-        <div class="list-group list-group-flush">
-            {% for email in emails %}
-            <div class="list-group-item list-group-item-action p-3 {% if email.status == 'Unread' %}bg-light{% endif %}">
-                <div class="d-flex w-100 justify-content-between align-items-center">
-                    <h5 class="mb-1 text-truncate" style="max-width: 70%;">{{ email.subject }}</h5>
-                    <small class="text-muted">{{ email.date.strftime('%d %b %Y %H:%M') if email.date else '' }}</small>
-                </div>
-                <div class="d-flex justify-content-between align-items-center mt-2">
-                    <p class="mb-1 text-muted"><strong>From:</strong> {{ email.sender }}</p>
-                    {% if email.client_id %}
-                    <span class="badge bg-success"><i class="fas fa-user-check me-1"></i> Client Match</span>
-                    {% endif %}
-                </div>
-                <p class="mt-2 text-muted small" style="max-height: 40px; overflow: hidden; text-overflow: ellipsis;">
-                    {{ email.body[:150] }}...
-                </p>
-                <div class="mt-2">
-                    <button class="btn btn-sm btn-primary ai-summarize" data-id="{{ email.id }}"><i class="fas fa-robot me-1"></i> AI Summarize</button>
-                    <button class="btn btn-sm btn-outline-secondary ai-draft" data-id="{{ email.id }}"><i class="fas fa-pen me-1"></i> Draft Reply</button>
-                </div>
-                <div class="ai-result mt-2 alert alert-info d-none" id="ai-result-{{ email.id }}"></div>
+    <div class="row g-4">
+        <!-- Folders Sidebar -->
+        <div class="col-md-3 col-lg-2">
+            <div class="list-group shadow-sm border-0 rounded-3">
+                <a href="#" class="list-group-item list-group-item-action active fw-bold border-0 py-3" aria-current="true">
+                    <i class="fas fa-inbox me-2"></i> Inbox
+                    <span class="badge bg-white text-primary rounded-pill float-end">{{ emails|length }}</span>
+                </a>
+                <a href="#" class="list-group-item list-group-item-action fw-bold border-0 py-3 text-muted">
+                    <i class="fas fa-paper-plane me-2"></i> Sent
+                </a>
+                <a href="#" class="list-group-item list-group-item-action fw-bold border-0 py-3 text-muted">
+                    <i class="fas fa-file-alt me-2"></i> Drafts
+                </a>
+                <a href="#" class="list-group-item list-group-item-action fw-bold border-0 py-3 text-muted">
+                    <i class="fas fa-trash me-2"></i> Trash
+                </a>
             </div>
-            {% else %}
-            <div class="p-5 text-center text-muted">
-                <i class="fas fa-envelope-open fa-3x mb-3 text-light"></i>
-                <h5>Inbox Empty</h5>
-                <p>No emails found or IMAP not configured.</p>
+            
+            <div class="mt-4 p-3 bg-light rounded-3 border">
+                <h6 class="fw-bold small text-uppercase text-muted mb-3">AI Assistants</h6>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-sm btn-outline-success fw-bold text-start"><i class="fas fa-robot me-2"></i> Auto-Sort Emails</button>
+                    <button class="btn btn-sm btn-outline-info fw-bold text-start"><i class="fas fa-magic me-2"></i> Summarize Unread</button>
+                </div>
             </div>
-            {% endfor %}
+        </div>
+
+        <!-- Emails List / View Area -->
+        <div class="col-md-9 col-lg-10">
+            <div class="card shadow-sm border-0 h-100 rounded-3">
+                <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="m-0 fw-bold">Inbox</h5>
+                    <div class="input-group" style="width: 250px;">
+                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" class="form-control bg-light border-start-0" placeholder="Search emails...">
+                    </div>
+                </div>
+                
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" id="emailList">
+                        {% for email in emails %}
+                        <div class="list-group-item list-group-item-action p-3 border-bottom email-row position-relative" style="cursor: pointer;" onclick="openEmailModal({{ email.id }})">
+                            <div class="row align-items-center">
+                                <div class="col-md-3 col-sm-4 mb-2 mb-md-0 text-truncate">
+                                    <span class="fw-bold text-dark">{{ email.sender }}</span>
+                                </div>
+                                <div class="col-md-6 col-sm-8 mb-2 mb-md-0 text-truncate">
+                                    <span class="fw-bold text-dark me-2">{{ email.subject }}</span>
+                                    <span class="text-muted small">{{ email.body[:60] }}...</span>
+                                </div>
+                                <div class="col-md-3 text-md-end text-muted small">
+                                    {% if email.client_id %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle me-2"><i class="fas fa-user-check"></i> Client</span>
+                                    {% endif %}
+                                    {{ email.date.strftime('%d %b %H:%M') if email.date else '' }}
+                                </div>
+                            </div>
+                            
+                            <!-- Hidden Data for Modal -->
+                            <div id="email-data-{{ email.id }}" class="d-none" 
+                                 data-sender="{{ email.sender }}"
+                                 data-subject="{{ email.subject }}"
+                                 data-date="{{ email.date.strftime('%d %b %Y %H:%M') if email.date else '' }}"
+                                 data-body="{{ email.body|forceescape }}">
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="p-5 text-center text-muted">
+                            <div class="mb-3"><i class="fas fa-envelope-open fa-4x text-light"></i></div>
+                            <h5 class="fw-bold text-dark">You're all caught up!</h5>
+                            <p>No new emails in your inbox.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
+<!-- View Email Modal -->
+<div class="modal fade" id="viewEmailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h4 class="modal-title fw-bold" id="modalSubject">Subject</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-secondary text-white rounded-circle d-flex justify-content-center align-items-center fw-bold fs-5 me-3" style="width: 45px; height: 45px;" id="modalAvatar">
+                            ?
+                        </div>
+                        <div>
+                            <div class="fw-bold" id="modalSender">Sender Name</div>
+                            <div class="text-muted small" id="modalDate">Date</div>
+                        </div>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary fw-bold" onclick="summarizeEmail()"><i class="fas fa-robot me-1"></i> AI Summary</button>
+                    </div>
+                </div>
+                
+                <div id="modalBody" class="text-dark" style="white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6;">
+                    Loading...
+                </div>
+                
+                <div id="aiSummaryBox" class="mt-4 p-3 bg-primary-subtle border border-primary-subtle rounded-3 d-none">
+                    <h6 class="fw-bold text-primary mb-2"><i class="fas fa-sparkles me-1"></i> AI Summary</h6>
+                    <div id="aiSummaryContent" class="small text-dark">Summarizing...</div>
+                </div>
+                
+                <div id="aiDraftBox" class="mt-4 d-none">
+                    <h6 class="fw-bold text-success mb-2"><i class="fas fa-pen-fancy me-1"></i> AI Drafted Reply</h6>
+                    <textarea class="form-control" rows="5" id="aiDraftContent"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-top-0 pt-0">
+                <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-outline-success fw-bold" onclick="draftReply()"><i class="fas fa-magic me-1"></i> Auto-Draft Reply</button>
+                <button type="button" class="btn btn-dark fw-bold"><i class="fas fa-reply me-1"></i> Reply Manually</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Compose Email Modal -->
+<div class="modal fade" id="composeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-dark text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="fas fa-pen me-2"></i> New Message</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="composeForm">
+                    <div class="mb-3">
+                        <input type="email" class="form-control border-0 border-bottom rounded-0 px-0" placeholder="To" required>
+                    </div>
+                    <div class="mb-3">
+                        <input type="text" class="form-control border-0 border-bottom rounded-0 px-0 fw-bold" placeholder="Subject" required>
+                    </div>
+                    <div class="mb-3">
+                        <textarea class="form-control border-0 px-0" rows="10" placeholder="Write your message here..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer bg-light border-0">
+                <button type="button" class="btn btn-outline-secondary fw-bold"><i class="fas fa-paperclip me-1"></i> Attach</button>
+                <button type="button" class="btn btn-primary fw-bold px-4"><i class="fas fa-paper-plane me-2"></i> Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .email-row:hover {
+        background-color: #f8f9fa !important;
+    }
+</style>
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.ai-summarize').forEach(btn => {
-        btn.addEventListener('click', async function() {
-            let id = this.getAttribute('data-id');
-            let resDiv = document.getElementById('ai-result-' + id);
-            resDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
-            resDiv.classList.remove('d-none');
-            
-            try {
-                let res = await fetch(`/office/api/email/${id}/summarize`);
-                let data = await res.json();
-                resDiv.innerHTML = '<strong>AI Summary:</strong> ' + data.summary;
-            } catch(e) {
-                resDiv.innerHTML = 'Error summarizing email.';
-            }
-        });
-    });
+let currentEmailId = null;
+
+function openEmailModal(id) {
+    currentEmailId = id;
+    const dataDiv = document.getElementById('email-data-' + id);
+    if (!dataDiv) return;
     
-    document.querySelectorAll('.ai-draft').forEach(btn => {
-        btn.addEventListener('click', async function() {
-            let id = this.getAttribute('data-id');
-            let resDiv = document.getElementById('ai-result-' + id);
-            resDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Drafting...';
-            resDiv.classList.remove('d-none');
-            
-            try {
-                let res = await fetch(`/office/api/email/${id}/draft`);
-                let data = await res.json();
-                resDiv.innerHTML = '<strong>Draft Reply:</strong><br><textarea class="form-control mt-2" rows="4">' + data.draft + '</textarea>';
-            } catch(e) {
-                resDiv.innerHTML = 'Error drafting reply.';
-            }
-        });
-    });
-});
+    const sender = dataDiv.getAttribute('data-sender');
+    const subject = dataDiv.getAttribute('data-subject');
+    const date = dataDiv.getAttribute('data-date');
+    const body = dataDiv.getAttribute('data-body');
+    
+    document.getElementById('modalSubject').innerText = subject;
+    document.getElementById('modalSender').innerText = sender;
+    document.getElementById('modalDate').innerText = date;
+    document.getElementById('modalBody').innerText = body;
+    
+    // Set Avatar Initial
+    let initial = sender ? sender.charAt(0).toUpperCase() : '?';
+    document.getElementById('modalAvatar').innerText = initial;
+    
+    // Reset AI boxes
+    document.getElementById('aiSummaryBox').classList.add('d-none');
+    document.getElementById('aiDraftBox').classList.add('d-none');
+    
+    var myModal = new bootstrap.Modal(document.getElementById('viewEmailModal'));
+    myModal.show();
+}
+
+async function summarizeEmail() {
+    if (!currentEmailId) return;
+    const summaryBox = document.getElementById('aiSummaryBox');
+    const summaryContent = document.getElementById('aiSummaryContent');
+    
+    summaryBox.classList.remove('d-none');
+    summaryContent.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> AI is analyzing this email...';
+    
+    try {
+        let res = await fetch(`/office/api/email/${currentEmailId}/summarize`);
+        let data = await res.json();
+        summaryContent.innerHTML = data.summary;
+    } catch(e) {
+        summaryContent.innerHTML = 'Error summarizing email. Please check your AI API key settings.';
+    }
+}
+
+async function draftReply() {
+    if (!currentEmailId) return;
+    const draftBox = document.getElementById('aiDraftBox');
+    const draftContent = document.getElementById('aiDraftContent');
+    
+    draftBox.classList.remove('d-none');
+    draftContent.value = 'AI is writing a response...';
+    
+    try {
+        let res = await fetch(`/office/api/email/${currentEmailId}/draft`);
+        let data = await res.json();
+        draftContent.value = data.draft;
+    } catch(e) {
+        draftContent.value = 'Error drafting reply. Please check your AI API key settings.';
+    }
+}
 </script>
 {% endblock %}

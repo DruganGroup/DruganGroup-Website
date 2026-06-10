@@ -12,7 +12,7 @@
             One System. <span class="text-gold">One Knowledge Base.</span>
         </h1>
         <p class="lead text-secondary mx-auto" style="max-width: 700px;">
-            Unlike juggling 6 different help centers, everything you need to know about Business Better is right here.
+            Unlike juggling 6 different tools, everything you need to know about navigating the Business Better platform is right here.
         </p>
     </div>
 </header>
@@ -25,36 +25,63 @@
                 <!-- Search Bar -->
                 <div class="input-group mb-5 shadow-lg">
                     <span class="input-group-text bg-dark border-secondary ps-4"><i class="fas fa-search text-gold"></i></span>
-                    <input type="text" class="form-control bg-dark border-secondary text-white py-3" placeholder="Search for help articles (e.g. 'SMTP' or 'Fleet')...">
-                    <button class="btn btn-brand px-4 fw-bold">Search</button>
+                    <input type="text" class="form-control bg-dark border-secondary text-white py-3" id="helpSearch" placeholder="Search for help articles (e.g. 'SMTP' or 'Certificates')...">
+                    <button class="btn btn-brand px-4 fw-bold" onclick="filterHelp()">Search</button>
                 </div>
 
                 <!-- Quick Links -->
                 <div class="row g-4 mb-5">
-                    <div class="col-12">
+                    <div class="col-6 col-md-4">
                         <a href="#estimator" class="text-decoration-none">
                             <div class="p-4 bg-dark border border-secondary rounded-4 text-center h-100 hover-card">
-                                <i class="fas fa-calculator fa-3x text-gold mb-3"></i>
-                                <h5 class="text-white fw-bold">Estimator</h5>
-                                <p class="text-secondary small mb-0">Quotes & Materials</p>
+                                <i class="fas fa-calculator fa-2x text-gold mb-3"></i>
+                                <h6 class="text-white fw-bold mb-1">Estimator</h6>
+                                <p class="text-secondary small mb-0">Quotes & Invoicing</p>
                             </div>
                         </a>
                     </div>
-                    <div class="col-12">
+                    <div class="col-6 col-md-4">
                         <a href="#fleet" class="text-decoration-none">
                             <div class="p-4 bg-dark border border-secondary rounded-4 text-center h-100 hover-card">
-                                <i class="fas fa-truck fa-3x text-gold mb-3"></i>
-                                <h5 class="text-white fw-bold">Fleet</h5>
+                                <i class="fas fa-truck fa-2x text-gold mb-3"></i>
+                                <h6 class="text-white fw-bold mb-1">Fleet</h6>
                                 <p class="text-secondary small mb-0">Vehicles & Tracking</p>
                             </div>
                         </a>
                     </div>
-                    <div class="col-12">
+                    <div class="col-6 col-md-4">
                         <a href="#compliance" class="text-decoration-none">
                             <div class="p-4 bg-dark border border-secondary rounded-4 text-center h-100 hover-card">
-                                <i class="fas fa-clipboard-check fa-3x text-gold mb-3"></i>
-                                <h5 class="text-white fw-bold">Compliance</h5>
+                                <i class="fas fa-clipboard-check fa-2x text-gold mb-3"></i>
+                                <h6 class="text-white fw-bold mb-1">Compliance</h6>
                                 <p class="text-secondary small mb-0">RAMS & Certificates</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <a href="#inbox" class="text-decoration-none">
+                            <div class="p-4 bg-dark border border-secondary rounded-4 text-center h-100 hover-card">
+                                <i class="fas fa-envelope-open-text fa-2x text-gold mb-3"></i>
+                                <h6 class="text-white fw-bold mb-1">Inbox & AI</h6>
+                                <p class="text-secondary small mb-0">Emails & AI Assistants</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <a href="#siteapp" class="text-decoration-none">
+                            <div class="p-4 bg-dark border border-secondary rounded-4 text-center h-100 hover-card">
+                                <i class="fas fa-mobile-alt fa-2x text-gold mb-3"></i>
+                                <h6 class="text-white fw-bold mb-1">Site App</h6>
+                                <p class="text-secondary small mb-0">Worker Tools</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <a href="#portal" class="text-decoration-none">
+                            <div class="p-4 bg-dark border border-secondary rounded-4 text-center h-100 hover-card">
+                                <i class="fas fa-user-circle fa-2x text-gold mb-3"></i>
+                                <h6 class="text-white fw-bold mb-1">Client Portal</h6>
+                                <p class="text-secondary small mb-0">Landlord Access</p>
                             </div>
                         </a>
                     </div>
@@ -63,147 +90,210 @@
                 <!-- FAQ Accordion -->
                 <div class="accordion" id="helpAccordion">
 
-                    <h5 id="gps" class="fw-bold text-gold mb-3 mt-5 text-uppercase small">GPS & Tracking</h5>
+                    <!-- INBOX & AI -->
+                    <h5 id="inbox" class="fw-bold text-gold mb-3 mt-5 text-uppercase small"><i class="fas fa-envelope-open-text me-2"></i> Inbox & Email AI</h5>
 
-<div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark">
-<h2 class="accordion-header">
-<button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-gps">
-<i class="fas fa-map-marked-alt text-gold me-3"></i> How do I track my fleet's GPS?
-</button>
-</h2>
-<div id="faq-gps" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-<div class="accordion-body text-secondary bg-black border-top border-secondary">
-<p>Our fleet management system comes with integrated GPS and tracking capabilities. Here’s how you can track your vehicles:</p>
-<ol>
-<li>Navigate to the <strong>Fleet</strong> tab in your dashboard.</li>
-<li>Click on any vehicle to view its real-time location and historical data.</li>
-<li>Use the map to see where each van is currently located.</li>
-</ol>
-<p><strong>Note:</strong> GPS tracking is provided by a third-party carrier. Ensure you have active tracking with them for accurate results.</p>
-</div>
-</div>
-</div>
-
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark">
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark help-item">
                         <h2 class="accordion-header">
-                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-smtp">
-                                <i class="fas fa-envelope-open-text text-gold me-3"></i> How do I set up SMTP Email?
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-inbox1">
+                                How do I set up IMAP/SMTP to sync my emails?
                             </button>
                         </h2>
-                        <div id="faq-smtp" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                        <div id="faq-inbox1" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
                             <div class="accordion-body text-secondary bg-black border-top border-secondary">
-                                <p>By default, invoices come from <em>noreply@businessbetter.co.uk</em>. To send them from <strong>your</strong> email address:</p>
+                                <p>To fully integrate your emails into the Office Hub:</p>
                                 <ol>
-                                    <li>Go to <strong>Settings</strong> > <strong>Email Configuration</strong>.</li>
-                                    <li>Toggle "Use Custom SMTP" to ON.</li>
-                                    <li>Enter your provider details (e.g., Gmail, Outlook, or Fasthosts).</li>
-                                    <li><strong>Host:</strong> <code class="text-gold">smtp.livemail.co.uk</code> (for Fasthosts) or <code class="text-gold">smtp.gmail.com</code>.</li>
-                                    <li><strong>Port:</strong> Usually <code class="text-gold">587</code> (TLS) or <code class="text-gold">465</code> (SSL).</li>
-                                    <li>Enter your email address and password.</li>
-                                    <li>Click <strong>"Test Connection"</strong>.</li>
+                                    <li>Navigate to <strong>Finance App > Settings > Email Configuration</strong>.</li>
+                                    <li>Enter your SMTP details to <em>send</em> emails (e.g., invoices/quotes).</li>
+                                    <li>Enter your IMAP details to <em>receive</em> and sync emails into the Hub.</li>
+                                    <li>For most providers (like Fasthosts), IMAP is <code class="text-gold">imap.livemail.co.uk</code> (Port 993) and SMTP is <code class="text-gold">smtp.livemail.co.uk</code> (Port 587).</li>
+                                    <li>If you are using Gmail, you must generate an "App Password" within your Google Account security settings.</li>
                                 </ol>
-                                <div class="alert alert-dark border-warning small">
-                                    <i class="fas fa-exclamation-triangle text-warning me-2"></i> 
-                                    <strong>Note:</strong> If using Gmail, you must generate an "App Password" in your Google Account settings first.
-                                </div>
+                                <p>Once configured, the system securely encrypts your credentials and automatically links incoming emails to matching client records in the database.</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- FLEET & STAFF -->
-                    <h5 id="fleet" class="fw-bold text-gold mb-3 mt-5 text-uppercase small">Fleet & Staff</h5>
-
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark">
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark help-item">
                         <h2 class="accordion-header">
-                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-vans">
-                                <i class="fas fa-truck text-gold me-3"></i> How do I add a new Van?
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-inbox2">
+                                How do I use the AI Email Assistant?
                             </button>
                         </h2>
-                        <div id="faq-vans" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                        <div id="faq-inbox2" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
                             <div class="accordion-body text-secondary bg-black border-top border-secondary">
-                                <p>To track a vehicle's MOT, Tax, and Service history:</p>
-                                <ol>
-                                    <li>Navigate to the <strong>Fleet</strong> tab in your dashboard.</li>
-                                    <li>Click the blue <strong>+ Add Vehicle</strong> button.</li>
-                                    <li>Enter the <strong>Registration Number</strong> (VRM).</li>
-                                    <li>Our system will automatically pull the Make/Model from the DVLA database.</li>
-                                    <li>Assign a "Default Driver" if one person uses this van permanently.</li>
-                                </ol>
-                                <div class="alert alert-dark border-gold small">
-                                    <i class="fas fa-lightbulb text-gold me-2"></i> 
-                                    <strong>Pro Tip:</strong> Unlike separate fleet tracking tools, your vehicle data automatically links to job costs and compliance checks.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-crew">
-                                <i class="fas fa-users-cog text-gold me-3"></i> How do I assign drivers and crew?
-                            </button>
-                        </h2>
-                        <div id="faq-crew" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
-                                <p><strong>Drivers:</strong> Are assigned to a vehicle in the Fleet tab.</p>
-                                <p><strong>Crew/Engineers:</strong> Are assigned to Jobs.</p>
+                                <p>In the Office Hub's <strong>Client Inbox</strong>, every email has AI tools built right in:</p>
                                 <ul>
-                                    <li>Go to <strong>Schedule</strong> and click on a Job.</li>
-                                    <li>In the "Assigned Staff" box, search for your engineer's name.</li>
-                                    <li><strong>Note:</strong> You must first invite them via <strong>Settings > Users > Invite New User</strong>.</li>
+                                    <li><strong>AI Summarize:</strong> Click this to instantly read long email threads. The AI is specifically trained to detect "quote accepted" intent, letting you know immediately if a client wants to proceed with a job.</li>
+                                    <li><strong>Draft Reply:</strong> Click this and the AI will analyze the client's email and generate a professional draft response ready for you to copy, edit, and send.</li>
                                 </ul>
-                                <p>Once assigned, the job will instantly appear on their mobile app.</p>
+                                <div class="alert alert-dark border-gold small">
+                                    <i class="fas fa-robot text-gold me-2"></i> <strong>Note:</strong> Ensure you have provided your OpenAI or Anthropic API key in the Integrations Settings to enable this feature.
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- ESTIMATOR & QUOTES -->
-                    <h5 id="estimator" class="fw-bold text-gold mb-3 mt-5 text-uppercase small">Estimator & Quotes</h5>
+                    <h5 id="estimator" class="fw-bold text-gold mb-3 mt-5 text-uppercase small"><i class="fas fa-calculator me-2"></i> Estimator, Quotes & Invoicing</h5>
 
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark">
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark help-item">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-quote">
-                                <i class="fas fa-calculator text-gold me-3"></i> How do I create a quote?
+                                How does the Quote to Job to Invoice pipeline work?
                             </button>
                         </h2>
                         <div id="faq-quote" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
                             <div class="accordion-body text-secondary bg-black border-top border-secondary">
-                                <p>The Unified Estimator calculates materials, labor, and fleet costs automatically:</p>
+                                <p>Business Better uses a <strong>Unified Pipeline</strong>, meaning data seamlessly flows from quote to final invoice without double-entry:</p>
                                 <ol>
-                                    <li>Go to <strong>Quotes</strong> > <strong>Create New Quote</strong></li>
-                                    <li>Select your client (or create a new one)</li>
-                                    <li>Add line items: Materials, Labor hours, or Custom items</li>
-                                    <li>The system auto-calculates based on your configured rates</li>
-                                    <li>Preview and send via email or download as PDF</li>
+                                    <li><strong>Create Quote:</strong> Use the estimator to add materials, vehicle fleet costs, and labor.</li>
+                                    <li><strong>Book Job:</strong> Once accepted, click "Convert to Job". This pushes all estimated materials to the worker's Site App.</li>
+                                    <li><strong>Site Adjustments:</strong> If workers buy extra parts on-site, they log them in the Site App. If they work longer hours, their timesheet captures it.</li>
+                                    <li><strong>Final Invoice:</strong> When the office or site worker clicks "Complete & Invoice", the system ignores the original estimate and builds the final invoice using the <em>actual</em> logged timesheet hours and <em>actual</em> materials used, automatically applying your profit markup percentages configured in Settings.</li>
                                 </ol>
-                                <div class="alert alert-dark border-gold small">
-                                    <i class="fas fa-star text-gold me-2"></i> 
-                                    <strong>Why it's better:</strong> Unlike standalone estimating tools, quotes automatically convert to jobs with live profit tracking.
-                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark help-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-supplier">
+                                How do I email a Materials PDF to a supplier?
+                            </button>
+                        </h2>
+                        <div id="faq-supplier" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
+                                <p>You can instantly order materials for a job directly from the dashboard:</p>
+                                <ol>
+                                    <li>Open the specific Job Dashboard in the Office Hub.</li>
+                                    <li>Click the <strong>Email Supplier</strong> button located in the timeline header.</li>
+                                    <li>Enter the merchant's email address (e.g. Travis Perkins, Screwfix).</li>
+                                    <li>The system generates a branded PDF of all required materials and explicitly includes the client's property as the <strong>Delivery Address</strong>.</li>
+                                    <li>The PDF is securely emailed via your SMTP settings.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SITE APP -->
+                    <h5 id="siteapp" class="fw-bold text-gold mb-3 mt-5 text-uppercase small"><i class="fas fa-mobile-alt me-2"></i> Site App for Workers</h5>
+
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark help-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-site1">
+                                How do site workers view access codes or property keys?
+                            </button>
+                        </h2>
+                        <div id="faq-site1" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
+                                <p>For estate agencies and remote properties, managing access is crucial.</p>
+                                <p>When you create a property profile in the Client Directory, you can add an <strong>Access/Key Code</strong>. When a site worker opens that job on their mobile Site App, the access instructions will be highlighted in red beneath the property address.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark help-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-site2">
+                                What else can workers do on the Site App?
+                            </button>
+                        </h2>
+                        <div id="faq-site2" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
+                                <ul>
+                                    <li><strong>Daily Van Safety Checks:</strong> Log morning vehicle defect checks directly to the fleet database.</li>
+                                    <li><strong>Log Fuel:</strong> Upload fuel receipts, input mileage, and log liters purchased.</li>
+                                    <li><strong>Add Materials:</strong> Log extra materials purchased on the fly, ensuring they are billed to the final invoice.</li>
+                                    <li><strong>Site Diary & Evidence:</strong> Take live photos of the site and send immediate text notes back to the Office Dashboard.</li>
+                                    <li><strong>Certificates:</strong> Workers can draft and issue CP12 (Gas) and EICR (Electric) certificates live on site, capturing client signatures digitally.</li>
+                                </ul>
                             </div>
                         </div>
                     </div>
 
                     <!-- COMPLIANCE -->
-                    <h5 id="compliance" class="fw-bold text-gold mb-3 mt-5 text-uppercase small">Compliance & Safety</h5>
+                    <h5 id="compliance" class="fw-bold text-gold mb-3 mt-5 text-uppercase small"><i class="fas fa-clipboard-check me-2"></i> Compliance & Safety</h5>
 
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark">
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark help-item">
                         <h2 class="accordion-header">
-                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-rams">
-                                <i class="fas fa-file-contract text-gold me-3"></i> How do I generate RAMS documents?
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-comp1">
+                                How do I use the Expiring Compliance Dashboard?
                             </button>
                         </h2>
-                        <div id="faq-rams" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                        <div id="faq-comp1" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
                             <div class="accordion-body text-secondary bg-black border-top border-secondary">
-                                <p>Generate professional Risk Assessments and Method Statements in 60 seconds:</p>
+                                <p>The system constantly monitors property safety certificates for you.</p>
+                                <ul>
+                                    <li>Go to the <strong>Compliance</strong> tab in the Office Hub sidebar.</li>
+                                    <li>Any property with a Gas (CP12), Electric (EICR), Energy (EPC), or PAT certificate expiring within the next <strong>30 days</strong> (or already expired) will automatically flag up here in red or yellow.</li>
+                                    <li>Click the <strong>Create Quote</strong> button next to the property to instantly propose a renewal job to the landlord or estate agent.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark help-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-comp2">
+                                What certificates and documents can I generate?
+                            </button>
+                        </h2>
+                        <div id="faq-comp2" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
+                                <p>From any Job Dashboard, click the "Certs" dropdown to generate professional, styled PDFs:</p>
+                                <ul>
+                                    <li><strong>RAMS:</strong> Risk Assessment & Method Statement (Includes Auto-Hazard detection).</li>
+                                    <li><strong>CP12:</strong> Landlord Gas Safety Record.</li>
+                                    <li><strong>EICR:</strong> Electrical Installation Condition Report.</li>
+                                    <li><strong>EPC:</strong> Energy Performance Certificate.</li>
+                                    <li><strong>Legionella:</strong> Domestic Legionella Risk Assessment.</li>
+                                </ul>
+                                <p>All certificates capture digital signatures, save safely to the job's evidence vault, and update the property's expiration records automatically.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CLIENT PORTAL -->
+                    <h5 id="portal" class="fw-bold text-gold mb-3 mt-5 text-uppercase small"><i class="fas fa-user-circle me-2"></i> Client Portal</h5>
+
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark help-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-portal">
+                                How do my clients download their own certificates?
+                            </button>
+                        </h2>
+                        <div id="faq-portal" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
+                                <p>To save your office staff time, landlords and estate agents can manage their properties themselves via the Client Portal.</p>
                                 <ol>
-                                    <li>Go to <strong>Compliance</strong> > <strong>RAMS Studio</strong></li>
-                                    <li>Select the job or create a new document</li>
-                                    <li>Choose from pre-built templates or create custom</li>
-                                    <li>Fill in site-specific details</li>
-                                    <li>Download as PDF or send directly to client</li>
+                                    <li>Provide your client with their login credentials (configured in the Client Directory).</li>
+                                    <li>The client logs in and selects a property.</li>
+                                    <li>The portal displays a smart dashboard showing the compliance status of their Gas, Electric, and EPC certificates.</li>
+                                    <li>If a valid certificate exists, the client can click the download button to retrieve the actual signed PDF file instantly, without calling your office.</li>
                                 </ol>
-                                <p class="text-gold small mb-0"><i class="fas fa-check me-2"></i> All RAMS are automatically linked to jobs and stored in your audit trail.</p>
+                                <p>Clients can also use the portal to accept pending quotes, view live job progress, and report new issues/maintenance requests.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- GPS & FLEET -->
+                    <h5 id="fleet" class="fw-bold text-gold mb-3 mt-5 text-uppercase small"><i class="fas fa-map-marked-alt me-2"></i> GPS & Fleet Tracking</h5>
+
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark help-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-gps">
+                                How do I track my fleet's GPS?
+                            </button>
+                        </h2>
+                        <div id="faq-gps" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
+                                <p>Our fleet management system comes with integrated telematics compatibility (Samsara, Geotab, Verizon Connect, TomTom).</p>
+                                <ol>
+                                    <li>Navigate to <strong>Finance App > Settings > Integrations</strong>.</li>
+                                    <li>Enter your provider's API key securely.</li>
+                                    <li>Go to the <strong>Live Operations</strong> tab in the Office Hub to view real-time locations mapped against job addresses.</li>
+                                </ol>
                             </div>
                         </div>
                     </div>
@@ -212,11 +302,10 @@
 
                 <!-- Still Need Help -->
                 <div class="text-center mt-5 p-5 bg-dark border border-warning rounded-4">
-                    <h4 class="text-white fw-bold mb-3">Still Using Multiple Tools?</h4>
-                    <p class="text-secondary mb-4">See how Business Better consolidates everything into one system</p>
+                    <h4 class="text-white fw-bold mb-3">Still Need Assistance?</h4>
+                    <p class="text-secondary mb-4">Our support team is ready to help you configure your system.</p>
                     <div class="d-flex justify-content-center gap-3">
-                        <a href="/comparison" class="btn btn-outline-light">See Comparison</a>
-                        <a href="/contact" class="btn btn-brand">Contact Support</a>
+                        <a href="/contact" class="btn btn-brand fw-bold px-4 py-2">Contact Support</a>
                     </div>
                 </div>
 
@@ -245,4 +334,22 @@
         border-color: var(--bb-gold);
     }
 </style>
+
+<script>
+function filterHelp() {
+    let input = document.getElementById('helpSearch').value.toLowerCase();
+    let items = document.querySelectorAll('.help-item');
+    
+    items.forEach(function(item) {
+        let text = item.innerText.toLowerCase();
+        if(text.includes(input)) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+// Trigger search on typing
+document.getElementById('helpSearch').addEventListener('keyup', filterHelp);
+</script>
 {% endblock %}
