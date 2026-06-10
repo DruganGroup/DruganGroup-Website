@@ -51,22 +51,41 @@
 
                 <div class="mb-4 border-bottom pb-4">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <label class="form-label fw-bold m-0">🤖 AI Assistant (Google Gemini)</label>
-                        {% if settings.get('google_ai_key') %}
-                            <span class="badge bg-success"><i class="fas fa-check"></i> Active</span>
-                        {% endif %}
+                        <label class="form-label fw-bold m-0">Verizon Connect & TomTom</label>
                     </div>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light"><i class="fas fa-brain"></i></span>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <input type="password" name="verizon_connect_api_key" class="form-control mb-2" 
+                                   value="{{ settings.get('verizon_connect_api_key', '') }}" placeholder="Verizon Connect API Key">
+                        </div>
+                        <div class="col-md-6">
+                            <input type="password" name="tomtom_api_key" class="form-control mb-2" 
+                                   value="{{ settings.get('tomtom_api_key', '') }}" placeholder="TomTom API Key">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4 border-bottom pb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-bold m-0">🤖 AI Assistants (Google, OpenAI, Anthropic)</label>
+                    </div>
+                    <div class="input-group mb-2">
+                        <span class="input-group-text bg-light" style="width: 140px;">Google Gemini</span>
                         <input type="password" name="google_ai_key" class="form-control" 
-                               value="{{ settings.get('google_ai_key', '') }}" 
-                               placeholder="AIzaSy...">
+                               value="{{ settings.get('google_ai_key', '') }}" placeholder="AIzaSy...">
+                    </div>
+                    <div class="input-group mb-2">
+                        <span class="input-group-text bg-light" style="width: 140px;">OpenAI (ChatGPT)</span>
+                        <input type="password" name="openai_api_key" class="form-control" 
+                               value="{{ settings.get('openai_api_key', '') }}" placeholder="sk-...">
+                    </div>
+                    <div class="input-group mb-2">
+                        <span class="input-group-text bg-light" style="width: 140px;">Anthropic (Claude)</span>
+                        <input type="password" name="anthropic_api_key" class="form-control" 
+                               value="{{ settings.get('anthropic_api_key', '') }}" placeholder="sk-ant-...">
                     </div>
                     <div class="form-text small">
-                        Used for receipt scanning and document analysis. 
-                        <a href="https://makersuite.google.com/app/apikey" target="_blank" class="text-decoration-none">
-                            Get API Key <i class="fas fa-external-link-alt fa-xs"></i>
-                        </a>
+                        Used for receipt scanning, analysis, and data parsing. Configure the keys for your preferred models.
                     </div>
                 </div>
 

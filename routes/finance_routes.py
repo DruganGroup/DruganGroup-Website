@@ -537,8 +537,8 @@ def settings_general():
             fields = [
                 'company_name', 'company_website', 'company_email', 'company_phone', 
                 'company_address', 'brand_color', 'smtp_host', 'smtp_port', 
-                'smtp_email', 'smtp_password', 'pdf_theme',
-                'country_code', 'currency_symbol', 'date_format',
+                'smtp_email', 'smtp_password', 'imap_host', 'imap_port', 'imap_password',
+                'pdf_theme', 'country_code', 'currency_symbol', 'date_format',
                 'company_reg_number', 'tax_id', 'default_tax_rate' 
             ]
             
@@ -942,7 +942,11 @@ def settings_integrations():
 
     if request.method == 'POST':
         # Save Keys to Settings Table with encryption
-        keys = ['samsara_api_key', 'geotab_user', 'geotab_database', 'geotab_password', 'google_ai_key']
+        keys = [
+            'samsara_api_key', 'geotab_user', 'geotab_database', 'geotab_password', 
+            'verizon_connect_api_key', 'tomtom_api_key',
+            'google_ai_key', 'openai_api_key', 'anthropic_api_key'
+        ]
         for k in keys:
             val = request.form.get(k)
             if val:

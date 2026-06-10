@@ -195,7 +195,16 @@ def new_quote():
     # 4. Fetch Settings
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
-    
+
+    # 5. Lookup Service Request
+    request_id = request.args.get('request_id')
+    source_request = None
+    if request_id:
+        cur.execute("SELECT client_id, property_id, issue_description FROM service_requests WHERE id = %s AND company_id = %s", (request_id, comp_id))
+        row = cur.fetchone()
+        if row:
+            source_request = {'client_id': row[0], 'property_id': row[1], 'desc': row[2]}
+
     conn.close()
 
     # Tax Logic (PRESERVED)
@@ -210,12 +219,6 @@ def new_quote():
         else:
             tax_rate = TAX_RATES.get(country, 0.20)
 
-    # 5. Lookup Service Request (Preserved)
-    request_id = request.args.get('request_id')
-    source_request = None
-    # (Logic for source_request was in office_routes, adding simplest version here if needed, 
-    # otherwise defaults to None to avoid errors)
-    
     return render_template('office/create_quote.html', 
                            clients=clients, 
                            materials=materials, 
@@ -525,78 +528,6 @@ def email_quote(quote_id):
             'client_name': client_name,
             'client_address': client_addr,
             'client_email': client_email,
-            'currency_symbol': settings.get('currency_symbol', '£')
-        }, 
-        'items': items, 
-        'settings': settings, 
-        'config': config, 
-        'is_quote': True
-    }
-
-    filename = f"Quote_{ref}.pdf"
-    
-    try:
-        pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
-        
-        # 6. Send Email
-        msg = MIMEMultipart()
-        msg['From'] = settings.get('smtp_email')
-        msg['To'] = client_email
-        msg['Subject'] = f"Quote {ref} - {title or 'Proposal'}"
-        
-        body = f"Dear {client_name},\n\nPlease find attached the quote for {title}.\n\nTotal: {settings.get('currency_symbol','£')}{total_val:.2f}\n\nKind regards,\n{session.get('company_name')}"
-        msg.attach(MIMEText(body, 'plain'))
-        
-        with open(pdf_path, "rb") as f:
-            part = MIMEApplication(f.read(), Name=filename)
-            part['Content-Disposition'] = f'attachment; filename="{filename}"'
-            msg.attach(part)
-
-        server = smtplib.SMTP(settings['smtp_host'], int(settings.get('smtp_port', 587)))
-        server.starttls()
-        server.login(settings['smtp_email'], settings['smtp_password'])
-        server.send_message(msg)
-        server.quit()
-        
-        cur.execute("UPDATE quotes SET status = 'Sent' WHERE id = %s", (quote_id,))
-        conn.commit()
-        flash(f"✅ Quote emailed to {client_email}!", "success")
-
-    except Exception as e:
-        flash(f"❌ Email failed: {e}", "error")
-    
-    conn.close()
-    return redirect(url_for('quote.view_quote', quote_id=quote_id))
-    
-    if config.get('logo'):
-    # Convert web path to the actual disk path
-        clean_path = config['logo'].replace('/uploads/', '').replace('uploads/', '').replace('/static/', '').replace('static/', '')
-        local_path = os.path.join(current_app.static_folder, 'uploads', clean_path)
-
-        if os.path.exists(local_path):
-            config['logo'] = local_path
-
-    # 5. Date & Context
-        country = settings.get('country_code', 'UK')
-        date_fmt = '%m/%d/%Y' if country == 'US' else '%d/%m/%Y'
-        formatted_date = q_date.strftime(date_fmt) if q_date else datetime.now().strftime(date_fmt)
-
-    context = {
-        'invoice': {
-            'ref': ref, 
-            'date': formatted_date,
-            'job_title': title,          
-            'job_description': desc,
-            'total': total_val,
-            'subtotal': total_val, 
-            'tax': 0.0,
-            
-            # --- THE FIX FOR "NONE" ---
-            'client_name': client_name,      # Passed to PDF
-            'client_address': client_addr,   # Passed to PDF
-            'client_email': client_email,    # Passed to PDF
-            # --------------------------
-
             'currency_symbol': settings.get('currency_symbol', '£')
         }, 
         'items': items, 

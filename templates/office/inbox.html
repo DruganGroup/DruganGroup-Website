@@ -1,0 +1,85 @@
+{% extends "office/office_base.html" %}
+
+{% block title %}Email Inbox{% endblock %}
+
+{% block office_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-inbox text-primary me-2"></i> Client Inbox</h2>
+    <a href="{{ url_for('office.sync_emails') }}" class="btn btn-outline-primary">
+        <i class="fas fa-sync-alt me-1"></i> Sync Now
+    </a>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+            {% for email in emails %}
+            <div class="list-group-item list-group-item-action p-3 {% if email.status == 'Unread' %}bg-light{% endif %}">
+                <div class="d-flex w-100 justify-content-between align-items-center">
+                    <h5 class="mb-1 text-truncate" style="max-width: 70%;">{{ email.subject }}</h5>
+                    <small class="text-muted">{{ email.date.strftime('%d %b %Y %H:%M') if email.date else '' }}</small>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <p class="mb-1 text-muted"><strong>From:</strong> {{ email.sender }}</p>
+                    {% if email.client_id %}
+                    <span class="badge bg-success"><i class="fas fa-user-check me-1"></i> Client Match</span>
+                    {% endif %}
+                </div>
+                <p class="mt-2 text-muted small" style="max-height: 40px; overflow: hidden; text-overflow: ellipsis;">
+                    {{ email.body[:150] }}...
+                </p>
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-primary ai-summarize" data-id="{{ email.id }}"><i class="fas fa-robot me-1"></i> AI Summarize</button>
+                    <button class="btn btn-sm btn-outline-secondary ai-draft" data-id="{{ email.id }}"><i class="fas fa-pen me-1"></i> Draft Reply</button>
+                </div>
+                <div class="ai-result mt-2 alert alert-info d-none" id="ai-result-{{ email.id }}"></div>
+            </div>
+            {% else %}
+            <div class="p-5 text-center text-muted">
+                <i class="fas fa-envelope-open fa-3x mb-3 text-light"></i>
+                <h5>Inbox Empty</h5>
+                <p>No emails found or IMAP not configured.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.ai-summarize').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            let id = this.getAttribute('data-id');
+            let resDiv = document.getElementById('ai-result-' + id);
+            resDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+            resDiv.classList.remove('d-none');
+            
+            try {
+                let res = await fetch(`/office/api/email/${id}/summarize`);
+                let data = await res.json();
+                resDiv.innerHTML = '<strong>AI Summary:</strong> ' + data.summary;
+            } catch(e) {
+                resDiv.innerHTML = 'Error summarizing email.';
+            }
+        });
+    });
+    
+    document.querySelectorAll('.ai-draft').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            let id = this.getAttribute('data-id');
+            let resDiv = document.getElementById('ai-result-' + id);
+            resDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Drafting...';
+            resDiv.classList.remove('d-none');
+            
+            try {
+                let res = await fetch(`/office/api/email/${id}/draft`);
+                let data = await res.json();
+                resDiv.innerHTML = '<strong>Draft Reply:</strong><br><textarea class="form-control mt-2" rows="4">' + data.draft + '</textarea>';
+            } catch(e) {
+                resDiv.innerHTML = 'Error drafting reply.';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

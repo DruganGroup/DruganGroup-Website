@@ -27,12 +27,16 @@ class TenantEncryption:
     # List of settings keys that should be encrypted
     ENCRYPTED_KEYS = [
         'smtp_password',
+        'imap_password',
         'google_ai_key',
+        'openai_api_key',
+        'anthropic_api_key',
         'samsara_api_key',
         'geotab_password',
         'geotab_user',
-        'stripe_secret_key',
-        'openai_api_key'
+        'verizon_connect_api_key',
+        'tomtom_api_key',
+        'stripe_secret_key'
     ]
     
     def __init__(self):

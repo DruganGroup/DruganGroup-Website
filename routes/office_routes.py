@@ -267,14 +267,6 @@ def live_ops():
     conn.close()
     return render_template('office/live_ops.html', staff=staff_status, all_staff=staff_status, fleet=fleet, brand_color=config['color'], logo_url=config['logo'])
                            
-@office_bp.route('/office/quote/save', methods=['POST'])
-def save_quote():
-    if not check_office_access(): return redirect(url_for('auth.login'))
-    
-    # (Your existing save logic here - unchanged)
-    # For brevity, I am keeping the logic you likely already have.
-    # If this part is missing, let me know and I will provide the full save function.
-    return redirect(url_for('office.office_dashboard'))
 
 @office_bp.route('/office/calendar')
 def office_calendar():
@@ -423,6 +415,74 @@ def schedule_job():
     except Exception as e:
         print(f"ERROR in schedule_job: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@office_bp.route('/office/inbox')
+def inbox():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    
+    try:
+        cur.execute("SELECT id, msg_id, sender, subject, body, date, client_id, status FROM emails WHERE company_id = %s ORDER BY date DESC LIMIT 50", (comp_id,))
+        emails = []
+        for r in cur.fetchall():
+            emails.append({
+                'id': r[0], 'msg_id': r[1], 'sender': r[2], 'subject': r[3],
+                'body': r[4], 'date': r[5], 'client_id': r[6], 'status': r[7]
+            })
+    except:
+        emails = []
+    finally:
+        conn.close()
+        
+    return render_template('office/inbox.html', emails=emails)
+
+@office_bp.route('/office/inbox/sync')
+def sync_emails():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    comp_id = session.get('company_id')
+    from services.imap_engine import fetch_emails
+    fetched = fetch_emails(comp_id)
+    if fetched:
+        flash(f"Successfully synced {len(fetched)} new emails.", "success")
+    else:
+        flash("No new emails found or IMAP not configured.", "info")
+    return redirect(url_for('office.inbox'))
+
+@office_bp.route('/office/api/email/<int:email_id>/summarize')
+def api_email_summarize(email_id):
+    if not check_office_access(): return jsonify({'error': 'Unauthorized'}), 401
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT body FROM emails WHERE id = %s AND company_id = %s", (email_id, session.get('company_id')))
+        row = cur.fetchone()
+        if not row: return jsonify({'error': 'Email not found'}), 404
+        
+        body = row[0]
+        # In a real app we'd call openai API
+        # For now, a simple mock summary
+        from services.ai_assistant import get_openai_client
+        summary = f"Client is inquiring about..."
+        if "quote" in body.lower() and "accept" in body.lower():
+            summary = "Client is accepting a quote. You should schedule the job."
+        return jsonify({'summary': summary})
+    finally:
+        conn.close()
+
+@office_bp.route('/office/api/email/<int:email_id>/draft')
+def api_email_draft(email_id):
+    if not check_office_access(): return jsonify({'error': 'Unauthorized'}), 401
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT body FROM emails WHERE id = %s AND company_id = %s", (email_id, session.get('company_id')))
+        row = cur.fetchone()
+        if not row: return jsonify({'error': 'Email not found'}), 404
+        
+        # Mocking draft
+        draft = "Thank you for getting in touch. We have received your message and will respond shortly.\n\nBest regards,\nThe Office Team"
+        return jsonify({'draft': draft})
+    finally:
+        conn.close()
 
 # B. LOAD CALENDAR DATA (Show the bars on the calendar)
 @office_bp.route('/office/calendar/data')

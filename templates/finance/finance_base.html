@@ -91,10 +91,6 @@
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
 </head>
 <body>
-    {% if session.get('role') != 'Admin' and session.get('role') != 'Finance' and session.get('role') != 'SuperAdmin' %}
-        <script>window.location.href = "/unauthorized";</script>
-    {% endif %}
-
     <div class="sidebar">
         <div class="sidebar-brand">
             <img src="{{ logo or '/static/images/logo.png' }}" alt="Company Logo" class="sidebar-logo-img">

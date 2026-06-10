@@ -74,9 +74,9 @@
         <div class="d-grid gap-2 mt-5">
             <a href="/office-hub" class="btn btn-outline-light"><i class="fas fa-arrow-left me-2"></i> Back to Dashboard</a>
             
-            <button class="btn btn-outline-info" onclick="alert('Email system coming soon.')">
+            <a href="{{ url_for('quote.email_quote', quote_id=quote[0]) }}" class="btn btn-outline-info" onclick="return confirm('Send this quote to the client via email?');">
                 <i class="fas fa-envelope me-2"></i> Email to Client
-            </button>
+            </a>
         </div>
     </div>
 
