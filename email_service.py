@@ -55,8 +55,14 @@ def send_company_email(company_id, to_email, subject, body, pdf_path=None):
     # 5. Connect and Send
     try:
         print(f"DEBUG: Connecting to {smtp_server}:{smtp_port}...")
-        server = smtplib.SMTP(smtp_server, int(smtp_port))
-        server.starttls()  # Secure the connection
+        
+        # Check if Port 465 (Requires direct SSL)
+        if str(smtp_port) == '465':
+            server = smtplib.SMTP_SSL(smtp_server, int(smtp_port))
+        else:
+            server = smtplib.SMTP(smtp_server, int(smtp_port))
+            server.starttls()  # Secure the connection for 587/25
+            
         server.login(smtp_user, smtp_pass)
         server.send_message(msg)
         server.quit()

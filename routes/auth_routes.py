@@ -394,7 +394,7 @@ def change_password():
 def test_email_connection():
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']:
         flash("❌ Access Denied", "error")
-        return redirect(url_for('finance.settings_general'))
+        return redirect(url_for('finance.settings_integrations'))
     
     comp_id = session.get('company_id')
     user_email = session.get('user_email') 
@@ -415,8 +415,8 @@ def test_email_connection():
         flash(f"✅ Success! Test email sent to {user_email}", "success")
     else:
         flash(f"❌ Connection Failed: {msg}", "error")
-        
-    return redirect(url_for('finance.settings_general'))
+
+    return redirect(url_for('finance.settings_integrations'))
 
 def create_pending_account(data):
     conn = get_db()
