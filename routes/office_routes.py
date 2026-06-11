@@ -36,26 +36,28 @@ def service_desk():
     conn = get_db(); cur = conn.cursor()
     
     # --- SMART MIGRATIONS ---
-    try:
-        cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS priority VARCHAR(50) DEFAULT 'Medium';")
-        cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS photo_path TEXT;")
-        cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS partner_company_id INTEGER;")
-        cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS parent_request_id INTEGER;")
-        cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS partner_address_snapshot VARCHAR(255);")
-        cur.execute("ALTER TABLE companies ADD COLUMN IF NOT EXISTS partner_code VARCHAR(20);")
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS company_partners (
-                id SERIAL PRIMARY KEY,
-                company_id INTEGER,
-                partner_id INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(company_id, partner_id)
-            )
-        """)
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        print("Smart Migration Error:", e)
+    migrations = [
+        "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS priority VARCHAR(50) DEFAULT 'Medium';",
+        "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS photo_path TEXT;",
+        "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS partner_company_id INTEGER;",
+        "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS parent_request_id INTEGER;",
+        "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS partner_address_snapshot VARCHAR(255);",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS partner_code VARCHAR(20);",
+        """CREATE TABLE IF NOT EXISTS company_partners (
+            id SERIAL PRIMARY KEY,
+            company_id INTEGER,
+            partner_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(company_id, partner_id)
+        );"""
+    ]
+    
+    for query in migrations:
+        try:
+            cur.execute(query)
+            conn.commit()
+        except:
+            conn.rollback()
 
     # 1. FETCH SERVICE REQUESTS (TICKETS)
     # Modified to show if it's from a partner

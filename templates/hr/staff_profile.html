@@ -278,50 +278,170 @@
 </div>
 
 <div class="modal fade" id="editProfileModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form method="POST" action="/hr/update" enctype="multipart/form-data">
-                <div class="modal-header">
-                    <h5 class="modal-title fw-bold">Edit Profile & Uploads</h5>
+            <form method="POST" action="/hr/update" id="staffForm" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold" id="modalTitle"><i class="fas fa-user-tie me-2 text-primary"></i>Edit Staff Record</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
-                    <input type="hidden" name="staff_id" value="{{ staff.id }}">
-					<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <input type="hidden" name="staff_id" value="{{ staff.id }}">
+                <div class="modal-body bg-light">
+                    <input type="hidden" name="staff_id" id="edit_id" value="{{ staff.id }}">
                     
-                    <div class="mb-3 bg-primary bg-opacity-10 p-3 rounded border border-primary">
-                        <label class="fw-bold text-dark mb-2"><i class="fas fa-camera me-2"></i>Update Profile Photo</label>
-                        <input type="file" name="profile_photo" class="form-control" accept="image/*">
+                    <div class="card shadow-sm border-0 mb-3">
+                        <div class="card-header bg-white fw-bold"><i class="fas fa-address-card me-2 text-secondary"></i>Personal Details</div>
+                        <div class="card-body row g-3">
+                            <div class="col-md-6"><label class="small fw-bold text-muted">Full Name</label><input type="text" name="name" id="edit_name" value="{{ staff.name }}" class="form-control" required></div>
+                            <div class="col-md-6"><label class="small fw-bold text-muted">Job Title</label><input type="text" name="position" id="edit_pos" value="{{ staff.position }}" class="form-control" placeholder="e.g. Site Manager"></div>
+                            <div class="col-md-6"><label class="small fw-bold text-muted">Email</label><input type="email" name="email" id="edit_email" value="{{ staff.email }}" class="form-control"></div>
+                            <div class="col-md-6"><label class="small fw-bold text-muted">Phone</label><input type="text" name="phone" id="edit_phone" value="{{ staff.phone }}" class="form-control"></div>
+                            <div class="col-12"><label class="small fw-bold text-muted">Address</label><input type="text" name="address" id="edit_addr" value="{{ staff.address }}" class="form-control"></div>
+                        </div>
                     </div>
 
-                    <h6 class="fw-bold border-bottom pb-2 mb-3">Main Details</h6>
-                    <div class="row g-2 mb-3">
-                        <div class="col-6"><label class="small fw-bold">Name</label><input type="text" name="name" value="{{ staff.name }}" class="form-control"></div>
-                        <div class="col-6"><label class="small fw-bold">Job Title</label><input type="text" name="position" value="{{ staff.position }}" class="form-control"></div>
-                        <div class="col-6"><label class="small fw-bold">Email</label><input type="email" name="email" value="{{ staff.email }}" class="form-control"></div>
-                        <div class="col-6"><label class="small fw-bold">Phone</label><input type="text" name="phone" value="{{ staff.phone }}" class="form-control"></div>
+                    <div class="card shadow-sm border-0 mb-3">
+                        <div class="card-header bg-white fw-bold"><i class="fas fa-briefcase me-2 text-secondary"></i>Employment & Payroll</div>
+                        <div class="card-body row g-3 align-items-end">
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-muted">Employment Type</label>
+                                <select name="employment_type" id="edit_type" class="form-select" onchange="toggleEmploymentFields(true)">
+                                    <option value="Full Time" {% if staff.employment_type == 'Full Time' %}selected{% endif %}>Full Time (PAYE)</option>
+                                    <option value="Part Time" {% if staff.employment_type == 'Part Time' %}selected{% endif %}>Part Time (PAYE)</option>
+                                    <option value="Sub-Contractor" {% if staff.employment_type == 'Sub-Contractor' %}selected{% endif %}>Sub-Contractor (CIS)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-muted">Department</label>
+                                <select name="dept" id="edit_dept" class="form-select">
+                                    <option value="Site" {% if staff.dept == 'Site' %}selected{% endif %}>Site</option>
+                                    <option value="Office" {% if staff.dept == 'Office' %}selected{% endif %}>Office</option>
+                                    <option value="Management" {% if staff.dept == 'Management' %}selected{% endif %}>Management</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small fw-bold text-muted">Rate (£)</label>
+                                <input type="number" step="0.01" name="pay_rate" id="edit_rate" value="{{ staff.pay_rate }}" class="form-control">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small fw-bold text-muted">Per</label>
+                                <select name="pay_model" id="edit_model" class="form-select">
+                                    <option value="Hour" {% if staff.pay_model == 'Hour' %}selected{% endif %}>Hour</option>
+                                    <option value="Day" {% if staff.pay_model == 'Day' %}selected{% endif %}>Day</option>
+                                    <option value="Year" {% if staff.pay_model == 'Year' %}selected{% endif %}>Year</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
-                    <h6 class="fw-bold border-bottom pb-2 mb-3 text-danger">Emergency Contact (NOK)</h6>
-                    <div class="row g-2">
-                        <div class="col-6"><label class="small fw-bold">NOK Name</label><input type="text" name="nok_name" value="{{ staff.nok_name }}" class="form-control"></div>
-                        <div class="col-6"><label class="small fw-bold">Relationship</label><input type="text" name="nok_relationship" value="{{ staff.nok_relationship }}" class="form-control"></div>
-                        <div class="col-6"><label class="small fw-bold">NOK Phone</label><input type="text" name="nok_phone" value="{{ staff.nok_phone }}" class="form-control"></div>
-                        <div class="col-6"><label class="small fw-bold">Address</label><input type="text" name="nok_address" value="{{ staff.nok_address }}" class="form-control"></div>
+                    <div class="card shadow-sm border-0 mb-3" id="taxNISection">
+                        <div class="card-header bg-white fw-bold"><i class="fas fa-pound-sign me-2 text-secondary"></i>Tax, NI & Holiday</div>
+                        <div class="card-body row g-3 align-items-center">
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-muted">Tax Limit</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">£</span>
+                                    <input type="number" step="0.01" name="tax_limit" id="edit_tax_limit" value="{{ staff.tax_limit or '' }}" class="form-control" placeholder="0.00">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-muted">NI Limit</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">£</span>
+                                    <input type="number" step="0.01" name="ni_limit" id="edit_ni_limit" value="{{ staff.ni_limit or '' }}" class="form-control" placeholder="0.00">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check form-switch mt-4">
+                                    <input class="form-check-input" type="checkbox" id="edit_holiday" name="holiday_entitled" {% if staff.holiday_entitled %}checked{% endif %}>
+                                    <label class="form-check-label fw-bold small text-muted" for="edit_holiday">Entitled to Holiday Pay</label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <input type="hidden" name="pay_rate" value="{{ staff.pay_rate }}">
-                    <input type="hidden" name="pay_model" value="{{ staff.pay_model }}">
-                    <input type="hidden" name="dept" value="{{ staff.dept }}">
-                    <input type="hidden" name="employment_type" value="{{ staff.employment_type }}">
-                    <input type="hidden" name="access_level" value="{{ staff.access_level }}">
+
+                    <div class="card shadow-sm border-0 mb-3">
+                        <div class="card-header bg-white fw-bold"><i class="fas fa-university me-2 text-secondary"></i>Bank Details</div>
+                        <div class="card-body row g-3">
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-muted">Bank Name</label>
+                                <input type="text" name="bank_name" id="edit_bank_name" value="{{ staff.bank_name }}" class="form-control" placeholder="e.g. Barclays">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-muted">Account Number</label>
+                                <input type="text" name="account_number" id="edit_acc_num" value="{{ staff.account_number }}" class="form-control" placeholder="8 digit number">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-muted">Sort Code</label>
+                                <input type="text" name="sort_code" id="edit_sort_code" value="{{ staff.sort_code }}" class="form-control" placeholder="00-00-00">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm border-0 mb-3">
+                        <div class="card-header bg-white fw-bold"><i class="fas fa-file-upload me-2 text-secondary"></i>Documents & Media</div>
+                        <div class="card-body row g-3">
+                            <div class="col-md-6">
+                                <label class="small fw-bold text-dark mb-1">Profile Photo</label>
+                                <input type="file" name="profile_photo" class="form-control form-control-sm" accept="image/*">
+                                <div class="form-text" style="font-size:0.75rem;">Displayed on profile and ID cards.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small fw-bold text-dark mb-1">Driving License / ID</label>
+                                <input type="file" name="driving_license" class="form-control form-control-sm">
+                                <div class="form-text" style="font-size:0.75rem;">For insurance & compliance.</div>
+                            </div>
+                        </div>
+                    </div>
+                        
+                    <div class="card shadow-sm border-primary border-opacity-25 mb-0">
+                        <div class="card-header bg-primary bg-opacity-10 fw-bold text-primary"><i class="fas fa-lock me-2"></i>System Access</div>
+                        <div class="card-body row align-items-center">
+                            <div class="col-md-6">
+                                <select name="access_level" id="edit_access" class="form-select border-dark fw-bold">
+                                    <option value="None" {% if staff.access_level == 'None' %}selected{% endif %}>No Access</option>
+                                    <option value="Site" {% if staff.access_level == 'Site' %}selected{% endif %}>Site Dashboard</option>
+                                    <option value="Office" {% if staff.access_level == 'Office' %}selected{% endif %}>Office Dashboard</option>
+                                    <option value="Admin" {% if staff.access_level == 'Admin' %}selected{% endif %}>Finance Dashboard</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="small text-muted lh-sm mt-2 mt-md-0">
+                                    <i class="fas fa-info-circle me-1"></i> 
+                                    If granted, a <strong>secure password</strong> will be auto-emailed to the user immediately.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                 </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
+                <div class="modal-footer bg-white">
+                    <button type="submit" class="btn btn-primary fw-bold px-4">Save Record</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleEmploymentFields(isUserAction = true) {
+        const type = document.getElementById('edit_type').value;
+        const holidayCheck = document.getElementById('edit_holiday');
+        
+        if (type === 'Sub-Contractor') {
+            if (isUserAction) holidayCheck.checked = false;
+            holidayCheck.parentElement.classList.add('opacity-50');
+        } else {
+            if (isUserAction) holidayCheck.checked = true;
+            holidayCheck.parentElement.classList.remove('opacity-50');
+        }
+    }
+    
+    // Run once on load to style correctly based on DB values
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleEmploymentFields(false);
+    });
+</script>
 {% endblock %}

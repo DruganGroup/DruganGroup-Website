@@ -260,30 +260,28 @@
 			// New fields (if they exist in data attributes)
 			document.getElementById('edit_tax_limit').value = btn.getAttribute('data-tax-limit') || '';
 			document.getElementById('edit_ni_limit').value = btn.getAttribute('data-ni-limit') || '';
-			document.getElementById('edit_holiday').checked = btn.getAttribute('data-holiday') !== 'False';
+			
+            // Fix boolean comparison for Python string representation
+            let isHoliday = btn.getAttribute('data-holiday');
+			document.getElementById('edit_holiday').checked = (isHoliday !== 'False' && isHoliday !== 'false' && isHoliday !== '0');
 			
 			// Bank Details
 			document.getElementById('edit_bank_name').value = btn.getAttribute('data-bank') || '';
 			document.getElementById('edit_acc_num').value = btn.getAttribute('data-acc') || '';
 			document.getElementById('edit_sort_code').value = btn.getAttribute('data-sort') || '';
 			
-			toggleEmploymentFields();
+			toggleEmploymentFields(false); // pass false so it doesn't overwrite the DB value
 		}
 
-		function toggleEmploymentFields() {
+		function toggleEmploymentFields(isUserAction = true) {
 			const type = document.getElementById('edit_type').value;
 			const holidayCheck = document.getElementById('edit_holiday');
-			const taxLimit = document.getElementById('edit_tax_limit');
-			const niLimit = document.getElementById('edit_ni_limit');
 			
 			if (type === 'Sub-Contractor') {
-				// Sub-contractors usually have 0% tax limits or specific CIS deductions
-				holidayCheck.checked = false;
-				// Optional visual styling cue
+				if (isUserAction) holidayCheck.checked = false;
 				holidayCheck.parentElement.classList.add('opacity-50');
 			} else {
-				// Employees
-				holidayCheck.checked = true;
+				if (isUserAction) holidayCheck.checked = true;
 				holidayCheck.parentElement.classList.remove('opacity-50');
 			}
 		}
