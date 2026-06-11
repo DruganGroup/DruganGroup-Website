@@ -4,6 +4,7 @@ from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 import os
 from db import get_db
+from utils.encryption import get_encryptor
 
 def send_company_email(company_id, to_email, subject, body, pdf_path=None):
     """
@@ -26,7 +27,10 @@ def send_company_email(company_id, to_email, subject, body, pdf_path=None):
     smtp_server = settings.get('smtp_host')  # <--- CHANGED FROM 'smtp_server'
     smtp_port = settings.get('smtp_port')
     smtp_user = settings.get('smtp_email')
-    smtp_pass = settings.get('smtp_password')
+    
+    encryptor = get_encryptor()
+    raw_pass = settings.get('smtp_password')
+    smtp_pass = encryptor.decrypt(raw_pass) if raw_pass else None
 
     # Debug print to prove what we found
     print(f"DEBUG FETCH: Host={smtp_server}, User={smtp_user}, Port={smtp_port}")

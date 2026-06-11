@@ -505,6 +505,12 @@ def email_quote(quote_id):
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     
+    # Decrypt sensitive fields for email sending
+    from utils.encryption import get_encryptor
+    encryptor = get_encryptor()
+    raw_pass = settings.get('smtp_password')
+    settings['smtp_password'] = encryptor.decrypt(raw_pass) if raw_pass else None
+
     if 'smtp_host' not in settings:
         conn.close(); flash("⚠️ SMTP Settings missing.", "warning")
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
