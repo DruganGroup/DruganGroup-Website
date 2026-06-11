@@ -1271,6 +1271,49 @@ def export_payroll():
         if net > 0:
             writer.writerow([name, acc_num, sort_code, bank, f"{net:.2f}", f"Wages W/C {start_of_week.strftime('%d%b')}"])
             
+            # --- PAYSLIP GENERATION & EMAIL ---
+            if staff_email and settings.get('smtp_host'):
+                try:
+                    staff_data = {
+                        'name': name, 'role': r[2], 'type': role_type,
+                        'utr_number': utr_number, 'cis_rate': cis_rate,
+                        'tax_code': tax_code, 'account_number': acc_num, 'sort_code': sort_code,
+                        'model': model, 'hours': hours, 'days': days, 'rate': rate,
+                        'gross': gross, 'holiday': holiday_accrued,
+                        'tax': tax, 'social': social, 'net': net
+                    }
+                    config = get_site_config(comp_id)
+                    context = {
+                        'config': config,
+                        'date': date.today().strftime('%d/%m/%Y'),
+                        'period': f"W/C {start_of_week.strftime('%d/%m/%Y')}",
+                        'staff': staff_data,
+                        'currency': settings.get('currency_symbol', '£')
+                    }
+                    filename = f"Payslip_{name.replace(' ', '_')}_{today.strftime('%Y%m%d')}.pdf"
+                    pdf_path = generate_pdf('finance/pdf_payslip.html', context, filename)
+                    
+                    # Send Email
+                    msg = MIMEMultipart()
+                    msg['From'] = settings.get('smtp_email')
+                    msg['To'] = staff_email
+                    msg['Subject'] = f"Payslip: W/C {start_of_week.strftime('%d/%m/%Y')}"
+                    body = f"Hi {name},\n\nPlease find attached your payslip for the week commencing {start_of_week.strftime('%d/%m/%Y')}.\n\nYour net pay of {settings.get('currency_symbol', '£')}{net:.2f} will be transferred shortly.\n\nBest regards,\n{session.get('company_name')}"
+                    msg.attach(MIMEText(body, 'plain'))
+                    
+                    with open(pdf_path, "rb") as f:
+                        part = MIMEApplication(f.read(), Name=filename)
+                        part['Content-Disposition'] = f'attachment; filename="{filename}"'
+                        msg.attach(part)
+                        
+                    server = smtplib.SMTP(settings['smtp_host'], int(settings.get('smtp_port', 587)))
+                    server.starttls()
+                    server.login(settings['smtp_email'], settings['smtp_password'])
+                    server.send_message(msg)
+                    server.quit()
+                except Exception as e:
+                    print(f"Failed to email payslip to {staff_email}: {e}")
+            
     conn.close()
     
     return Response(

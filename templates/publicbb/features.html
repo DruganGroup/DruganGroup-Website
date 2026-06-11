@@ -1,99 +1,241 @@
 {% extends "publicbb/base.html" %}
 
-{% block title %}System Capabilities | Business Better{% endblock %}
+{% block title %}All Features | Business Better{% endblock %}
+
+{% block head %}
+<link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+<style>
+    :root {
+        --bb-black: #050505;
+        --bb-gold: #d4af37;
+        --bb-glass: rgba(255, 255, 255, 0.03);
+    }
+    body { background-color: var(--bb-black); color: #e0e0e0; font-family: 'Montserrat', sans-serif; }
+    h1, h2, h3, h4 { letter-spacing: -0.5px; }
+    
+    .dept-header {
+        border-bottom: 2px solid var(--bb-gold);
+        padding-bottom: 10px;
+        margin-bottom: 30px;
+        margin-top: 60px;
+        color: white;
+    }
+
+    .feature-card {
+        background: var(--bb-glass);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 8px;
+        padding: 25px;
+        height: 100%;
+        transition: transform 0.3s ease;
+    }
+    .feature-card:hover {
+        transform: translateY(-5px);
+        border-color: rgba(212, 175, 55, 0.3);
+    }
+    .feature-icon {
+        color: var(--bb-gold);
+        font-size: 2rem;
+        margin-bottom: 15px;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<header class="py-5 position-relative overflow-hidden" style="background-color: var(--bb-bg);">
-    <div class="container py-5 position-relative z-2 text-center">
-        <div class="d-inline-block px-3 py-1 mb-4 border border-secondary rounded-pill">
-            <span class="text-gold text-uppercase small fw-bold tracking-wide">System Architecture</span>
-        </div>
-        <h1 class="display-3 fw-bold text-white mb-4">
-            Total Operational <span class="text-gold">Command.</span>
-        </h1>
-        <p class="lead text-secondary mx-auto mb-4" style="max-width: 700px;">
-            Business Better is built on a forensic database architecture. It doesn't just "manage jobs"—it enforces compliance, audits activity, and secures your profit margins.
+<header class="py-5 text-center">
+    <div class="container mt-5">
+        <span class="text-gold border border-warning px-3 py-1 rounded-pill small fw-bold text-uppercase tracking-wide">The Complete Catalog</span>
+        <h1 class="display-4 fw-bold text-white mt-4 mb-3">Every Feature.<br>Zero Add-Ons.</h1>
+        <p class="lead text-secondary mx-auto" style="max-width: 700px;">
+            Unlike other software, we don't charge you extra for modules. Everything you see below is included in the core platform to help you automate your entire business.
         </p>
-        <div class="d-inline-block px-4 py-2 bg-dark border border-warning rounded-pill">
-            <span class="text-gold fw-bold small">
-                <i class="fas fa-layer-group me-2"></i>One System | Six Solutions | Zero Integration Costs
-            </span>
-        </div>
     </div>
 </header>
 
-<section class="py-5" style="background-color: var(--bb-card);">
+<section class="py-5 mb-5">
     <div class="container">
-        <div class="row g-0 rounded-4 overflow-hidden border border-secondary">
-            <div class="col-lg-6 p-5 border-end border-secondary bg-dark position-relative hover-panel">
-                <div class="mb-4 text-gold"><i class="fas fa-hard-hat fa-3x"></i></div>
-                <h2 class="text-white fw-bold mb-3">For Trade & Construction</h2>
-                <p class="text-secondary mb-4">
-                    Scale your firm from a "man in a van" to a national contractor. 
-                    Win commercial tenders with white-label portals and forensic audit trails.
-                </p>
-                <ul class="list-unstyled text-secondary mb-5">
-                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i> True Net-Profit Analysis</li>
-                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Fleet Logistics & Tracking</li>
-                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Automated RAMS Generation</li>
-                </ul>
-                <a href="/features/trade" class="btn btn-outline-light stretched-link fw-bold text-uppercase small">Explore Trade OS <i class="fas fa-arrow-right ms-2"></i></a>
+        
+        <!-- HR & PAYROLL -->
+        <h2 class="dept-header"><i class="fas fa-users text-gold me-3"></i> HR & Automated Payroll</h2>
+        <div class="row g-4">
+            <div class="col-md-4" data-aos="fade-up">
+                <div class="feature-card">
+                    <i class="fas fa-file-invoice-dollar feature-icon"></i>
+                    <h4 class="fw-bold text-white">One-Click Payroll Run</h4>
+                    <p class="small text-muted">Automatically pulls all approved timesheets for the week. Calculates Gross Pay based on their specific Hourly or Day rate.</p>
+                </div>
             </div>
-
-            <div class="col-lg-6 p-5 bg-dark position-relative hover-panel">
-                <div class="mb-4 text-gold"><i class="fas fa-building fa-3x"></i></div>
-                <h2 class="text-white fw-bold mb-3">For Property Managers</h2>
-                <p class="text-secondary mb-4">
-                    Automate your maintenance desk. Tenants report issues via app; you approve with one click.
-                    Zero phone calls. 100% Compliance.
-                </p>
-                <ul class="list-unstyled text-secondary mb-5">
-                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Auto-Dispatch Logic</li>
-                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Traffic Light Compliance (Gas/EICR)</li>
-                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Photo-Verified Completion</li>
-                </ul>
-                <a href="/features/agents" class="btn btn-outline-light stretched-link fw-bold text-uppercase small">Explore Agency OS <i class="fas fa-arrow-right ms-2"></i></a>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                <div class="feature-card">
+                    <i class="fas fa-calculator feature-icon"></i>
+                    <h4 class="fw-bold text-white">Smart Tax Engine (CIS & PAYE)</h4>
+                    <p class="small text-muted">Automatically applies 20% or 30% CIS deductions for sub-contractors, and calculates PAYE limits based on custom Tax Codes and NI limits.</p>
+                </div>
             </div>
-        </div>
-    </div>
-</section>
-
-<section class="py-5 bg-black">
-    <div class="container py-5">
-        <div class="row align-items-center">
-            <div class="col-lg-5 mb-4 mb-lg-0">
-                <h6 class="text-gold text-uppercase mb-3">The Core Engine</h6>
-                <h2 class="display-5 fw-bold text-white mb-4">Forensic Security Standard.</h2>
-                <p class="text-secondary mb-4">
-                    When money and liability are involved, "good enough" isn't enough. 
-                    Our system logs every action with military precision.
-                </p>
-                <a href="/pricing" class="btn btn-brand">Secure Access</a>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                <div class="feature-card">
+                    <i class="fas fa-envelope-open-text feature-icon"></i>
+                    <h4 class="fw-bold text-white">Automated PDF Payslips</h4>
+                    <p class="small text-muted">Clicking 'Finalize' instantly generates beautiful, white-labeled PDF payslips and automatically emails them directly to your staff.</p>
+                </div>
             </div>
-            <div class="col-lg-7 ps-lg-5">
-                <div class="row g-4">
-                    <div class="col-md-6">
-                        <div class="p-4 border border-secondary rounded-3 bg-dark h-100">
-                            <i class="fas fa-fingerprint text-gold fa-2x mb-3"></i>
-                            <h5 class="text-white fw-bold">Audit Trails</h5>
-                            <p class="text-secondary small m-0">Every quote edit, invoice sent, and job status change is time-stamped and IP-logged. Disputes are solved in seconds.</p>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="p-4 border border-secondary rounded-3 bg-dark h-100">
-                            <i class="fas fa-lock text-gold fa-2x mb-3"></i>
-                            <h5 class="text-white fw-bold">Role-Based Access</h5>
-                            <p class="text-secondary small m-0">Engineers see jobs. Office staff see invoices. Admins see profit. Granular permission controls keep your data safe.</p>
-                        </div>
-                    </div>
+            <div class="col-md-4" data-aos="fade-up">
+                <div class="feature-card">
+                    <i class="fas fa-umbrella-beach feature-icon"></i>
+                    <h4 class="fw-bold text-white">Automated Holiday Accrual</h4>
+                    <p class="small text-muted">Tracks 12.07% holiday accrual for entitled staff. Automatically generates 8-hour paid timesheets when you approve Annual Leave.</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                <div class="feature-card">
+                    <i class="fas fa-file-csv feature-icon"></i>
+                    <h4 class="fw-bold text-white">Bulk Bank Export (BACS)</h4>
+                    <p class="small text-muted">Exports a perfectly formatted CSV containing staff Bank Names, Account Numbers, Sort Codes, and Net Pay to upload straight to your bank.</p>
                 </div>
             </div>
         </div>
+
+        <!-- SERVICE DESK & B2B -->
+        <h2 class="dept-header"><i class="fas fa-network-wired text-gold me-3"></i> Service Desk & B2B Network</h2>
+        <div class="row g-4">
+            <div class="col-md-4" data-aos="fade-up">
+                <div class="feature-card">
+                    <i class="fas fa-link feature-icon"></i>
+                    <h4 class="fw-bold text-white">B2B Partner Network</h4>
+                    <p class="small text-muted">Link your database with Estate Agents or Subcontractors using secure Partner Codes. Send and receive live jobs instantly between companies.</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                <div class="feature-card">
+                    <i class="fas fa-camera feature-icon"></i>
+                    <h4 class="fw-bold text-white">Client Portal Photo Uploads</h4>
+                    <p class="small text-muted">Clients log into your white-labeled portal, describe their fault, upload a photo of the damage, and it drops instantly onto your dashboard.</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                <div class="feature-card">
+                    <i class="fas fa-hard-hat feature-icon"></i>
+                    <h4 class="fw-bold text-white">1-Click Dispatch</h4>
+                    <p class="small text-muted">Review incoming tickets and click "Dispatch" to instantly assign it to an engineer and schedule it on the master calendar.</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up">
+                <div class="feature-card">
+                    <i class="fas fa-sync-alt feature-icon"></i>
+                    <h4 class="fw-bold text-white">Live B2B Status Syncing</h4>
+                    <p class="small text-muted">When you subcontract a job to a partner company, you get live updates when they mark it 'In Progress' or 'Completed' without sharing private data.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- FINANCE & AI BOOKKEEPING -->
+        <h2 class="dept-header"><i class="fas fa-chart-line text-gold me-3"></i> Finance & AI Bookkeeping</h2>
+        <div class="row g-4">
+            <div class="col-md-4" data-aos="fade-up">
+                <div class="feature-card">
+                    <i class="fas fa-robot feature-icon"></i>
+                    <h4 class="fw-bold text-white">AI Receipt Scanning</h4>
+                    <p class="small text-muted">Upload a photo of a receipt to the Sorting Office. Our AI (ChatGPT/Claude/Gemini) reads the text, extracts the totals, and assigns it as a Job Expense.</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                <div class="feature-card">
+                    <i class="fas fa-chart-pie feature-icon"></i>
+                    <h4 class="fw-bold text-white">Live Profit Margin Analysis</h4>
+                    <p class="small text-muted">The system automatically calculates (Invoiced Revenue) minus (Staff Wages + AI Receipts + Van Costs) to give you a true live profit margin per job.</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                <div class="feature-card">
+                    <i class="fas fa-file-invoice feature-icon"></i>
+                    <h4 class="fw-bold text-white">1-Click Invoicing & Stripe</h4>
+                    <p class="small text-muted">Convert completed jobs directly into beautifully branded PDF Invoices. Clients can pay instantly online via the secure Stripe integration.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ESTIMATING & QUOTING -->
+        <h2 class="dept-header"><i class="fas fa-calculator text-gold me-3"></i> Smart Estimator & Quoting</h2>
+        <div class="row g-4">
+            <div class="col-md-4" data-aos="fade-up">
+                <div class="feature-card">
+                    <i class="fas fa-magic feature-icon"></i>
+                    <h4 class="fw-bold text-white">Trade-Specific Calculators</h4>
+                    <p class="small text-muted">Tell the engine you need "30m of Fencing". It calculates the exact number of posts, rails, cement bags, and labor hours required.</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                <div class="feature-card">
+                    <i class="fas fa-database feature-icon"></i>
+                    <h4 class="fw-bold text-white">Live Material Database</h4>
+                    <p class="small text-muted">Upload your supplier price lists. The estimator pulls the exact live cost of materials and automatically applies your default profit markup.</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                <div class="feature-card">
+                    <i class="fas fa-signature feature-icon"></i>
+                    <h4 class="fw-bold text-white">Client Acceptance Portal</h4>
+                    <p class="small text-muted">Send the quote via email. Clients view it in their portal and click "Accept". It instantly converts the quote into an active, scheduled Job.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- COMPLIANCE & RAMS -->
+        <h2 class="dept-header"><i class="fas fa-shield-alt text-gold me-3"></i> Compliance & Safety</h2>
+        <div class="row g-4">
+            <div class="col-md-4" data-aos="fade-up">
+                <div class="feature-card">
+                    <i class="fas fa-certificate feature-icon"></i>
+                    <h4 class="fw-bold text-white">Smart Expiry Tracker</h4>
+                    <p class="small text-muted">Tracks Gas (CP12), Electric (EICR), EPC, and PAT dates. Shows up as a warning on your dashboard 30 days before they expire.</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                <div class="feature-card">
+                    <i class="fas fa-file-pdf feature-icon"></i>
+                    <h4 class="fw-bold text-white">PDF Certificate Generator</h4>
+                    <p class="small text-muted">Engineers can fill out gas or electric safety checks on their phone. It auto-generates a legal PDF certificate with their digital signature.</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                <div class="feature-card">
+                    <i class="fas fa-clipboard-list feature-icon"></i>
+                    <h4 class="fw-bold text-white">Dynamic RAMS</h4>
+                    <p class="small text-muted">Select the hazards on a specific job, and the system automatically generates a comprehensive Risk Assessment & Method Statement for your crew.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- FLEET & COMMS -->
+        <h2 class="dept-header"><i class="fas fa-truck text-gold me-3"></i> Fleet & Communications</h2>
+        <div class="row g-4">
+            <div class="col-md-4" data-aos="fade-up">
+                <div class="feature-card">
+                    <i class="fas fa-satellite-dish feature-icon"></i>
+                    <h4 class="fw-bold text-white">Live API Telematics</h4>
+                    <p class="small text-muted">Integrate Samsara, Geotab, Verizon, or TomTom. Track your vans on the map and pull live odometer/fuel readings into your dashboard.</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                <div class="feature-card">
+                    <i class="fas fa-envelope feature-icon"></i>
+                    <h4 class="fw-bold text-white">Built-In Email Client</h4>
+                    <p class="small text-muted">Connect your company IMAP/SMTP. Read and reply to client emails directly inside the software without switching to Outlook.</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                <div class="feature-card">
+                    <i class="fas fa-bolt feature-icon"></i>
+                    <h4 class="fw-bold text-white">Global Quick Add</h4>
+                    <p class="small text-muted">A floating action button on every screen lets you instantly create a New Quote, New Client, or New Invoice without hunting through menus.</p>
+                </div>
+            </div>
+        </div>
+
     </div>
 </section>
 
-<style>
-    .hover-panel { transition: background 0.3s; }
-    .hover-panel:hover { background: #1a1a1a !important; }
-</style>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>AOS.init({ duration: 800, once: true });</script>
+
 {% endblock %}

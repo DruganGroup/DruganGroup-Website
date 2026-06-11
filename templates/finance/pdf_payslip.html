@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payslip</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid {{ config.get('color', '#333') }}; padding-bottom: 20px; margin-bottom: 20px; }
+        .logo { max-height: 80px; }
+        .company-details { text-align: right; font-size: 14px; color: #555; }
+        .title { font-size: 24px; font-weight: bold; text-transform: uppercase; color: {{ config.get('color', '#333') }}; }
+        
+        .row { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .col { width: 48%; }
+        
+        .box { background-color: #f9f9f9; border: 1px solid #ddd; padding: 15px; border-radius: 8px; }
+        .box h4 { margin-top: 0; color: #333; font-size: 14px; text-transform: uppercase; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        .box p { margin: 5px 0; font-size: 14px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; font-size: 14px; }
+        th { background-color: #f4f4f4; color: #333; text-transform: uppercase; font-size: 12px; }
+        .text-right { text-align: right; }
+        .text-bold { font-weight: bold; }
+        
+        .totals-box { margin-top: 30px; width: 40%; float: right; border: 2px solid {{ config.get('color', '#333') }}; border-radius: 8px; padding: 15px; }
+        .totals-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+        .totals-row.grand-total { font-size: 18px; font-weight: bold; border-top: 1px solid #ddd; padding-top: 10px; margin-top: 10px; color: {{ config.get('color', '#333') }}; }
+        
+        .footer { clear: both; text-align: center; margin-top: 50px; font-size: 12px; color: #777; border-top: 1px solid #ddd; padding-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            {% if config.logo %}
+                <img src="{{ config.logo }}" class="logo" alt="Company Logo">
+            {% else %}
+                <h1 style="margin: 0; color: {{ config.get('color', '#333') }};">{{ config.name }}</h1>
+            {% endif %}
+        </div>
+        <div class="company-details">
+            <div class="title">PAYSLIP</div>
+            <div><strong>Date:</strong> {{ date }}</div>
+            <div><strong>Period:</strong> {{ period }}</div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col box">
+            <h4>Employee Details</h4>
+            <p><strong>Name:</strong> {{ staff.name }}</p>
+            <p><strong>Role:</strong> {{ staff.role }}</p>
+            <p><strong>Type:</strong> {{ staff.type }}</p>
+        </div>
+        <div class="col box">
+            <h4>Tax & Bank Details</h4>
+            {% if staff.type == 'Sub-Contractor' %}
+                <p><strong>UTR Number:</strong> {{ staff.utr_number or 'Not Provided' }}</p>
+                <p><strong>CIS Rate:</strong> {{ staff.cis_rate }}%</p>
+            {% else %}
+                <p><strong>Tax Code:</strong> {{ staff.tax_code or '1257L' }}</p>
+            {% endif %}
+            <p><strong>Bank Account:</strong> ****{{ (staff.account_number or '')[-4:] }}</p>
+            <p><strong>Sort Code:</strong> {{ staff.sort_code or 'Not Provided' }}</p>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th>Units</th>
+                <th>Rate</th>
+                <th class="text-right">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Basic Pay ({{ staff.model }})</td>
+                <td>{{ staff.hours if staff.model == 'Hour' else staff.days }}</td>
+                <td>{{ currency }}{{ "%.2f"|format(staff.rate) }}</td>
+                <td class="text-right">{{ currency }}{{ "%.2f"|format(staff.gross) }}</td>
+            </tr>
+            {% if staff.holiday > 0 %}
+            <tr>
+                <td>Holiday Pay Accrued (Not Paid Out)</td>
+                <td>-</td>
+                <td>-</td>
+                <td class="text-right text-muted">({{ currency }}{{ "%.2f"|format(staff.holiday) }})</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    <div class="totals-box">
+        <div class="totals-row">
+            <span>Gross Pay:</span>
+            <span>{{ currency }}{{ "%.2f"|format(staff.gross) }}</span>
+        </div>
+        
+        {% if staff.type == 'Sub-Contractor' %}
+        <div class="totals-row" style="color: #d9534f;">
+            <span>CIS Deduction:</span>
+            <span>- {{ currency }}{{ "%.2f"|format(staff.tax) }}</span>
+        </div>
+        {% else %}
+        <div class="totals-row" style="color: #d9534f;">
+            <span>Income Tax:</span>
+            <span>- {{ currency }}{{ "%.2f"|format(staff.tax) }}</span>
+        </div>
+        <div class="totals-row" style="color: #d9534f;">
+            <span>National Insurance:</span>
+            <span>- {{ currency }}{{ "%.2f"|format(staff.social) }}</span>
+        </div>
+        {% endif %}
+        
+        <div class="totals-row grand-total">
+            <span>NET PAY:</span>
+            <span>{{ currency }}{{ "%.2f"|format(staff.net) }}</span>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>This is a system-generated payslip from {{ config.name }}.<br>
+        Please keep this document safe for your tax records.</p>
+    </div>
+
+</body>
+</html>

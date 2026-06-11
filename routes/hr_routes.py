@@ -416,6 +416,10 @@ def save_staff():
     ni_limit = request.form.get('ni_limit') or 0
     holiday_entitled = request.form.get('holiday_entitled') == 'on'
     
+    tax_code = request.form.get('tax_code')
+    utr_number = request.form.get('utr_number')
+    cis_rate = request.form.get('cis_rate') or 20.0
+    
     # Bank Details
     bank_name = request.form.get('bank_name')
     acc_num = request.form.get('account_number')
@@ -471,9 +475,10 @@ def save_staff():
                 pay_rate=%s, pay_model=%s, employment_type=%s, access_level=%s,
                 nok_name=%s, nok_phone=%s, nok_relationship=%s, nok_address=%s,
                 tax_id=%s, address=%s, tax_limit=%s, ni_limit=%s, holiday_entitled=%s,
-                bank_name=%s, account_number=%s, sort_code=%s
+                bank_name=%s, account_number=%s, sort_code=%s,
+                tax_code=%s, utr_number=%s, cis_rate=%s
             """
-            params = [name, email, phone, position, dept, pay_rate, pay_model, emp_type, access, nok_name, nok_phone, nok_rel, nok_addr, tax_id, address, tax_limit, ni_limit, holiday_entitled, bank_name, acc_num, sort_code]
+            params = [name, email, phone, position, dept, pay_rate, pay_model, emp_type, access, nok_name, nok_phone, nok_rel, nok_addr, tax_id, address, tax_limit, ni_limit, holiday_entitled, bank_name, acc_num, sort_code, tax_code, utr_number, cis_rate]
             
             if license_path:
                 sql += ", driving_license=%s"
@@ -493,9 +498,9 @@ def save_staff():
         else:
             # INSERT
             cur.execute("""
-                INSERT INTO staff (company_id, name, email, phone, position, dept, pay_rate, pay_model, employment_type, access_level, nok_name, nok_phone, nok_relationship, nok_address, driving_license, profile_photo, tax_id, address, tax_limit, ni_limit, holiday_entitled, bank_name, account_number, sort_code)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (comp_id, name, email, phone, position, dept, pay_rate, pay_model, emp_type, access, nok_name, nok_phone, nok_rel, nok_addr, license_path, photo_path, tax_id, address, tax_limit, ni_limit, holiday_entitled, bank_name, acc_num, sort_code))
+                INSERT INTO staff (company_id, name, email, phone, position, dept, pay_rate, pay_model, employment_type, access_level, nok_name, nok_phone, nok_relationship, nok_address, driving_license, profile_photo, tax_id, address, tax_limit, ni_limit, holiday_entitled, bank_name, account_number, sort_code, tax_code, utr_number, cis_rate)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (comp_id, name, email, phone, position, dept, pay_rate, pay_model, emp_type, access, nok_name, nok_phone, nok_rel, nok_addr, license_path, photo_path, tax_id, address, tax_limit, ni_limit, holiday_entitled, bank_name, acc_num, sort_code, tax_code, utr_number, cis_rate))
             
             if access != "None" and email:
                 cur.execute("SELECT id FROM users WHERE email=%s", (email,))
