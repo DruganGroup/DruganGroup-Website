@@ -21,26 +21,26 @@
     <div class="row g-3 mb-4">
         <div class="col-md-3">
             <div class="card p-3 border-0 shadow-sm text-center h-100 bg-white border-bottom border-primary border-4">
-                <h6 class="text-muted text-uppercase small fw-bold">New Requests</h6>
+                <h6 class="text-muted text-uppercase small fw-bold">{{ _('New Requests') }}</h6>
                 <h2 class="fw-bold text-dark m-0">{{ leads_count }}</h2>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card p-3 border-0 shadow-sm text-center h-100 bg-white border-bottom border-warning border-4">
-                <h6 class="text-muted text-uppercase small fw-bold">Pending Quotes</h6>
+                <h6 class="text-muted text-uppercase small fw-bold">{{ _('Pending Quotes') }}</h6>
                 <h2 class="fw-bold text-dark m-0">{{ pending_quotes }}</h2>
                 <div class="small text-muted">Value: £{{ "%.0f"|format(pipeline['Sent']['value']) }}</div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card p-3 border-0 shadow-sm text-center h-100 bg-white border-bottom border-success border-4">
-                <h6 class="text-muted text-uppercase small fw-bold">Active Jobs</h6>
+                <h6 class="text-muted text-uppercase small fw-bold">{{ _('Active Jobs') }}</h6>
                 <h2 class="fw-bold text-dark m-0">{{ active_jobs }}</h2>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card p-3 border-0 shadow-sm text-center h-100 bg-white border-bottom border-danger border-4">
-                <h6 class="text-muted text-uppercase small fw-bold">Unpaid Invoices</h6>
+                <h6 class="text-muted text-uppercase small fw-bold">{{ _('Unpaid Invoices') }}</h6>
                 <h2 class="fw-bold text-danger m-0">{{ unpaid_inv }}</h2>
             </div>
         </div>
@@ -156,9 +156,9 @@
                             <tr>
                                 <th class="ps-3">Reference</th>
                                 <th>Client</th>
-                                <th>Date</th>
-                                <th>Status</th>
-                                <th class="text-end pe-3">Value</th>
+                                <th>{{ _('Date') }}</th>
+                                <th>{{ _('Status') }}</th>
+                                <th class="text-end pe-3">{{ _('Value') }}</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -220,7 +220,7 @@
                     
                     <div class="row g-2">
                         <div class="col-6">
-                            <label class="form-label small fw-bold">Start Date</label>
+                            <label class="form-label small fw-bold">{{ _('Start Date') }}</label>
                             <input type="date" name="start_date" class="form-control" required>
                         </div>
                         <div class="col-6">
@@ -229,7 +229,7 @@
                         </div>
                     </div>
                     <div class="mb-3 mt-3">
-                        <label class="form-label small fw-bold">Description</label>
+                        <label class="form-label small fw-bold">{{ _('Description') }}</label>
                         <textarea name="description" class="form-control" rows="2"></textarea>
                     </div>
                     <div class="mb-3">

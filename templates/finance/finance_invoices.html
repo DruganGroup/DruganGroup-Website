@@ -26,9 +26,9 @@
                     <tr>
                         <th class="ps-4">Invoice #</th>
                         <th>Client</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th class="text-end pe-4">Total</th>
+                        <th>{{ _('Date') }}</th>
+                        <th>{{ _('Status') }}</th>
+                        <th class="text-end pe-4">{{ _('Total') }}</th>
                         <th class="text-end pe-4">Actions</th>
                     </tr>
                 </thead>
@@ -126,13 +126,13 @@
             <div class="row g-2 mb-3">
                 <div class="col-6">
                     <div class="p-3 border rounded text-center">
-                        <div class="small text-muted">Total</div>
+                        <div class="small text-muted">{{ _('Total') }}</div>
                         <div class="fw-bold text-success fs-5">£${total}</div>
                     </div>
                 </div>
-                <div class="col-6">
+                <div class="col-4">
                     <div class="p-3 border rounded text-center">
-                        <div class="small text-muted">Status</div>
+                        <div class="small text-muted">{{ _('Status') }}</div>
                         <div class="fw-bold">${status}</div>
                     </div>
                 </div>

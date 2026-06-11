@@ -12,6 +12,18 @@
                 <div class="row g-3">
                     
                     <div class="col-md-6">
+                        <label class="form-label text-muted small fw-bold">System Language</label>
+                        <select name="system_language" class="form-select bg-light border-secondary mb-3">
+                            <option value="en" {% if settings.get('system_language') == 'en' %}selected{% endif %}>English</option>
+                            <option value="es" {% if settings.get('system_language') == 'es' %}selected{% endif %}>Español (Spanish)</option>
+                            <option value="fr" {% if settings.get('system_language') == 'fr' %}selected{% endif %}>Français (French)</option>
+                            <option value="de" {% if settings.get('system_language') == 'de' %}selected{% endif %}>Deutsch (German)</option>
+                            <option value="ar" {% if settings.get('system_language') == 'ar' %}selected{% endif %}>العربية (Arabic - RTL)</option>
+                            <option value="zh" {% if settings.get('system_language') == 'zh' %}selected{% endif %}>中文 (Mandarin)</option>
+                            <option value="hi" {% if settings.get('system_language') == 'hi' %}selected{% endif %}>हिन्दी (Hindi)</option>
+                            <option value="pt" {% if settings.get('system_language') == 'pt' %}selected{% endif %}>Português (Portuguese)</option>
+                        </select>
+                        
                         <label class="form-label text-muted small fw-bold">Primary Country</label>
                         <select name="country_code" id="countrySelector" class="form-select bg-light border-secondary" onchange="updateLocalization()">
                             <option value="UK" {% if settings.get('country_code') == 'UK' %}selected{% endif %}>🇬🇧 United Kingdom (UK)</option>
@@ -20,6 +32,10 @@
                             <option value="CAN" {% if settings.get('country_code') == 'CAN' %}selected{% endif %}>🇨🇦 Canada (CAN)</option>
                             <option value="AUS" {% if settings.get('country_code') == 'AUS' %}selected{% endif %}>🇦🇺 Australia (AUS)</option>
                             <option value="NZ" {% if settings.get('country_code') == 'NZ' %}selected{% endif %}>🇳🇿 New Zealand (NZ)</option>
+                            <option value="ES" {% if settings.get('country_code') == 'ES' %}selected{% endif %}>🇪🇸 Spain (ES)</option>
+                            <option value="FR" {% if settings.get('country_code') == 'FR' %}selected{% endif %}>🇫🇷 France (FR)</option>
+                            <option value="DE" {% if settings.get('country_code') == 'DE' %}selected{% endif %}>🇩🇪 Germany (DE)</option>
+                            <option value="UAE" {% if settings.get('country_code') == 'UAE' %}selected{% endif %}>🇦🇪 United Arab Emirates (UAE)</option>
                         </select>
                     </div>
 

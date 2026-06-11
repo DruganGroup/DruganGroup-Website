@@ -538,7 +538,7 @@ def settings_general():
                 'company_name', 'company_website', 'company_email', 'company_phone',
                 'company_address', 'brand_color',
                 'pdf_theme', 'country_code', 'currency_symbol', 'date_format',
-                'company_reg_number', 'tax_id', 'default_tax_rate'
+                'company_reg_number', 'tax_id', 'default_tax_rate', 'system_language'
             ]
             
             for field in fields:
@@ -562,6 +562,9 @@ def settings_general():
 
             new_color = request.form.get('brand_color')
             if new_color: session['brand_color'] = new_color
+            
+            new_lang = request.form.get('system_language')
+            if new_lang: session['lang_code'] = new_lang
 
             if 'logo' in request.files:
                 f = request.files['logo']

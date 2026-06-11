@@ -32,7 +32,7 @@
             <div class="card p-4 border-0 shadow-sm text-white bg-success bg-gradient">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h6 class="opacity-75 text-uppercase fw-bold">Total Income</h6>
+                        <h6 class="opacity-75 text-uppercase fw-bold">{{ _('Total Income') }}</h6>
                         <h2 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(total_income) }}</h2>
                     </div>
                     <i class="fas fa-arrow-up fa-2x opacity-50"></i>
@@ -44,7 +44,7 @@
             <div class="card p-4 border-0 shadow-sm text-white bg-danger bg-gradient">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h6 class="opacity-75 text-uppercase fw-bold">Total Expense</h6>
+                        <h6 class="opacity-75 text-uppercase fw-bold">{{ _('Total Expenses') }}</h6>
                         <h2 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(total_expense) }}</h2>
                     </div>
                     <i class="fas fa-arrow-down fa-2x opacity-50"></i>
@@ -56,7 +56,7 @@
             <div class="card p-4 border-0 shadow-sm text-dark bg-warning bg-gradient">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h6 class="opacity-75 text-uppercase fw-bold">Net Balance</h6>
+                        <h6 class="opacity-75 text-uppercase fw-bold">{{ _('Net Profit') }}</h6>
                         <h2 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(total_balance) }}</h2>
                     </div>
                     <i class="fas fa-wallet fa-2x opacity-25"></i>
@@ -86,11 +86,11 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light small text-uppercase">
                     <tr>
-                        <th>Date</th>
+                        <th>{{ _('Date') }}</th>
                         <th>Type</th>
                         <th>Category</th>
-                        <th>Description</th>
-                        <th class="text-end">Amount</th>
+                        <th>{{ _('Description') }}</th>
+                        <th class="text-end">{{ _('Amount') }}</th>
                     </tr>
                 </thead>
 <tbody>

@@ -183,6 +183,33 @@ def handle_exception(e):
     return render_template('error.html', error=e), code
 
 # --- CONTEXT PROCESSORS ---
+from utils.translations import get_translation, get_lang_direction
+
+@app.context_processor
+def inject_translations():
+    # Default to English
+    lang_code = 'en'
+    
+    # 1. Check Session (Logged in user)
+    if 'company_id' in session:
+        if 'lang_code' in session:
+            lang_code = session['lang_code']
+        else:
+            try:
+                conn = get_db(); cur = conn.cursor()
+                cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'system_language'", (session['company_id'],))
+                row = cur.fetchone(); conn.close()
+                lang_code = row[0] if row else 'en'
+                session['lang_code'] = lang_code
+            except:
+                pass
+                
+    # 2. Provide the _ function and language direction to templates
+    def translate(text):
+        return get_translation(text, lang_code)
+        
+    return dict(_=translate, lang_dir=get_lang_direction(lang_code), current_lang=lang_code)
+
 @app.context_processor
 def inject_global_alert():
     alert_msg = None
