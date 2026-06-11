@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CCEW Electrical Certificate of Compliance</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; -webkit-print-color-adjust: exact; }
+        .cert-container { max-width: 900px; margin: 30px auto; background: white; padding: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-top: 6px solid #0dcaf0; }
+        .section-header { background: #212529; color: white; padding: 8px 15px; font-weight: bold; text-transform: uppercase; margin-top: 25px; font-size: 0.85rem; letter-spacing: 0.5px; }
+        .form-label { font-size: 0.75rem; font-weight: bold; color: #555; text-transform: uppercase; }
+        
+        .pass-fail-group { display: flex; border: 1px solid #dee2e6; border-radius: 4px; overflow: hidden; }
+        .pass-fail-group input { display: none; }
+        .pass-fail-group label { flex: 1; text-align: center; padding: 4px; font-size: 0.75rem; cursor: pointer; background: #fff; transition: 0.2s; font-weight: bold; }
+        
+        .pass-fail-group input[value="Pass"]:checked + label { background: #198754 !important; color: white !important; }
+        .pass-fail-group input[value="Fail"]:checked + label { background: #dc3545 !important; color: white !important; }
+        .pass-fail-group input[value="N/A"]:checked + label { background: #6c757d !important; color: white !important; }
+        
+        canvas#signature-pad { border: 2px dashed #ccc; border-radius: 4px; width: 100%; height: 100px; cursor: crosshair; }
+    </style>
+</head>
+<body>
+
+<div class="cert-container">
+    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+        <div>
+            <h3 class="fw-bold m-0 text-dark">CERTIFICATE OF COMPLIANCE</h3>
+            <p class="text-muted small m-0">Electrical Work (CCEW)</p>
+        </div>
+        <div class="text-end">
+            <h2 class="fw-bold text-info mb-0"><i class="fas fa-plug me-2"></i>CCEW</h2>
+            <div class="badge bg-dark text-white">AUSTRALIA STANDARD</div>
+        </div>
+    </div>
+
+    <form id="certForm">
+        <input type="hidden" name="prop_id" value="{{ prop.id }}">
+        <input type="hidden" name="client_email" value="{{ prop.client_email }}">
+        <input type="hidden" name="job_id" value="{{ data.job_id if data else '' }}">
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="p-3 border rounded bg-light h-100">
+                    <label class="form-label text-primary">Installation Address</label>
+                    <div class="fw-bold fs-5">{{ prop.address }}</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-3 border rounded bg-light h-100">
+                    <label class="form-label text-primary">Customer Details</label>
+                    <div class="fw-bold fs-5">{{ prop.client }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-header">Contractor / Electrician Details</div>
+        <div class="p-3 border rounded mb-3">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Contractor License Number</label>
+                    <input type="text" name="license_number" class="form-control form-control-sm fw-bold" value="{{ data.license_number if data else '' }}" placeholder="e.g. 123456C">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">NMI (National Meter Identifier) - Optional</label>
+                    <input type="text" name="nmi" class="form-control form-control-sm fw-bold" value="{{ data.nmi if data else '' }}">
+                </div>
+            </div>
+        </div>
+
+        <div class="section-header">Details of Electrical Work</div>
+        <div class="p-3 border rounded mb-3">
+            <div class="row g-3">
+                <div class="col-md-12">
+                    <label class="form-label">Description of work carried out</label>
+                    <textarea name="description_of_work" class="form-control mb-3" rows="3" required>{{ data.description_of_work if data else '' }}</textarea>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Type of Work</label>
+                    <select name="work_type" class="form-select form-select-sm fw-bold">
+                        <option>New Installation</option>
+                        <option>Alteration</option>
+                        <option>Addition</option>
+                        <option>Repairs</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Installation Type</label>
+                    <select name="install_type" class="form-select form-select-sm fw-bold">
+                        <option>Domestic</option>
+                        <option>Commercial</option>
+                        <option>Industrial</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Defects Found in Existing Installation?</label>
+                    <select name="defects_found" class="form-select form-select-sm fw-bold text-danger">
+                        <option value="No">No</option>
+                        <option value="Yes">Yes (List below)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-header">Testing & Verification (AS/NZS 3000)</div>
+        <div class="p-3 border rounded mb-3">
+            <div class="row g-3">
+                {% for key, label in [
+                    ('earth', 'Earth Continuity'), 
+                    ('insulation', 'Insulation Resistance'), 
+                    ('polarity', 'Polarity Verified'), 
+                    ('connections', 'Correct Connections'),
+                    ('rcd', 'RCD Testing')
+                ] %}
+                <div class="col-md-12 d-flex justify-content-between align-items-center border-bottom pb-2">
+                    <label class="fw-bold mb-0">{{ label }}</label>
+                    <div class="pass-fail-group" style="width: 200px;">
+                        <input type="radio" name="{{ key }}" id="{{ key }}p" value="Pass" {{ 'checked' if data and data.get(key) == 'Pass' else '' }}>
+                        <label for="{{ key }}p">PASS</label>
+                        <input type="radio" name="{{ key }}" id="{{ key }}f" value="Fail" {{ 'checked' if data and data.get(key) == 'Fail' else '' }}>
+                        <label for="{{ key }}f">FAIL</label>
+                        <input type="radio" name="{{ key }}" id="{{ key }}n" value="N/A" {{ 'checked' if data and data.get(key) == 'N/A' else '' }}>
+                        <label for="{{ key }}n">N/A</label>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="section-header">Declaration</div>
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <p class="small text-muted fw-bold">
+                    I certify that the electrical installation work detailed above has been carried out, tested, and complies with the Wiring Rules (AS/NZS 3000) and any other applicable standards, and is electrically safe.
+                </p>
+            </div>
+        </div>
+
+        <div class="row mt-4 align-items-end">
+            <div class="col-6">
+                <label class="form-label">Electrician Signature</label>
+                {% if signature_url %}
+                    <div class="border rounded bg-white p-2">
+                        <img src="{{ signature_url }}" style="height: 60px; max-width: 100%;">
+                    </div>
+                {% else %}
+                    <canvas id="signature-pad"></canvas>
+                    <div class="text-end">
+                        <button type="button" class="btn btn-sm btn-link text-muted" onclick="signaturePad.clear()">Clear</button>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="col-6 text-end">
+                {% if not signature_url %}
+                <button type="button" onclick="submitCertificate()" id="btnSubmit" class="btn btn-dark fw-bold btn-lg w-100 shadow">
+                    <i class="fas fa-file-pdf me-2"></i> Issue & Email Certificate
+                </button>
+                <div id="loading" style="display:none;" class="text-center mt-2">
+                    <div class="spinner-border text-dark" role="status"></div>
+                    <div class="small fw-bold">Generating PDF...</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+</div>
+
+{% if not signature_url %}
+<script>
+    var canvas = document.getElementById('signature-pad');
+    var signaturePad = new SignaturePad(canvas);
+
+    function submitCertificate() {
+        if (signaturePad.isEmpty()) {
+            alert("Please sign the certificate.");
+            return;
+        }
+
+        // 1. UI Loading State
+        document.getElementById('btnSubmit').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+
+        // 2. Gather Data
+        const form = document.getElementById('certForm');
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+        
+        // Add Signature Image
+        data.signature_img = signaturePad.toDataURL();
+
+        // 3. Send to Server via Generic Route
+        fetch('/office/cert/aus/ccew/save', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert("✅ Certificate Generated & Saved!");
+                window.location.href = result.redirect_url;
+            } else {
+                alert("Error: " + result.error);
+                document.getElementById('btnSubmit').style.display = 'block';
+                document.getElementById('loading').style.display = 'none';
+            }
+        })
+        .catch(err => {
+            alert("Server Error");
+            console.error(err);
+        });
+    }
+</script>
+{% endif %}
+
+</body>
+</html>

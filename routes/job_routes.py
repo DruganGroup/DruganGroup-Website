@@ -164,15 +164,23 @@ def job_files(job_id):
         FROM site_diary WHERE job_id = %s ORDER BY created_at DESC
     """, (job_id,))
     diary = cur.fetchall()
+    
+    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'country_code'", (comp_id,))
+    country_row = cur.fetchone()
+    country_code = country_row[0] if country_row else 'UK'
 
     conn.close()
+    
+    from utils.certificates import get_certificates_for_country
+    certificates = get_certificates_for_country(country_code)
     
     return render_template('office/job_files.html', 
                            job=job, files=files, 
                            total_cost=total_cost, total_billed=total_billed,
                            profit=profit, quote_total=quote_total,
                            budget_remaining=budget_remaining, 
-                           staff=staff_list, diary=diary, today=date.today())
+                           staff=staff_list, diary=diary, today=date.today(),
+                           certificates=certificates, country_code=country_code)
 
 
 # --- MANUAL COST ENTRY ---

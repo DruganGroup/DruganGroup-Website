@@ -245,3 +245,54 @@ def save_legionella_cert():
     except Exception as e:
         print(f"Legionella Save Error: {e}")
         return jsonify({'success': False, 'error': str(e)})
+
+@compliance_bp.route('/office/cert/<country_code>/<cert_type>/save', methods=['POST'])
+def save_generic_cert(country_code, cert_type):
+    if not check_access(): return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        data = request.json
+        prop_id = data.get('prop_id')
+        comp_id = session.get('company_id')
+        
+        conn = get_db(); cur = conn.cursor()
+
+        # 1. Generate Filename Reference
+        cert_type_upper = cert_type.upper()
+        # For simplicity, using timestamp as unique id since strftime('%s') isn't standard on Windows
+        import time
+        ref = f"{cert_type_upper}-{prop_id}-{int(time.time())}"
+        filename = f"{ref}.pdf"
+        
+        # 2. Get Data for PDF Generation
+        cur.execute("SELECT p.address_line1, p.postcode, c.name, c.email FROM properties p JOIN clients c ON p.client_id = c.id WHERE p.id = %s", (prop_id,))
+        p_row = cur.fetchone()
+        prop_info = {'address': f"{p_row[0]}, {p_row[1]}", 'client': p_row[2], 'id': prop_id}
+        
+        # 3. Generate PDF
+        pdf_context = {
+            'prop': prop_info, 
+            'data': data, 
+            'signature_url': data.get('signature_img'), 
+            'today': date.today().strftime('%d/%m/%Y')
+        }
+        
+        country_code = country_code.lower()
+        generate_pdf(f'office/certs/{country_code}/{cert_type}.html', pdf_context, filename)
+        
+        # Save to job_evidence if job_id is provided
+        job_id = data.get('job_id')
+        if job_id:
+            db_path = f"static/uploads/{filename}"
+            cur.execute("""
+                INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type, uploaded_at)
+                VALUES (%s, %s, %s, %s, NOW())
+            """, (job_id, db_path, session.get('user_id'), cert_type_upper))
+        
+        conn.commit(); conn.close()
+        
+        return jsonify({'success': True, 'redirect_url': '/office-hub'})
+
+    except Exception as e:
+        print(f"Generic Cert Save Error: {e}")
+        return jsonify({'success': False, 'error': str(e)})

@@ -54,11 +54,9 @@
         <i class="fas fa-certificate me-1"></i> Certs
     </button>
     <ul class="dropdown-menu">
-        <li><a class="dropdown-item" href="/office/cert/cp12/create?job_id={{ job.id }}&prop_id={{ job.property_id }}">CP12 (Gas)</a></li>
-        <li><a class="dropdown-item" href="/office/cert/eicr/create?job_id={{ job.id }}&prop_id={{ job.property_id }}">EICR (Electric)</a></li>
-        <li><hr class="dropdown-divider"></li>
-        <li><a class="dropdown-item" href="/office/cert/epc/create?job_id={{ job.id }}&prop_id={{ job.property_id }}">EPC (Energy)</a></li>
-        <li><a class="dropdown-item" href="/office/cert/legionella/create?job_id={{ job.id }}&prop_id={{ job.property_id }}">Legionella Risk</a></li>
+        {% for cert in certificates %}
+        <li><a class="dropdown-item" href="/office/cert/{{ country_code }}/{{ cert.id }}/create?job_id={{ job.id }}&prop_id={{ job.property_id }}" title="{{ cert.desc }}">{{ cert.name }}</a></li>
+        {% endfor %}
     </ul>
 
     <a href="/office/job/{{ job.id }}/files" class="btn btn-dark fw-bold">

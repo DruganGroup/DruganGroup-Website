@@ -600,3 +600,27 @@ def save_and_download_rams(job_id):
 
     # 6. REDIRECT to the JOBS blueprint
     return redirect(url_for('jobs.job_files', job_id=job_id))
+
+@pdf_bp.route('/office/cert/<country_code>/<cert_type>/create')
+def create_generic_cert(country_code, cert_type):
+    if not check_access(): return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    prop_id = request.args.get('prop_id')
+    job_id = request.args.get('job_id')
+    
+    cur.execute("""
+        SELECT p.id, p.address_line1, p.postcode, c.name, c.email 
+        FROM properties p 
+        JOIN clients c ON p.client_id = c.id 
+        WHERE p.id = %s
+    """, (prop_id,))
+    p_row = cur.fetchone()
+    conn.close()
+    
+    if not p_row: return "Property not found", 404
+    prop = {'id': p_row[0], 'address': f"{p_row[1]}, {p_row[2]}", 'client': p_row[3], 'client_email': p_row[4], 'job_id': job_id}
+    
+    next_year_date = (datetime.now().replace(year=datetime.now().year + 1)).strftime('%Y-%m-%d')
+    country_code = country_code.lower()
+    
+    return render_template(f'office/certs/{country_code}/{cert_type}.html', prop=prop, next_year_date=next_year_date, data={'job_id': job_id})
