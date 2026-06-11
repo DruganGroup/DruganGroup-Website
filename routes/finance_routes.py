@@ -1080,6 +1080,9 @@ def finance_payroll():
         cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS bank_name VARCHAR(100);")
         cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS account_number VARCHAR(20);")
         cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS sort_code VARCHAR(20);")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS tax_code VARCHAR(20) DEFAULT '1257L';")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS utr_number VARCHAR(20);")
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS cis_rate NUMERIC DEFAULT 20.0;")
         conn.commit()
     except:
         conn.rollback()
@@ -1104,7 +1107,8 @@ def finance_payroll():
             s.id, s.name, s.position, s.employment_type, s.pay_rate, s.pay_model,
             COALESCE(SUM(a.total_hours), 0) as total_hours,
             COUNT(DISTINCT a.date) as days_worked,
-            s.tax_limit, s.ni_limit, s.holiday_entitled
+            s.tax_limit, s.ni_limit, s.holiday_entitled,
+            s.tax_code, s.utr_number, s.cis_rate
         FROM staff s
         LEFT JOIN staff_attendance a ON s.id = a.staff_id 
             AND a.date >= %s AND a.date <= %s
@@ -1126,6 +1130,9 @@ def finance_payroll():
         tax_limit = float(r[8] or 0)
         ni_limit = float(r[9] or 0)
         holiday_entitled = r[10]
+        tax_code = r[11]
+        utr_number = r[12]
+        cis_rate = float(r[13] or 20.0)
         
         # A. Gross Pay Calculation
         gross = 0
@@ -1141,13 +1148,16 @@ def finance_payroll():
         social = 0.0
         holiday_accrued = 0.0
         
-        # Calculate Tax & NI (Taking limits into account if set, otherwise fallback to Engine)
-        if role_type != 'Sub-Contractor':
+        if role_type == 'Sub-Contractor':
+            # Sub-contractor logic: flat CIS deduction
+            tax = gross * (cis_rate / 100.0)
+        else:
+            # PAYE logic
             est_tax, est_social = TaxEngine.calculate(gross, country)
             tax = est_tax if tax_limit == 0 else min(est_tax, tax_limit)
             social = est_social if ni_limit == 0 else min(est_social, ni_limit)
             
-            # Holiday Accrual Calculation (Common ~12.07% estimate)
+            # Holiday Accrual Calculation
             if holiday_entitled:
                 holiday_accrued = round(gross * 0.1207, 2)
                 
@@ -1202,7 +1212,8 @@ def export_payroll():
             COALESCE(SUM(a.total_hours), 0) as total_hours,
             COUNT(DISTINCT a.date) as days_worked,
             s.tax_limit, s.ni_limit, s.holiday_entitled,
-            s.account_number, s.sort_code, s.bank_name
+            s.account_number, s.sort_code, s.bank_name,
+            s.tax_code, s.utr_number, s.cis_rate, s.email
         FROM staff s
         LEFT JOIN staff_attendance a ON s.id = a.staff_id 
             AND a.date >= %s AND a.date <= %s
@@ -1227,9 +1238,14 @@ def export_payroll():
         days = int(r[7])
         tax_limit = float(r[8] or 0)
         ni_limit = float(r[9] or 0)
+        holiday_entitled = r[10]
         acc_num = r[11] or ''
         sort_code = r[12] or ''
         bank = r[13] or ''
+        tax_code = r[14]
+        utr_number = r[15]
+        cis_rate = float(r[16] or 20.0)
+        staff_email = r[17]
         
         gross = 0
         if model == 'Hour': gross = hours * rate
@@ -1238,11 +1254,16 @@ def export_payroll():
             
         tax = 0.0
         social = 0.0
+        holiday_accrued = 0.0
         
-        if role_type != 'Sub-Contractor':
+        if role_type == 'Sub-Contractor':
+            tax = gross * (cis_rate / 100.0)
+        else:
             est_tax, est_social = TaxEngine.calculate(gross, country)
             tax = est_tax if tax_limit == 0 else min(est_tax, tax_limit)
             social = est_social if ni_limit == 0 else min(est_social, ni_limit)
+            if holiday_entitled:
+                holiday_accrued = round(gross * 0.1207, 2)
                 
         deductions = tax + social
         net = round(gross - deductions, 2)

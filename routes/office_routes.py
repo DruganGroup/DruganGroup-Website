@@ -47,9 +47,11 @@ def service_desk():
             id SERIAL PRIMARY KEY,
             company_id INTEGER,
             partner_id INTEGER,
+            status VARCHAR(20) DEFAULT 'Pending',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(company_id, partner_id)
-        );"""
+        );""",
+        "ALTER TABLE company_partners ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'Pending';"
     ]
     
     for query in migrations:
