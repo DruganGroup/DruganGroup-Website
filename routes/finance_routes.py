@@ -535,11 +535,10 @@ def settings_general():
     if request.method == 'POST':
         try:
             fields = [
-                'company_name', 'company_website', 'company_email', 'company_phone', 
-                'company_address', 'brand_color', 'smtp_host', 'smtp_port', 
-                'smtp_email', 'smtp_password', 'imap_host', 'imap_port', 'imap_password',
+                'company_name', 'company_website', 'company_email', 'company_phone',
+                'company_address', 'brand_color',
                 'pdf_theme', 'country_code', 'currency_symbol', 'date_format',
-                'company_reg_number', 'tax_id', 'default_tax_rate' 
+                'company_reg_number', 'tax_id', 'default_tax_rate'
             ]
             
             for field in fields:

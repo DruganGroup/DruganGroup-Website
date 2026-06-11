@@ -196,27 +196,33 @@
                     </div>
 
                     <h6 class="fw-bold mt-3 mb-2 small text-secondary">Incoming Email (IMAP)</h6>
-                    <div class="row g-2">
-                        <div class="col-md-8">
-                            <input type="text" name="imap_server" class="form-control" value="{{ settings.get('imap_server', '') }}" placeholder="IMAP Host (e.g. imap.gmail.com)">
-                        </div>
-                        <div class="col-md-4">
-                            <input type="number" name="imap_port" class="form-control" value="{{ settings.get('imap_port', '') }}" placeholder="Port (e.g. 993)">
-                        </div>
-                        <div class="col-md-6">
-                            <input type="email" name="imap_user" class="form-control" value="{{ settings.get('imap_user', '') }}" placeholder="IMAP Username / Email">
-                        </div>
-                        <div class="col-md-6">
-                            <input type="password" name="imap_password" class="form-control" value="{{ settings.get('imap_password', '') }}" placeholder="IMAP Password / App Password">
-                        </div>
-                    </div>
-                </div>
+                      <div class="row g-2">
+                          <div class="col-md-8">
+                              <input type="text" name="imap_server" class="form-control" value="{{ settings.get('imap_server', '') }}" placeholder="IMAP Host (e.g. imap.gmail.com)">
+                          </div>
+                          <div class="col-md-4">
+                              <input type="number" name="imap_port" class="form-control" value="{{ settings.get('imap_port', '') }}" placeholder="Port (e.g. 993)">
+                          </div>
+                          <div class="col-md-6">
+                              <input type="email" name="imap_user" class="form-control" value="{{ settings.get('imap_user', '') }}" placeholder="IMAP Username / Email">
+                          </div>
+                          <div class="col-md-6">
+                              <input type="password" name="imap_password" class="form-control" value="{{ settings.get('imap_password', '') }}" placeholder="IMAP Password / App Password">
+                          </div>
+                      </div>
+                      
+                      <div class="mt-3 text-end pt-2">
+                          <a href="/auth/email/test" class="btn btn-sm btn-outline-dark fw-bold">
+                              <i class="fas fa-paper-plane me-1"></i> Test Connection
+                          </a>
+                      </div>
+                  </div>
 
-                <div class="text-end">
-                    <button type="submit" class="btn btn-primary fw-bold px-4">
-                        <i class="fas fa-save me-2"></i> Save Keys
-                    </button>
-                </div>
+                  <div class="text-end">
+                      <button type="submit" class="btn btn-primary fw-bold px-4">
+                          <i class="fas fa-save me-2"></i> Save Keys
+                      </button>
+                  </div>
             </div>
         </div>
 

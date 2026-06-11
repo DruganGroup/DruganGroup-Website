@@ -116,54 +116,11 @@
     </div>
 
     <div class="row g-4">
-        <div class="col-md-6">
+        <div class="col-md-12">
             <div class="card p-4 h-100 shadow-sm border-0">
-                <h5 class="fw-bold text-secondary mb-3">Email System (SMTP / IMAP)</h5>
-                <div class="mb-2">
-                    <label class="form-label text-muted small fw-bold">SMTP Host (Sending)</label>
-                    <input type="text" name="smtp_host" class="form-control form-control-sm" value="{{ settings.get('smtp_host', '') }}" placeholder="smtp.gmail.com">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold text-secondary mb-0">Quote & Invoice Style</h5>
                 </div>
-                <div class="row g-2 mb-2">
-                    <div class="col-4">
-                        <label class="form-label text-muted small fw-bold">SMTP Port</label>
-                        <input type="text" name="smtp_port" class="form-control form-control-sm" value="{{ settings.get('smtp_port', '587') }}">
-                    </div>
-                    <div class="col-8">
-                        <label class="form-label text-muted small fw-bold">Sender Email</label>
-                        <input type="email" name="smtp_email" class="form-control form-control-sm" value="{{ settings.get('smtp_email', '') }}" placeholder="billing@yourco.com">
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label text-muted small fw-bold">SMTP App Password / Key</label>
-                    <input type="password" name="smtp_password" class="form-control form-control-sm" value="{{ settings.get('smtp_password', '') }}">
-                </div>
-
-                <div class="mb-2 border-top pt-3">
-                    <label class="form-label text-muted small fw-bold">IMAP Host (Receiving - Inbox)</label>
-                    <input type="text" name="imap_host" class="form-control form-control-sm" value="{{ settings.get('imap_host', '') }}" placeholder="imap.gmail.com">
-                </div>
-                <div class="row g-2 mb-2">
-                    <div class="col-4">
-                        <label class="form-label text-muted small fw-bold">IMAP Port</label>
-                        <input type="text" name="imap_port" class="form-control form-control-sm" value="{{ settings.get('imap_port', '993') }}">
-                    </div>
-                    <div class="col-8">
-                        <label class="form-label text-muted small fw-bold">IMAP Password</label>
-                        <input type="password" name="imap_password" class="form-control form-control-sm" value="{{ settings.get('imap_password', '') }}">
-                    </div>
-                </div>
-
-                <div class="mt-3 text-end border-top pt-2">
-                    <a href="/auth/email/test" class="btn btn-sm btn-outline-dark fw-bold">
-                        <i class="fas fa-paper-plane me-1"></i> Test Connection
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6">
-            <div class="card p-4 h-100 shadow-sm border-0">
-                <h5 class="fw-bold text-secondary mb-3">Quote & Invoice Style</h5>
                 <div class="d-flex flex-column gap-2">
                     <div class="form-check p-2 border rounded bg-white">
                         <input class="form-check-input ms-1" type="radio" name="pdf_theme" id="tpl_modern" value="Modern" 
