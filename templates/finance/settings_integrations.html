@@ -1,9 +1,6 @@
 {% extends "finance/settings_layout.html" %}
 
 {% block settings_content %}
-<form method="POST" enctype="multipart/form-data">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="action" value="save_keys">
     <div class="row g-4">
         <div class="col-md-8">
             <div class="card p-4 h-100 shadow-sm border-0">
@@ -72,6 +69,10 @@
                         </div>
                     </div>
                 </div>
+
+                <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="save_keys">
 
                 <h5 class="fw-bold text-secondary mb-4"><i class="fas fa-satellite-dish me-2"></i>Fleet Telematics API</h5>
                 
@@ -224,6 +225,7 @@
                           <i class="fas fa-save me-2"></i> Save Keys
                       </button>
                   </div>
+                </form>
             </div>
         </div>
 
@@ -242,5 +244,4 @@
             </div>
         </div>
     </div>
-</form>
 {% endblock %}

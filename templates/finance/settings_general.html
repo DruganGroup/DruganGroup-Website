@@ -96,7 +96,7 @@
                 
                 <div class="mb-3">
                     <label class="form-label text-muted small fw-bold">Brand Color</label>
-                    <input type="color" name="brand_color" class="form-control form-control-color w-100" 
+                    <input type="color" name="brand_color" id="brandColorInput" class="form-control form-control-color w-100" 
                            value="{{ settings.get('brand_color', '#2c3e50') }}">
                 </div>
 
@@ -117,25 +117,151 @@
 
     <div class="row g-4">
         <div class="col-md-12">
-            <div class="card p-4 h-100 shadow-sm border-0">
+            <div class="card p-4 shadow-sm border-0">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="fw-bold text-secondary mb-0">Quote & Invoice Style</h5>
                 </div>
-                <div class="d-flex flex-column gap-2">
-                    <div class="form-check p-2 border rounded bg-white">
-                        <input class="form-check-input ms-1" type="radio" name="pdf_theme" id="tpl_modern" value="Modern" 
-                               {% if settings.get('pdf_theme', 'Modern') == 'Modern' %}checked{% endif %}>
-                        <label class="form-check-label ms-2 w-100 fw-bold" for="tpl_modern">Modern (Default)</label>
+                
+                <style>
+                    :root {
+                        --preview-brand-color: {{ settings.get('brand_color', '#2c3e50') }};
+                    }
+                    .theme-card {
+                        border: 2px solid #dee2e6;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        transition: all 0.2s ease-in-out;
+                        overflow: hidden;
+                        background: #fff;
+                        position: relative;
+                    }
+                    .theme-card:hover {
+                        border-color: var(--preview-brand-color);
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                    }
+                    .theme-card input[type="radio"] {
+                        display: none;
+                    }
+                    .theme-card input[type="radio"]:checked + .theme-preview {
+                        border: 2px solid var(--preview-brand-color);
+                        background-color: rgba(0,0,0,0.02);
+                    }
+                    .theme-preview {
+                        height: 180px;
+                        padding: 10px;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 8px;
+                        border: 2px solid transparent;
+                    }
+                    .theme-title {
+                        text-align: center;
+                        font-weight: bold;
+                        padding: 10px 0;
+                        border-top: 1px solid #eee;
+                        background: #f8f9fa;
+                        margin: 0;
+                        font-size: 0.9rem;
+                    }
+                    
+                    /* Modern Theme Preview */
+                    .preview-modern .p-header {
+                        height: 30px;
+                        background-color: var(--preview-brand-color);
+                        border-radius: 2px;
+                        margin-bottom: 10px;
+                    }
+                    
+                    /* Classic Theme Preview */
+                    .preview-classic .p-header {
+                        height: 25px;
+                        border-bottom: 3px solid var(--preview-brand-color);
+                        margin-bottom: 10px;
+                        display: flex;
+                        align-items: flex-end;
+                        padding-bottom: 2px;
+                    }
+                    .preview-classic .p-logo {
+                        width: 30px;
+                        height: 15px;
+                        background: #ccc;
+                    }
+                    
+                    /* Minimal Theme Preview */
+                    .preview-minimal .p-header {
+                        height: 30px;
+                        margin-bottom: 10px;
+                        display: flex;
+                        justify-content: flex-end;
+                        align-items: center;
+                    }
+                    .preview-minimal .p-text {
+                        color: var(--preview-brand-color);
+                        font-weight: bold;
+                        font-size: 14px;
+                    }
+
+                    /* Common elements */
+                    .p-box { background: #e9ecef; height: 10px; border-radius: 2px; }
+                    .p-line { background: #dee2e6; height: 4px; border-radius: 2px; margin-bottom: 4px; }
+                </style>
+
+                <div class="row g-3">
+                    <!-- Modern Theme -->
+                    <div class="col-md-4">
+                        <label class="theme-card w-100 h-100 m-0">
+                            <input type="radio" name="pdf_theme" value="Modern" {% if settings.get('pdf_theme', 'Modern') == 'Modern' %}checked{% endif %}>
+                            <div class="theme-preview preview-modern">
+                                <div class="p-header"></div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <div class="p-box" style="width: 40%;"></div>
+                                    <div class="p-box" style="width: 30%;"></div>
+                                </div>
+                                <div class="p-line" style="width: 100%;"></div>
+                                <div class="p-line" style="width: 100%;"></div>
+                                <div class="p-line" style="width: 80%;"></div>
+                            </div>
+                            <h6 class="theme-title">Modern (Default)</h6>
+                        </label>
                     </div>
-                    <div class="form-check p-2 border rounded bg-white">
-                        <input class="form-check-input ms-1" type="radio" name="pdf_theme" id="tpl_classic" value="Classic" 
-                               {% if settings.get('pdf_theme') == 'Classic' %}checked{% endif %}>
-                        <label class="form-check-label ms-2 w-100 fw-bold" for="tpl_classic">Classic / Formal</label>
+
+                    <!-- Classic Theme -->
+                    <div class="col-md-4">
+                        <label class="theme-card w-100 h-100 m-0">
+                            <input type="radio" name="pdf_theme" value="Classic" {% if settings.get('pdf_theme') == 'Classic' %}checked{% endif %}>
+                            <div class="theme-preview preview-classic">
+                                <div class="p-header">
+                                    <div class="p-logo"></div>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <div class="p-box" style="width: 40%;"></div>
+                                    <div class="p-box" style="width: 30%;"></div>
+                                </div>
+                                <div class="p-line" style="width: 100%;"></div>
+                                <div class="p-line" style="width: 100%;"></div>
+                                <div class="p-line" style="width: 80%;"></div>
+                            </div>
+                            <h6 class="theme-title">Classic / Formal</h6>
+                        </label>
                     </div>
-                    <div class="form-check p-2 border rounded bg-white">
-                        <input class="form-check-input ms-1" type="radio" name="pdf_theme" id="tpl_minimal" value="Minimal" 
-                               {% if settings.get('pdf_theme') == 'Minimal' %}checked{% endif %}>
-                        <label class="form-check-label ms-2 w-100 fw-bold" for="tpl_minimal">Minimal / Clean</label>
+
+                    <!-- Minimal Theme -->
+                    <div class="col-md-4">
+                        <label class="theme-card w-100 h-100 m-0">
+                            <input type="radio" name="pdf_theme" value="Minimal" {% if settings.get('pdf_theme') == 'Minimal' %}checked{% endif %}>
+                            <div class="theme-preview preview-minimal">
+                                <div class="p-header">
+                                    <div class="p-text">INVOICE</div>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <div class="p-box" style="width: 30%;"></div>
+                                </div>
+                                <div class="p-line" style="width: 100%;"></div>
+                                <div class="p-line" style="width: 100%;"></div>
+                                <div class="p-line" style="width: 100%;"></div>
+                            </div>
+                            <h6 class="theme-title">Minimal / Clean</h6>
+                        </label>
                     </div>
                 </div>
             </div>
@@ -186,6 +312,16 @@ function updateLocalization() {
 }
 
 // Run on load to set initial state
-document.addEventListener('DOMContentLoaded', updateLocalization);
+document.addEventListener('DOMContentLoaded', () => {
+    updateLocalization();
+    
+    // Live update brand color preview
+    const colorInput = document.getElementById('brandColorInput');
+    if (colorInput) {
+        colorInput.addEventListener('input', (e) => {
+            document.documentElement.style.setProperty('--preview-brand-color', e.target.value);
+        });
+    }
+});
 </script>
 {% endblock %}
