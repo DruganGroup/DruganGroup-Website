@@ -40,10 +40,20 @@
                     <td>{{ r.client_name }}</td>
                     <td>{{ status_badge(r.status) }}</td>
                     <td class="text-end pe-4">
-                        <button class="btn btn-sm btn-primary fw-bold" 
-                            onclick="openDispatchModal('{{ r.id }}', '{{ r.property_address|escape }}', '{{ r.issue_description|escape }}')">
-                            <i class="fas fa-hard-hat me-1"></i> Dispatch
-                        </button>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-primary fw-bold" 
+                                onclick="openDispatchModal('{{ r.id }}', '{{ r.property_address|escape }}', '{{ r.issue_description|escape }}')">
+                                <i class="fas fa-hard-hat me-1"></i> Dispatch
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary fw-bold dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                                <li>
+                                    <a class="dropdown-item fw-bold text-success" href="#" onclick="openPartnerModal('{{ r.id }}', '{{ r.property_address|escape }}'); return false;">
+                                        <i class="fas fa-network-wired me-2"></i> Send to Partner
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
                     </td>
                 </tr>
                 {% else %}
@@ -153,8 +163,51 @@
     </div>
 {% endblock %}
 
+    <!-- PARTNER DISPATCH MODAL -->
+    <div class="modal fade" id="partnerModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content border-0 shadow">
+                <form action="/office/dispatch-to-partner" method="POST">
+                    <div class="modal-header bg-success bg-opacity-10">
+                        <h5 class="modal-title fw-bold text-success"><i class="fas fa-network-wired me-2"></i> Partner Dispatch</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="request_id" id="partnerRequestID">
+                        <p class="small text-muted mb-4">Select an active partner from your network to assign this job. They will only receive the issue description and property address.</p>
+                        
+                        <div class="mb-3">
+                            <label class="small fw-bold text-muted text-uppercase">Property</label>
+                            <input type="text" class="form-control-plaintext fw-bold" id="partnerAddress" readonly>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="small fw-bold text-muted text-uppercase">Select Partner Company</label>
+                            <select name="partner_company_id" class="form-select border-success" required>
+                                <option value="" disabled selected>-- Select Partner --</option>
+                                {% for p in active_partners %}
+                                    <option value="{{ p.id }}">{{ p.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="submit" class="btn btn-success fw-bold px-4">Send to Partner</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
 {% block scripts %}
 <script>
+    function openPartnerModal(id, address) {
+        document.getElementById('partnerRequestID').value = id;
+        document.getElementById('partnerAddress').value = address;
+        var myModal = new bootstrap.Modal(document.getElementById('partnerModal'));
+        myModal.show();
+    }
+
     function openDispatchModal(id, address, issue) {
         document.getElementById('modalRequestID').value = id;
         document.getElementById('modalAddress').value = address;

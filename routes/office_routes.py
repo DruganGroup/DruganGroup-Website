@@ -41,6 +41,7 @@ def service_desk():
         cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS photo_path TEXT;")
         cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS partner_company_id INTEGER;")
         cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS parent_request_id INTEGER;")
+        cur.execute("ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS partner_address_snapshot VARCHAR(255);")
         cur.execute("ALTER TABLE companies ADD COLUMN IF NOT EXISTS partner_code VARCHAR(20);")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS company_partners (
@@ -67,8 +68,8 @@ def service_desk():
                sr.partner_company_id,
                sr.parent_request_id
         FROM service_requests sr
-        JOIN properties p ON sr.property_id = p.id
-        JOIN clients c ON sr.client_id = c.id
+        LEFT JOIN properties p ON sr.property_id = p.id
+        LEFT JOIN clients c ON sr.client_id = c.id
         WHERE sr.company_id = %s AND sr.status != 'Completed'
         ORDER BY sr.created_at DESC
     """, (comp_id,))
@@ -134,6 +135,20 @@ def service_desk():
     cur.execute("SELECT id, name FROM staff WHERE company_id=%s AND status='Active'", (comp_id,))
     staff = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
 
+    # 4. FETCH ACTIVE PARTNERS FOR B2B DISPATCH MODAL
+    cur.execute("""
+        SELECT cp.id, c.name, c.id as partner_comp_id
+        FROM company_partners cp
+        JOIN companies c ON c.id = cp.partner_id
+        WHERE cp.company_id = %s AND cp.status = 'Active'
+        UNION
+        SELECT cp.id, c.name, c.id as partner_comp_id
+        FROM company_partners cp
+        JOIN companies c ON c.id = cp.company_id
+        WHERE cp.partner_id = %s AND cp.status = 'Active'
+    """, (comp_id, comp_id))
+    active_partners = [{'name': r[1], 'id': r[2]} for r in cur.fetchall()]
+
     conn.close()
     
     from datetime import datetime
@@ -143,9 +158,60 @@ def service_desk():
                            requests=requests, 
                            expiring_props=expiring_props,
                            staff=staff,
+                           active_partners=active_partners,
                            brand_color=config['color'], 
                            logo=config['logo'],
                            now=now_func)
+
+@office_bp.route('/office/dispatch-to-partner', methods=['POST'])
+def dispatch_to_partner():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    req_id = request.form.get('request_id')
+    partner_id = request.form.get('partner_company_id')
+    
+    if not partner_id:
+        flash("❌ No partner selected.", "error")
+        return redirect(url_for('office.service_desk'))
+        
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # 1. Fetch original request details
+        cur.execute("""
+            SELECT sr.issue_description, sr.priority, sr.photo_path, p.address_line1
+            FROM service_requests sr
+            JOIN properties p ON sr.property_id = p.id
+            WHERE sr.id = %s AND sr.company_id = %s
+        """, (req_id, comp_id))
+        row = cur.fetchone()
+        
+        if not row:
+            flash("❌ Request not found.", "error")
+            return redirect(url_for('office.service_desk'))
+            
+        desc, priority, photo, address = row
+        
+        # 2. Insert into Partner's Service Requests
+        cur.execute("""
+            INSERT INTO service_requests (
+                company_id, issue_description, priority, status, photo_path, 
+                partner_address_snapshot, parent_request_id, partner_company_id
+            ) VALUES (%s, %s, %s, 'Pending', %s, %s, %s, %s)
+        """, (partner_id, desc, priority, photo, address, req_id, comp_id))
+        
+        # 3. Update my request status
+        cur.execute("UPDATE service_requests SET status = 'Sent to Partner' WHERE id = %s", (req_id,))
+        
+        conn.commit()
+        flash("✅ Job successfully dispatched to partner network!", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error dispatching to partner: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('office.service_desk'))
 
 @office_bp.route('/office-hub')
 def office_dashboard():

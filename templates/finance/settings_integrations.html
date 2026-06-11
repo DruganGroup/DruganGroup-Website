@@ -8,14 +8,67 @@
             <div class="card p-4 h-100 shadow-sm border-0">
                 
                 <div class="card bg-primary bg-opacity-10 border-0 mb-4 p-4 rounded-4">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
                             <h5 class="fw-bold mb-1 text-primary"><i class="fas fa-network-wired me-2"></i> Business Better Partner Network</h5>
-                            <p class="text-muted small mb-0">Link with other companies to securely send & receive subcontracted jobs. Only the specific job details and property address are shared—client history and financials remain 100% private to your company.</p>
+                            <p class="text-muted small mb-0">Link with other companies to securely send & receive subcontracted jobs.</p>
                         </div>
-                        <button type="button" class="btn btn-primary fw-bold" onclick="alert('Partner Network API is currently in Beta. Contact support for your unique Partner Sync Code.')">
-                            <i class="fas fa-link me-2"></i> Link Partner
-                        </button>
+                        <div class="bg-white px-3 py-2 rounded shadow-sm border border-primary text-center">
+                            <div class="small fw-bold text-muted text-uppercase" style="font-size: 0.65rem;">Your Partner Code</div>
+                            <div class="fw-bold text-dark font-monospace fs-5 user-select-all">{{ my_code }}</div>
+                        </div>
+                    </div>
+
+                    <form method="POST" action="/finance/settings/integrations" class="mb-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="request_partner">
+                        <div class="input-group">
+                            <input type="text" name="partner_code" class="form-control fw-bold font-monospace" placeholder="Enter a Partner Code (e.g. BB-12345678)" required>
+                            <button type="submit" class="btn btn-primary fw-bold"><i class="fas fa-link me-2"></i> Request Link</button>
+                        </div>
+                    </form>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-dark small text-uppercase">Incoming Requests</h6>
+                            <div class="list-group shadow-sm">
+                                {% for req in incoming_requests %}
+                                <div class="list-group-item list-group-item-warning d-flex justify-content-between align-items-center p-2">
+                                    <div>
+                                        <div class="fw-bold small">{{ req.name }}</div>
+                                        <div class="text-muted" style="font-size: 0.7rem;">{{ req.date.strftime('%d %b %Y') }}</div>
+                                    </div>
+                                    <form method="POST" action="/finance/settings/integrations" class="m-0">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="action" value="accept_partner">
+                                        <input type="hidden" name="request_id" value="{{ req.id }}">
+                                        <button type="submit" class="btn btn-sm btn-success fw-bold">Accept</button>
+                                    </form>
+                                </div>
+                                {% else %}
+                                <div class="list-group-item text-muted small text-center p-2">No pending requests</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-dark small text-uppercase">Active Partners</h6>
+                            <div class="list-group shadow-sm">
+                                {% for p in active_partners %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center p-2">
+                                    <div class="fw-bold small text-primary"><i class="fas fa-check-circle me-1"></i> {{ p.name }}</div>
+                                    <form method="POST" action="/finance/settings/integrations" class="m-0" onsubmit="return confirm('Are you sure you want to remove this partner?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="action" value="remove_partner">
+                                        <input type="hidden" name="request_id" value="{{ p.id }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Unlink Partner"><i class="fas fa-unlink"></i></button>
+                                    </form>
+                                </div>
+                                {% else %}
+                                <div class="list-group-item text-muted small text-center p-2">No active partners linked</div>
+                                {% endfor %}
+                            </div>
+                        </div>
                     </div>
                 </div>
 

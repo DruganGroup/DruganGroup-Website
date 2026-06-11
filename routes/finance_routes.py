@@ -941,28 +941,105 @@ def settings_integrations():
     encryptor = get_encryptor()
 
     if request.method == 'POST':
-        # Save Keys to Settings Table with encryption
-        keys = [
-            'samsara_api_key', 'geotab_user', 'geotab_database', 'geotab_password',
-            'verizon_connect_api_key', 'tomtom_api_key',
-            'google_ai_key', 'openai_api_key', 'anthropic_api_key',
-            'smtp_host', 'smtp_port', 'smtp_email', 'smtp_password',
-            'imap_server', 'imap_port', 'imap_user', 'imap_password'
-        ]
-        for k in keys:
-            val = request.form.get(k)
-            if val:
-                # Encrypt sensitive keys before saving
-                if encryptor.is_encrypted_key(k):
-                    val = encryptor.encrypt(val)
-                
-                # Upsert (Update if exists, Insert if not)
-                cur.execute("""
-                    INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s)
-                    ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
-                """, (comp_id, k, val))
+        action = request.form.get('action')
+        
+        if action == 'request_partner':
+            partner_code = request.form.get('partner_code', '').strip().upper()
+            if partner_code:
+                # Find partner company
+                cur.execute("SELECT id FROM companies WHERE partner_code = %s", (partner_code,))
+                row = cur.fetchone()
+                if row:
+                    partner_id = row[0]
+                    if partner_id == comp_id:
+                        flash("❌ You cannot partner with yourself.", "error")
+                    else:
+                        try:
+                            # Insert pending request (we are the company_id, they are the partner_id)
+                            # The receiving company will see it and accept.
+                            cur.execute("""
+                                INSERT INTO company_partners (company_id, partner_id, status)
+                                VALUES (%s, %s, 'Pending')
+                                ON CONFLICT (company_id, partner_id) DO NOTHING
+                            """, (comp_id, partner_id))
+                            conn.commit()
+                            flash("✅ Partner request sent!", "success")
+                        except Exception as e:
+                            conn.rollback()
+                            flash(f"Error sending request: {e}", "error")
+                else:
+                    flash("❌ Invalid Partner Code.", "error")
+                    
+        elif action == 'accept_partner':
+            request_id = request.form.get('request_id')
+            cur.execute("UPDATE company_partners SET status = 'Active' WHERE id = %s AND partner_id = %s", (request_id, comp_id))
+            conn.commit()
+            flash("✅ Partner request accepted!", "success")
+            
+        elif action == 'remove_partner':
+            request_id = request.form.get('request_id')
+            # Either we initiated it or they did
+            cur.execute("DELETE FROM company_partners WHERE id = %s AND (company_id = %s OR partner_id = %s)", (request_id, comp_id, comp_id))
+            conn.commit()
+            flash("❌ Partner connection removed.", "info")
+            
+        elif action == 'save_keys':
+            # Save Keys to Settings Table with encryption
+            keys = [
+                'samsara_api_key', 'geotab_user', 'geotab_database', 'geotab_password',
+                'verizon_connect_api_key', 'tomtom_api_key',
+                'google_ai_key', 'openai_api_key', 'anthropic_api_key',
+                'smtp_host', 'smtp_port', 'smtp_email', 'smtp_password',
+                'imap_server', 'imap_port', 'imap_user', 'imap_password'
+            ]
+            for k in keys:
+                val = request.form.get(k)
+                if val is not None:  # Allow clearing fields
+                    if encryptor.is_encrypted_key(k) and val:
+                        val = encryptor.encrypt(val)
+                    cur.execute("""
+                        INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s)
+                        ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+                    """, (comp_id, k, val))
+            conn.commit()
+            flash("✅ Integration Keys Saved Securely", "success")
+
+    # --- PARTNER NETWORK DATA FETCH ---
+    # 1. Ensure this company has a partner code
+    cur.execute("SELECT partner_code FROM companies WHERE id = %s", (comp_id,))
+    row = cur.fetchone()
+    my_code = row[0] if row else None
+    
+    if not my_code:
+        import secrets
+        import string
+        my_code = 'BB-' + ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        cur.execute("UPDATE companies SET partner_code = %s WHERE id = %s", (my_code, comp_id))
         conn.commit()
-        flash("✅ Integration Keys Saved Securely")
+
+    # 2. Fetch Active Partners
+    # They could be the initiator (company_id) or the receiver (partner_id)
+    cur.execute("""
+        SELECT cp.id, c.name, cp.created_at
+        FROM company_partners cp
+        JOIN companies c ON c.id = cp.partner_id
+        WHERE cp.company_id = %s AND cp.status = 'Active'
+        UNION
+        SELECT cp.id, c.name, cp.created_at
+        FROM company_partners cp
+        JOIN companies c ON c.id = cp.company_id
+        WHERE cp.partner_id = %s AND cp.status = 'Active'
+    """, (comp_id, comp_id))
+    active_partners = [{'id': r[0], 'name': r[1], 'date': r[2]} for r in cur.fetchall()]
+
+    # 3. Fetch Incoming Requests (I am the partner_id, waiting for my approval)
+    cur.execute("""
+        SELECT cp.id, c.name, cp.created_at
+        FROM company_partners cp
+        JOIN companies c ON c.id = cp.company_id
+        WHERE cp.partner_id = %s AND cp.status = 'Pending'
+    """, (comp_id,))
+    incoming_requests = [{'id': r[0], 'name': r[1], 'date': r[2]} for r in cur.fetchall()]
 
     # Load Settings with decryption
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
@@ -977,7 +1054,12 @@ def settings_integrations():
     
     conn.close()
 
-    return render_template('finance/settings_integrations.html', settings=settings, active_tab='integrations')
+    return render_template('finance/settings_integrations.html', 
+                           settings=settings, 
+                           my_code=my_code,
+                           active_partners=active_partners,
+                           incoming_requests=incoming_requests,
+                           active_tab='integrations')
     
 # --- IN routes/finance_routes.py ---
 
