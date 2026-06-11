@@ -57,7 +57,7 @@
                 <tr>
                     <th class="ps-4">Employee</th>
                     <th>Status</th>
-                    <th>Hours</th>
+                    <th>{{ _('Hours') }}</th>
                     <th class="text-end text-light">Gross Pay</th>
                     <th class="text-end text-light">Hol Banked</th>
                     <th class="text-end text-danger">Tax</th>
@@ -65,7 +65,7 @@
                         {% if settings.get('country_code') == 'UK' %}NI{% elif settings.get('country_code') == 'US' %}FICA{% else %}Social{% endif %}
                     </th>
                     <th class="text-end pe-4 text-success">Net Pay</th>
-                    <th class="text-end">Actions</th>
+                    <th class="text-end">{{ _('Actions') }}</th>
                 </tr>
             </thead>
             <tbody>

@@ -146,11 +146,11 @@
                     <table class="table table-hover align-middle mb-0 small">
                         <thead class="bg-light text-muted text-uppercase">
                             <tr>
-                                <th class="ps-3">Type</th>
+                                <th class="ps-3">{{ _('Type') }}</th>
                                 <th>Description</th>
                                 <th>Date</th>
                                 <th class="text-end">Amount</th>
-                                <th class="text-end pe-3">Action</th>
+                                <th class="text-end pe-3">{{ _('Action') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -201,7 +201,7 @@
                 <div class="card-header bg-white border-bottom-0 pt-3">
                     <ul class="nav nav-pills nav-fill small fw-bold" id="pills-tab" role="tablist">
                         <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-upload"><i class="fas fa-upload me-1"></i> Upload</button></li>
-                        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-cost"><i class="fas fa-coins me-1"></i> Cost</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-cost"><i class="fas fa-coins me-1"></i> {{ _('Cost') }}</button></li>
                         <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-time"><i class="fas fa-clock me-1"></i> Time</button></li>
                     </ul>
                 </div>
@@ -231,7 +231,7 @@
                     <div class="tab-pane fade" id="tab-time">
                         <form action="/office/job/{{ job.id }}/log-hours" method="POST">
 						<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <label class="small fw-bold">Staff</label>
+                            <label class="small fw-bold">{{ _('Staff') }}</label>
                             <select name="staff_id" class="form-select form-select-sm mb-2">
                                 {% for s in staff %}
                                     <option value="{{ s[0] }}">{{ s[1] }}</option>
@@ -239,7 +239,7 @@
                             </select>
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
-                                    <label class="small fw-bold">Hours</label>
+                                    <label class="small fw-bold">{{ _('Hours') }}</label>
                                     <input type="number" name="hours" step="0.5" class="form-control form-control-sm">
                                 </div>
                                 <div class="col-6">
@@ -303,7 +303,7 @@
                         <div class="bg-light rounded-circle p-2 me-3"><i class="fas fa-user text-secondary"></i></div>
                         <div>
                             <div class="fw-bold">{{ job.client }}</div>
-                            <div class="small text-muted">Client</div>
+                            <div class="small text-muted">{{ _('Client') }}</div>
                         </div>
                     </div>
                     {% if job.email %}

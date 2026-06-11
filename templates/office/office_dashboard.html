@@ -154,8 +154,8 @@
                     <table class="table table-hover align-middle mb-0 small">
                         <thead class="bg-light text-muted text-uppercase">
                             <tr>
-                                <th class="ps-3">Reference</th>
-                                <th>Client</th>
+                                <th class="ps-3">{{ _('Reference') }}</th>
+                                <th>{{ _('Client') }}</th>
                                 <th>{{ _('Date') }}</th>
                                 <th>{{ _('Status') }}</th>
                                 <th class="text-end pe-3">{{ _('Value') }}</th>
@@ -203,7 +203,7 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">Client</label>
+                        <label class="form-label small fw-bold">{{ _('Client') }}</label>
                         <select name="client_id" id="jobClientSelect" class="form-select" required>
                             <option value="">-- Select Client --</option>
                             {% for c in clients %}

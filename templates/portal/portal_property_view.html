@@ -107,9 +107,9 @@
                     <thead class="bg-light small text-uppercase text-muted">
                         <tr>
                             <th class="ps-4">Date</th>
-                            <th>Reference</th>
+                            <th>{{ _('Reference') }}</th>
                             <th>Status</th>
-                            <th class="text-end pe-4">Action</th>
+                            <th class="text-end pe-4">{{ _('Action') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -126,7 +126,7 @@
                                 {% else %} <span class="badge bg-secondary">{{ job[2] }}</span> {% endif %}
                             </td>
                             <td class="text-end pe-4">
-                                <a href="/portal/job/{{ job[0] }}" class="btn btn-sm btn-outline-secondary">View</a>
+                                <a href="/portal/job/{{ job[0] }}" class="btn btn-sm btn-outline-secondary">{{ _('View') }}</a>
                             </td>
                         </tr>
                         {% else %}

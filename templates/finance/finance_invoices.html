@@ -25,11 +25,11 @@
                 <thead class="table-light text-uppercase small">
                     <tr>
                         <th class="ps-4">Invoice #</th>
-                        <th>Client</th>
+                        <th>{{ _('Client') }}</th>
                         <th>{{ _('Date') }}</th>
                         <th>{{ _('Status') }}</th>
                         <th class="text-end pe-4">{{ _('Total') }}</th>
-                        <th class="text-end pe-4">Actions</th>
+                        <th class="text-end pe-4">{{ _('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -71,8 +71,7 @@
                                     <li>
                                         <a class="dropdown-item text-danger" href="{{ url_for('finance.delete_invoice', invoice_id=inv.id) }}"
                                            onclick="return confirm('⚠️ Are you sure? This will permanently delete this invoice.');">
-                                            <i class="fas fa-trash me-2"></i>Delete
-                                        </a>
+                                            <i class="fas fa-trash me-2"></i>{{ _('Delete') }} </a>
                                     </li>
                                 </ul>
                             </div>
@@ -119,7 +118,7 @@
         // Fill the content box with data
         var content = `
             <div class="p-3 bg-light rounded border mb-3">
-                <div class="small text-muted text-uppercase fw-bold">Client</div>
+                <div class="small text-muted text-uppercase fw-bold">{{ _('Client') }}</div>
                 <div class="fs-5 fw-bold">${client}</div>
             </div>
             

@@ -161,7 +161,105 @@ TRANSLATIONS = {
         'es': 'Cumplimiento Global', 'fr': 'Conformité Mondiale', 'de': 'Globale Compliance',
         'ar': 'الامتثال العالمي', 'zh': '全球合规', 'hi': 'वैश्विक अनुपालन', 'pt': 'Conformidade Global'
     }
+,
+    'Reference': {
+        'es': 'Referencia', 'fr': 'Référence', 'de': 'Referenz',
+        'ar': 'مرجع', 'zh': '参考', 'hi': 'संदर्भ', 'pt': 'Referência'
+    },
+    'Client': {
+        'es': 'Cliente', 'fr': 'Client', 'de': 'Kunde',
+        'ar': 'عميل', 'zh': '客户', 'hi': 'ग्राहक', 'pt': 'Cliente'
+    },
+    'Action': {
+        'es': 'Acción', 'fr': 'Action', 'de': 'Aktion',
+        'ar': 'إجراء', 'zh': '操作', 'hi': 'कार्रवाई', 'pt': 'Ação'
+    },
+    'Actions': {
+        'es': 'Acciones', 'fr': 'Actions', 'de': 'Aktionen',
+        'ar': 'إجراءات', 'zh': '操作', 'hi': 'कार्रवाई', 'pt': 'Ações'
+    },
+    'Add': {
+        'es': 'Añadir', 'fr': 'Ajouter', 'de': 'Hinzufügen',
+        'ar': 'إضافة', 'zh': '添加', 'hi': 'जोड़ें', 'pt': 'Adicionar'
+    },
+    'Delete': {
+        'es': 'Eliminar', 'fr': 'Supprimer', 'de': 'Löschen',
+        'ar': 'حذف', 'zh': '删除', 'hi': 'हटाएं', 'pt': 'Excluir'
+    },
+    'Edit': {
+        'es': 'Editar', 'fr': 'Modifier', 'de': 'Bearbeiten',
+        'ar': 'تعديل', 'zh': '编辑', 'hi': 'संपादित करें', 'pt': 'Editar'
+    },
+    'View': {
+        'es': 'Ver', 'fr': 'Voir', 'de': 'Ansehen',
+        'ar': 'عرض', 'zh': '查看', 'hi': 'देखें', 'pt': 'Ver'
+    },
+    'Cancel': {
+        'es': 'Cancelar', 'fr': 'Annuler', 'de': 'Abbrechen',
+        'ar': 'إلغاء', 'zh': '取消', 'hi': 'रद्द करें', 'pt': 'Cancelar'
+    },
+    'Search': {
+        'es': 'Buscar', 'fr': 'Chercher', 'de': 'Suche',
+        'ar': 'بحث', 'zh': '搜索', 'hi': 'खोज', 'pt': 'Buscar'
+    },
+    'Notes': {
+        'es': 'Notas', 'fr': 'Notes', 'de': 'Notizen',
+        'ar': 'ملاحظات', 'zh': '注释', 'hi': 'टिप्पणियाँ', 'pt': 'Notas'
+    },
+    'Address': {
+        'es': 'Dirección', 'fr': 'Adresse', 'de': 'Adresse',
+        'ar': 'عنوان', 'zh': '地址', 'hi': 'पता', 'pt': 'Endereço'
+    },
+    'Email': {
+        'es': 'Correo', 'fr': 'Email', 'de': 'E-Mail',
+        'ar': 'بريد إلكتروني', 'zh': '电子邮件', 'hi': 'ईमेल', 'pt': 'Email'
+    },
+    'Phone': {
+        'es': 'Teléfono', 'fr': 'Téléphone', 'de': 'Telefon',
+        'ar': 'هاتف', 'zh': '电话', 'hi': 'फ़ोन', 'pt': 'Telefone'
+    },
+    'Name': {
+        'es': 'Nombre', 'fr': 'Nom', 'de': 'Name',
+        'ar': 'اسم', 'zh': '姓名', 'hi': 'नाम', 'pt': 'Nome'
+    },
+    'Type': {
+        'es': 'Tipo', 'fr': 'Type', 'de': 'Typ',
+        'ar': 'نوع', 'zh': '类型', 'hi': 'प्रकार', 'pt': 'Tipo'
+    },
+    'Category': {
+        'es': 'Categoría', 'fr': 'Catégorie', 'de': 'Kategorie',
+        'ar': 'فئة', 'zh': '类别', 'hi': 'श्रेणी', 'pt': 'Categoria'
+    },
+    'Cost': {
+        'es': 'Costo', 'fr': 'Coût', 'de': 'Kosten',
+        'ar': 'تكلفة', 'zh': '成本', 'hi': 'लागत', 'pt': 'Custo'
+    },
+    'Price': {
+        'es': 'Precio', 'fr': 'Prix', 'de': 'Preis',
+        'ar': 'سعر', 'zh': '价格', 'hi': 'कीमत', 'pt': 'Preço'
+    },
+    'Quantity': {
+        'es': 'Cantidad', 'fr': 'Quantité', 'de': 'Menge',
+        'ar': 'كمية', 'zh': '数量', 'hi': 'मात्रा', 'pt': 'Quantidade'
+    },
+    'Hours': {
+        'es': 'Horas', 'fr': 'Heures', 'de': 'Stunden',
+        'ar': 'ساعات', 'zh': '小时', 'hi': 'घंटे', 'pt': 'Horas'
+    },
+    'Rate': {
+        'es': 'Tarifa', 'fr': 'Taux', 'de': 'Satz',
+        'ar': 'معدل', 'zh': '费率', 'hi': 'दर', 'pt': 'Taxa'
+    },
+    'Staff': {
+        'es': 'Personal', 'fr': 'Personnel', 'de': 'Personal',
+        'ar': 'طاقم العمل', 'zh': '员工', 'hi': 'कर्मचारी', 'pt': 'Equipe'
+    },
+    'Materials': {
+        'es': 'Materiales', 'fr': 'Matériaux', 'de': 'Materialien',
+        'ar': 'مواد', 'zh': '材料', 'hi': 'सामग्री', 'pt': 'Materiais'
+    }
 }
+
 
 def get_translation(text, lang_code='en'):
     """
