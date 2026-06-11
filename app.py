@@ -203,6 +203,10 @@ def inject_translations():
                 session['lang_code'] = lang_code
             except:
                 pass
+    else:
+        # Public website visitor
+        if 'public_lang' in session:
+            lang_code = session['public_lang']
                 
     # 2. Provide the _ function and language direction to templates
     def translate(text):

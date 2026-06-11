@@ -134,6 +134,32 @@ TRANSLATIONS = {
     'Unpaid Invoices': {
         'es': 'Facturas Impagas', 'fr': 'Factures Impayées', 'de': 'Unbezahlte Rechnungen',
         'ar': 'فواتير غير مدفوعة', 'zh': '未发票', 'hi': 'अवैतनिक चालान', 'pt': 'Faturas Não Pagas'
+    },
+    
+    # Public Marketing Site
+    'Pricing': {
+        'es': 'Precios', 'fr': 'Tarifs', 'de': 'Preise',
+        'ar': 'التسعير', 'zh': '定价', 'hi': 'मूल्य निर्धारण', 'pt': 'Preços'
+    },
+    'Features': {
+        'es': 'Características', 'fr': 'Fonctionnalités', 'de': 'Funktionen',
+        'ar': 'الميزات', 'zh': '功能', 'hi': 'विशेषताएं', 'pt': 'Recursos'
+    },
+    'Login': {
+        'es': 'Iniciar Sesión', 'fr': 'Connexion', 'de': 'Anmelden',
+        'ar': 'تسجيل الدخول', 'zh': '登录', 'hi': 'लॉग इन', 'pt': 'Entrar'
+    },
+    'Sign Up': {
+        'es': 'Regístrate', 'fr': "S'inscrire", 'de': 'Registrieren',
+        'ar': 'التسجيل', 'zh': '注册', 'hi': 'साइन अप करें', 'pt': 'Inscrever-se'
+    },
+    'Global Reach': {
+        'es': 'Alcance Global', 'fr': 'Portée Mondiale', 'de': 'Globale Reichweite',
+        'ar': 'الوصول العالمي', 'zh': '全球范围', 'hi': 'वैश्विक पहुंच', 'pt': 'Alcance Global'
+    },
+    'Global Compliance': {
+        'es': 'Cumplimiento Global', 'fr': 'Conformité Mondiale', 'de': 'Globale Compliance',
+        'ar': 'الامتثال العالمي', 'zh': '全球合规', 'hi': 'वैश्विक अनुपालन', 'pt': 'Conformidade Global'
     }
 }
 

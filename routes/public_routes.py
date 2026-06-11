@@ -226,3 +226,18 @@ def help_center():
     else:
         # If trade site users need help, maybe redirect to contact or a different page
         return render_template('public/contact.html')
+
+@public_bp.route('/set-language/<lang>')
+def set_public_language(lang):
+    """Sets the public website language in the session and redirects back."""
+    from flask import session, redirect, request
+    from utils.translations import LANGUAGES
+    
+    if lang in LANGUAGES:
+        session['public_lang'] = lang
+        
+    # Redirect back to where they came from, or home
+    referrer = request.referrer
+    if referrer:
+        return redirect(referrer)
+    return redirect(url_for('public.home'))
