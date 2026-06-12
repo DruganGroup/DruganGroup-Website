@@ -283,37 +283,39 @@ def super_admin_dashboard():
 
     # --- 2. FETCH DATA FOR DASHBOARD (UPDATED) ---
     
-    # A. Fetch Plans & Calculate MRR Map
+    # A. Fetch Plans
     cur.execute("SELECT id, name, price FROM plans ORDER BY price ASC")
     rows = cur.fetchall()
     plans = [{'id': r[0], 'name': r[1], 'price': float(r[2])} for r in rows]
-    price_map = {p['name']: p['price'] for p in plans}
 
-    # B. Fetch Companies List
+    # B. PAGINATION SETUP
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    offset = (page - 1) * per_page
+
+    cur.execute("SELECT COUNT(*) FROM companies")
+    total_companies = cur.fetchone()[0]
+    total_pages = math.ceil(total_companies / per_page)
+
+    # C. Fetch Paginated Companies List
     cur.execute("""
         SELECT c.id, c.name, c.sub_domain, s.plan_tier, s.status, u.email, s.start_date
         FROM companies c
         LEFT JOIN subscriptions s ON c.id = s.company_id
         LEFT JOIN users u ON c.id = u.company_id AND u.role = 'Admin'
         ORDER BY c.id DESC
-    """)
+        LIMIT %s OFFSET %s
+    """, (per_page, offset))
     
     companies = []
-    total_mrr = 0.0
-    
-    # Tables to count for usage stats (New Feature)
     count_tables = ['users', 'staff', 'vehicles', 'clients', 'jobs', 'transactions', 'maintenance_logs', 'invoices']
 
     for row in cur.fetchall():
         comp_id = row[0]
         plan_name = row[3]
         status = row[4]
-        
-        # Calculate Revenue (MRR)
-        if status == 'Active' and plan_name in price_map:
-            total_mrr += price_map[plan_name]
 
-        # --- CALCULATE STORAGE & BANDWIDTH ---
+        # --- CALCULATE STORAGE --- (Optimized because it only runs for 20 companies per page)
         total_rows = 0
         for t in count_tables:
             try:
@@ -326,14 +328,11 @@ def super_admin_dashboard():
             except:
                 conn.rollback() 
         
-        # Logic: 0.5KB per row + Static files estimate
         est_storage_mb = round((total_rows * 0.5) / 1024, 2)
         est_bandwidth_mb = round(total_rows * 0.05, 2)
-        # -------------------------------------
 
         formatted_date = row[6].strftime('%d %b %Y') if row[6] else "Pending"
         
-        # Get users and vehicles for this company
         cur.execute("SELECT COUNT(*) FROM users WHERE company_id = %s", (comp_id,))
         u_count = cur.fetchone()[0]
         cur.execute("SELECT COUNT(*) FROM vehicles WHERE company_id = %s", (comp_id,))
@@ -353,11 +352,20 @@ def super_admin_dashboard():
             'bandwidth': est_bandwidth_mb
         })
 
-    # C. Total Users (System Wide)
+    # D. Optimized System KPIs
+    try:
+        cur.execute("""
+            SELECT SUM(p.price) 
+            FROM subscriptions s 
+            JOIN plans p ON s.plan_id = p.id 
+            WHERE s.status = 'Active'
+        """)
+        total_mrr = cur.fetchone()[0] or 0.0
+    except: total_mrr = 0.0
+
     cur.execute("SELECT COUNT(*) FROM users")
     total_users = cur.fetchone()[0]
     
-    # D. Helpdesk & Staff KPIs
     try:
         cur.execute("SELECT COUNT(*) FROM bb_support_tickets WHERE status = 'Open'")
         open_tickets = cur.fetchone()[0]
@@ -376,7 +384,38 @@ def super_admin_dashboard():
                            total_mrr=total_mrr,
                            total_users=total_users,
                            open_tickets=open_tickets,
-                           bb_staff_count=bb_staff_count)
+                           bb_staff_count=bb_staff_count,
+                           page=page,
+                           total_pages=total_pages)
+
+@admin_bp.route('/super-admin/export-tenants')
+def export_tenants():
+    if session.get('role') != 'SuperAdmin': return "Access Denied", 403
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT c.id, c.name, c.sub_domain, c.contact_email, s.plan_tier, s.status, s.start_date
+        FROM companies c
+        LEFT JOIN subscriptions s ON c.id = s.company_id
+        ORDER BY c.id ASC
+    """)
+    rows = cur.fetchall()
+    conn.close()
+
+    import csv
+    from flask import Response
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['ID', 'Company Name', 'Subdomain', 'Contact Email', 'Plan', 'Status', 'Joined Date'])
+    for row in rows:
+        writer.writerow([row[0], row[1], row[2], row[3], row[4], row[5], row[6].strftime('%Y-%m-%d') if row[6] else ''])
+    
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-disposition": "attachment; filename=bb_tenants_export.csv"}
+    )
 
 @admin_bp.route('/super-admin/analytics')
 def super_admin_analytics():
