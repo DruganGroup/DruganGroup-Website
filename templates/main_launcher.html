@@ -219,6 +219,14 @@
                 <div class="card-sub">{{ _('Restricted Area') }}</div>
             </div>
             {% endif %}
+            
+            {% if role in ['Admin', 'SuperAdmin'] %}
+            <a href="#" class="module-card" style="background: linear-gradient(145deg, #8E44AD, #732d91); color: white;" data-bs-toggle="modal" data-bs-target="#supportTicketModal">
+                <i class="fas fa-life-ring card-icon"></i>
+                <div class="card-title">{{ _('BB Support') }}</div>
+                <div class="card-sub">{{ _('Technical Help') }}</div>
+            </a>
+            {% endif %}
 
         </div>
         
@@ -226,6 +234,34 @@
             <i class="fas fa-arrows-left-right me-1"></i> {{ _('Swipe to explore apps') }}
         </div>
 
+    </div>
+
+    <!-- Support Ticket Modal -->
+    <div class="modal fade" id="supportTicketModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content shadow-lg">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-life-ring text-warning me-2"></i>{{ _('Contact BB Tech Support') }}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="/auth/submit-support-ticket" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">{{ _('Subject') }}</label>
+                            <input type="text" name="subject" class="form-control" placeholder="{{ _('e.g. Cannot generate invoice') }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">{{ _('Description of Issue') }}</label>
+                            <textarea name="description" class="form-control" rows="5" placeholder="{{ _('Please describe what happened...') }}" required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-warning fw-bold">{{ _('Submit Ticket') }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <div class="modal fade" id="profileModal" tabindex="-1" aria-hidden="true">

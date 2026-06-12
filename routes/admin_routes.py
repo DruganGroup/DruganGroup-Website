@@ -94,6 +94,79 @@ def perform_company_backup(company_id, cur):
         except: pass
     return backup_data
 
+@admin_bp.route('/super-admin/staff', methods=['GET', 'POST'])
+def super_admin_staff():
+    if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        staff_role = request.form.get('staff_role') # 'BB_Support' or 'BB_Sales'
+        
+        from werkzeug.security import generate_password_hash
+        import random, string
+        temp_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+        hashed = generate_password_hash(temp_pass)
+        
+        try:
+            # We add them to users table with company_id = NULL
+            cur.execute("""
+                INSERT INTO users (company_id, name, email, password_hash, role)
+                VALUES (NULL, %s, %s, %s, %s)
+            """, (name, email, hashed, staff_role))
+            conn.commit()
+            
+            # Send Email
+            cur.execute("SELECT key, value FROM system_settings")
+            settings = {row[0]: row[1] for row in cur.fetchall()}
+            if settings.get('smtp_server') and settings.get('smtp_email'):
+                try:
+                    msg = MIMEMultipart()
+                    msg['From'] = settings['smtp_email']
+                    msg['To'] = email
+                    msg['Subject'] = "Welcome to Business Better Staff"
+                    msg.attach(MIMEText(f"Hello {name},\n\nYou have been added to the Business Better team as a {staff_role}.\nYour temporary password is: {temp_pass}\n\nPlease login and change your password.", 'plain'))
+                    server = smtplib.SMTP(settings['smtp_server'], int(settings.get('smtp_port', 587)))
+                    server.starttls()
+                    server.login(settings['smtp_email'], settings['smtp_password'])
+                    server.send_message(msg)
+                    server.quit()
+                    flash(f"✅ Staff '{name}' created and email sent!")
+                except Exception as e:
+                    flash(f"✅ Staff '{name}' created. Password: {temp_pass} (Email failed: {e})")
+            else:
+                flash(f"✅ Staff '{name}' created. Password: {temp_pass} (SMTP not configured)")
+                
+            log_audit("ADD BB STAFF", email, f"Role: {staff_role}")
+            
+        except Exception as e:
+            conn.rollback()
+            flash(f"❌ Error adding staff: {e}")
+
+    cur.execute("SELECT id, name, email, role FROM users WHERE company_id IS NULL AND role != 'SuperAdmin'")
+    staff = cur.fetchall()
+    conn.close()
+    return render_template('admin/super_admin_staff.html', staff=staff)
+
+@admin_bp.route('/super-admin/bb-helpdesk')
+def bb_support_dashboard():
+    if session.get('role') not in ['SuperAdmin', 'BB_Support']: return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT t.id, c.name, t.subject, t.status, t.created_at, u.name 
+            FROM bb_support_tickets t
+            LEFT JOIN companies c ON t.company_id = c.id
+            LEFT JOIN users u ON t.assigned_to = u.id
+            ORDER BY t.created_at DESC
+        """)
+        tickets = cur.fetchall()
+    except:
+        tickets = []
+    conn.close()
+    return render_template('admin/bb_support_dashboard.html', tickets=tickets)
+
 @admin_bp.route('/super-admin', methods=['GET', 'POST'])
 def super_admin_dashboard():
     if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
@@ -707,6 +780,38 @@ def wipe_fleet_data():
     return redirect(url_for('admin.super_admin_dashboard'))
     
 # --- SETUP: CREATE LOG TABLES ---
+@admin_bp.route('/admin/setup-bb-support-db')
+def setup_bb_support_db():
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS bb_support_tickets (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER,
+                subject VARCHAR(200),
+                description TEXT,
+                status VARCHAR(50) DEFAULT 'Open',
+                assigned_to INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS bb_ticket_messages (
+                id SERIAL PRIMARY KEY,
+                ticket_id INTEGER REFERENCES bb_support_tickets(id) ON DELETE CASCADE,
+                sender_type VARCHAR(50), -- 'Tenant' or 'BB_Staff'
+                sender_id INTEGER, -- User ID or Staff ID
+                message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn.commit(); flash("✅ BB Support Tables Created Successfully")
+    except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
+    finally: conn.close()
+    return redirect(url_for('admin.super_admin_dashboard'))
+
 @admin_bp.route('/admin/setup-logs-db')
 def setup_logs_db():
     if session.get('role') != 'SuperAdmin': return "Access Denied"

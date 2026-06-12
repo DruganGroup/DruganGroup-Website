@@ -402,6 +402,38 @@ def change_password():
     flash(_("✅ Password updated successfully!"), "success")
     return redirect(request.referrer)
 
+@auth_bp.route('/auth/submit-support-ticket', methods=['POST'])
+def submit_support_ticket():
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    user_id = session.get('user_id')
+    subject = request.form.get('subject')
+    description = request.form.get('description')
+    
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO bb_support_tickets (company_id, subject, description, status)
+            VALUES (%s, %s, %s, 'Open') RETURNING id
+        """, (comp_id, subject, description))
+        ticket_id = cur.fetchone()[0]
+        
+        cur.execute("""
+            INSERT INTO bb_ticket_messages (ticket_id, sender_type, sender_id, message)
+            VALUES (%s, 'Tenant', %s, %s)
+        """, (ticket_id, user_id, description))
+        conn.commit()
+        flash(_("✅ Support ticket submitted successfully. BB Support will contact you shortly."), "success")
+    except Exception as e:
+        conn.rollback()
+        flash(_("❌ Error submitting ticket: {error}").format(error=e), "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('auth.main_launcher'))
+
 @auth_bp.route('/auth/email/test')
 def test_email_connection():
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']:

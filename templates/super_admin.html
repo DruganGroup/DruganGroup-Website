@@ -87,6 +87,12 @@
     </div>
 
     <div class="d-flex justify-content-end mb-4 gap-2">
+        <a href="{{ url_for('admin.super_admin_staff') }}" class="btn-outline-gold" style="text-decoration: none;">
+            <i class="fas fa-users me-2"></i> {{ _('BB Staff') }}
+        </a>
+        <a href="{{ url_for('admin.bb_support_dashboard') }}" class="btn-outline-gold" style="text-decoration: none;">
+            <i class="fas fa-life-ring me-2"></i> {{ _('BB Helpdesk') }}
+        </a>
         <button class="btn-outline-gold" data-bs-toggle="modal" data-bs-target="#settingsModal">
             <i class="fas fa-cogs me-2"></i> {{ _('SMTP Settings') }}
         </button>
