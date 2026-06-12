@@ -52,8 +52,8 @@
                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
                                     <li><h6 class="dropdown-header small text-uppercase">Manage</h6></li>
                                     <li>
-                                        <a class="dropdown-item" href="{{ url_for('pdf.download_invoice_pdf', invoice_id=inv.id) }}" target="_blank">
-                                            <i class="fas fa-file-pdf me-2 text-danger"></i>Download PDF
+                                        <a class="dropdown-item async-download" href="#" data-invoice-id="{{ inv.id }}">
+                                            <i class="fas fa-file-pdf me-2 text-danger icon-placeholder"></i><span class="btn-text">Download PDF</span>
                                         </a>
                                     </li>
                                     <li>
@@ -108,6 +108,74 @@
 
 {% block scripts %}
 <script>
+    document.querySelectorAll('.async-download').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (this.classList.contains('disabled')) return;
+            
+            const invoiceId = this.dataset.invoiceId;
+            const iconPlaceholder = this.querySelector('.icon-placeholder');
+            const btnText = this.querySelector('.btn-text');
+            const originalIcon = iconPlaceholder.className;
+            
+            // UI Update: Disable & Spin
+            this.classList.add('disabled');
+            iconPlaceholder.className = 'spinner-border spinner-border-sm me-2 text-danger icon-placeholder';
+            btnText.innerText = 'Generating...';
+            
+            fetch(`/finance/invoice/${invoiceId}/generate`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ACCEPTED') {
+                    pollTask(data.task_id, this, originalIcon, invoiceId);
+                } else {
+                    alert('Error starting generation: ' + (data.error || 'Unknown error'));
+                    resetBtn(this, originalIcon);
+                }
+            })
+            .catch(err => {
+                alert('Network error connecting to the server.');
+                resetBtn(this, originalIcon);
+            });
+        });
+    });
+
+    function pollTask(taskId, btn, originalIcon, invoiceId) {
+        const interval = setInterval(() => {
+            fetch(`/api/task-status/${taskId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.state === 'SUCCESS') {
+                    clearInterval(interval);
+                    resetBtn(btn, originalIcon);
+                    // Dynamically trigger download
+                    window.location.href = `/finance/invoice/${invoiceId}/download`;
+                } else if (data.state === 'FAILURE' || data.state === 'FAILED') {
+                    clearInterval(interval);
+                    resetBtn(btn, originalIcon);
+                    alert('Generation failed: ' + (data.status || 'Unknown error'));
+                }
+            })
+            .catch(err => {
+                clearInterval(interval);
+                resetBtn(btn, originalIcon);
+                alert('Error checking status.');
+            });
+        }, 2000);
+    }
+
+    function resetBtn(btn, originalIcon) {
+        btn.classList.remove('disabled');
+        btn.querySelector('.icon-placeholder').className = originalIcon;
+        btn.querySelector('.btn-text').innerText = 'Download PDF';
+    }
+
     function openInvoiceDrawer(ref, client, total, status) {
         // Find the drawer element
         var myDrawer = new bootstrap.Offcanvas(document.getElementById('invoiceDrawer'));

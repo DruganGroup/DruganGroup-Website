@@ -175,7 +175,9 @@
                                 </td>
                                 <td class="text-end pe-3">
                                     {% if 'Invoice' in f[0] %}
-                                        <a href="{{ url_for('pdf.download_invoice_pdf', invoice_id=f[5]) }}" target="_blank" class="btn btn-xs btn-outline-primary"><i class="fas fa-download"></i></a>
+                                        <a href="#" data-invoice-id="{{ f[5] }}" class="btn btn-xs btn-outline-primary async-download" title="Download PDF">
+                                            <i class="fas fa-download icon-placeholder"></i>
+                                        </a>
                                     {% elif f[4] != 'No Link' and f[4] != 'Material' %}
                                         <a href="/{{ f[4] }}" target="_blank" class="btn btn-xs btn-outline-secondary"><i class="fas fa-eye"></i></a>
                                     {% endif %}
@@ -325,6 +327,72 @@
     </div>
 </div>
 <script>
+document.querySelectorAll('.async-download').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (this.classList.contains('disabled')) return;
+        
+        const invoiceId = this.dataset.invoiceId;
+        const iconPlaceholder = this.querySelector('.icon-placeholder');
+        const originalIcon = iconPlaceholder.className;
+        
+        this.classList.add('disabled');
+        iconPlaceholder.className = 'spinner-border spinner-border-sm icon-placeholder';
+        
+        // Find CSRF token manually if available, otherwise just rely on cookies/session
+        let csrfToken = '';
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        if (csrfInput) csrfToken = csrfInput.value;
+        
+        fetch(`/finance/invoice/${invoiceId}/generate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'ACCEPTED') {
+                pollTask(data.task_id, this, originalIcon, invoiceId);
+            } else {
+                alert('Error starting generation.');
+                resetBtn(this, originalIcon);
+            }
+        }).catch(err => {
+            alert('Network error.');
+            resetBtn(this, originalIcon);
+        });
+    });
+});
+
+function pollTask(taskId, btn, originalIcon, invoiceId) {
+    const interval = setInterval(() => {
+        fetch(`/api/task-status/${taskId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.state === 'SUCCESS') {
+                clearInterval(interval);
+                resetBtn(btn, originalIcon);
+                window.location.href = `/finance/invoice/${invoiceId}/download`;
+            } else if (data.state === 'FAILURE' || data.state === 'FAILED') {
+                clearInterval(interval);
+                resetBtn(btn, originalIcon);
+                alert('Generation failed.');
+            }
+        }).catch(err => {
+            clearInterval(interval);
+            resetBtn(btn, originalIcon);
+            alert('Error checking status.');
+        });
+    }, 2000);
+}
+
+function resetBtn(btn, originalIcon) {
+    btn.classList.remove('disabled');
+    btn.querySelector('.icon-placeholder').className = originalIcon;
+}
+
 function emailSupplier(jobId) {
     let email = prompt("Enter the supplier's email address:");
     if (email) {

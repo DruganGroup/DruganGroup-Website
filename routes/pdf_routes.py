@@ -45,11 +45,11 @@ def get_smart_terms(settings):
     days = settings.get('payment_days', '14')
     return f"Payment is due within {days} days of the invoice date."
 
-from tasks import generate_invoice_pdf_task
 from flask import jsonify
 
 @pdf_bp.route('/finance/invoice/<int:invoice_id>/generate', methods=['POST'])
 def generate_invoice_pdf_async(invoice_id):
+    from tasks import generate_invoice_pdf_task
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']:
         return jsonify({"error": "Unauthorized"}), 403
         
