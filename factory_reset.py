@@ -16,13 +16,19 @@ def factory_reset():
     
     try:
         print("1. Fetching all tables...")
-        cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public'")
+        cur.execute("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema='public' 
+            AND table_type='BASE TABLE'
+            AND table_name NOT LIKE 'pg_%'
+        """)
         tables = [row[0] for row in cur.fetchall()]
         
         if not tables:
             print("No tables found. Schema might be empty.")
         else:
-            print(f"Found {len(tables)} tables. Truncating all data...")
+            print(f"Found {len(tables)} base tables. Truncating all data...")
             # Disable triggers/constraints during truncate to avoid FK issues
             truncate_query = f"TRUNCATE TABLE {', '.join(tables)} RESTART IDENTITY CASCADE;"
             cur.execute(truncate_query)
