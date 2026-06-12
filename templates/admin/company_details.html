@@ -1,111 +1,185 @@
 {% extends "admin/base.html" %}
 
-{% block title %}{{ company.name }} | Inspection{% endblock %}
+{% block title %}{{ company.name }} | Tenant Inspection{% endblock %}
 
 {% block styles %}
 <style>
-    .stat-list li { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #2a2a2a; color: #aaa; font-size: 0.9rem; }
-    .stat-list li:last-child { border-bottom: none; }
+    /* --- Layout & Core --- */
+    .header-bar { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+    .tenant-name { font-size: 2.2rem; font-weight: 800; color: #fff; margin: 0; line-height: 1.2; }
+    .tenant-url { font-size: 0.9rem; color: #aaa; font-family: monospace; letter-spacing: 0.5px; }
+    
+    /* --- Info Cards --- */
+    .info-card { background: #222; border: 1px solid #333; border-radius: 8px; padding: 20px; height: 100%; }
+    .info-card-header { font-size: 0.85rem; text-transform: uppercase; color: var(--primary-gold); font-weight: 700; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+    
+    .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #2a2a2a; }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { color: #888; font-size: 0.9rem; }
     .stat-val { color: #fff; font-weight: 600; }
     
-    .activity-tile { background: #252525; border-radius: 10px; padding: 20px; text-align: center; border: 1px solid transparent; transition: 0.3s; }
-    .activity-tile:hover { border-color: var(--primary-gold); transform: translateY(-5px); }
-    .tile-num { font-size: 1.8rem; font-weight: 700; color: #fff; margin: 10px 0 5px; }
-    .tile-label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+    /* --- Metric Tiles --- */
+    .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; }
+    .metric-tile { background: #1a1a1a; border: 1px solid #333; border-radius: 6px; padding: 15px; text-align: center; transition: 0.2s; }
+    .metric-tile:hover { border-color: var(--primary-gold); background: #222; }
+    .m-icon { font-size: 1.5rem; color: #555; margin-bottom: 10px; transition: 0.2s; }
+    .metric-tile:hover .m-icon { color: var(--primary-gold); }
+    .m-val { font-size: 1.8rem; font-weight: 800; color: #fff; margin-bottom: 2px; line-height: 1; }
+    .m-label { font-size: 0.75rem; color: #777; text-transform: uppercase; letter-spacing: 0.5px; }
     
-    .btn-gold { background: var(--primary-gold); color: #000; font-weight: 700; border: none; padding: 10px 25px; border-radius: 5px; text-decoration: none; display: inline-block; }
-    .btn-gold:hover { background: #fff; color: #000; }
+    /* --- Buttons --- */
+    .btn-action { background: #333; color: #fff; border: 1px solid #444; padding: 8px 15px; border-radius: 5px; font-weight: 600; text-decoration: none; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-action:hover { background: #444; color: #fff; }
+    .btn-login { background: var(--primary-gold); color: #000; border-color: var(--primary-gold); }
+    .btn-login:hover { background: #e0b666; color: #000; }
+    .btn-danger-outline { color: #e74c3c; border-color: #5c2018; background: rgba(231, 76, 60, 0.05); }
+    .btn-danger-outline:hover { background: #e74c3c; color: #fff; border-color: #e74c3c; }
+
+    /* --- Logs Table --- */
+    .table-logs { font-size: 0.85rem; }
+    .table-logs th { color: #aaa; border-bottom-color: #444; text-transform: uppercase; font-size: 0.75rem; }
+    .table-logs td { color: #ccc; border-bottom-color: #333; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="mb-4">
-    <a href="/super-admin/analytics" class="text-muted text-decoration-none mb-2 d-inline-block hover-gold">
-        <i class="fas fa-arrow-left me-2"></i> Back to Analytics
-    </a>
-    <div class="d-flex justify-content-between align-items-end mt-2">
-        <div>
-            <h1 class="fw-bold text-white mb-0">{{ company.name }}</h1>
-            <div class="text-gold font-monospace">
-                {{ company.subdomain }}.tradecore.com 
-                <span class="text-muted mx-2">|</span> 
-                <span class="badge bg-secondary">{{ company.plan }}</span>
+<a href="/super-admin" class="text-muted text-decoration-none mb-3 d-inline-block hover-gold" style="font-size: 0.9rem;">
+    <i class="fas fa-arrow-left me-2"></i> Return to Command Center
+</a>
+
+<div class="header-bar">
+    <div>
+        <h1 class="tenant-name">{{ company.name }}</h1>
+        <div class="tenant-url">
+            {{ company.subdomain }}.businessbetter.co.uk
+            <span class="ms-3 badge {{ 'bg-success' if company.status == 'Active' else 'bg-danger' }}">{{ company.status }}</span>
+            <span class="ms-1 badge bg-secondary">{{ company.plan }} Plan</span>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/admin/assign-me/{{ company.id }}" class="btn-action btn-login shadow-sm" title="Impersonate this tenant's admin account">
+            <i class="fas fa-user-secret"></i> Impersonate Admin
+        </a>
+        <a href="/admin/suspend/{{ company.id }}" class="btn-action">
+            <i class="fas {{ 'fa-play' if company.status == 'Suspended' else 'fa-pause' }}"></i>
+            {{ 'Re-activate' if company.status == 'Suspended' else 'Suspend' }}
+        </a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Account Details -->
+    <div class="col-md-4">
+        <div class="info-card">
+            <div class="info-card-header"><i class="fas fa-address-card me-2"></i> Account Info</div>
+            <div class="stat-row">
+                <span class="stat-label">Owner Email</span>
+                <span class="stat-val text-info">{{ company.email }}</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Date Joined</span>
+                <span class="stat-val">{{ company.joined.strftime('%d %b %Y') if company.joined else 'Unknown' }}</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Storage Used</span>
+                <span class="stat-val text-warning">{{ stats.storage_mb }} MB</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Total Revenue</span>
+                <span class="stat-val text-success">£{{ "%.2f"|format(stats.total_revenue) }}</span>
             </div>
         </div>
-        <div>
-            <a href="/admin/assign-me/{{ company.id }}" class="btn-gold shadow-sm">
-                <i class="fas fa-user-secret me-2"></i> Login as Owner
-            </a>
+    </div>
+
+    <!-- Usage Grid -->
+    <div class="col-md-8">
+        <div class="info-card">
+            <div class="info-card-header"><i class="fas fa-chart-line me-2"></i> Platform Utilization</div>
+            <div class="metric-grid">
+                <div class="metric-tile">
+                    <i class="fas fa-users m-icon"></i>
+                    <div class="m-val">{{ stats.users + stats.staff }}</div>
+                    <div class="m-label">Total Users</div>
+                </div>
+                <div class="metric-tile">
+                    <i class="fas fa-truck m-icon"></i>
+                    <div class="m-val">{{ stats.vehicles }}</div>
+                    <div class="m-label">Fleet Size</div>
+                </div>
+                <div class="metric-tile">
+                    <i class="fas fa-hard-hat m-icon"></i>
+                    <div class="m-val">{{ stats.jobs }}</div>
+                    <div class="m-label">Jobs Created</div>
+                </div>
+                <div class="metric-tile">
+                    <i class="fas fa-file-invoice-dollar m-icon"></i>
+                    <div class="m-val">{{ stats.invoices }}</div>
+                    <div class="m-label">Invoices</div>
+                </div>
+                <div class="metric-tile">
+                    <i class="fas fa-address-book m-icon"></i>
+                    <div class="m-val">{{ stats.clients }}</div>
+                    <div class="m-label">Clients</div>
+                </div>
+                <div class="metric-tile">
+                    <i class="fas fa-home m-icon"></i>
+                    <div class="m-val">{{ stats.properties }}</div>
+                    <div class="m-label">Properties</div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <div class="row g-4 mb-4">
-    <div class="col-md-4">
-        <div class="card-dark p-4 h-100">
-            <h5 class="text-white mb-3"><i class="fas fa-heartbeat text-danger me-2"></i> System Health</h5>
-            <ul class="list-unstyled stat-list mb-0">
-                <li><span>DB Rows</span> <span class="stat-val">{{ stats.users + stats.staff + stats.clients + stats.jobs + stats.transactions }}</span></li>
-                <li><span>Storage</span> <span class="stat-val">{{ stats.storage_mb }} MB</span></li>
-                <li><span>Status</span> <span class="stat-val" style="color: {% if company.status == 'Active' %}#2ecc71{% else %}#e74c3c{% endif %};">{{ company.status }}</span></li>
-            </ul>
-        </div>
-    </div>
-    </div>
-
-<div class="card-dark p-4 mb-4">
-    <h5 class="text-white mb-4">Operational Breakdown</h5>
-    <div class="row g-3">
-        <div class="col">
-            <div class="activity-tile">
-                <i class="fas fa-hard-hat fa-2x" style="color: #e67e22;"></i>
-                <div class="tile-num">{{ stats.jobs }}</div>
-                <div class="tile-label">Total Jobs</div>
+    <!-- Audit Logs -->
+    <div class="col-md-8">
+        <div class="info-card" style="padding: 0; overflow: hidden;">
+            <div class="info-card-header" style="margin: 20px 20px 0 20px;"><i class="fas fa-history me-2"></i> Recent Activity Logs</div>
+            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                <table class="table table-dark table-hover table-logs mb-0">
+                    <thead style="position: sticky; top: 0; background: #1a1a1a; z-index: 1;">
+                        <tr>
+                            <th class="ps-4">Time</th>
+                            <th>User/Email</th>
+                            <th>Action</th>
+                            <th class="pe-4">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in audit_logs %}
+                        <tr>
+                            <td class="ps-4 text-muted">{{ log.time }}</td>
+                            <td class="text-info">{{ log.user }}</td>
+                            <td><span class="badge bg-secondary">{{ log.action }}</span></td>
+                            <td class="pe-4">{{ log.details }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center py-5 text-muted">No audit logs available for this tenant.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
-        </div>
-</div>
-
-<div class="card-dark p-4 mb-4">
-    <h5 class="text-white mb-4"><i class="fas fa-list-alt me-2 text-primary"></i> Tenant Audit Logs</h5>
-    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
-        <table class="table table-dark table-hover mb-0" style="font-size: 0.85rem;">
-            <thead class="bg-black text-muted text-uppercase" style="position: sticky; top: 0;">
-                <tr>
-                    <th>Time</th>
-                    <th>User</th>
-                    <th>Action</th>
-                    <th>Details</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for log in audit_logs %}
-                <tr>
-                    <td class="text-secondary">{{ log.time }}</td>
-                    <td class="text-gold">{{ log.user }}</td>
-                    <td><span class="badge bg-secondary">{{ log.action }}</span></td>
-                    <td class="text-white">{{ log.details }}</td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="4" class="text-center py-4 text-muted">No audit logs found for this tenant.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
     </div>
-</div>
 
-<div class="card-dark p-4" style="border-color: #e74c3c;">
-    <h5 class="text-danger mb-3"><i class="fas fa-exclamation-triangle me-2"></i> Administrative Actions</h5>
-    <div class="d-flex gap-3">
-        <a href="/admin/suspend/{{ company.id }}" class="btn btn-outline-warning">
-            <i class="fas {{ 'fa-play' if company.status == 'Suspended' else 'fa-pause' }} me-2"></i>
-            {{ 'Re-activate Account' if company.status == 'Suspended' else 'Suspend Account' }}
-        </a>
-        <a href="#" onclick="alert('Action disabled');" class="btn btn-outline-danger">
-            <i class="fas fa-trash me-2"></i> Delete Tenant
-        </a>
+    <!-- Danger Zone -->
+    <div class="col-md-4">
+        <div class="info-card border-danger">
+            <div class="info-card-header text-danger"><i class="fas fa-exclamation-triangle me-2"></i> Danger Zone</div>
+            <p class="text-muted" style="font-size: 0.85rem;">Administrative destructive actions. These actions cannot be undone.</p>
+            
+            <div class="d-grid gap-3 mt-4">
+                <a href="#" onclick="alert('Forensic wipe requires elevated confirmation (Coming Soon)');" class="btn-action btn-danger-outline justify-content-center">
+                    <i class="fas fa-broom"></i> Wipe Tenant Data
+                </a>
+                <a href="#" onclick="alert('Permanent deletion requires elevated confirmation (Coming Soon)');" class="btn-action btn-danger-outline justify-content-center">
+                    <i class="fas fa-trash-alt"></i> Delete Tenant Completely
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

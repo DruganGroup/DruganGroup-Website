@@ -283,6 +283,12 @@ def super_admin_dashboard():
         # -------------------------------------
 
         formatted_date = row[6].strftime('%d %b %Y') if row[6] else "Pending"
+        
+        # Get users and vehicles for this company
+        cur.execute("SELECT COUNT(*) FROM users WHERE company_id = %s", (comp_id,))
+        u_count = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM vehicles WHERE company_id = %s", (comp_id,))
+        v_count = cur.fetchone()[0]
 
         companies.append({
             'id': comp_id, 
@@ -292,13 +298,26 @@ def super_admin_dashboard():
             'status': status, 
             'admin': row[5],
             'joined': formatted_date,
-            'storage': est_storage_mb,    # Added for new dashboard
-            'bandwidth': est_bandwidth_mb # Added for new dashboard
+            'users_count': u_count,
+            'vehicles_count': v_count,
+            'storage': est_storage_mb,
+            'bandwidth': est_bandwidth_mb
         })
 
     # C. Total Users (System Wide)
     cur.execute("SELECT COUNT(*) FROM users")
     total_users = cur.fetchone()[0]
+    
+    # D. Helpdesk & Staff KPIs
+    try:
+        cur.execute("SELECT COUNT(*) FROM bb_support_tickets WHERE status = 'Open'")
+        open_tickets = cur.fetchone()[0]
+    except: open_tickets = 0
+    
+    try:
+        cur.execute("SELECT COUNT(*) FROM users WHERE company_id IS NULL AND role != 'SuperAdmin'")
+        bb_staff_count = cur.fetchone()[0]
+    except: bb_staff_count = 0
 
     conn.close()
     
@@ -306,7 +325,9 @@ def super_admin_dashboard():
                            companies=companies, 
                            plans=plans,
                            total_mrr=total_mrr,
-                           total_users=total_users)
+                           total_users=total_users,
+                           open_tickets=open_tickets,
+                           bb_staff_count=bb_staff_count)
 
 @admin_bp.route('/super-admin/analytics')
 def super_admin_analytics():
