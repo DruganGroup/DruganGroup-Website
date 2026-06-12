@@ -1,0 +1,42 @@
+services:
+  # Managed Redis for Celery Broker
+  - type: redis
+    name: bb-redis
+    ipAllowList: []
+    plan: starter
+
+  # Main Flask Web Application
+  - type: web
+    name: business-better-web
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: bb-redis
+          property: connectionString
+      - key: DATABASE_URL
+        sync: false # Needs to be set via dashboard or another DB service if DB is managed in Render
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
+  # Celery Background Task Worker
+  - type: worker
+    name: business-better-worker
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A celery_worker.celery worker --loglevel=info
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: bb-redis
+          property: connectionString
+      - key: DATABASE_URL
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
