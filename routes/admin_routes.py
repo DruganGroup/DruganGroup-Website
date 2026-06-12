@@ -18,6 +18,23 @@ from utils.validators import validate_table_name, ALLOWED_TABLES
 
 admin_bp = Blueprint('admin', __name__)
 
+@admin_bp.context_processor
+def inject_system_settings():
+    if session.get('role') != 'SuperAdmin':
+        return dict()
+    conn = get_db()
+    if not conn:
+        return dict()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT key, value FROM system_settings")
+        settings = {row[0]: row[1] for row in cur.fetchall()}
+        return dict(system_config=settings, global_alert=settings.get('global_alert', ''))
+    except Exception as e:
+        return dict(system_config={}, global_alert='')
+    finally:
+        conn.close()
+
 # --- HELPER: RECORD AUDIT LOG ---
 def log_audit(action, target, details=""):
     try:

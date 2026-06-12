@@ -45,6 +45,54 @@ def get_smart_terms(settings):
     days = settings.get('payment_days', '14')
     return f"Payment is due within {days} days of the invoice date."
 
+from tasks import generate_invoice_pdf_task
+from flask import jsonify
+
+@pdf_bp.route('/finance/invoice/<int:invoice_id>/generate', methods=['POST'])
+def generate_invoice_pdf_async(invoice_id):
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']:
+        return jsonify({"error": "Unauthorized"}), 403
+        
+    conn = get_db(); cur = conn.cursor()
+    comp_id = session.get('company_id')
+    company_name = session.get('company_name', 'My Company')
+    
+    if not comp_id:
+        cur.close(); conn.close()
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    cur.execute("SELECT company_id FROM invoices WHERE id = %s", (invoice_id,))
+    invoice_row = cur.fetchone()
+    cur.close(); conn.close()
+    if not invoice_row or invoice_row[0] != comp_id:
+        return jsonify({"error": "Invoice not found or belongs to different company"}), 403
+
+    # Trigger Celery Task
+    task = generate_invoice_pdf_task.delay(invoice_id, comp_id, company_name)
+    
+    return jsonify({"status": "ACCEPTED", "task_id": task.id}), 202
+
+@pdf_bp.route('/api/task-status/<task_id>')
+def task_status(task_id):
+    from celery_worker import celery
+    task = celery.AsyncResult(task_id)
+    if task.state == 'PENDING':
+        response = {
+            'state': task.state,
+            'status': 'Pending...'
+        }
+    elif task.state != 'FAILURE':
+        response = {
+            'state': task.state,
+            'result': task.info
+        }
+    else:
+        response = {
+            'state': task.state,
+            'status': str(task.info)
+        }
+    return jsonify(response)
+
 @pdf_bp.route('/finance/invoice/<int:invoice_id>/download')
 def download_invoice_pdf(invoice_id):
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']:
