@@ -519,6 +519,29 @@ def finance_analysis():
     avg_margin = (total_profit / total_rev * 100) if total_rev > 0 else 0
     return render_template('finance/finance_analysis.html', jobs=analyzed, total_rev=total_rev, total_cost=total_cost, total_profit=total_profit, avg_margin=avg_margin, brand_color=config['color'], logo_url=config['logo'])
     
+@finance_bp.route('/finance/audit-logs')
+def finance_audit_logs():
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']:
+        return redirect(url_for('auth.login'))
+        
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db()
+    cur = conn.cursor()
+    
+    cur.execute("""
+        SELECT action, target, details, created_at, admin_email 
+        FROM audit_logs 
+        WHERE company_id = %s 
+        ORDER BY created_at DESC LIMIT 100
+    """, (comp_id,))
+    
+    raw_logs = cur.fetchall()
+    audit_logs = [{'action': r[0], 'target': r[1], 'details': r[2], 'time': r[3].strftime('%d/%m/%Y %H:%M'), 'user': r[4]} for r in raw_logs]
+    conn.close()
+    
+    return render_template('finance/finance_audit_logs.html', logs=audit_logs, brand_color=config['color'], logo_url=config['logo'])
+
 @finance_bp.route('/finance/settings')
 def settings_redirect(): return redirect(url_for('finance.settings_general'))
 
@@ -597,10 +620,14 @@ def settings_general():
             settings[key] = encryptor.decrypt(value) or ''
         else:
             settings[key] = value
+            
+    cur.execute("SELECT sub_domain FROM companies WHERE id = %s", (comp_id,))
+    comp_row = cur.fetchone()
+    sub_domain = comp_row[0] if comp_row else ''
     
     conn.close()
 
-    return render_template('finance/settings_general.html', settings=settings, active_tab='general')
+    return render_template('finance/settings_general.html', settings=settings, active_tab='general', sub_domain=sub_domain)
 
 @finance_bp.route('/finance/settings/banking', methods=['GET', 'POST'])
 def settings_banking():

@@ -66,6 +66,36 @@
         </div>
 </div>
 
+<div class="card-dark p-4 mb-4">
+    <h5 class="text-white mb-4"><i class="fas fa-list-alt me-2 text-primary"></i> Tenant Audit Logs</h5>
+    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+        <table class="table table-dark table-hover mb-0" style="font-size: 0.85rem;">
+            <thead class="bg-black text-muted text-uppercase" style="position: sticky; top: 0;">
+                <tr>
+                    <th>Time</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in audit_logs %}
+                <tr>
+                    <td class="text-secondary">{{ log.time }}</td>
+                    <td class="text-gold">{{ log.user }}</td>
+                    <td><span class="badge bg-secondary">{{ log.action }}</span></td>
+                    <td class="text-white">{{ log.details }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" class="text-center py-4 text-muted">No audit logs found for this tenant.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
 <div class="card-dark p-4" style="border-color: #e74c3c;">
     <h5 class="text-danger mb-3"><i class="fas fa-exclamation-triangle me-2"></i> Administrative Actions</h5>
     <div class="d-flex gap-3">
@@ -73,7 +103,7 @@
             <i class="fas {{ 'fa-play' if company.status == 'Suspended' else 'fa-pause' }} me-2"></i>
             {{ 'Re-activate Account' if company.status == 'Suspended' else 'Suspend Account' }}
         </a>
-        <a href="/admin/delete-tenant/{{ company.id }}" class="btn btn-outline-danger" onclick="return confirm('WARNING: DELETE?');">
+        <a href="#" onclick="alert('Action disabled');" class="btn btn-outline-danger">
             <i class="fas fa-trash me-2"></i> Delete Tenant
         </a>
     </div>

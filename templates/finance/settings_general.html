@@ -6,6 +6,34 @@
     
     <div class="row g-4 mb-4">
         
+        <!-- WHITE LABEL PORTAL URL -->
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 bg-primary text-white">
+                <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <h5 class="fw-bold mb-1"><i class="fas fa-globe me-2"></i> {{ _('Your Client Portal URL') }}</h5>
+                        <p class="mb-0 opacity-75 small">{{ _('Share this custom link with your clients so they can log in, view quotes, and track jobs.') }}</p>
+                    </div>
+                    <div class="input-group" style="max-width: 450px;">
+                        <input type="text" class="form-control bg-white text-dark fw-bold" id="portalUrlInput" value="https://{{ sub_domain }}.businessbetter.co.uk" readonly>
+                        <button class="btn btn-dark fw-bold" type="button" onclick="copyPortalUrl()">
+                            <i class="fas fa-copy me-1"></i> {{ _('Copy Link') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        function copyPortalUrl() {
+            var copyText = document.getElementById("portalUrlInput");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); /* For mobile devices */
+            navigator.clipboard.writeText(copyText.value);
+            alert("{{ _('Client Portal URL copied to clipboard!') }}");
+        }
+        </script>
+        
         <div class="col-md-8">
             <div class="card p-4 h-100 shadow-sm">
                 <h5 class="fw-bold text-secondary mb-4">Business Profile & Localization</h5>

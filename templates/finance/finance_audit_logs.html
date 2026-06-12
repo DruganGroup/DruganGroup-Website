@@ -1,0 +1,46 @@
+{% extends "finance/finance_base.html" %}
+
+{% block title %}Audit Logs | Business Better{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold m-0"><i class="fas fa-shield-alt text-primary me-2"></i> {{ _('Audit Logs') }}</h2>
+        <p class="text-muted mb-0">{{ _('Security and administrative activity history.') }}</p>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light text-muted small text-uppercase">
+                <tr>
+                    <th class="ps-4">{{ _('Time') }}</th>
+                    <th>{{ _('User') }}</th>
+                    <th>{{ _('Action') }}</th>
+                    <th>{{ _('Target') }}</th>
+                    <th class="pe-4">{{ _('Details') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td class="ps-4 text-muted small">{{ log.time }}</td>
+                    <td class="fw-bold text-dark">{{ log.user }}</td>
+                    <td><span class="badge bg-secondary">{{ log.action }}</span></td>
+                    <td class="text-dark">{{ log.target }}</td>
+                    <td class="text-muted pe-4 small">{{ log.details }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center py-5 text-muted">
+                        <i class="fas fa-check-circle fa-2x mb-3 text-success opacity-50"></i><br>
+                        {{ _('No recent audit logs found.') }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

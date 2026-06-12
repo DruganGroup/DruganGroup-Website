@@ -625,9 +625,16 @@ def company_details(company_id):
         cur.execute("SELECT SUM(amount) FROM transactions WHERE company_id = %s AND type='Income'", (company_id,)); stats['total_revenue'] = cur.fetchone()[0] or 0.0
     except Exception: conn.rollback(); settings = {}; stats['total_revenue'] = 0.0
     
+    # Fetch Audit Logs for this company
+    try:
+        cur.execute("SELECT action, target, details, created_at, admin_email FROM audit_logs WHERE company_id = %s ORDER BY created_at DESC LIMIT 50", (company_id,))
+        raw_logs = cur.fetchall()
+        audit_logs = [{'action': r[0], 'target': r[1], 'details': r[2], 'time': r[3].strftime('%d/%m %H:%M'), 'user': r[4]} for r in raw_logs]
+    except Exception: conn.rollback(); audit_logs = []
+    
     stats['storage_mb'] = get_real_company_usage(company_id, cur)
     conn.close()
-    return render_template('admin/company_details.html', company=company, stats=stats, settings=settings)
+    return render_template('admin/company_details.html', company=company, stats=stats, settings=settings, audit_logs=audit_logs)
 
 # --- 5. DATA CLEANUP (FORENSIC MODE) ---
 @admin_bp.route('/admin/cleanup-my-data')
