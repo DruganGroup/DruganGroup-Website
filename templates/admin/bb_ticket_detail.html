@@ -1,0 +1,96 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Ticket #{{ ticket[0] }} | BB Helpdesk{% endblock %}
+
+{% block styles %}
+<style>
+    .ticket-header { background: #222; border: 1px solid #333; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+    .message-box { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+    .message-box.staff-reply { background: rgba(197, 160, 89, 0.05); border-left: 3px solid var(--primary-gold); }
+    .message-header { display: flex; justify-content: space-between; font-size: 0.85rem; color: #888; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+    .message-body { color: #eee; white-space: pre-wrap; }
+    
+    .status-badge { padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex justify-content-between align-items-center">
+    <div>
+        <a href="{{ url_for('admin.bb_support_dashboard') }}" class="btn btn-outline-secondary btn-sm mb-2"><i class="fas fa-arrow-left"></i> Back to Helpdesk</a>
+        <h2 class="text-white mb-0">Ticket #{{ ticket[0] }}</h2>
+    </div>
+    <div>
+        <form method="POST" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="assign_me">
+            <button class="btn btn-outline-info btn-sm me-2"><i class="fas fa-hand-paper"></i> Assign to Me</button>
+        </form>
+        <form method="POST" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="close">
+            <button class="btn btn-outline-success btn-sm"><i class="fas fa-check"></i> Mark Resolved</button>
+        </form>
+    </div>
+</div>
+
+<div class="ticket-header">
+    <div class="row">
+        <div class="col-md-8">
+            <h4 class="text-gold mb-1">{{ ticket[2] }}</h4>
+            <div class="text-muted small mb-3">From Tenant: <strong>{{ ticket[1] }}</strong> | Created: {{ ticket[4].strftime('%d %b %Y %H:%M') }}</div>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="mb-2">
+                Status: 
+                {% if ticket[3] == 'Open' %}
+                    <span class="status-badge bg-danger">Open</span>
+                {% elif ticket[3] == 'In Progress' %}
+                    <span class="status-badge bg-warning text-dark">In Progress</span>
+                {% else %}
+                    <span class="status-badge bg-success">Resolved</span>
+                {% endif %}
+            </div>
+            <div class="text-muted small">Assigned To: <strong class="text-white">{{ ticket[5] or 'Unassigned' }}</strong></div>
+        </div>
+    </div>
+    <div class="mt-3 pt-3" style="border-top: 1px solid #333;">
+        <h6 class="text-muted text-uppercase" style="font-size: 0.75rem;">Original Description</h6>
+        <div class="text-white" style="white-space: pre-wrap;">{{ ticket[6] }}</div>
+    </div>
+</div>
+
+<h5 class="text-white mb-3">Conversation</h5>
+<div class="mb-4">
+    {% for msg in messages %}
+    <div class="message-box {% if msg[0] == 'BB_Staff' %}staff-reply{% endif %}">
+        <div class="message-header">
+            <div>
+                {% if msg[0] == 'BB_Staff' %}
+                    <i class="fas fa-headset text-warning me-1"></i> <strong class="text-warning">{{ msg[3] }} (BB Support)</strong>
+                {% else %}
+                    <i class="fas fa-user me-1"></i> <strong>{{ msg[4] }} (Tenant)</strong>
+                {% endif %}
+            </div>
+            <div>{{ msg[2].strftime('%d %b %Y %H:%M') }}</div>
+        </div>
+        <div class="message-body">{{ msg[1] }}</div>
+    </div>
+    {% else %}
+    <div class="text-muted text-center py-3">No replies yet.</div>
+    {% endfor %}
+</div>
+
+{% if ticket[3] != 'Resolved' %}
+<div class="card card-dark p-3 border-secondary">
+    <h6 class="text-warning mb-3">Add a Reply</h6>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="reply">
+        <textarea name="message" class="form-control mb-3" rows="4" placeholder="Type your response to the tenant..." required style="background: #1a1a1a; color: white; border: 1px solid #444;"></textarea>
+        <button type="submit" class="btn btn-warning fw-bold text-dark w-100">Send Reply</button>
+    </form>
+</div>
+{% endif %}
+
+{% endblock %}

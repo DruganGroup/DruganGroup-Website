@@ -41,7 +41,7 @@
                 <td>{{ t[5] or 'Unassigned' }}</td>
                 <td>{{ t[4].strftime('%d %b %Y') }}</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-warning" onclick="alert('View Ticket feature coming soon!')">View</button>
+                    <a href="{{ url_for('admin.bb_ticket_detail', ticket_id=t[0]) }}" class="btn btn-sm btn-outline-warning">View</a>
                 </td>
             </tr>
             {% else %}

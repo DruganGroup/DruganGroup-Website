@@ -167,6 +167,55 @@ def bb_support_dashboard():
     conn.close()
     return render_template('admin/bb_support_dashboard.html', tickets=tickets)
 
+@admin_bp.route('/super-admin/bb-ticket/<int:ticket_id>', methods=['GET', 'POST'])
+def bb_ticket_detail(ticket_id):
+    if session.get('role') not in ['SuperAdmin', 'BB_Support']: return redirect(url_for('auth.login'))
+    conn = get_db(); cur = conn.cursor()
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'reply':
+            message = request.form.get('message')
+            if message:
+                cur.execute("""
+                    INSERT INTO bb_ticket_messages (ticket_id, sender_type, sender_id, message)
+                    VALUES (%s, 'BB_Staff', %s, %s)
+                """, (ticket_id, session.get('user_id'), message))
+                cur.execute("UPDATE bb_support_tickets SET status = 'In Progress', updated_at = CURRENT_TIMESTAMP WHERE id = %s", (ticket_id,))
+                conn.commit()
+                flash("Reply sent successfully.", "success")
+        elif action == 'close':
+            cur.execute("UPDATE bb_support_tickets SET status = 'Resolved', updated_at = CURRENT_TIMESTAMP WHERE id = %s", (ticket_id,))
+            conn.commit()
+            flash("Ticket marked as resolved.", "success")
+        elif action == 'assign_me':
+            cur.execute("UPDATE bb_support_tickets SET assigned_to = %s WHERE id = %s", (session.get('user_id'), ticket_id))
+            conn.commit()
+            flash("Ticket assigned to you.", "success")
+        return redirect(url_for('admin.bb_ticket_detail', ticket_id=ticket_id))
+        
+    cur.execute("""
+        SELECT t.id, c.name, t.subject, t.status, t.created_at, u.name, t.description
+        FROM bb_support_tickets t
+        LEFT JOIN companies c ON t.company_id = c.id
+        LEFT JOIN users u ON t.assigned_to = u.id
+        WHERE t.id = %s
+    """, (ticket_id,))
+    ticket = cur.fetchone()
+    
+    cur.execute("""
+        SELECT m.sender_type, m.message, m.created_at, u.name as staff_name, s.name as admin_name
+        FROM bb_ticket_messages m
+        LEFT JOIN users u ON m.sender_id = u.id AND m.sender_type = 'BB_Staff'
+        LEFT JOIN users s ON m.sender_id = s.id AND m.sender_type = 'Tenant'
+        WHERE m.ticket_id = %s
+        ORDER BY m.created_at ASC
+    """, (ticket_id,))
+    messages = cur.fetchall()
+    
+    conn.close()
+    return render_template('admin/bb_ticket_detail.html', ticket=ticket, messages=messages)
+
 @admin_bp.route('/super-admin', methods=['GET', 'POST'])
 def super_admin_dashboard():
     if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
