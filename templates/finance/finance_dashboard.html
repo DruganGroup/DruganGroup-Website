@@ -5,12 +5,12 @@
 {% block content %}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold text-dark">Financial Overview</h2>
-            <p class="text-muted mb-0">Real-time cash flow for {{ session.get('company_name') }}</p>
+            <h2 class="fw-bold text-dark">{{ _('Financial Overview') }}</h2>
+            <p class="text-muted mb-0">{{ _('Real-time cash flow for') }} {{ session.get('company_name') }}</p>
         </div>
         <div class="btn-group shadow-sm">
-            <button class="btn btn-light border fw-bold"><i class="fas fa-download me-2"></i>Export CSV</button>
-            <button class="btn btn-primary fw-bold"><i class="fas fa-sync-alt me-2"></i>Refresh Data</button>
+            <button class="btn btn-light border fw-bold"><i class="fas fa-download me-2"></i>{{ _('Export CSV') }}</button>
+            <button class="btn btn-primary fw-bold"><i class="fas fa-sync-alt me-2"></i>{{ _('Refresh Data') }}</button>
         </div>
     </div>
     
@@ -19,9 +19,9 @@
             <div class="card p-4 border-0 shadow-sm text-white" style="background: #2c3e50;"> 
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h6 class="opacity-75 text-uppercase fw-bold" style="font-size: 0.75rem;">Daily Break-Even</h6>
+                        <h6 class="opacity-75 text-uppercase fw-bold" style="font-size: 0.75rem;">{{ _('Daily Break-Even') }}</h6>
                         <h2 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(break_even) }}</h2>
-                        <div class="small opacity-50 mt-1">Target to cover costs</div>
+                        <div class="small opacity-50 mt-1">{{ _('Target to cover costs') }}</div>
                     </div>
                     <i class="fas fa-crosshairs fa-2x opacity-25"></i>
                 </div>
@@ -67,10 +67,10 @@
 
     <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
         <div class="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center">
-            <h5 class="fw-bold m-0 text-secondary">Cash Flow Trends</h5>
+            <h5 class="fw-bold m-0 text-secondary">{{ _('Cash Flow Trends') }}</h5>
             <select class="form-select form-select-sm w-auto border-0 bg-light fw-bold">
-                <option>Last 6 Months</option>
-                <option>This Year</option>
+                <option>{{ _('Last 6 Months') }}</option>
+                <option>{{ _('This Year') }}</option>
             </select>
         </div>
         <div class="card-body">
@@ -80,7 +80,7 @@
 
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
         <div class="card-header bg-white p-3 border-bottom">
-            <h5 class="fw-bold m-0 text-secondary">Recent Transactions</h5>
+            <h5 class="fw-bold m-0 text-secondary">{{ _('Recent Transactions') }}</h5>
         </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -125,17 +125,17 @@
 
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center">
-            <h5 class="fw-bold m-0 text-secondary">System Audit Log</h5>
-            <span class="badge bg-light text-muted border">Recent Activity</span>
+            <h5 class="fw-bold m-0 text-secondary">{{ _('System Audit Log') }}</h5>
+            <span class="badge bg-light text-muted border">{{ _('Recent Activity') }}</span>
         </div>
         <div class="table-responsive">
             <table class="table table-sm table-hover align-middle mb-0 small">
                 <thead class="table-light text-uppercase">
                     <tr>
-                        <th class="ps-3" style="width: 15%;">Time</th>
-                        <th style="width: 20%;">User</th>
+                        <th class="ps-3" style="width: 15%;">{{ _('Time') }}</th>
+                        <th style="width: 20%;">{{ _('User') }}</th>
                         <th style="width: 15%;">{{ _('Action') }}</th>
-                        <th>Details</th>
+                        <th>{{ _('Details') }}</th>
                     </tr>
                 </thead>
                 <tbody>

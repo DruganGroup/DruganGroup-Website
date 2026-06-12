@@ -9,8 +9,8 @@
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     
-    <link rel="stylesheet" href="static/style.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     
     <style>
         .ecosystem-grid {
@@ -45,19 +45,19 @@
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-                <a href="index.html"><img src="static/images/logodg.png" alt="Drugan Group" class="main-logo-img"></a> 
+                <a href="/"><img src="static/images/logodg.png" alt="Drugan Group" class="main-logo-img"></a> 
                 DRUGAN <span class="tagline">GROUP</span>
             </div>
             <div class="menu-toggle" id="mobile-menu"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
             <ul class="nav-links">
-                <li><a href="about.html" style="color: var(--primary-gold);">About</a></li>
-                <li><a href="services.html">Services</a></li>
-                <li><a href="businessbetter.html">Software</a></li>
-                <li><a href="forensics.html">Disputes</a></li>
-                <li><a href="contact.html">Contact</a></li>
-                <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
+                <li><a href="/about" style="color: var(--primary-gold);">About</a></li>
+                <li><a href="/services">Services</a></li>
+                <li><a href="/businessbetter">Software</a></li>
+                <li><a href="/forensics">Disputes</a></li>
+                <li><a href="/contact">Contact</a></li>
+                <li><a href="/login" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
-            <div class="nav-actions"><a href="login.html" class="btn-primary">Portal Login</a></div>
+            <div class="nav-actions"><a href="/login" class="btn-primary">Portal Login</a></div>
         </div>
     </nav>
 
@@ -86,7 +86,7 @@
                 <h3 style="margin-bottom: 15px;">We Build.</h3>
                 <h4 style="color: var(--primary-gold); margin-bottom: 15px;">Drugan Construction</h4>
                 <p>The foundation of our group. From heavy groundworks and roofing to reactive property maintenance. We employ the boots on the ground that get the job done right, the first time.</p>
-                <a href="services.html" class="btn-outline" style="margin-top: 20px; display:inline-block; font-size: 0.8rem;">View Services</a>
+                <a href="/services" class="btn-outline" style="margin-top: 20px; display:inline-block; font-size: 0.8rem;">View Services</a>
             </div>
 
             <div class="ecosystem-card">
@@ -104,7 +104,7 @@
                 <h3 style="margin-bottom: 15px;">We Protect.</h3>
                 <h4 style="color: var(--primary-gold); margin-bottom: 15px;">Drugan Forensics</h4>
                 <p>When standards slip elsewhere, we provide the audit. Our AI-driven forensic unit analyzes technical specifications and commercial data to substantiate claims of non-compliance.</p>
-                <a href="forensics.html" class="btn-outline" style="margin-top: 20px; display:inline-block; font-size: 0.8rem;">Dispute Resolution</a>
+                <a href="/forensics" class="btn-outline" style="margin-top: 20px; display:inline-block; font-size: 0.8rem;">Dispute Resolution</a>
             </div>
         </div>
     </section>
@@ -139,8 +139,8 @@
     <footer>
         <div class="container footer-content">
             <div class="footer-col"><h4>Drugan Group</h4><p>Building & Maintenance</p></div>
-            <div class="footer-col"><h5>Group Companies</h5><a href="index.html">Construction</a><a href="businessbetter.html">Business Better SaaS</a><a href="forensics.html">Forensics Unit</a></div>
-            <div class="footer-col"><h5>Contact</h5><a href="login.html">Client Portal</a><a href="mailto:info@drugangroup.com">info@drugangroup.com</a></div>
+            <div class="footer-col"><h5>Group Companies</h5><a href="/">Construction</a><a href="/businessbetter">Business Better SaaS</a><a href="/forensics">Forensics Unit</a></div>
+            <div class="footer-col"><h5>Contact</h5><a href="/login">Client Portal</a><a href="mailto:info@drugangroup.com">info@drugangroup.com</a></div>
         </div>
         <div class="bottom-bar"><p>&copy; 2026 Drugan Group. All rights reserved.</p></div>
     </footer>

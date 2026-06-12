@@ -9,8 +9,8 @@
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     
-    <link rel="stylesheet" href="static/style.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
     <style>
         .gallery-grid {
@@ -46,16 +46,16 @@
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-                <a href="index.html"><img src="static/images/logodg.png" alt="Drugan Group" class="main-logo-img"></a> 
+                <a href="/"><img src="static/images/logodg.png" alt="Drugan Group" class="main-logo-img"></a> 
                 DRUGAN <span class="tagline">GROUP</span>
             </div>
             <div class="menu-toggle" id="mobile-menu"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
             <ul class="nav-links">
-                <li><a href="services.html">Back to Services</a></li>
-                <li><a href="contact.html">Contact</a></li>
-                <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
+                <li><a href="/services">Back to Services</a></li>
+                <li><a href="/contact">Contact</a></li>
+                <li><a href="/login" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
-            <div class="nav-actions"><a href="login.html" class="btn-primary">Portal Login</a></div>
+            <div class="nav-actions"><a href="/login" class="btn-primary">Portal Login</a></div>
         </div>
     </nav>
 
@@ -66,7 +66,7 @@
                 <h1>Watertight <span class="gold-gradient">Precision.</span></h1>
                 <p class="hero-sub">Slate, Tile, and Flat Roofing. Installed by experts, tracked by technology.</p>
                 <div class="cta-group center-group">
-                    <a href="contact.html" class="btn-primary btn-large">Request Survey</a>
+                    <a href="/contact" class="btn-primary btn-large">Request Survey</a>
                 </div>
             </div>
         </div>
@@ -156,8 +156,8 @@
     <footer>
         <div class="container footer-content">
             <div class="footer-col"><h4>Drugan Group</h4><p>Building & Maintenance</p></div>
-            <div class="footer-col"><h5>Services</h5><a href="index.html">Construction</a><a href="businessbetter.html">Business Better SaaS</a></div>
-            <div class="footer-col"><h5>Client Area</h5><a href="login.html">Portal Login</a><a href="contact.html">Contact</a></div>
+            <div class="footer-col"><h5>Services</h5><a href="/">Construction</a><a href="/businessbetter">Business Better SaaS</a></div>
+            <div class="footer-col"><h5>Client Area</h5><a href="/login">Portal Login</a><a href="/contact">Contact</a></div>
         </div>
         <div class="bottom-bar"><p>&copy; 2026 Drugan Group. All rights reserved.</p></div>
     </footer>

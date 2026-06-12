@@ -9,7 +9,7 @@
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     
-    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         .portal-promo { background: #0f0f0f; padding: 80px 0; border-top: 1px solid #333; }
         .glass-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 40px; }
@@ -33,22 +33,22 @@
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-                <a href="index.html">
+                <a href="/">
                     <img src="static/images/logodg.png" alt="Drugan Group" class="main-logo-img">
                 </a> 
                 DRUGAN <span class="tagline">GROUP</span>
             </div>
             <div class="menu-toggle" id="mobile-menu"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
             <ul class="nav-links">
-                <li><a href="about.html">About</a></li>
-                <li><a href="services.html">Services</a></li>
-                <li><a href="businessbetter.html" style="color: var(--primary-gold);">Our Software</a></li>
-                <li><a href="forensics.html">Disputes</a></li>
-                <li><a href="contact.html">Contact</a></li>
-                <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
+                <li><a href="/about">About</a></li>
+                <li><a href="/services">Services</a></li>
+                <li><a href="/businessbetter" style="color: var(--primary-gold);">Our Software</a></li>
+                <li><a href="/forensics">Disputes</a></li>
+                <li><a href="/contact">Contact</a></li>
+                <li><a href="/login" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
             <div class="nav-actions">
-                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i>Portal Login</a>
+                <a href="/login" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i>Portal Login</a>
             </div>
         </div>
     </nav>
@@ -62,8 +62,8 @@
                 <h1>Building the Future. <br><span class="gold-gradient">Maintaining the Present.</span></h1>
                 <p class="hero-sub">From heavy groundworks to reactive property maintenance. We are the only firm that gives you a digital window into your project, powered by our proprietary Business Better OS.</p>
                 <div class="cta-group center-group">
-                    <a href="contact.html" class="btn-primary btn-large">Get a Quote</a>
-                    <a href="services.html" class="btn-secondary btn-large">Our Services</a>
+                    <a href="/contact" class="btn-primary btn-large">Get a Quote</a>
+                    <a href="/services" class="btn-secondary btn-large">Our Services</a>
                 </div>
             </div>
         </div>
@@ -82,7 +82,7 @@
                             <li style="margin-bottom: 10px;"><i class="fas fa-check" style="color: var(--primary-gold); margin-right: 10px;"></i> Live Engineer Tracking</li>
                             <li style="margin-bottom: 10px;"><i class="fas fa-check" style="color: var(--primary-gold); margin-right: 10px;"></i> Instant Photo Updates</li>
                         </ul>
-                        <a href="login.html" class="btn-primary">Log Issue Now</a>
+                        <a href="/login" class="btn-primary">Log Issue Now</a>
                     </div>
                     <div class="portal-visual">
                         <div class="phone-mockup">
@@ -107,32 +107,32 @@
             </div>
 
             <div class="bento-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
-                <a href="roofing.html" class="service-card" style="background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; text-decoration: none; transition: 0.3s;">
+                <a href="/roofing" class="service-card" style="background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; text-decoration: none; transition: 0.3s;">
                     <i class="fas fa-home fa-2x" style="color: var(--primary-gold); margin-bottom: 20px;"></i>
                     <h3 style="color: #fff; margin-bottom: 10px;">Roofing</h3>
                     <p style="color: #999;">New builds and repairs. Drone surveys included.</p>
                 </a>
-                <a href="construction.html" class="service-card" style="background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; text-decoration: none; transition: 0.3s;">
+                <a href="/construction" class="service-card" style="background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; text-decoration: none; transition: 0.3s;">
                     <i class="fas fa-hard-hat fa-2x" style="color: var(--primary-gold); margin-bottom: 20px;"></i>
                     <h3 style="color: #fff; margin-bottom: 10px;">Construction</h3>
                     <p style="color: #999;">Extensions & renovations managed digitally.</p>
                 </a>
-                <a href="groundworks.html" class="service-card" style="background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; text-decoration: none; transition: 0.3s;">
+                <a href="/groundworks" class="service-card" style="background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; text-decoration: none; transition: 0.3s;">
                     <i class="fas fa-tractor fa-2x" style="color: var(--primary-gold); margin-bottom: 20px;"></i>
                     <h3 style="color: #fff; margin-bottom: 10px;">Groundworks</h3>
                     <p style="color: #999;">Foundations and drainage. Heavy plant fleet.</p>
                 </a>
-                <a href="maintenance.html" class="service-card" style="background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; text-decoration: none; transition: 0.3s;">
+                <a href="/maintenance" class="service-card" style="background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; text-decoration: none; transition: 0.3s;">
                     <i class="fas fa-tools fa-2x" style="color: var(--primary-gold); margin-bottom: 20px;"></i>
                     <h3 style="color: #fff; margin-bottom: 10px;">Reactive Maintenance</h3>
                     <p style="color: #999;">24/7 response for landlords & agencies.</p>
                 </a>
-                <a href="management.html" class="service-card" style="background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; text-decoration: none; transition: 0.3s;">
+                <a href="/management" class="service-card" style="background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; text-decoration: none; transition: 0.3s;">
                     <i class="fas fa-clipboard-check fa-2x" style="color: var(--primary-gold); margin-bottom: 20px;"></i>
                     <h3 style="color: #fff; margin-bottom: 10px;">Management</h3>
                     <p style="color: #999;">Total asset management with automated compliance.</p>
                 </a>
-                <a href="businessbetter.html" class="service-card" style="background: linear-gradient(145deg, #1a1a1a, #000); padding: 30px; border-radius: 15px; border: 1px solid var(--primary-gold); text-decoration: none; transition: 0.3s;">
+                <a href="/businessbetter" class="service-card" style="background: linear-gradient(145deg, #1a1a1a, #000); padding: 30px; border-radius: 15px; border: 1px solid var(--primary-gold); text-decoration: none; transition: 0.3s;">
                     <i class="fas fa-laptop-code fa-2x" style="color: var(--primary-gold); margin-bottom: 20px;"></i>
                     <h3 style="color: #fff; margin-bottom: 10px;">Business Better</h3>
                     <p style="color: #fff;">Our proprietary software. See how we work.</p>
@@ -149,15 +149,15 @@
             </div>
             <div class="footer-col">
                 <h5>Services</h5>
-                <a href="index.html">Construction</a>
-                <a href="businessbetter.html">Business Better SaaS</a>
-                <a href="forensics.html">Forensics Unit</a>
+                <a href="/">Construction</a>
+                <a href="/businessbetter">Business Better SaaS</a>
+                <a href="/forensics">Forensics Unit</a>
             </div>
             <div class="footer-col">
                 <h5>Client Area</h5>
-                <a href="login.html">Portal Login</a>
-                <a href="contact.html">Report a Fault</a>
-                <a href="contact.html">Contact</a>
+                <a href="/login">Portal Login</a>
+                <a href="/contact">Report a Fault</a>
+                <a href="/contact">Contact</a>
             </div>
         </div>
         <div class="bottom-bar">

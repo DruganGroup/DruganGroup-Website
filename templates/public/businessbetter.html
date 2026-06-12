@@ -9,7 +9,7 @@
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     
-    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         /* Custom Styles for this Bridge Page */
         .software-hero {
@@ -59,7 +59,7 @@
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-                <a href="index.html">
+                <a href="/">
                     <img src="static/images/logodg.png" alt="Drugan Group" class="main-logo-img">
                 </a> 
                 DRUGAN <span class="tagline">GROUP</span>
@@ -70,15 +70,15 @@
             </div>
             
             <ul class="nav-links">
-                <li><a href="about.html">About</a></li>
-                <li><a href="services.html">Services</a></li>
-                <li><a href="businessbetter.html" style="color: var(--primary-gold);">Our Software</a></li>
-                <li><a href="contact.html">Contact</a></li>
-                <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
+                <li><a href="/about">About</a></li>
+                <li><a href="/services">Services</a></li>
+                <li><a href="/businessbetter" style="color: var(--primary-gold);">Our Software</a></li>
+                <li><a href="/contact">Contact</a></li>
+                <li><a href="/login" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
             
             <div class="nav-actions">
-                <a href="login.html" class="btn-primary">Portal Login</a>
+                <a href="/login" class="btn-primary">Portal Login</a>
             </div>
         </div>
     </nav>
@@ -194,13 +194,13 @@
             </div>
             <div class="footer-col">
                 <h5>Group Companies</h5>
-                <a href="index.html">Construction</a>
-                <a href="businessbetter.html">Business Better SaaS</a>
-                <a href="forensics.html">Forensics Unit</a>
+                <a href="/">Construction</a>
+                <a href="/businessbetter">Business Better SaaS</a>
+                <a href="/forensics">Forensics Unit</a>
             </div>
             <div class="footer-col">
                 <h5>Contact</h5>
-                <a href="login.html">Client Portal</a>
+                <a href="/login">Client Portal</a>
                 <a href="mailto:info@drugangroup.com">info@drugangroup.com</a>
             </div>
         </div>

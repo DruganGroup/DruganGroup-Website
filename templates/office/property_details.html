@@ -9,7 +9,7 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1 small">
                     <li class="breadcrumb-item"><a href="/office-hub" class="text-decoration-none text-muted">Office</a></li>
-                    <li class="breadcrumb-item"><a href="/office/client/{{ client.id }}" class="text-decoration-none text-muted">{{ client.name }}</a></li>
+                    <li class="breadcrumb-item"><a href="/client/{{ client.id }}" class="text-decoration-none text-muted">{{ client.name }}</a></li>
                     <li class="breadcrumb-item active">{{ prop.address }}</li>
                 </ol>
             </nav>
@@ -19,7 +19,7 @@
         <div class="d-flex gap-2">
             <button class="btn btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#editPropModal">
                 <i class="fas fa-edit me-2"></i>{{ _('Edit') }} </button>
-            <a href="/office/client/{{ client.id }}" class="btn btn-outline-secondary fw-bold">
+            <a href="/client/{{ client.id }}" class="btn btn-outline-secondary fw-bold">
                 <i class="fas fa-arrow-left me-2"></i>Back
             </a>
         </div>

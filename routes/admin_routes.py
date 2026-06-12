@@ -310,7 +310,29 @@ def stripe_webhook():
             # Fallback if no secret configured (not secure for prod, but works for testing)
             event = json.loads(payload)
             
-        if event['type'] == 'invoice.payment_failed':
+        if event['type'] == 'checkout.session.completed':
+            session_obj = event['data']['object']
+            customer_id = session_obj.get('customer')
+            
+            # The company_id was passed when creating the checkout session
+            company_id = None
+            if session_obj.get('metadata') and 'company_id' in session_obj['metadata']:
+                company_id = session_obj['metadata']['company_id']
+            elif session_obj.get('client_reference_id'):
+                company_id = session_obj['client_reference_id']
+                
+            if company_id and customer_id:
+                # 1. Activate the subscription
+                cur.execute("UPDATE subscriptions SET status = 'Active' WHERE company_id = %s", (company_id,))
+                # 2. Store the customer ID so future recurring billing webhooks work
+                cur.execute("""
+                    INSERT INTO settings (company_id, key, value) 
+                    VALUES (%s, 'stripe_customer_id', %s) 
+                    ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+                """, (company_id, customer_id))
+                conn.commit()
+                
+        elif event['type'] == 'invoice.payment_failed':
             customer_id = event['data']['object']['customer']
             # Assume we stored stripe_customer_id in companies or subscriptions
             cur.execute("""
@@ -333,6 +355,7 @@ def stripe_webhook():
             """, (customer_id,))
             conn.commit()
             
+        from flask import jsonify
         return jsonify({'status': 'success'})
         
     except Exception as e:

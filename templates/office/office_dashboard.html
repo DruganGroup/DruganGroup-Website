@@ -5,15 +5,15 @@
 {% block content %}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold m-0">Mission Control</h2>
-            <p class="text-muted mb-0">Operational Overview for {{ session.get('company_name') }}</p>
+            <h2 class="fw-bold m-0">{{ _('Mission Control') }}</h2>
+            <p class="text-muted mb-0">{{ _('Operational Overview for') }} {{ session.get('company_name') }}</p>
         </div>
         <div class="d-flex gap-2">
             <button class="btn btn-warning fw-bold text-dark shadow-sm" data-bs-toggle="modal" data-bs-target="#createJobModal">
-                <i class="fas fa-hammer me-2"></i>New Job
+                <i class="fas fa-hammer me-2"></i>{{ _('New Job') }}
             </button>
             <a href="/office/quote/new" class="btn btn-dark fw-bold shadow-sm">
-                <i class="fas fa-file-invoice me-2"></i>New Quote
+                <i class="fas fa-file-invoice me-2"></i>{{ _('New Quote') }}
             </a>
         </div>
     </div>
@@ -51,7 +51,7 @@
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white fw-bold border-bottom py-3">
-                    <i class="fas fa-bell text-primary me-2"></i>New Requests
+                    <i class="fas fa-bell text-primary me-2"></i>{{ _('New Requests') }}
                 </div>
                 <div class="list-group list-group-flush">
                     {% for r in incoming_requests %}
@@ -62,13 +62,13 @@
                             <small class="text-primary" style="font-size: 0.75rem;">{{ r.date_added }}</small>
                         </div>
                         <a href="/office/quote/new?request_id={{ r.id }}&client_id={{ r.client_id }}" class="btn btn-sm btn-outline-dark fw-bold">
-                            Review <i class="fas fa-arrow-right ms-1"></i>
+                            {{ _('Review') }} <i class="fas fa-arrow-right ms-1"></i>
                         </a>
                     </div>
                     {% else %}
                     <div class="p-4 text-center text-muted small">
                         <i class="fas fa-check-circle text-success mb-2 fs-4"></i><br>
-                        No pending requests.
+                        {{ _('No pending requests.') }}
                     </div>
                     {% endfor %}
                 </div>
@@ -78,7 +78,7 @@
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white fw-bold border-bottom py-3">
-                    <i class="fas fa-clipboard-list text-warning me-2"></i>Upcoming Jobs (RAMS)
+                    <i class="fas fa-clipboard-list text-warning me-2"></i>{{ _('Upcoming Jobs (RAMS)') }}
                 </div>
                 <div class="list-group list-group-flush">
                     {% for j in upcoming_jobs %}
@@ -93,24 +93,24 @@
                                     <span class="badge bg-white text-dark border">{{ j.ref }}</span>
                                     <small class="text-muted">{{ j.start_date_fmt }}</small>
                                 </div>
-                                <div class="fw-bold text-dark small">{{ j.client_name or 'Unknown Client' }}</div>
+                                <div class="fw-bold text-dark small">{{ j.client_name or _('Unknown Client') }}</div>
                             </div>
                         </div>
                         
                         <div class="d-flex gap-1 mt-2">
-                            <a href="/office/job/{{ j.id }}/files" class="btn btn-sm btn-light border flex-fill text-muted" title="View Files">
+                            <a href="/office/job/{{ j.id }}/files" class="btn btn-sm btn-light border flex-fill text-muted" title="{{ _('View Files') }}">
                                 <i class="fas fa-folder-open"></i>
                             </a>
-                            <a href="/office/job/{{ j.id }}/materials/pdf" target="_blank" class="btn btn-sm btn-dark flex-fill fw-bold" title="Material List">
-                                <i class="fas fa-shopping-basket me-1"></i> Mat. List
+                            <a href="/office/job/{{ j.id }}/materials/pdf" target="_blank" class="btn btn-sm btn-dark flex-fill fw-bold" title="{{ _('Material List') }}">
+                                <i class="fas fa-shopping-basket me-1"></i> {{ _('Mat. List') }}
                             </a>
-                            <a href="/office/job/{{ j.id }}/rams/create" class="btn btn-sm btn-warning flex-fill fw-bold" title="Create RAMS">
-    <i class="fas fa-file-contract me-1"></i> RAMS
+                            <a href="/office/job/{{ j.id }}/rams/create" class="btn btn-sm btn-warning flex-fill fw-bold" title="{{ _('Create RAMS') }}">
+    <i class="fas fa-file-contract me-1"></i> {{ _('RAMS') }}
 </a>
                         </div>
                     </div>
                     {% else %}
-                    <div class="p-4 text-center text-muted small">No upcoming jobs.</div>
+                    <div class="p-4 text-center text-muted small">{{ _('No upcoming jobs.') }}</div>
                     {% endfor %}
                 </div>
             </div>
@@ -196,7 +196,7 @@
     <div class="modal fade" id="createJobModal" tabindex="-1">
         <div class="modal-dialog">
             <form class="modal-content" method="POST" action="/office/job/create">
-			<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-header">
                     <h5 class="modal-title fw-bold">Schedule New Job</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

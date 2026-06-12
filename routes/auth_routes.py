@@ -6,6 +6,11 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from email_service import send_company_email
 from itsdangerous import URLSafeTimedSerializer
 from utils.extensions import limiter
+from utils.translations import get_translation
+
+def _(text):
+    from flask import session
+    return get_translation(text, session.get('lang_code', 'en') if session else 'en')
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -42,7 +47,7 @@ def process_signup():
     try:
         plan_id_int = int(raw_plan_id)
     except (ValueError, TypeError):
-        flash("Error: Invalid Plan ID.", "error")
+        flash(_("Error: Invalid Plan ID."), "error")
         return redirect(url_for('public.pricing'))
 
     data = {
@@ -66,7 +71,7 @@ def process_signup():
 
         if not plan:
             # If this happens, ID 3 is definitely missing from the DB
-            flash(f"Error: Plan #{data['plan_id']} does not exist in the database.", "error")
+            flash(_("Error: Plan #{plan_id} does not exist in the database.").format(plan_id=data['plan_id']), "error")
             return redirect(url_for('public.pricing'))
 
         plan_name = plan[1]
@@ -76,40 +81,47 @@ def process_signup():
         # 3. DUPLICATE CHECKS
         cur.execute("SELECT id FROM users WHERE email = %s", (data['owner_email'],))
         if cur.fetchone():
-            flash("Email already registered. Please login.", "error")
+            flash(_("Email already registered. Please login."), "error")
             return redirect(url_for('auth.show_signup'))
 
         cur.execute("SELECT id FROM companies WHERE sub_domain = %s", (data['sub_domain'],))
         if cur.fetchone():
-            flash(f"URL '{data['sub_domain']}' is taken.", "error")
+            flash(_("URL '{sub_domain}' is taken.").format(sub_domain=data['sub_domain']), "error")
             return redirect(url_for('auth.show_signup'))
 
-        # 4. PROCESS PAYMENT
+        # 4. CREATE PENDING ACCOUNT
+        # Create the account with 'Pending_Payment' status before redirecting to Stripe
+        new_company_id = create_pending_account(data)
+
+        # 5. PROCESS PAYMENT
         if plan_price <= 0:
             # FREE PLAN (Founder)
-            # ... (Insert logic for free plan creation here) ...
-            # For brevity, redirecting to success:
+            # Activate account immediately since there's no payment needed
+            cur.execute("UPDATE subscriptions SET status = 'Active' WHERE company_id = %s", (new_company_id,))
+            conn.commit()
             return redirect(url_for('auth.signup_success'))
         else:
             # PAID PLAN (Stripe)
             if not stripe_price_id:
-                # THIS IS THE ERROR YOU WILL SEE IF ID IS MISSING
-                flash(f"Config Error: Plan '{plan_name}' is missing its Stripe Price ID.", "error")
+                flash(_("Config Error: Plan '{plan_name}' is missing its Stripe Price ID.").format(plan_name=plan_name), "error")
                 return redirect(url_for('auth.show_signup'))
 
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
                 line_items=[{'price': stripe_price_id, 'quantity': 1}],
                 mode='subscription',
+                allow_promotion_codes=True,
+                subscription_data={'trial_period_days': 14},
+                client_reference_id=str(new_company_id),
                 success_url=url_for('auth.signup_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
                 cancel_url=url_for('auth.show_signup', _external=True),
-                metadata={'plan_id': str(data['plan_id'])}
+                metadata={'company_id': str(new_company_id), 'plan_id': str(data['plan_id'])}
             )
             return redirect(checkout_session.url, code=303)
 
     except Exception as e:
         print(f"ERROR: {str(e)}")
-        flash(f"System Error: {str(e)}", "error")
+        flash(_("System Error: {error}").format(error=str(e)), "error")
         return redirect(url_for('auth.show_signup'))
     finally:
         conn.close()
@@ -167,7 +179,7 @@ def login():
             
             return redirect(url_for('auth.main_launcher'))
         else:
-            flash("❌ Invalid credentials", "error")
+            flash(_("❌ Invalid credentials"), "error")
             conn.close()
 
     return render_template('publicbb/login.html')
@@ -175,7 +187,7 @@ def login():
 @auth_bp.route('/logout')
 def logout():
     session.clear()
-    flash("🔒 You have been logged out securely.")
+    flash(_("🔒 You have been logged out securely."))
     return redirect(url_for('auth.login'))
     
 # --- HELPER: Secure Token Generator ---
@@ -226,7 +238,7 @@ def forgot_password():
         conn.close()
         
         # We ALWAYS show success to prevent hackers from guessing which emails exist in your DB
-        flash("If an account exists with that email, a reset link has been sent.", "success")
+        flash(_("If an account exists with that email, a reset link has been sent."), "success")
         return redirect(url_for('auth.login'))
         
     return render_template('publicbb/forgot_password.html')
@@ -241,7 +253,7 @@ def reset_password_with_token(token):
         # Verify token. max_age=3600 means it expires in 1 hour (3600 seconds)
         email = serializer.loads(token, salt='password-reset-salt', max_age=3600)
     except Exception:
-        flash("❌ The password reset link is invalid or has expired.", "error")
+        flash(_("❌ The password reset link is invalid or has expired."), "error")
         return redirect(url_for('auth.forgot_password'))
 
     if request.method == 'POST':
@@ -249,7 +261,7 @@ def reset_password_with_token(token):
         confirm_password = request.form.get('confirm_password')
         
         if new_password != confirm_password:
-            flash("❌ Passwords do not match. Please try again.", "error")
+            flash(_("❌ Passwords do not match. Please try again."), "error")
             return redirect(request.url)
             
         # Hash and update the password
@@ -266,7 +278,7 @@ def reset_password_with_token(token):
         conn.commit()
         conn.close()
         
-        flash("✅ Your password has been updated! You can now log in.", "success")
+        flash(_("✅ Your password has been updated! You can now log in."), "success")
         return redirect(url_for('auth.login'))
 
     return render_template('publicbb/reset_password.html', token=token)
@@ -348,11 +360,11 @@ def update_profile():
         """, (phone, address, nok_name, nok_relationship, nok_phone, nok_address, session['user_id'], session['company_id']))
         
         conn.commit()
-        flash("✅ Profile updated successfully.", "success")
+        flash(_("✅ Profile updated successfully."), "success")
         
     except Exception as e:
         conn.rollback()
-        flash(f"Error updating profile: {e}", "error")
+        flash(_("Error updating profile: {error}").format(error=e), "error")
     finally:
         conn.close()
         
@@ -368,7 +380,7 @@ def change_password():
     confirm_pass = request.form.get('confirm_password')
     
     if new_pass != confirm_pass:
-        flash("❌ New passwords do not match.", "error")
+        flash(_("❌ New passwords do not match."), "error")
         return redirect(request.referrer)
         
     conn = get_db(); cur = conn.cursor()
@@ -379,7 +391,7 @@ def change_password():
     
     if not user_row or not check_password_hash(user_row[0], old_pass):
         conn.close()
-        flash("❌ Current password is incorrect.", "error")
+        flash(_("❌ Current password is incorrect."), "error")
         return redirect(request.referrer)
     
     # 2. Update to New Password
@@ -387,13 +399,13 @@ def change_password():
     cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, user_id))
     conn.commit(); conn.close()
     
-    flash("✅ Password updated successfully!", "success")
+    flash(_("✅ Password updated successfully!"), "success")
     return redirect(request.referrer)
 
 @auth_bp.route('/auth/email/test')
 def test_email_connection():
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']:
-        flash("❌ Access Denied", "error")
+        flash(_("❌ Access Denied"), "error")
         return redirect(url_for('finance.settings_integrations'))
     
     comp_id = session.get('company_id')
@@ -412,9 +424,9 @@ def test_email_connection():
     )
     
     if success:
-        flash(f"✅ Success! Test email sent to {user_email}", "success")
+        flash(_("✅ Success! Test email sent to {user_email}").format(user_email=user_email), "success")
     else:
-        flash(f"❌ Connection Failed: {msg}", "error")
+        flash(_("❌ Connection Failed: {msg}").format(msg=msg), "error")
 
     return redirect(url_for('finance.settings_integrations'))
 
@@ -446,34 +458,28 @@ def create_pending_account(data):
         """, (company_id, data['owner_name'], data['owner_email']))
         # -------------------------------------------------------
 
-        # C. Define Modules & Limits Based on Plan
-        if data['plan_id'] == 'sole-trader':
-            modules = "Estimates,Invoices,Fleet,Portal,ServiceDesk,WhiteLabel"
-            max_users = 2; max_vehicles = 2; max_storage = 5
-        elif data['plan_id'] == 'growing':
-            modules = "Estimates,Invoices,Fleet,Portal,ServiceDesk,WhiteLabel,RAMS,AutoCalc,Compliance,Projects"
-            max_users = 10; max_vehicles = 10; max_storage = 20
-        elif data['plan_id'] == 'agency':
-            modules = "ServiceDesk,Portal,WhiteLabel,Compliance,Invoices"
-            max_users = 5; max_vehicles = 0; max_storage = 10
-        elif data['plan_id'] == 'enterprise':
-            modules = "Estimates,Invoices,Fleet,Portal,ServiceDesk,WhiteLabel,RAMS,AutoCalc,Compliance,Projects"
-            max_users = 20; max_vehicles = 20; max_storage = 100
-        else:
+        # C. Define Modules & Limits Based on Plan Database Table
+        cur.execute("SELECT name, max_users, max_vehicles, max_storage, modules_enabled FROM plans WHERE id = %s", (data['plan_id'],))
+        plan_row = cur.fetchone()
+        
+        if not plan_row:
             raise ValueError(f"CRITICAL: Unknown Plan ID '{data['plan_id']}'")
-
-        # D. Map Plan ID (Strict Mode)
-        plan_mapping = {'sole-trader': 1, 'growing': 2, 'agency': 3, 'enterprise': 4}
-        if data['plan_id'] not in plan_mapping:
-             raise ValueError(f"CRITICAL: Plan '{data['plan_id']}' has no ID mapping.")
-        db_plan_id = plan_mapping[data['plan_id']]
+            
+        plan_name, max_users, max_vehicles, max_storage, modules_enabled = plan_row
+        
+        try:
+            import json
+            modules_list = json.loads(modules_enabled)
+            modules = ",".join(modules_list)
+        except:
+            modules = "Estimates,Invoices,Fleet,Portal,ServiceDesk,WhiteLabel,RAMS,Compliance"
 
         # E. Insert Subscription
         cur.execute("""
             INSERT INTO subscriptions 
-            (company_id, plan_id, modules, max_users, max_vehicles, max_storage, status, start_date)
-            VALUES (%s, %s, %s, %s, %s, %s, 'Pending_Payment', NOW())
-        """, (company_id, db_plan_id, modules, max_users, max_vehicles, max_storage))
+            (company_id, plan_id, plan_tier, modules, max_users, max_vehicles, max_storage, status, start_date)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'Pending_Payment', NOW())
+        """, (company_id, data['plan_id'], plan_name, modules, max_users, max_vehicles, max_storage))
 
         # --- FIX 2: Set Settings (Including Company Name) ---
         layout = 'agency' if data['company_type'] == 'Agency' else 'trade'
@@ -500,5 +506,30 @@ def create_pending_account(data):
         
 @auth_bp.route('/signup-success')
 def signup_success():
+    session_id = request.args.get('session_id')
+    if session_id:
+        try:
+            # Fallback activation if webhook is delayed
+            checkout_session = stripe.checkout.Session.retrieve(session_id)
+            if checkout_session.payment_status == 'paid' or checkout_session.status == 'complete':
+                company_id = checkout_session.metadata.get('company_id') or checkout_session.client_reference_id
+                if company_id:
+                    conn = get_db()
+                    cur = conn.cursor()
+                    cur.execute("UPDATE subscriptions SET status = 'Active' WHERE company_id = %s", (company_id,))
+                    
+                    customer_id = checkout_session.customer
+                    if customer_id:
+                        cur.execute("""
+                            INSERT INTO settings (company_id, key, value) 
+                            VALUES (%s, 'stripe_customer_id', %s) 
+                            ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+                        """, (company_id, customer_id))
+                    
+                    conn.commit()
+                    conn.close()
+        except Exception as e:
+            print(f"Fallback activation error: {e}")
+            
     # This renders the success HTML file you already created
     return render_template('publicbb/signup_success.html')

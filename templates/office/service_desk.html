@@ -6,22 +6,22 @@
 {% block content %}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold m-0"><i class="fas fa-headset text-primary me-2"></i> Service Desk</h2>
-            <p class="text-muted mb-0">Incoming tickets from Client Portals</p>
+            <h2 class="fw-bold m-0"><i class="fas fa-headset text-primary me-2"></i> {{ _('Service Desk') }}</h2>
+            <p class="text-muted mb-0">{{ _('Incoming tickets from Client Portals') }}</p>
         </div>
-        <button class="btn btn-primary shadow-sm fw-bold"><i class="fas fa-plus me-2"></i> Log Manual Ticket</button>
+        <button class="btn btn-primary shadow-sm fw-bold"><i class="fas fa-plus me-2"></i> {{ _('Log Manual Ticket') }}</button>
     </div>
     
     <div class="card p-0 shadow-sm border-0 rounded-4 overflow-hidden mb-5">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light text-uppercase small">
                 <tr>
-                    <th class="ps-4">Ticket ID</th>
-                    <th>Severity</th>
-                    <th>Property</th>
-                    <th>Issue</th>
+                    <th class="ps-4">{{ _('Ticket ID') }}</th>
+                    <th>{{ _('Severity') }}</th>
+                    <th>{{ _('Property') }}</th>
+                    <th>{{ _('Issue') }}</th>
                     <th>{{ _('Client') }}</th>
-                    <th>Status</th>
+                    <th>{{ _('Status') }}</th>
                     <th class="text-end pe-4">{{ _('Action') }}</th>
                 </tr>
             </thead>
@@ -66,8 +66,8 @@
     <!-- COMPLIANCE ALERTS SECTION -->
     <div class="d-flex justify-content-between align-items-center mb-4 mt-5">
         <div>
-            <h3 class="fw-bold m-0"><i class="fas fa-exclamation-triangle text-warning me-2"></i> Compliance Alerts</h3>
-            <p class="text-muted mb-0">Certificates expiring within 30 days or already expired</p>
+            <h3 class="fw-bold m-0"><i class="fas fa-exclamation-triangle text-warning me-2"></i> {{ _('Compliance Alerts') }}</h3>
+            <p class="text-muted mb-0">{{ _('Certificates expiring within 30 days or already expired') }}</p>
         </div>
     </div>
     
@@ -75,12 +75,12 @@
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light text-uppercase small">
                 <tr>
-                    <th class="ps-4">Property</th>
+                    <th class="ps-4">{{ _('Property') }}</th>
                     <th>{{ _('Client') }}</th>
-                    <th>Gas (CP12)</th>
-                    <th>Electric (EICR)</th>
-                    <th>Energy (EPC)</th>
-                    <th>PAT</th>
+                    <th>{{ _('Gas (CP12)') }}</th>
+                    <th>{{ _('Electric (EICR)') }}</th>
+                    <th>{{ _('Energy (EPC)') }}</th>
+                    <th>{{ _('PAT') }}</th>
                     <th class="text-end pe-4">{{ _('Action') }}</th>
                 </tr>
             </thead>
@@ -104,14 +104,14 @@
                     </td>
                     
                     <td class="text-end pe-4">
-                        <a href="/office/quote/new?client_id={{ p.client_id }}&property_id={{ p.prop_id }}" class="btn btn-sm btn-outline-primary fw-bold">Quote Repair</a>
+                        <a href="/office/quote/new?client_id={{ p.client_id }}&property_id={{ p.prop_id }}" class="btn btn-sm btn-outline-primary fw-bold">{{ _('Quote Repair') }}</a>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
                     <td colspan="7" class="text-center p-5 text-muted">
                         <i class="fas fa-check-circle fa-2x mb-2 text-success opacity-50"></i><br>
-                        All compliance certificates are up to date!
+                        {{ _('All compliance certificates are up to date!') }}
                     </td>
                 </tr>
                 {% endfor %}
@@ -124,6 +124,7 @@
         <div class="modal-dialog">
             <div class="modal-content border-0 shadow">
                 <form action="/office/create-work-order" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="modal-header bg-light">
                         <h5 class="modal-title fw-bold"><i class="fas fa-truck me-2 text-primary"></i> Dispatch Job</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -168,6 +169,7 @@
         <div class="modal-dialog">
             <div class="modal-content border-0 shadow">
                 <form action="/office/dispatch-to-partner" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="modal-header bg-success bg-opacity-10">
                         <h5 class="modal-title fw-bold text-success"><i class="fas fa-network-wired me-2"></i> Partner Dispatch</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

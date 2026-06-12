@@ -9,7 +9,7 @@
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     
-    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         .bento-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
         .bento-card { background: var(--bg-card); border: 1px solid rgba(255,255,255,0.1); padding: 40px; border-radius: 20px; transition: 0.3s; height: 100%; display: flex; flex-direction: column; }
@@ -29,18 +29,18 @@
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-                <a href="index.html"><img src="static/images/logodg.png" alt="Drugan Group" class="main-logo-img"></a> 
+                <a href="/"><img src="static/images/logodg.png" alt="Drugan Group" class="main-logo-img"></a> 
                 DRUGAN <span class="tagline">GROUP</span>
             </div>
             <div class="menu-toggle" id="mobile-menu"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
             <ul class="nav-links">
-                <li><a href="about.html">About</a></li>
-                <li><a href="services.html" style="color: var(--primary-gold);">Services</a></li>
-                <li><a href="businessbetter.html">Software</a></li>
-                <li><a href="contact.html">Contact</a></li>
-                <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
+                <li><a href="/about">About</a></li>
+                <li><a href="/services" style="color: var(--primary-gold);">Services</a></li>
+                <li><a href="/businessbetter">Software</a></li>
+                <li><a href="/contact">Contact</a></li>
+                <li><a href="/login" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
-            <div class="nav-actions"><a href="login.html" class="btn-primary">Portal Login</a></div>
+            <div class="nav-actions"><a href="/login" class="btn-primary">Portal Login</a></div>
         </div>
     </nav>
 
@@ -53,7 +53,7 @@
                 <h1>Smart Management. <br><span class="gold-gradient">Powered by Data.</span></h1>
                 <p class="hero-sub">We don't just manage keys. We use our proprietary software to automate compliance, track maintenance in real-time, and give tenants 24/7 support.</p>
                 <div class="cta-group center-group">
-                    <a href="contact.html" class="btn-primary btn-large">Discuss Your Portfolio</a>
+                    <a href="/contact" class="btn-primary btn-large">Discuss Your Portfolio</a>
                 </div>
             </div>
         </div>
@@ -94,7 +94,7 @@
                     <br><br>
                     Our system links the property management directly to the maintenance van. <strong>You see the material costs</strong>, the labor hours logged, and the GPS timestamp. Tenants simply see that the job is done.
                 </p>
-                <a href="businessbetter.html" class="btn-outline">See The Software</a>
+                <a href="/businessbetter" class="btn-outline">See The Software</a>
             </div>
             <div class="sw-visual">
                 <div style="color: var(--primary-gold); margin-bottom: 15px; font-weight: bold;">// LANDLORD DASHBOARD VIEW</div>
@@ -114,8 +114,8 @@
     <footer>
         <div class="container footer-content">
             <div class="footer-col"><h4>Drugan Group</h4><p>Building & Maintenance</p></div>
-            <div class="footer-col"><h5>Services</h5><a href="index.html">Construction</a><a href="businessbetter.html">Business Better SaaS</a></div>
-            <div class="footer-col"><h5>Client Area</h5><a href="login.html">Portal Login</a><a href="contact.html">Contact</a></div>
+            <div class="footer-col"><h5>Services</h5><a href="/">Construction</a><a href="/businessbetter">Business Better SaaS</a></div>
+            <div class="footer-col"><h5>Client Area</h5><a href="/login">Portal Login</a><a href="/contact">Contact</a></div>
         </div>
         <div class="bottom-bar"><p>&copy; 2026 Drugan Group. All rights reserved.</p></div>
     </footer>

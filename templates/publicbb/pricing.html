@@ -1,20 +1,20 @@
 {% extends "publicbb/base.html" %}
 
-{% block title %}Pricing | Business Better{% endblock %}
+{% block title %}{{ _('Pricing') }} | {{ _('Business Better') }}{% endblock %}
 
 {% block content %}
 <header class="py-5 text-center position-relative overflow-hidden" style="background-color: var(--bb-bg); padding-top: 100px !important;">
     <div class="container py-4 position-relative z-2">
         <div class="d-inline-block px-4 py-2 mb-3 border border-warning rounded-pill bg-dark">
-            <span class="text-gold text-uppercase small fw-bold"><i class="fas fa-tags me-2"></i>All-Inclusive Pricing</span>
+            <span class="text-gold text-uppercase small fw-bold"><i class="fas fa-tags me-2"></i>{{ _('All-Inclusive Pricing') }}</span>
         </div>
-        <h1 class="fw-bold display-4 text-white mb-3">Choose your <span class="text-gold">Power Level.</span></h1>
+        <h1 class="fw-bold display-4 text-white mb-3">{{ _('Choose your') }} <span class="text-gold">{{ _('Power Level.') }}</span></h1>
         <p class="lead text-secondary mx-auto mb-4" style="max-width: 600px;">
-            No hidden fees. Cancel anytime. Scale as you grow.
+            {{ _('No hidden fees. Cancel anytime. Scale as you grow.') }}
         </p>
         <div class="alert alert-dark border border-success d-inline-block mx-auto">
             <i class="fas fa-piggy-bank text-success me-2"></i>
-            <span class="text-white">Save up to <strong class="text-success">£86/month</strong> vs traditional software stack</span>
+            <span class="text-white">{{ _('Save up to') }} <strong class="text-success">{{ _('£86/month') }}</strong> {{ _('vs traditional software stack') }}</span>
         </div>
     </div>
 </header>
@@ -24,7 +24,7 @@
         
         <div class="text-center mb-5">
             <div class="d-inline-block px-3 py-1 border border-secondary rounded-pill mb-3">
-                <small class="text-white text-uppercase fw-bold"><i class="fas fa-hammer text-gold me-2"></i> For Trade & Management</small>
+                <small class="text-white text-uppercase fw-bold"><i class="fas fa-hammer text-gold me-2"></i> {{ _('For Trade & Management') }}</small>
             </div>
         </div>
 
@@ -40,7 +40,7 @@
                     
                     {% if is_popular %}
                     <div class="position-absolute top-0 start-50 translate-middle badge bg-warning text-dark px-3 py-2 rounded-pill shadow-sm">
-                        MOST POPULAR
+                        {{ _('MOST POPULAR') }}
                     </div>
                     {% endif %}
 
@@ -49,13 +49,13 @@
                         <div class="display-4 fw-bold mb-3 text-white">£{{ "%.0f"|format(plan.price) }}<span class="fs-6 text-secondary fw-normal">/mo</span></div>
                         
                         <p class="text-secondary small mb-4">
-                            {% if plan.price < 50 %}Perfect for getting organized.
-                            {% elif plan.price < 150 %}Connect the office to the van.
-                            {% else %}Total control for larger firms.{% endif %}
+                            {% if plan.price < 50 %}{{ _('Perfect for getting organized.') }}
+                            {% elif plan.price < 150 %}{{ _('Connect the office to the van.') }}
+                            {% else %}{{ _('Total control for larger firms.') }}{% endif %}
                         </p>
                         
                         <div class="d-grid mb-4">
-                            <a href="/register?plan={{ plan.id }}" class="btn {{ 'btn-brand fw-bold' if is_popular else 'btn-outline-light' }} rounded-pill">Start Free Trial</a>
+                            <a href="/register?plan={{ plan.id }}" class="btn {{ 'btn-brand fw-bold' if is_popular else 'btn-outline-light' }} rounded-pill">{{ _('Start Free Trial') }}</a>
                         </div>
                         
                         <ul class="list-unstyled text-start small mx-auto text-secondary" style="max-width: 260px;">

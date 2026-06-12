@@ -1,6 +1,6 @@
 {% extends "publicbb/base.html" %}
 
-{% block title %}Page Not Found | Business Better{% endblock %}
+{% block title %}{{ _('Page Not Found') }} | {{ _('Business Better') }}{% endblock %}
 
 {% block content %}
 <section class="d-flex align-items-center justify-content-center" style="min-height: 80vh; background-color: var(--bb-bg);">
@@ -10,14 +10,14 @@
             404
         </h1>
         
-        <h2 class="fw-bold text-white mb-3">Off The Map.</h2>
+        <h2 class="fw-bold text-white mb-3">{{ _('Off The Map.') }}</h2>
         <p class="lead text-secondary mx-auto mb-5" style="max-width: 500px;">
-            The page you are looking for has been moved, deleted, or never existed. Let's get you back to work.
+            {{ _('The page you are looking for has been moved, deleted, or never existed. Let\\'s get you back to work.') }}
         </p>
 
         <div class="d-flex justify-content-center gap-3">
-            <a href="/" class="btn btn-brand px-4 py-2">Return Home</a>
-            <a href="/contact" class="btn btn-outline-light px-4 py-2">Report Issue</a>
+            <a href="/" class="btn btn-brand px-4 py-2">{{ _('Return Home') }}</a>
+            <a href="/contact" class="btn btn-outline-light px-4 py-2">{{ _('Report Issue') }}</a>
         </div>
 
     </div>

@@ -108,10 +108,10 @@
         <a href="/portal/quotes" class="{% if 'quote' in request.endpoint %}active{% endif %}">
             <i class="fas fa-file-signature me-3" style="width: 20px; text-align: center;"></i> {{ _('Quotes') }}
         </a>
-        <a href="/portal/invoices" class="{% if 'invoice' in request.endpoint %}active{% endif %}">
+        <a href="/portal/quotes" class="{% if 'invoice' in request.endpoint %}active{% endif %}">
             <i class="fas fa-file-invoice-dollar me-3" style="width: 20px; text-align: center;"></i> {{ _('Invoices') }}
         </a>
-        <a href="/portal/profile" class="{% if 'profile' in request.endpoint %}active{% endif %}">
+        <a href="/portal/home" class="{% if 'profile' in request.endpoint %}active{% endif %}">
             <i class="fas fa-user-cog me-3" style="width: 20px; text-align: center;"></i> Account Settings
         </a>
         
@@ -120,7 +120,7 @@
         <a href="mailto:{{ company_email }}" class="text-warning">
             <i class="fas fa-envelope me-3" style="width: 20px; text-align: center;"></i> Contact Support
         </a>
-        <a href="/portal/logout" class="text-danger mb-5">
+        <a href="/logout" class="text-danger mb-5">
             <i class="fas fa-sign-out-alt me-3" style="width: 20px; text-align: center;"></i> Sign Out
         </a>
     </div>

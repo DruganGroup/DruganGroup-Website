@@ -9,8 +9,8 @@
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     
-    <link rel="stylesheet" href="static/style.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
     <style>
         /* Styles for the Case Study Examples */
@@ -84,7 +84,7 @@
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
             <div class="brand">
-                <a href="index.html">
+                <a href="/">
                     <img src="static/images/logodg.png" alt="Drugan Group" class="main-logo-img">
                 </a> 
                 DRUGAN <span class="tagline">GROUP</span>
@@ -96,16 +96,16 @@
             </div>
             
             <ul class="nav-links">
-                <li><a href="about.html">About</a></li>
-                <li><a href="services.html">Services</a></li>
-                <li><a href="businessbetter.html">Software</a></li>
-                <li><a href="forensics.html" style="color: var(--primary-gold);">Disputes</a></li>
-                <li><a href="contact.html">Contact</a></li>
-                <li><a href="login.html" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
+                <li><a href="/about">About</a></li>
+                <li><a href="/services">Services</a></li>
+                <li><a href="/businessbetter">Software</a></li>
+                <li><a href="/forensics" style="color: var(--primary-gold);">Disputes</a></li>
+                <li><a href="/contact">Contact</a></li>
+                <li><a href="/login" class="mobile-only-link" style="color: var(--primary-gold);">Portal Login</a></li>
             </ul>
             
             <div class="nav-actions">
-                <a href="login.html" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i>Portal Login</a>
+                <a href="/login" class="btn-primary"><i class="fas fa-lock" style="font-size: 0.8rem;"></i>Portal Login</a>
             </div>
         </div>
     </nav>
@@ -124,7 +124,7 @@
                 
                 <div class="cta-group">
                     <a href="#examples" class="btn-primary btn-large">View Analysis</a>
-                    <a href="contact.html" class="btn-secondary btn-large">Get Help</a>
+                    <a href="/contact" class="btn-secondary btn-large">Get Help</a>
                 </div>
             </div>
             
@@ -250,7 +250,7 @@
                     <li><i class="fas fa-check"></i> <strong>Primary Statute Check</strong><br>Cross-referenced against 1 main Act.</li>
                     <li><i class="fas fa-check"></i> <strong>"Viability" Report</strong><br>A clear Yes/No on whether you have a case.</li>
                 </ul>
-                <a href="login.html" class="btn-secondary" style="display:block; margin-top: auto;">Book Check</a>
+                <a href="/login" class="btn-secondary" style="display:block; margin-top: auto;">Book Check</a>
             </div>
 
             <div class="price-card popular">
@@ -264,7 +264,7 @@
                     <li><i class="fas fa-check"></i> <strong>Formal Dossier (PDF)</strong><br>Itemized list of every breach found.</li>
                     <li><i class="fas fa-check"></i> <strong>Strategy Drafts</strong><br>Legal replies written for you.</li>
                 </ul>
-                <a href="login.html" class="btn-primary" style="display:block; margin-top: auto;">Start Analysis</a>
+                <a href="/login" class="btn-primary" style="display:block; margin-top: auto;">Start Analysis</a>
             </div>
 
             <div class="price-card">
@@ -276,7 +276,7 @@
                     <li><i class="fas fa-check"></i> <strong>Timeline Reconstruction</strong><br>Forensic chronological mapping.</li>
                     <li><i class="fas fa-check"></i> <strong>Court-Compliant Format</strong><br>Structured for formal submission.</li>
                 </ul>
-                <a href="contact.html" class="btn-secondary" style="display:block; margin-top: auto;">Contact Team</a>
+                <a href="/contact" class="btn-secondary" style="display:block; margin-top: auto;">Contact Team</a>
             </div>
         </div>
     </section>
@@ -290,14 +290,14 @@
             </div>
             <div class="footer-col">
                 <h5>Group Companies</h5>
-                <a href="index.html">Construction</a>
-                <a href="businessbetter.html">Business Better Software</a> 
-                <a href="forensics.html">Forensics Unit</a>
+                <a href="/">Construction</a>
+                <a href="/businessbetter">Business Better Software</a> 
+                <a href="/forensics">Forensics Unit</a>
             </div>
             <div class="footer-col">
                 <h5>Support</h5>
-                <a href="contact.html">Contact Us</a>
-                <a href="login.html">Portal Login</a>
+                <a href="/contact">Contact Us</a>
+                <a href="/login">Portal Login</a>
             </div>
         </div>
         <div class="bottom-bar">
