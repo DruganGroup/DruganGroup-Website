@@ -265,12 +265,15 @@ def super_admin_dashboard():
     cur = conn.cursor()
     
     # --- 1. HANDLE FORM SUBMISSION (CREATE COMPANY) ---
-    # (This is your original logic, preserved exactly)
     if request.method == 'POST':
         c_name = request.form.get('company_name')
         owner_name = request.form.get('owner_name')
         owner_email = request.form.get('owner_email')
         plan_id = request.form.get('plan_id') 
+        
+        # --- NEW: Capture the fields from the updated modal ---
+        owner_password = request.form.get('owner_password')
+        custom_subdomain = request.form.get('subdomain')
         
         # Fetch Plan Details
         cur.execute("SELECT name, max_users, max_vehicles, max_clients, max_properties, max_storage, modules_enabled FROM plans WHERE id = %s", (plan_id,))
@@ -279,10 +282,12 @@ def super_admin_dashboard():
         if selected_plan:
             plan_name, p_users, p_vehicles, p_clients, p_props, p_storage, p_modules = selected_plan
             
-            # Generate Subdomain
+            # --- NEW: Prioritize the custom subdomain over auto-generating it ---
             import re
-            base_slug = re.sub(r'[^a-z0-9-]', '', c_name.lower().replace(' ', '-'))
-            final_slug = base_slug
+            if custom_subdomain:
+                final_slug = re.sub(r'[^a-z0-9-]', '', custom_subdomain.lower())
+            else:
+                final_slug = re.sub(r'[^a-z0-9-]', '', c_name.lower().replace(' ', '-'))
             
             try:
                 # Create Company (using sub_domain for consistency)
@@ -296,11 +301,9 @@ def super_admin_dashboard():
                     VALUES (%s, %s, %s, 'Active', CURRENT_DATE, %s, %s, %s, %s, %s, %s)
                 """, (new_id, plan_id, plan_name, p_users, p_vehicles, p_clients, p_props, p_storage, p_modules))
                 
-                # Create Owner
+                # --- NEW: Hash the user's provided password instead of a random string ---
                 from werkzeug.security import generate_password_hash
-                import random, string
-                temp_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
-                hashed = generate_password_hash(temp_pass)
+                hashed = generate_password_hash(owner_password)
                 
                 cur.execute("""
                     INSERT INTO users (company_id, name, email, password_hash, role) 
@@ -871,6 +874,56 @@ def company_details(company_id):
     stats['storage_mb'] = get_real_company_usage(company_id, cur)
     conn.close()
     return render_template('admin/company_details.html', company=company, stats=stats, settings=settings, audit_logs=audit_logs)
+
+@admin_bp.route('/super-admin/company/<int:company_id>/delete', methods=['POST'])
+def delete_company(company_id):
+    if session.get('role') != 'SuperAdmin': 
+        return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Verify company exists and get name for the log
+        cur.execute("SELECT name FROM companies WHERE id = %s", (company_id,))
+        comp = cur.fetchone()
+        if not comp:
+            flash("❌ Company not found.")
+            return redirect(url_for('admin.super_admin_dashboard'))
+            
+        comp_name = comp[0]
+
+        # 2. Tiered Deletion (Wipe dependent data first to avoid foreign key blocks)
+        # Tier 3 (Grandchildren)
+        for t in ['invoice_items', 'quote_items', 'overhead_items', 'vehicle_crews', 'job_logs']:
+            try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
+            except: cur.connection.rollback()
+            
+        # Tier 2 (Children)
+        for t in ['maintenance_logs', 'materials', 'overhead_categories', 'transactions', 'service_requests', 'invoices', 'quotes', 'jobs', 'bb_support_tickets']:
+            try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
+            except: cur.connection.rollback()
+            
+        # Tier 1 (Parents)
+        for t in ['vehicles', 'staff', 'properties', 'clients', 'users', 'subscriptions', 'settings', 'audit_logs', 'system_logs']:
+            try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
+            except: cur.connection.rollback()
+
+        # 3. Finally, delete the company itself
+        cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
+        conn.commit()
+        
+        # 4. Log the action
+        log_audit("DELETE TENANT", comp_name, f"Completely wiped company ID {company_id} and all associated data.")
+        flash(f"🗑️ Tenant '{comp_name}' and all associated data have been permanently deleted.")
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error deleting tenant: {e}")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('admin.super_admin_dashboard'))
 
 # --- 5. DATA CLEANUP (FORENSIC MODE) ---
 @admin_bp.route('/admin/cleanup-my-data')
