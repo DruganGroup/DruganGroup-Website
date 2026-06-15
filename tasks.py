@@ -89,6 +89,31 @@ def generate_invoice_pdf_task(invoice_id, company_id, company_name):
         cur.close()
         conn.close()
 
+from email_service import send_company_email
+from celery import shared_task
+
+@shared_task
+def send_welcome_email_task(company_id, owner_email, owner_name, sub_domain):
+    subject = "Welcome to Business Better! 🚀"
+    login_url = f"https://{sub_domain}.businessbetter.co.uk/login"
+    
+    body = f"""
+    <h3>Hi {owner_name},</h3>
+    <p>Your Business Better workspace is ready to go!</p>
+    <p>You can access your dashboard here: <a href="{login_url}">{login_url}</a></p>
+    <br>
+    <p><strong>Next Steps:</strong></p>
+    <ul>
+        <li>Log in with your email and the password you created during signup.</li>
+        <li>Visit the 'Settings' tab to upload your company logo and customize your branding.</li>
+        <li>Invite your team members to the platform.</li>
+    </ul>
+    <p>If you need any help, just open a support ticket from your launcher.</p>
+    <p>Best regards,<br>The Business Better Team</p>
+    """
+    
+    send_company_email(company_id, owner_email, subject, body)
+
 
 
 @celery.task(name='tasks.send_staff_email_task')
