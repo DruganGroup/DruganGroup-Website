@@ -1029,15 +1029,20 @@ def settings_integrations():
             ]
             for k in keys:
                 val = request.form.get(k)
-                if val == '********':
-                    continue  # User did not change the password, leave existing encrypted value safely in DB
-                if val is not None:  # Allow clearing fields if user deleted the asterisks
-                    if encryptor.is_encrypted_key(k) and val:
-                        val = encryptor.encrypt(val)
-                    cur.execute("""
-                        INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s)
-                        ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
-                    """, (comp_id, k, val))
+                
+                # --- THIS IS THE FIX ---
+                # If the value is the masked string, do not update the database
+                if val == '********' or val is None:
+                    continue  
+                
+                # If it's a new password or a real change, encrypt and save
+                if encryptor.is_encrypted_key(k) and val:
+                    val = encryptor.encrypt(val)
+                    
+                cur.execute("""
+                    INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s)
+                    ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+                """, (comp_id, k, val))
             conn.commit()
             flash("✅ Integration Keys Saved Securely", "success")
 
