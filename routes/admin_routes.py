@@ -11,6 +11,7 @@ import io
 from datetime import datetime, date, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from tasks import send_staff_email_task
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, send_from_directory, current_app
 from db import get_db, get_site_config
 from werkzeug.security import generate_password_hash
@@ -120,7 +121,7 @@ def super_admin_staff():
     if request.method == 'POST':
         name = request.form.get('name')
         email = request.form.get('email')
-        staff_role = request.form.get('staff_role') # 'BB_Support' or 'BB_Sales'
+        staff_role = request.form.get('staff_role')
         
         from werkzeug.security import generate_password_hash
         import random, string
@@ -128,39 +129,36 @@ def super_admin_staff():
         hashed = generate_password_hash(temp_pass)
         
         try:
-            # We add them to users table with company_id = NULL
             cur.execute("""
                 INSERT INTO users (company_id, name, email, password_hash, role)
                 VALUES (NULL, %s, %s, %s, %s)
             """, (name, email, hashed, staff_role))
             conn.commit()
             
-            # Send Email
+            # --- NEW EMAIL BLOCK START ---
             cur.execute("SELECT key, value FROM system_settings")
             settings = {row[0]: row[1] for row in cur.fetchall()}
+            
             if settings.get('smtp_server') and settings.get('smtp_email'):
-                try:
-                    from utils.encryption import get_encryptor
-                    encryptor = get_encryptor()
-                    raw_pass = settings.get('smtp_password')
-                    smtp_pass = encryptor.decrypt(raw_pass) if raw_pass else None
-
-                    msg = MIMEMultipart()
-                    msg['From'] = settings['smtp_email']
-                    msg['To'] = email
-                    msg['Subject'] = "Welcome to Business Better Staff"
-                    msg.attach(MIMEText(f"Hello {name},\n\nYou have been added to the Business Better team as a {staff_role}.\nYour temporary password is: {temp_pass}\n\nPlease login and change your password.", 'plain'))
-                    server = smtplib.SMTP(settings['smtp_server'], int(settings.get('smtp_port', 587)))
-                    server.starttls()
-                    if smtp_pass:
-                        server.login(settings['smtp_email'], smtp_pass)
-                    server.send_message(msg)
-                    server.quit()
-                    flash(f"✅ Staff '{name}' created and email sent!")
-                except Exception as e:
-                    flash(f"✅ Staff '{name}' created. Password: {temp_pass} (Email failed: {e})")
+                from utils.encryption import get_encryptor
+                encryptor = get_encryptor()
+                raw_pass = settings.get('smtp_password')
+                smtp_pass = encryptor.decrypt(raw_pass) if raw_pass else None
+                
+                smtp_data = {
+                    'smtp_server': settings.get('smtp_server'),
+                    'smtp_port': settings.get('smtp_port', 465),
+                    'smtp_email': settings.get('smtp_email'),
+                    'smtp_password': smtp_pass
+                }
+                
+                # Offload to Celery (Background Task)
+                from tasks import send_staff_email_task
+                send_staff_email_task.delay(smtp_data, email, name, staff_role, temp_pass)
+                flash(f"✅ Staff '{name}' created. Email is being sent in the background.")
             else:
                 flash(f"✅ Staff '{name}' created. Password: {temp_pass} (SMTP not configured)")
+            # --- NEW EMAIL BLOCK END ---
                 
             log_audit("ADD BB STAFF", email, f"Role: {staff_role}")
             

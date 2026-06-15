@@ -88,3 +88,24 @@ def generate_invoice_pdf_task(invoice_id, company_id, company_name):
     finally:
         cur.close()
         conn.close()
+
+
+
+@celery.task(name='tasks.send_staff_email_task')
+def send_staff_email_task(smtp_settings, recipient, name, staff_role, temp_pass):
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = smtp_settings['smtp_email']
+        msg['To'] = recipient
+        msg['Subject'] = "Welcome to Business Better Staff"
+        body = f"Hello {name},\n\nYou have been added to the Business Better team as a {staff_role}.\nYour temporary password is: {temp_pass}\n\nPlease login and change your password."
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Use SMTP_SSL for Port 465 (FastHosts requirement)
+        with smtplib.SMTP_SSL(smtp_settings['smtp_server'], int(smtp_settings['smtp_port'])) as server:
+            server.login(smtp_settings['smtp_email'], smtp_settings['smtp_password'])
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"Celery Email Error: {e}")
+        return False
