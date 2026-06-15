@@ -18,13 +18,16 @@ from utils.validators import validate_table_name, ALLOWED_TABLES
 
 admin_bp = Blueprint('admin', __name__)
 
-@admin_bp.context_processor
+@admin_bp.app_context_processor
 def inject_system_settings():
-    if session.get('role') != 'SuperAdmin':
-        return dict()
+    # ALWAYS return an empty system_config dict so the template doesn't crash
+    if session.get('role') not in ['SuperAdmin', 'BB_Support']:
+        return dict(system_config={}, global_alert='')
+        
     conn = get_db()
     if not conn:
-        return dict()
+        return dict(system_config={}, global_alert='')
+        
     try:
         cur = conn.cursor()
         cur.execute("SELECT key, value FROM system_settings")
