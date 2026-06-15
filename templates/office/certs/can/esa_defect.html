@@ -126,7 +126,7 @@
         // 3. Send to Server via Generic Route
         fetch('/office/cert/can/esa_defect/save', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
             body: JSON.stringify(data)
         })
         .then(response => response.json())

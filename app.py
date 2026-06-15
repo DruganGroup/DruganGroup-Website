@@ -5,8 +5,7 @@ from datetime import timedelta
 from flask import Flask, render_template, request, session, send_from_directory, abort, redirect, url_for, session, g
 from werkzeug.exceptions import HTTPException
 from db import get_db
-from flask_wtf.csrf import CSRFProtect
-from utils.extensions import limiter
+from utils.extensions import limiter, csrf
 
 # 1. Import all Blueprints
 from routes.portal_routes import portal_bp
@@ -29,8 +28,7 @@ from routes.quote_routes import quote_bp
 app = Flask(__name__)
 
 # --- SECURITY: INITIALIZE CSRF PROTECTION ---
-csrf = CSRFProtect(app)
-csrf.exempt(admin_bp) # Webhooks are in admin_bp
+csrf.init_app(app)
 
 # --- SECURITY: INITIALIZE RATE LIMITING ---
 limiter.init_app(app)

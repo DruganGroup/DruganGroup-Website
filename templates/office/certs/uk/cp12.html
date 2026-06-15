@@ -194,7 +194,7 @@
         // 3. Send to Server
         fetch('/office/cert/gas/save', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
             body: JSON.stringify(data)
         })
         .then(response => response.json())

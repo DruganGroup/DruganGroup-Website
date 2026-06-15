@@ -98,7 +98,7 @@
         const data = Object.fromEntries(new FormData(document.getElementById('certForm')).entries());
         data.signature_img = signaturePad.toDataURL();
         fetch('/office/cert/aus/swms/save', {
-            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+            method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'}, body: JSON.stringify(data)
         }).then(r => r.json()).then(res => {
             if(res.success) window.location.href = res.redirect_url; else alert("Error: " + res.error);
         });

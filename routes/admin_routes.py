@@ -29,6 +29,7 @@ def inject_system_settings():
         cur = conn.cursor()
         cur.execute("SELECT key, value FROM system_settings")
         settings = {row[0]: row[1] for row in cur.fetchall()}
+        settings.pop('smtp_password', None) # Prevent encrypted string from leaking to UI
         return dict(system_config=settings, global_alert=settings.get('global_alert', ''))
     except Exception as e:
         return dict(system_config={}, global_alert='')
@@ -139,6 +140,11 @@ def super_admin_staff():
             settings = {row[0]: row[1] for row in cur.fetchall()}
             if settings.get('smtp_server') and settings.get('smtp_email'):
                 try:
+                    from utils.encryption import get_encryptor
+                    encryptor = get_encryptor()
+                    raw_pass = settings.get('smtp_password')
+                    smtp_pass = encryptor.decrypt(raw_pass) if raw_pass else None
+
                     msg = MIMEMultipart()
                     msg['From'] = settings['smtp_email']
                     msg['To'] = email
@@ -146,7 +152,8 @@ def super_admin_staff():
                     msg.attach(MIMEText(f"Hello {name},\n\nYou have been added to the Business Better team as a {staff_role}.\nYour temporary password is: {temp_pass}\n\nPlease login and change your password.", 'plain'))
                     server = smtplib.SMTP(settings['smtp_server'], int(settings.get('smtp_port', 587)))
                     server.starttls()
-                    server.login(settings['smtp_email'], settings['smtp_password'])
+                    if smtp_pass:
+                        server.login(settings['smtp_email'], smtp_pass)
                     server.send_message(msg)
                     server.quit()
                     flash(f"✅ Staff '{name}' created and email sent!")
@@ -490,8 +497,10 @@ def super_admin_analytics():
     return render_template('admin/super_admin_analytics.html', data=analytics_data, db_inventory=db_inventory)
 
 import stripe
+from utils.extensions import csrf
 
 @admin_bp.route('/webhooks/stripe', methods=['POST'])
+@csrf.exempt
 def stripe_webhook():
     payload = request.data
     sig_header = request.headers.get('Stripe-Signature', '')
@@ -581,11 +590,18 @@ def reset_user_password():
             cur.execute("SELECT key, value FROM system_settings")
             settings = {row[0]: row[1] for row in cur.fetchall()}
             if settings.get('smtp_host') and settings.get('smtp_email'):
+                from utils.encryption import get_encryptor
+                encryptor = get_encryptor()
+                raw_pass = settings.get('smtp_password')
+                smtp_pass = encryptor.decrypt(raw_pass) if raw_pass else None
+
                 msg = MIMEMultipart()
                 msg['From'] = settings['smtp_email']; msg['To'] = user[1]; msg['Subject'] = "Password Reset"
                 msg.attach(MIMEText(f"Hello {user[0]},\n\nYour new password is: {secure_pass}", 'plain'))
                 server = smtplib.SMTP(settings['smtp_host'], int(settings.get('smtp_port', 587)))
-                server.starttls(); server.login(settings['smtp_email'], settings['smtp_password'])
+                server.starttls()
+                if smtp_pass:
+                    server.login(settings['smtp_email'], smtp_pass)
                 server.send_message(msg); server.quit()
                 flash(f"✅ Password emailed to {user[1]}")
             else:
@@ -605,9 +621,13 @@ def save_system_settings():
         'smtp_server': request.form.get('smtp_server'),
         'smtp_port': request.form.get('smtp_port'),
         'smtp_email': request.form.get('smtp_email'),
-        'smtp_password': request.form.get('smtp_password'),
         'global_alert': request.form.get('global_alert')
     }
+    smtp_pass = request.form.get('smtp_password')
+    if smtp_pass:
+        from utils.encryption import get_encryptor
+        settings['smtp_password'] = get_encryptor().encrypt(smtp_pass)
+        
     try:
         cur.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)")
         for key, val in settings.items():

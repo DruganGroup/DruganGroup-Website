@@ -256,7 +256,7 @@
     function sendToServer(payload) {
         fetch('/compliance/eicr/save', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
             body: JSON.stringify(payload)
         })
         .then(response => response.json())
