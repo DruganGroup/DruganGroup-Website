@@ -1019,33 +1019,36 @@ def settings_integrations():
             flash("❌ Partner connection removed.", "info")
             
         elif action == 'save_keys':
-            # Save Keys to Settings Table with encryption
             keys = [
                 'samsara_api_key', 'geotab_user', 'geotab_database', 'geotab_password',
                 'verizon_connect_api_key', 'tomtom_api_key',
                 'google_ai_key', 'openai_api_key', 'anthropic_api_key',
-                'smtp_host', 'smtp_port', 'smtp_email', 'smtp_password',
-                'imap_server', 'imap_port', 'imap_user', 'imap_password'
+                'smtp_host', 'smtp_port', 'smtp_email', 
+                'imap_server', 'imap_port', 'imap_user'
             ]
+            
+            # 1. Update standard text fields
             for k in keys:
                 val = request.form.get(k)
-                
-                # --- THIS IS THE FIX ---
-                # If the value is the masked string, do not update the database
-                if val == '********' or val is None:
-                    continue  
-                
-                # If it's a new password or a real change, encrypt and save
-                if encryptor.is_encrypted_key(k) and val:
-                    val = encryptor.encrypt(val)
-                    
-                cur.execute("""
-                    INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s)
-                    ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
-                """, (comp_id, k, val))
-            conn.commit()
-            flash("✅ Integration Keys Saved Securely", "success")
+                if val is not None:
+                    cur.execute("""
+                        INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s)
+                        ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+                    """, (comp_id, k, val))
 
+            # 2. Handle Passwords SEPARATELY (Only if they are not empty)
+            password_keys = ['smtp_password', 'imap_password']
+            for k in password_keys:
+                raw_pass = request.form.get(k)
+                if raw_pass and raw_pass.strip() != "":
+                    encrypted_val = encryptor.encrypt(raw_pass)
+                    cur.execute("""
+                        INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s)
+                        ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+                    """, (comp_id, k, encrypted_val))
+
+            conn.commit()
+            flash("✅ Keys saved!", "success")
     # --- PARTNER NETWORK DATA FETCH ---
     # 1. Ensure this company has a partner code
     cur.execute("SELECT partner_code FROM companies WHERE id = %s", (comp_id,))
