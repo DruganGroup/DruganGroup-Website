@@ -5,8 +5,6 @@ from db import get_db, get_site_config
 from werkzeug.security import check_password_hash, generate_password_hash
 from email_service import send_company_email
 from itsdangerous import URLSafeTimedSerializer
-from tasks import send_tenant_email_task
-from utils.encryption import get_encryptor
 from utils.extensions import limiter
 from utils.translations import get_translation
 
@@ -448,6 +446,8 @@ def submit_support_ticket():
 
 @auth_bp.route('/auth/email/test', methods=['POST'])
 def test_email_connection():
+    from tasks import send_tenant_email_task
+    from utils.encryption import get_encryptor
     # Ensure the user is logged into a specific workspace
     company_id = session.get('company_id')
     if not company_id:
