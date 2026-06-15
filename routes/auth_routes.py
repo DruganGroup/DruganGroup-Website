@@ -177,7 +177,17 @@ def login():
             conn.commit()
             conn.close()
             
-            return redirect(url_for('auth.main_launcher'))
+            # --- NEW TRAFFIC COP ROUTING ---
+            user_role = session.get('role')
+            
+            if user_role == 'SuperAdmin':
+                return redirect(url_for('admin.super_admin_dashboard'))
+            elif user_role in ['BB_Support', 'BB_Sales']:
+                # Send internal staff directly to the Helpdesk
+                return redirect(url_for('admin.bb_support_dashboard'))
+            else:
+                # Standard paying tenants go to the launcher
+                return redirect(url_for('auth.main_launcher'))
         else:
             flash(_("❌ Invalid credentials"), "error")
             conn.close()
