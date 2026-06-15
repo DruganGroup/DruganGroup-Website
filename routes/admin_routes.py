@@ -173,6 +173,23 @@ def super_admin_staff():
     conn.close()
     return render_template('admin/super_admin_staff.html', staff=staff)
 
+@admin_bp.route('/super-admin/staff/delete/<int:staff_id>', methods=['POST'])
+def delete_super_admin_staff(staff_id):
+    if session.get('role') != 'SuperAdmin': return redirect(url_for('auth.login'))
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM users WHERE id = %s AND company_id IS NULL AND role != 'SuperAdmin'", (staff_id,))
+        conn.commit()
+        log_audit("DELETE BB STAFF", f"Staff ID: {staff_id}", "Admin deleted staff account")
+        flash("✅ Internal staff deleted successfully.")
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error deleting staff: {e}")
+    finally:
+        conn.close()
+    return redirect(url_for('admin.super_admin_staff'))
+
 @admin_bp.route('/super-admin/bb-helpdesk')
 def bb_support_dashboard():
     if session.get('role') not in ['SuperAdmin', 'BB_Support']: return redirect(url_for('auth.login'))
@@ -589,7 +606,7 @@ def reset_user_password():
             
             cur.execute("SELECT key, value FROM system_settings")
             settings = {row[0]: row[1] for row in cur.fetchall()}
-            if settings.get('smtp_host') and settings.get('smtp_email'):
+            if settings.get('smtp_server') and settings.get('smtp_email'):
                 from utils.encryption import get_encryptor
                 encryptor = get_encryptor()
                 raw_pass = settings.get('smtp_password')
@@ -598,7 +615,7 @@ def reset_user_password():
                 msg = MIMEMultipart()
                 msg['From'] = settings['smtp_email']; msg['To'] = user[1]; msg['Subject'] = "Password Reset"
                 msg.attach(MIMEText(f"Hello {user[0]},\n\nYour new password is: {secure_pass}", 'plain'))
-                server = smtplib.SMTP(settings['smtp_host'], int(settings.get('smtp_port', 587)))
+                server = smtplib.SMTP(settings['smtp_server'], int(settings.get('smtp_port', 587)))
                 server.starttls()
                 if smtp_pass:
                     server.login(settings['smtp_email'], smtp_pass)

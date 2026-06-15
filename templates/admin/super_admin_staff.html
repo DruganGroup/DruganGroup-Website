@@ -56,8 +56,10 @@
                             <span class="badge bg-secondary">{{ s[3] }}</span>
                         </td>
                         <td>
-                            <!-- In a real app we'd have edit/delete -->
-                            <button class="btn btn-sm btn-outline-danger" onclick="alert('Delete functionality coming soon!')"><i class="fas fa-trash"></i></button>
+                            <form action="{{ url_for('admin.delete_super_admin_staff', staff_id=s[0]) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this staff member?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                            </form>
                         </td>
                     </tr>
                     {% else %}
