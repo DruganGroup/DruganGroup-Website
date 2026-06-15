@@ -1029,7 +1029,9 @@ def settings_integrations():
             ]
             for k in keys:
                 val = request.form.get(k)
-                if val is not None:  # Allow clearing fields
+                if val == '********':
+                    continue  # User did not change the password, leave existing encrypted value safely in DB
+                if val is not None:  # Allow clearing fields if user deleted the asterisks
                     if encryptor.is_encrypted_key(k) and val:
                         val = encryptor.encrypt(val)
                     cur.execute("""
@@ -1079,17 +1081,17 @@ def settings_integrations():
     # Load Settings with decryption
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     raw_settings = cur.fetchall()
-    
+
     settings = {}
     for key, value in raw_settings:
         if encryptor.is_encrypted_key(key) and value:
-            settings[key] = encryptor.decrypt(value) or ''
+            settings[key] = '********'  # Mask the password to prevent HTML leak
         else:
             settings[key] = value
-    
+
     conn.close()
 
-    return render_template('finance/settings_integrations.html', 
+    return render_template('finance/settings_integrations.html',
                            settings=settings, 
                            my_code=my_code,
                            active_partners=active_partners,
