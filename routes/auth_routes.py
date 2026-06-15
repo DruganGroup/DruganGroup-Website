@@ -5,6 +5,8 @@ from db import get_db, get_site_config
 from werkzeug.security import check_password_hash, generate_password_hash
 from email_service import send_company_email
 from itsdangerous import URLSafeTimedSerializer
+from tasks import send_tenant_email_task
+from utils.encryption import get_encryptor
 from utils.extensions import limiter
 from utils.translations import get_translation
 
@@ -444,33 +446,75 @@ def submit_support_ticket():
         
     return redirect(url_for('auth.main_launcher'))
 
-@auth_bp.route('/auth/email/test')
+@auth_bp.route('/auth/email/test', methods=['POST'])
 def test_email_connection():
-    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']:
-        flash(_("❌ Access Denied"), "error")
-        return redirect(url_for('finance.settings_integrations'))
-    
-    comp_id = session.get('company_id')
-    user_email = session.get('user_email') 
-    
-    success, msg = send_company_email(
-        comp_id,
-        user_email,
-        "Test Email: Connection Successful",
-        f"""
-        <h1>It Works! 🚀</h1>
-        <p>Your SMTP email settings are configured correctly.</p>
-        <p><strong>Company:</strong> {session.get('company_name')}</p>
-        <p>This email was sent directly from your own server to {user_email}.</p>
-        """
-    )
-    
-    if success:
-        flash(_("✅ Success! Test email sent to {user_email}").format(user_email=user_email), "success")
-    else:
-        flash(_("❌ Connection Failed: {msg}").format(msg=msg), "error")
+    # Ensure the user is logged into a specific workspace
+    company_id = session.get('company_id')
+    if not company_id:
+        return "Access Denied", 403
 
-    return redirect(url_for('finance.settings_integrations'))
+    # --- PHASE 1: CATCH AND SAVE ---
+    conn = get_db()
+    if conn:
+        try:
+            cur = conn.cursor()
+            encryptor = get_encryptor()
+
+            # Grab the typed inputs and strip accidental whitespace
+            settings = {
+                'smtp_host': request.form.get('smtp_host', '').strip(),
+                'smtp_port': request.form.get('smtp_port', '').strip(),
+                'smtp_email': request.form.get('smtp_email', '').strip()
+            }
+            
+            # Encrypt the password before it hits the database
+            raw_pass = request.form.get('smtp_password', '')
+            if raw_pass:
+                settings['smtp_password'] = encryptor.encrypt(raw_pass)
+
+            # Loop through and update the database records
+            for key, val in settings.items():
+                if val: 
+                    cur.execute("""
+                        INSERT INTO settings (company_id, key, value) 
+                        VALUES (%s, %s, %s) 
+                        ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
+                    """, (company_id, key, val))
+            conn.commit()
+            
+        except Exception as e:
+            conn.rollback()
+            flash(_("❌ Error saving settings: {error}").format(error=e), "error")
+            return redirect(request.referrer)
+        finally:
+            conn.close()
+
+    # --- PHASE 2: BUILD THE TEST EMAIL ---
+    # Try to send the test to the logged-in user, fallback to the SMTP email itself
+    recipient = session.get('user_email') or settings['smtp_email']
+
+    # Create a nice-looking HTML receipt for the test
+    html_content = """
+    <div style="font-family: sans-serif; text-align: center; padding: 30px; border: 1px solid #eaeaea; border-radius: 8px;">
+        <h2 style="color: #c5a059;">✅ Connection Successful!</h2>
+        <p style="color: #555;">Your workspace is now securely connected to your email server.</p>
+        <p style="color: #555;">Invoices, quotes, and system communications will now be sent directly from your domain in the background.</p>
+    </div>
+    """
+
+    # --- PHASE 3: THE CELERY HANDOFF ---
+    # Instead of freezing the web page to send the email, we pass the data 
+    # to the background worker using .delay()
+    send_tenant_email_task.delay(
+        company_id=company_id,
+        recipient_email=recipient,
+        subject="Test Connection Successful 🚀",
+        body_html=html_content
+    )
+
+    # Instantly reload the settings page for the user
+    flash(_("🔄 Keys saved! A test email has been queued to {recipient}. Check your inbox in a moment.").format(recipient=recipient), "success")
+    return redirect(request.referrer)
 
 def create_pending_account(data):
     conn = get_db()

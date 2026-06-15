@@ -75,30 +75,6 @@ def set_security_headers(response):
     
     return response
 
-@app.route('/rescue')
-def rescue_admin():
-    from db import get_db
-    from werkzeug.security import generate_password_hash
-    
-    conn = get_db()
-    if conn:
-        try:
-            cur = conn.cursor()
-            hashed = generate_password_hash('Admin123!')
-            
-            # Insert the SuperAdmin, ensuring company_id is NULL so it's not tied to a tenant
-            cur.execute("""
-                INSERT INTO users (name, email, password_hash, role, company_id) 
-                VALUES ('Nathan', 'nathan@businessbetter.co.uk', %s, 'SuperAdmin', NULL)
-            """, (hashed,))
-            conn.commit()
-            return "✅ SuperAdmin account successfully restored! You can now log in. (Make sure to delete this route from app.py!)"
-        except Exception as e:
-            return f"Error: {e}"
-        finally:
-            conn.close()
-    return "Database connection failed."
-
 # 4. REGISTER BLUEPRINTS
 app.register_blueprint(portal_bp)
 app.register_blueprint(public_bp)

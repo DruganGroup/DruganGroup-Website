@@ -134,3 +134,84 @@ def send_staff_email_task(smtp_settings, recipient, name, staff_role, temp_pass)
     except Exception as e:
         print(f"Celery Email Error: {e}")
         return False
+    
+
+@celery.task(name='tasks.send_tenant_email_task')
+def send_tenant_email_task(company_id, recipient_email, subject, body_html, attachment_path=None):
+    """
+    Universal background task to send an email using a specific tenant's SMTP credentials.
+    """
+    from db import get_db
+    from utils.encryption import get_encryptor
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.mime.application import MIMEApplication
+    import os
+
+    conn = get_db()
+    if not conn:
+        return "Failed to connect to database."
+
+    try:
+        cur = conn.cursor()
+        
+        # 1. Fetch this specific tenant's SMTP settings
+        cur.execute("""
+            SELECT key, value FROM settings 
+            WHERE company_id = %s AND key IN ('smtp_host', 'smtp_port', 'smtp_email', 'smtp_password')
+        """, (company_id,))
+        
+        settings = {row[0]: row[1] for row in cur.fetchall()}
+        
+        smtp_host = settings.get('smtp_host')
+        smtp_port = settings.get('smtp_port')
+        smtp_email = settings.get('smtp_email')
+        raw_pass = settings.get('smtp_password')
+
+        # Check if the tenant has actually configured their email
+        if not all([smtp_host, smtp_port, smtp_email, raw_pass]):
+            return f"Company {company_id} has incomplete SMTP settings. Email aborted."
+
+        # 2. Decrypt the tenant's SMTP password
+        encryptor = get_encryptor()
+        smtp_password = encryptor.decrypt(raw_pass)
+
+        # 3. Construct the Email
+        msg = MIMEMultipart()
+        msg['From'] = smtp_email
+        msg['To'] = recipient_email
+        msg['Subject'] = subject
+        
+        # Attach the HTML body
+        msg.attach(MIMEText(body_html, 'html'))
+
+        # 4. Handle Optional Attachments (e.g., Invoices or Quotes)
+        if attachment_path and os.path.exists(attachment_path):
+            with open(attachment_path, "rb") as f:
+                part = MIMEApplication(f.read(), Name=os.path.basename(attachment_path))
+            part['Content-Disposition'] = f'attachment; filename="{os.path.basename(attachment_path)}"'
+            msg.attach(part)
+
+        # 5. Connect and Send (Dynamically handles SSL vs TLS)
+        port = int(smtp_port)
+        if port == 465:
+            # Port 465 requires strict SSL from the start
+            with smtplib.SMTP_SSL(smtp_host, port) as server:
+                server.login(smtp_email, smtp_password)
+                server.send_message(msg)
+        else:
+            # Ports 587 or 25 use TLS upgrading
+            with smtplib.SMTP(smtp_host, port) as server:
+                server.starttls()
+                server.login(smtp_email, smtp_password)
+                server.send_message(msg)
+
+        return f"SUCCESS: Email sent to {recipient_email} from tenant {smtp_email}"
+
+    except Exception as e:
+        error_msg = f"Tenant Email Error (Company {company_id}): {str(e)}"
+        print(error_msg)
+        return error_msg
+    finally:
+        conn.close()
