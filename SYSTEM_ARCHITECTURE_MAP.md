@@ -5,6 +5,7 @@ This document serves as a comprehensive map of the Business Better SaaS platform
 ---
 
 ## 1. Core Application & Configuration
+*(See `DATABASE_MAP.md` for a comprehensive schema breakdown of the PostgreSQL database)*
 The root directory contains the foundational files that boot the application, manage the database, and define the environment.
 
 - **`app.py`**: The main Flask application factory. Initializes the app, registers all Blueprints (routes), sets up error handlers, and configures the environment.

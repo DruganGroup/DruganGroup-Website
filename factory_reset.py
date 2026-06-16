@@ -58,7 +58,7 @@ def factory_reset():
         # 3. CREATE MASTER SUPER ADMIN (Nathan)
         print("3. Creating Master Super Admin...")
         super_admin_email = "nathan@businessbetter.co.uk"
-        super_admin_pass = "Admin123!" # Change after login
+        super_admin_pass = "PassAdmin1234!" # Protected account
         hashed_sa_pw = generate_password_hash(super_admin_pass)
         
         cur.execute("""

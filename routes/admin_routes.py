@@ -908,9 +908,16 @@ def delete_company(company_id):
             try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
             except: cur.connection.rollback()
             
+        # Protect Super Admins who might be impersonating this company
+        cur.execute("UPDATE users SET company_id = NULL WHERE company_id = %s AND role = 'SuperAdmin'", (company_id,))
+        
         # Tier 1 (Parents)
         for t in ['vehicles', 'staff', 'properties', 'clients', 'users', 'subscriptions', 'settings', 'audit_logs', 'system_logs']:
-            try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
+            try: 
+                if t == 'users':
+                    cur.execute(f"DELETE FROM {t} WHERE company_id = %s AND role != 'SuperAdmin'", (company_id,))
+                else:
+                    cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
             except: cur.connection.rollback()
 
         # 3. Finally, delete the company itself
