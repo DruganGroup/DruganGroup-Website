@@ -788,31 +788,26 @@ def email_invoice(invoice_id):
     try:
         pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
         
-        msg = MIMEMultipart()
-        msg['From'] = settings.get('smtp_email')
-        msg['To'] = client_email
-        msg['Subject'] = f"Invoice {invoice_ref} from {session.get('company_name')}"
+        # 6. Send Email (via Celery)
+        from tasks import send_tenant_email_task
         
-        body = f"Dear {inv[5]},\n\nPlease find attached invoice {invoice_ref}.\n\nTotal Due: {settings.get('currency_symbol','£')}{total_val:.2f}\n\nKind regards,\n{session.get('company_name')}"
-        msg.attach(MIMEText(body, 'plain'))
+        subject = f"Invoice {invoice_ref} from {session.get('company_name')}"
+        body_html = f"Dear {inv[5]},<br><br>Please find attached invoice {invoice_ref}.<br><br>Total Due: {settings.get('currency_symbol','£')}{total_val:.2f}<br><br>Kind regards,<br>{session.get('company_name')}"
         
-        with open(pdf_path, "rb") as f:
-            part = MIMEApplication(f.read(), Name=filename)
-            part['Content-Disposition'] = f'attachment; filename="{filename}"'
-            msg.attach(part)
-
-        server = smtplib.SMTP(settings['smtp_host'], int(settings.get('smtp_port', 587)))
-        server.starttls()
-        server.login(settings['smtp_email'], settings['smtp_password'])
-        server.send_message(msg)
-        server.quit()
+        send_tenant_email_task.delay(
+            company_id=company_id,
+            recipient_email=client_email,
+            subject=subject,
+            body_html=body_html,
+            attachment_path=pdf_path
+        )
         
         cur.execute("UPDATE invoices SET status = 'Sent' WHERE id = %s", (invoice_id,))
         conn.commit()
-        flash(f"✅ Invoice emailed to {client_email}!", "success")
+        flash(f"✅ Invoice is being emailed to {client_email} in the background!", "success")
 
     except Exception as e:
-        flash(f"❌ Email Error: {e}", "error")
+        flash(f"❌ Email task failed: {e}", "error")
     
     conn.close()
     return redirect(url_for('finance.finance_invoices'))
@@ -1019,16 +1014,21 @@ def settings_integrations():
             flash("❌ Partner connection removed.", "info")
             
         elif action == 'save_keys':
-            keys = [
-                'samsara_api_key', 'geotab_user', 'geotab_database', 'geotab_password',
-                'verizon_connect_api_key', 'tomtom_api_key',
-                'google_ai_key', 'openai_api_key', 'anthropic_api_key',
-                'smtp_host', 'smtp_port', 'smtp_email', 
+            plaintext_keys = [
+                'geotab_database', 'smtp_host', 'smtp_port', 'smtp_email', 
                 'imap_server', 'imap_port', 'imap_user'
             ]
             
+            encrypted_keys = [
+                'samsara_api_key', 'geotab_user', 'geotab_password',
+                'verizon_connect_api_key', 'tomtom_api_key',
+                'stripe_secret_key',
+                'google_ai_key', 'openai_api_key', 'anthropic_api_key',
+                'smtp_password', 'imap_password'
+            ]
+            
             # 1. Update standard text fields
-            for k in keys:
+            for k in plaintext_keys:
                 val = request.form.get(k)
                 if val is not None:
                     cur.execute("""
@@ -1036,12 +1036,11 @@ def settings_integrations():
                         ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
                     """, (comp_id, k, val))
 
-            # 2. Handle Passwords SEPARATELY (Only if they are not empty)
-            password_keys = ['smtp_password', 'imap_password']
-            for k in password_keys:
-                raw_pass = request.form.get(k)
-                if raw_pass and raw_pass.strip() != "":
-                    encrypted_val = encryptor.encrypt(raw_pass)
+            # 2. Handle Encrypted Keys SEPARATELY (Only if they are not empty or masked)
+            for k in encrypted_keys:
+                raw_val = request.form.get(k)
+                if raw_val and raw_val.strip() != "" and raw_val != "********":
+                    encrypted_val = encryptor.encrypt(raw_val)
                     cur.execute("""
                         INSERT INTO settings (company_id, key, value) VALUES (%s, %s, %s)
                         ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value
@@ -1345,26 +1344,21 @@ def export_payroll():
                     filename = f"Payslip_{name.replace(' ', '_')}_{today.strftime('%Y%m%d')}.pdf"
                     pdf_path = generate_pdf('finance/pdf_payslip.html', context, filename)
                     
-                    # Send Email
-                    msg = MIMEMultipart()
-                    msg['From'] = settings.get('smtp_email')
-                    msg['To'] = staff_email
-                    msg['Subject'] = f"Payslip: W/C {start_of_week.strftime('%d/%m/%Y')}"
-                    body = f"Hi {name},\n\nPlease find attached your payslip for the week commencing {start_of_week.strftime('%d/%m/%Y')}.\n\nYour net pay of {settings.get('currency_symbol', '£')}{net:.2f} will be transferred shortly.\n\nBest regards,\n{session.get('company_name')}"
-                    msg.attach(MIMEText(body, 'plain'))
+                    # Send Email (via Celery)
+                    from tasks import send_tenant_email_task
                     
-                    with open(pdf_path, "rb") as f:
-                        part = MIMEApplication(f.read(), Name=filename)
-                        part['Content-Disposition'] = f'attachment; filename="{filename}"'
-                        msg.attach(part)
-                        
-                    server = smtplib.SMTP(settings['smtp_host'], int(settings.get('smtp_port', 587)))
-                    server.starttls()
-                    server.login(settings['smtp_email'], settings['smtp_password'])
-                    server.send_message(msg)
-                    server.quit()
+                    subject = f"Payslip: W/C {start_of_week.strftime('%d/%m/%Y')}"
+                    body_html = f"Hi {name},<br><br>Please find attached your payslip for the week commencing {start_of_week.strftime('%d/%m/%Y')}.<br><br>Your net pay of {settings.get('currency_symbol', '£')}{net:.2f} will be transferred shortly.<br><br>Best regards,<br>{session.get('company_name')}"
+                    
+                    send_tenant_email_task.delay(
+                        company_id=comp_id,
+                        recipient_email=staff_email,
+                        subject=subject,
+                        body_html=body_html,
+                        attachment_path=pdf_path
+                    )
                 except Exception as e:
-                    print(f"Failed to email payslip to {staff_email}: {e}")
+                    print(f"Failed to queue payslip email for {staff_email}: {e}")
             
     conn.close()
     

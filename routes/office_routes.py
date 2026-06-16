@@ -1193,31 +1193,20 @@ def email_materials_supplier(job_id):
         filename = f"Materials_{job[0]}.pdf"
         pdf_path = generate_pdf('office/pdf_materials.html', context, filename)
         
-        import smtplib
-        from email.mime.text import MIMEText
-        from email.mime.multipart import MIMEMultipart
-        from email.mime.application import MIMEApplication
+        from tasks import send_tenant_email_task
         
-        msg = MIMEMultipart()
-        msg['From'] = settings.get('smtp_email')
-        msg['To'] = supplier_email
-        msg['Subject'] = f"Material Order - Ref: {job[0]}"
+        subject = f"Material Order - Ref: {job[0]}"
+        body_html = f"Please find attached the material order for delivery.<br><br>Delivery Address:<br>{delivery_address}<br><br>Thank you,<br>{session.get('company_name')}"
         
-        body = f"Please find attached the material order for delivery.\n\nDelivery Address:\n{delivery_address}\n\nThank you,\n{session.get('company_name')}"
-        msg.attach(MIMEText(body, 'plain'))
+        send_tenant_email_task.delay(
+            company_id=comp_id,
+            recipient_email=supplier_email,
+            subject=subject,
+            body_html=body_html,
+            attachment_path=pdf_path
+        )
         
-        with open(pdf_path, "rb") as f:
-            part = MIMEApplication(f.read(), Name=filename)
-            part['Content-Disposition'] = f'attachment; filename="{filename}"'
-            msg.attach(part)
-            
-        server = smtplib.SMTP(settings['smtp_host'], int(settings.get('smtp_port', 587)))
-        server.starttls()
-        server.login(settings['smtp_email'], settings['smtp_password'])
-        server.send_message(msg)
-        server.quit()
-        
-        return jsonify({'success': 'Email sent successfully'})
+        return jsonify({'success': 'Email queued successfully'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:

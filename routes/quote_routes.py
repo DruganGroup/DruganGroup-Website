@@ -560,32 +560,26 @@ def email_quote(quote_id):
     try:
         pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
         
-        # 6. Send Email
-        msg = MIMEMultipart()
-        msg['From'] = settings.get('smtp_email')
-        msg['To'] = client_email
-        msg['Subject'] = f"Quote {ref} - {title or 'Proposal'}"
+        # 6. Send Email (via Celery)
+        from tasks import send_tenant_email_task
         
-        body = f"Dear {client_name},\n\nPlease find attached the quote for {title}.\n\nTotal: {settings.get('currency_symbol','£')}{total_val:.2f}\n\nKind regards,\n{session.get('company_name')}"
-        msg.attach(MIMEText(body, 'plain'))
+        subject = f"Quote {ref} - {title or 'Proposal'}"
+        body_html = f"Dear {client_name},<br><br>Please find attached the quote for {title}.<br><br>Total: {settings.get('currency_symbol','£')}{total_val:.2f}<br><br>Kind regards,<br>{session.get('company_name')}"
         
-        with open(pdf_path, "rb") as f:
-            part = MIMEApplication(f.read(), Name=filename)
-            part['Content-Disposition'] = f'attachment; filename="{filename}"'
-            msg.attach(part)
-
-        server = smtplib.SMTP(settings['smtp_host'], int(settings.get('smtp_port', 587)))
-        server.starttls()
-        server.login(settings['smtp_email'], settings['smtp_password'])
-        server.send_message(msg)
-        server.quit()
+        send_tenant_email_task.delay(
+            company_id=company_id,
+            recipient_email=client_email,
+            subject=subject,
+            body_html=body_html,
+            attachment_path=pdf_path
+        )
         
         cur.execute("UPDATE quotes SET status = 'Sent' WHERE id = %s", (quote_id,))
         conn.commit()
-        flash(f"✅ Quote emailed to {client_email}!", "success")
+        flash(f"✅ Quote is being emailed to {client_email} in the background!", "success")
 
     except Exception as e:
-        flash(f"❌ Email failed: {e}", "error")
+        flash(f"❌ Email task failed: {e}", "error")
     
     conn.close()
     return redirect(url_for('quote.view_quote', quote_id=quote_id))

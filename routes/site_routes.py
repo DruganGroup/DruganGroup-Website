@@ -55,39 +55,22 @@ def get_staff_identity(user_id, cur):
     return staff_id, staff_name, comp_id, vehicle_id
 
 def send_email_notification(company_id, to_email, client_name, job_ref, address):
-    conn = None
     try:
-        conn = get_db()
-        if not conn:
-            return False
+        from tasks import send_tenant_email_task
+        subject = f"✅ Engineer Arrived: {job_ref}"
+        body_html = f"<h3>Hello {client_name},</h3><p>Our engineer has arrived at {address} and work is starting now.</p>"
         
-        cur = conn.cursor()
-        cur.execute("SELECT key, value FROM settings WHERE company_id = %s AND key IN ('smtp_host', 'smtp_port', 'smtp_email', 'smtp_password')", (company_id,))
-        settings = {row[0]: row[1] for row in cur.fetchall()}
-        
-        required = ['smtp_host', 'smtp_port', 'smtp_email', 'smtp_password']
-        if not all(k in settings for k in required):
-            return False
-
-        msg = MIMEMultipart()
-        msg['From'] = settings['smtp_email']
-        msg['To'] = to_email
-        msg['Subject'] = f"✅ Engineer Arrived: {job_ref}"
-        body = f"<h3>Hello {client_name},</h3><p>Our engineer has arrived at {address} and work is starting now.</p>"
-        msg.attach(MIMEText(body, 'html'))
-
-        server = smtplib.SMTP(settings['smtp_host'], int(settings['smtp_port']))
-        server.starttls()
-        server.login(settings['smtp_email'], settings['smtp_password'])
-        server.send_message(msg)
-        server.quit()
+        send_tenant_email_task.delay(
+            company_id=company_id,
+            recipient_email=to_email,
+            subject=subject,
+            body_html=body_html,
+            attachment_path=None
+        )
         return True
     except Exception as e:
         print(f"Email notification error: {e}")
         return False
-    finally:
-        if conn:
-            conn.close()
 
 # --- ROUTE: SITE DASHBOARD ---
 @site_bp.route('/site-hub')

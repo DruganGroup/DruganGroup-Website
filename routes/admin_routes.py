@@ -615,15 +615,19 @@ def reset_user_password():
                 raw_pass = settings.get('smtp_password')
                 smtp_pass = encryptor.decrypt(raw_pass) if raw_pass else None
 
-                msg = MIMEMultipart()
-                msg['From'] = settings['smtp_email']; msg['To'] = user[1]; msg['Subject'] = "Password Reset"
-                msg.attach(MIMEText(f"Hello {user[0]},\n\nYour new password is: {secure_pass}", 'plain'))
-                server = smtplib.SMTP(settings['smtp_server'], int(settings.get('smtp_port', 587)))
-                server.starttls()
-                if smtp_pass:
-                    server.login(settings['smtp_email'], smtp_pass)
-                server.send_message(msg); server.quit()
-                flash(f"✅ Password emailed to {user[1]}")
+                smtp_data = {
+                    'smtp_server': settings.get('smtp_server'),
+                    'smtp_port': settings.get('smtp_port', 587),
+                    'smtp_email': settings.get('smtp_email'),
+                    'smtp_password': smtp_pass
+                }
+                
+                from tasks import send_system_email_task
+                subject = "Password Reset"
+                body = f"Hello {user[0]},\n\nYour new password is: {secure_pass}"
+                send_system_email_task.delay(smtp_data, user[1], subject, body)
+                
+                flash(f"✅ Password reset queued for {user[1]} in the background")
             else:
                 flash("⚠️ Password reset successful, but SMTP is not configured. User will need an admin to set a temporary password or configure SMTP.")
             

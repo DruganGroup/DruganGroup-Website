@@ -116,6 +116,43 @@ def send_welcome_email_task(company_id, owner_email, owner_name, sub_domain):
 
 
 
+@celery.task(name='tasks.send_system_email_task')
+def send_system_email_task(smtp_settings, recipient, subject, body):
+    """
+    Background task to send an email using the SuperAdmin (system_settings) SMTP credentials.
+    """
+    try:
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+        
+        msg = MIMEMultipart()
+        msg['From'] = smtp_settings['smtp_email']
+        msg['To'] = recipient
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+        
+        port = int(smtp_settings.get('smtp_port', 587))
+        host = smtp_settings['smtp_server']
+        user = smtp_settings['smtp_email']
+        password = smtp_settings.get('smtp_password')
+        
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port) as server:
+                if password:
+                    server.login(user, password)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port) as server:
+                server.starttls()
+                if password:
+                    server.login(user, password)
+                server.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"Celery System Email Error: {e}")
+        return False
+
 @celery.task(name='tasks.send_staff_email_task')
 def send_staff_email_task(smtp_settings, recipient, name, staff_role, temp_pass):
     try:
@@ -126,10 +163,22 @@ def send_staff_email_task(smtp_settings, recipient, name, staff_role, temp_pass)
         body = f"Hello {name},\n\nYou have been added to the Business Better team as a {staff_role}.\nYour temporary password is: {temp_pass}\n\nPlease login and change your password."
         msg.attach(MIMEText(body, 'plain'))
         
-        # Use SMTP_SSL for Port 465 (FastHosts requirement)
-        with smtplib.SMTP_SSL(smtp_settings['smtp_server'], int(smtp_settings['smtp_port'])) as server:
-            server.login(smtp_settings['smtp_email'], smtp_settings['smtp_password'])
-            server.send_message(msg)
+        port = int(smtp_settings.get('smtp_port', 587))
+        host = smtp_settings['smtp_server']
+        user = smtp_settings['smtp_email']
+        password = smtp_settings.get('smtp_password')
+        
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port) as server:
+                if password:
+                    server.login(user, password)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port) as server:
+                server.starttls()
+                if password:
+                    server.login(user, password)
+                server.send_message(msg)
         return True
     except Exception as e:
         print(f"Celery Email Error: {e}")
