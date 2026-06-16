@@ -507,10 +507,19 @@ def save_staff():
                 if not cur.fetchone():
                     pw = ''.join(secrets.choice(string.ascii_letters + string.digits) for i in range(12))
                     cur.execute("INSERT INTO users (username, email, password_hash, role, company_id) VALUES (%s, %s, %s, %s, %s)", (email, email, generate_password_hash(pw), access, comp_id))
-                    try: send_company_email(comp_id, email, "Your Login Details", f"<p>Username: {email}</p><p>Password: {pw}</p>")
-                    except: pass
+                    
+                    from tasks import send_tenant_email_task
+                    subject = "Your Login Details"
+                    body_html = f"<h3>Welcome to Business Better</h3><p>Your account has been created. You can log in using the details below:</p><p><strong>Username:</strong> {email}</p><p><strong>Password:</strong> {pw}</p><p>Please log in and change your password securely via your Profile settings.</p>"
+                    send_tenant_email_task.delay(
+                        company_id=comp_id,
+                        recipient_email=email,
+                        subject=subject,
+                        body_html=body_html,
+                        attachment_path=None
+                    )
             
-            flash("✅ New employee added.")
+            flash("✅ New employee added. Login details emailed.")
 
         conn.commit()
     except Exception as e:

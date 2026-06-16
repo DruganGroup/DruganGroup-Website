@@ -271,55 +271,95 @@
                     <h5 class="modal-title fw-bold"><i class="fas fa-id-card me-2"></i>{{ _('My Profile') }}</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <ul class="nav nav-tabs mb-3" id="profileTabs" role="tablist">
+                <div class="modal-body p-0">
+                    <!-- PROFILE HEADER -->
+                    <div class="p-4 text-center border-bottom" style="background: rgba(255,255,255,0.02);">
+                        <div class="d-inline-block position-relative mb-3">
+                            {% if my_profile.profile_photo %}
+                                <img src="/static/{{ my_profile.profile_photo }}" class="rounded-circle shadow" style="width: 100px; height: 100px; object-fit: cover; border: 3px solid #3498DB;">
+                            {% else %}
+                                <div class="rounded-circle bg-dark d-flex align-items-center justify-content-center border" style="width: 100px; height: 100px; border-color: #444 !important;">
+                                    <i class="fas fa-user fa-3x text-secondary"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <h4 class="fw-bold mb-1">{{ my_profile.name or session.get('user_name') }}</h4>
+                        <span class="badge bg-secondary mb-2">{{ my_profile.position or 'Staff' }}</span>
+                        
+                        <div class="row g-2 mt-2 px-3">
+                            <div class="col-4">
+                                <div class="p-2 rounded" style="background: rgba(255,255,255,0.05);">
+                                    <div class="small text-muted text-uppercase" style="font-size: 0.65rem;">Dept</div>
+                                    <div class="fw-bold text-white small">{{ my_profile.dept or 'N/A' }}</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 rounded" style="background: rgba(255,255,255,0.05);">
+                                    <div class="small text-muted text-uppercase" style="font-size: 0.65rem;">Type</div>
+                                    <div class="fw-bold text-white small">{{ my_profile.employment_type or 'N/A' }}</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 rounded" style="background: rgba(255,255,255,0.05);">
+                                    <div class="small text-muted text-uppercase" style="font-size: 0.65rem;">Pay Rate</div>
+                                    <div class="fw-bold text-success small">£{{ my_profile.pay_rate or '0' }} /{{ my_profile.pay_model or 'Hr' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <ul class="nav nav-tabs px-3 pt-3 border-bottom" id="profileTabs" role="tablist">
                         <li class="nav-item">
-                            <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button">{{ _('Personal Details') }}</button>
+                            <button class="nav-link active fw-bold" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button"><i class="fas fa-address-book me-1"></i> {{ _('Details') }}</button>
                         </li>
                         <li class="nav-item">
-                            <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button">{{ _('Security') }}</button>
+                            <button class="nav-link fw-bold" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button"><i class="fas fa-shield-alt me-1"></i> {{ _('Security') }}</button>
                         </li>
                     </ul>
 
-                    <div class="tab-content">
+                    <div class="tab-content p-4">
                         <div class="tab-pane fade show active" id="details">
                             <form action="{{ url_for('auth.update_profile') }}" method="POST">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 
-                                <h6 class="text-white-50 fw-bold mb-2 small">{{ _('MY CONTACT INFO') }}</h6>
+                                <h6 class="text-white-50 fw-bold mb-3 small text-uppercase"><i class="fas fa-phone-alt me-2"></i>{{ _('Contact Info') }}</h6>
                                 <div class="mb-3">
-                                    <label class="form-label">{{ _('Phone Number') }}</label>
-                                    <input type="text" name="phone" class="form-control" value="{{ my_profile.phone or '' }}" placeholder="{{ _('Enter your mobile') }}">
+                                    <label class="form-label text-muted small">{{ _('Mobile Number') }}</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-dark border-secondary text-muted"><i class="fas fa-mobile-alt"></i></span>
+                                        <input type="text" name="phone" class="form-control" value="{{ my_profile.phone or '' }}" placeholder="{{ _('Enter your mobile') }}">
+                                    </div>
                                 </div>
-                                <div class="mb-3">
-                                    <label class="form-label">{{ _('Home Address') }}</label>
-                                    <textarea name="address" class="form-control" rows="2">{{ my_profile.address or '' }}</textarea>
+                                <div class="mb-4">
+                                    <label class="form-label text-muted small">{{ _('Home Address') }}</label>
+                                    <textarea name="address" class="form-control" rows="2" placeholder="{{ _('Full residential address') }}">{{ my_profile.address or '' }}</textarea>
                                 </div>
                                 
-                                <hr class="border-secondary my-4">
-                                
-                                <h6 class="text-danger fw-bold mb-3"><i class="fas fa-heartbeat me-2"></i>{{ _('EMERGENCY CONTACT (Next of Kin)') }}</h6>
-                                <div class="row g-2">
+                                <h6 class="text-danger fw-bold mb-3 small text-uppercase mt-4 pt-3 border-top border-secondary"><i class="fas fa-heartbeat me-2"></i>{{ _('Emergency Contact') }}</h6>
+                                <div class="row g-3">
                                     <div class="col-md-7">
-                                        <label class="form-label">{{ _('Full Name') }}</label>
+                                        <label class="form-label text-muted small">{{ _('Full Name') }}</label>
                                         <input type="text" name="nok_name" class="form-control" value="{{ my_profile.nok_name or '' }}" placeholder="{{ _('e.g. Sarah Smith') }}">
                                     </div>
                                     <div class="col-md-5">
-                                        <label class="form-label">{{ _('Relationship') }}</label>
+                                        <label class="form-label text-muted small">{{ _('Relationship') }}</label>
                                         <input type="text" name="nok_relationship" class="form-control" value="{{ my_profile.nok_relationship or '' }}" placeholder="{{ _('e.g. Wife, Mother') }}">
                                     </div>
                                     <div class="col-12">
-                                        <label class="form-label">{{ _('Emergency Phone') }}</label>
-                                        <input type="text" name="nok_phone" class="form-control" value="{{ my_profile.nok_phone or '' }}" placeholder="{{ _('Emergency number') }}">
+                                        <label class="form-label text-muted small">{{ _('Emergency Phone') }}</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-dark border-secondary text-muted"><i class="fas fa-phone"></i></span>
+                                            <input type="text" name="nok_phone" class="form-control" value="{{ my_profile.nok_phone or '' }}" placeholder="{{ _('Emergency number') }}">
+                                        </div>
                                     </div>
                                     <div class="col-12">
-                                        <label class="form-label">{{ _('Address (if different)') }}</label>
+                                        <label class="form-label text-muted small">{{ _('Address (if different)') }}</label>
                                         <textarea name="nok_address" class="form-control" rows="1" placeholder="{{ _('Leave blank if same as yours') }}">{{ my_profile.nok_address or '' }}</textarea>
                                     </div>
                                 </div>
 
-                                <div class="d-grid mt-4">
-                                    <button type="submit" class="btn btn-primary fw-bold">{{ _('Save Details') }}</button>
+                                <div class="d-grid mt-4 pt-2">
+                                    <button type="submit" class="btn btn-primary fw-bold"><i class="fas fa-save me-2"></i>{{ _('Save Changes') }}</button>
                                 </div>
                             </form>
                         </div>
