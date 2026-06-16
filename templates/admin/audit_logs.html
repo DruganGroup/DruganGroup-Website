@@ -46,20 +46,20 @@
         <tbody>
             {% for log in logs %}
             <tr>
-                <td class="small text-muted">{{ log[0] }}</td>
+                <td class="small text-white-50">{{ log[0] }}</td>
                 <td>
                     <div class="fw-bold text-white">{{ log[1] }}</div>
-                    {% if log[6] %}<div class="small text-muted">{{ log[6] }}</div>{% endif %}
+                    {% if log[6] %}<div class="small text-white-50">{{ log[6] }}</div>{% endif %}
                 </td>
                 <td><span class="badge-action">{{ log[2] }}</span></td>
                 <td>
                     <div class="text-white small fw-bold">{{ log[3] }}</div>
-                    <div class="small text-muted">{{ log[4] }}</div>
+                    <div class="small text-white-50">{{ log[4] }}</div>
                 </td>
-                <td class="small font-monospace text-muted">{{ log[5] }}</td>
+                <td class="small font-monospace text-white-50">{{ log[5] }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="5" class="text-center p-5 text-muted">No audit logs found.</td></tr>
+            <tr><td colspan="5" class="text-center p-5 text-white-50">No audit logs found.</td></tr>
             {% endfor %}
         </tbody>
     </table>

@@ -141,22 +141,22 @@
                     <thead style="position: sticky; top: 0; background: #1a1a1a; z-index: 1;">
                         <tr>
                             <th class="ps-4">Time</th>
-                            <th>User/Email</th>
+                            <th>Admin</th>
                             <th>Action</th>
-                            <th class="pe-4">Details</th>
+                            <th>Target</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for log in audit_logs %}
                         <tr>
-                            <td class="ps-4 text-muted">{{ log.time }}</td>
+                            <td class="ps-4 text-white-50">{{ log.time }}</td>
                             <td class="text-info">{{ log.user }}</td>
-                            <td><span class="badge bg-secondary">{{ log.action }}</span></td>
-                            <td class="pe-4">{{ log.details }}</td>
+                            <td><span class="badge bg-dark border border-secondary text-white">{{ log.action }}</span></td>
+                            <td class="text-white-50">{{ log.target }}</td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="4" class="text-center py-5 text-muted">No audit logs available for this tenant.</td>
+                            <td colspan="4" class="text-center py-5 text-white-50">No audit logs available for this tenant.</td>
                         </tr>
                         {% endfor %}
                     </tbody>

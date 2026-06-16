@@ -224,23 +224,23 @@
                 <form action="/admin/settings" method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="modal-body">
-                        <p class="text-muted small">Configure the master email server used to send passwords to new internal BB Staff and reset emails.</p>
+                        <p class="text-white-50 small">Configure the master email server used to send passwords to new internal BB Staff and reset emails. <strong class="text-warning">Root admin access only.</strong></p>
                         <div class="mb-3">
-                            <label class="form-label text-uppercase small text-muted fw-bold">SMTP SERVER</label>
+                            <label class="form-label text-uppercase small text-white-50 fw-bold">SMTP SERVER</label>
                             <input type="text" name="smtp_server" class="form-control bg-dark text-white border-secondary" placeholder="e.g. smtp.gmail.com" value="{{ system_config.get('smtp_server', '') }}" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label text-uppercase small text-muted fw-bold">PORT</label>
+                            <label class="form-label text-uppercase small text-white-50 fw-bold">PORT</label>
                             <input type="text" name="smtp_port" class="form-control bg-dark text-white border-secondary" placeholder="587" value="{{ system_config.get('smtp_port', '587') }}" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label text-uppercase small text-muted fw-bold">EMAIL ADDRESS</label>
+                            <label class="form-label text-uppercase small text-white-50 fw-bold">EMAIL ADDRESS</label>
                             <input type="email" name="smtp_email" class="form-control bg-dark text-white border-secondary" placeholder="support@businessbetter.co.uk" value="{{ system_config.get('smtp_email', '') }}" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label text-uppercase small text-muted fw-bold">APP PASSWORD</label>
+                            <label class="form-label text-uppercase small text-white-50 fw-bold">APP PASSWORD</label>
                             <input type="password" name="smtp_password" class="form-control bg-dark text-white border-secondary" placeholder="••••••••••••" value="">
-                            <small class="text-muted" style="font-size:0.7rem;">Leave blank to keep existing password.</small>
+                            <small class="text-white-50" style="font-size:0.7rem;">Leave blank to keep existing password.</small>
                         </div>
                     </div>
                     <div class="modal-footer" style="border-top:1px solid #333;">

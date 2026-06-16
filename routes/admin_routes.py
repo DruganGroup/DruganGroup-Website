@@ -644,6 +644,12 @@ def reset_user_password():
 @admin_bp.route('/admin/settings', methods=['POST'])
 def save_system_settings():
     if session.get('role') != 'SuperAdmin': return "Access Denied", 403
+    
+    # Restrict SMTP modification to root admin (e.g. nathan@businessbetter.co.uk)
+    if session.get('user_email') != 'nathan@businessbetter.co.uk':
+        flash("❌ Only the Master Super Admin can modify SMTP settings.")
+        return redirect(url_for('admin.super_admin_dashboard'))
+
     conn = get_db(); cur = conn.cursor()
     settings = {
         'smtp_server': request.form.get('smtp_server'),
