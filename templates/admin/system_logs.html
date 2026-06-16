@@ -7,8 +7,24 @@
     .table-dark-custom th { color: var(--primary-gold) !important; border-color: #444 !important; }
     .log-trace { background: #000; color: #ff3333; padding: 15px; font-family: monospace; font-size: 0.75rem; border-left: 3px solid #ff3333; margin: 10px 0; white-space: pre-wrap; }
     .user-pill { background: #222; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; color: #fff; border: 1px solid #444; }
-    .btn-page { border: 1px solid var(--primary-gold); color: var(--primary-gold); padding: 5px 10px; margin: 0 2px; text-decoration: none; border-radius: 4px; }
-    .btn-page:hover { background: var(--primary-gold); color: black; }
+    .btn-page { 
+        border: 1px solid var(--border-color); 
+        background: var(--card-bg);
+        color: var(--text-muted); 
+        padding: 6px 14px; 
+        margin: 0 4px; 
+        text-decoration: none; 
+        border-radius: 50px; 
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: 0.3s;
+    }
+    .btn-page:hover, .btn-page.active { 
+        background: rgba(155, 89, 182, 0.15); 
+        color: var(--primary-purple); 
+        border-color: var(--primary-purple);
+        box-shadow: var(--glow);
+    }
 </style>
 {% endblock %}
 

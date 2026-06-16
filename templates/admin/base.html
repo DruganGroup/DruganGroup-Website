@@ -13,14 +13,17 @@
     <style>
         /* --- GLOBAL THEME VARIABLES --- */
         :root { 
-            --primary-gold: #C5A059; 
-            --bg-dark: #121212; 
-            --card-bg: #1f1f1f; 
-            --sidebar-bg: #1f1f1f;
+            --primary-gold: #D4AF37; 
+            --primary-purple: #9b59b6;
+            --neon-purple: #b678d1;
+            --bg-dark: #0f0a17; /* Deep midnight purple-black */
+            --card-bg: #181223; /* Slightly lighter deep purple */
+            --sidebar-bg: #150f1f;
             --text-main: #e0e0e0;
-            --text-muted: #a0a0a0;
-            --border-color: #333;
+            --text-muted: #958b9e;
+            --border-color: #362947;
             --sidebar-width: 280px;
+            --glow: 0 0 15px rgba(155, 89, 182, 0.4);
         }
         
         body { 
@@ -28,6 +31,9 @@
             color: var(--text-main); 
             font-family: 'Inter', sans-serif; 
             margin: 0; 
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(155, 89, 182, 0.05), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(212, 175, 55, 0.05), transparent 25%);
         }
 
         h1, h2, h3, h4, h5, h6 {
