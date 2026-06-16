@@ -56,4 +56,78 @@
     </div>
     {% endif %}
 </div>
+
+<!-- ── DANGER ZONE ── -->
+<div class="card-dark shadow-lg mt-4" style="border: 1px solid #ff3333;">
+    <div class="p-3 d-flex align-items-center" style="border-bottom: 1px solid #ff3333;">
+        <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+        <h6 class="fw-bold text-danger mb-0">Audit Maintenance — Danger Zone</h6>
+        <span class="ms-auto small text-muted">Total records: <strong class="text-white">{{ total_logs }}</strong></span>
+    </div>
+    <div class="p-3 d-flex flex-wrap gap-3 align-items-end">
+
+        <!-- DELETE OLDER THAN -->
+        <form method="POST" action="{{ url_for('admin.delete_audit_logs') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="mode" value="older_than">
+            <label class="small text-muted d-block mb-1">Delete logs older than:</label>
+            <div class="d-flex gap-2 align-items-center">
+                <select name="days" class="form-select form-select-sm" style="background:#1a1a1a; color:#fff; border-color:#444; width:120px;">
+                    <option value="30">30 days</option>
+                    <option value="60">60 days</option>
+                    <option value="90" selected>90 days</option>
+                    <option value="180">180 days</option>
+                </select>
+                <button type="submit" class="btn btn-sm btn-outline-warning"
+                        onclick="return confirm('Delete all audit logs older than the selected age?')">
+                    <i class="fas fa-trash-alt me-1"></i> Delete Old Logs
+                </button>
+            </div>
+        </form>
+
+        <!-- WIPE ALL -->
+        <div>
+            <label class="small text-muted d-block mb-1">Nuclear option:</label>
+            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#wipeAuditModal">
+                <i class="fas fa-radiation me-1"></i> Wipe ALL Audit Logs
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<!-- ── WIPE ALL CONFIRMATION MODAL ── -->
+<div class="modal fade" id="wipeAuditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background:#1a1a1a; border:1px solid #ff3333;">
+            <div class="modal-header" style="border-color:#ff3333;">
+                <h5 class="modal-title text-danger"><i class="fas fa-radiation me-2"></i>Wipe ALL Audit Logs</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-white">You are about to <strong class="text-danger">permanently delete every audit record</strong> in the database.</p>
+                <p class="text-muted small mb-3">This action is irreversible.</p>
+                <label class="small text-muted">Type <strong class="text-white">WIPE</strong> to confirm:</label>
+                <input type="text" id="wipeAuditInput" class="form-control mt-1" style="background:#111; color:#fff; border-color:#555;" placeholder="WIPE">
+            </div>
+            <div class="modal-footer" style="border-color:#333;">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ url_for('admin.delete_audit_logs') }}" id="wipeAuditForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="mode" value="all">
+                    <button type="submit" id="wipeAuditBtn" class="btn btn-danger" disabled>
+                        <i class="fas fa-radiation me-1"></i> Confirm Wipe
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Enable wipe button only when user types WIPE
+document.getElementById('wipeAuditInput').addEventListener('input', function() {
+    document.getElementById('wipeAuditBtn').disabled = (this.value.trim() !== 'WIPE');
+});
+</script>
 {% endblock %}

@@ -125,6 +125,10 @@ def super_admin_staff():
         email = request.form.get('email')
         staff_role = request.form.get('staff_role')
         
+        if staff_role == 'SuperAdmin' and session.get('user_email') != 'nathan@businessbetter.co.uk':
+            flash("❌ Only the Master Super Admin can create other Super Admins.")
+            return redirect(url_for('admin.super_admin_staff'))
+            
         from werkzeug.security import generate_password_hash
         import random, string
         temp_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
@@ -665,18 +669,17 @@ def save_system_settings():
 @admin_bp.route('/admin/assign-me/<int:company_id>')
 def assign_super_admin(company_id):
     if session.get('role') != 'SuperAdmin': return "Access Denied"
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("UPDATE users SET company_id = %s WHERE id = %s", (company_id, session.get('user_id')))
+    # Impersonation is now handled purely in the session to protect the SuperAdmin DB record
     session['company_id'] = company_id
-    conn.commit(); conn.close()
+    session['is_impersonating'] = True
     return redirect(url_for('auth.main_launcher'))
 
 @admin_bp.route('/admin/reset-me')
 def reset_super_admin():
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("UPDATE users SET company_id = NULL WHERE id = %s", (session.get('user_id'),))
+    if session.get('role') != 'SuperAdmin': return "Access Denied"
+    # Revert session back to SuperAdmin mode
     session['company_id'] = None
-    conn.commit(); conn.close()
+    session.pop('is_impersonating', None)
     return redirect(url_for('admin.super_admin_dashboard'))
 
 @admin_bp.route('/admin/suspend/<int:company_id>')
@@ -1059,6 +1062,36 @@ def setup_logs_db():
     finally: conn.close()
     return redirect(url_for('admin.super_admin_dashboard'))
 
+@admin_bp.route('/admin/audit-logs/delete', methods=['POST'])
+def delete_audit_logs():
+    if session.get('role') != 'SuperAdmin': return "Access Denied", 403
+    mode = request.form.get('mode')
+    conn = get_db(); cur = conn.cursor()
+    try:
+        if mode == 'all':
+            cur.execute("SELECT COUNT(*) FROM audit_logs")
+            count = cur.fetchone()[0]
+            cur.execute("DELETE FROM audit_logs")
+            conn.commit()
+            log_audit("DELETE AUDIT LOGS", "audit_logs", f"Wiped ALL {count} audit log entries")
+            flash(f"🗑️ All {count} audit log entries have been deleted.")
+        elif mode == 'older_than':
+            days = int(request.form.get('days', 30))
+            cur.execute("SELECT COUNT(*) FROM audit_logs WHERE created_at < NOW() - INTERVAL '%s days'", (days,))
+            count = cur.fetchone()[0]
+            cur.execute("DELETE FROM audit_logs WHERE created_at < NOW() - INTERVAL '%s days'", (days,))
+            conn.commit()
+            log_audit("DELETE AUDIT LOGS", "audit_logs", f"Deleted {count} entries older than {days} days")
+            flash(f"🗑️ Deleted {count} audit log entries older than {days} days.")
+        else:
+            flash("❌ Invalid delete mode.")
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error: {e}")
+    finally:
+        conn.close()
+    return redirect(url_for('admin.view_audit_logs'))
+
 @admin_bp.route('/admin/audit-logs')
 def view_audit_logs():
     page = request.args.get('page', 1, type=int)
@@ -1094,7 +1127,8 @@ def view_audit_logs():
     return render_template('admin/audit_logs.html', 
                            logs=logs, 
                            page=page, 
-                           total_pages=total_pages)
+                           total_pages=total_pages,
+                           total_logs=total_logs)
     
 @admin_bp.route('/admin/system-logs/delete', methods=['POST'])
 def delete_system_logs():

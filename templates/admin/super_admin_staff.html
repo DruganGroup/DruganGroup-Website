@@ -28,6 +28,9 @@
                     <select name="staff_role" class="form-select" required>
                         <option value="BB_Support">Support Agent</option>
                         <option value="BB_Sales">Account Manager / Sales</option>
+                        {% if session.get('user_email') == 'nathan@businessbetter.co.uk' %}
+                        <option value="SuperAdmin">Super Admin (Full Access)</option>
+                        {% endif %}
                     </select>
                 </div>
                 <button type="submit" class="btn btn-warning w-100 fw-bold">Add Staff</button>

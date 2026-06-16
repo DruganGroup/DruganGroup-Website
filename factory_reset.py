@@ -57,20 +57,27 @@ def factory_reset():
 
         # 3. CREATE MASTER SUPER ADMIN (Nathan)
         print("3. Creating Master Super Admin...")
-        super_admin_email = "nathan@businessbetter.co.uk"
-        super_admin_pass = "PassAdmin1234!" # Protected account
+        super_admin_email = os.environ.get("SUPERADMIN_EMAIL", "nathan@businessbetter.co.uk")
+        import random, string
+        super_admin_pass = os.environ.get("SUPERADMIN_PASS")
+        if not super_admin_pass:
+            super_admin_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+            print("⚠️ WARNING: SUPERADMIN_PASS not found in environment. Generated random password.")
         hashed_sa_pw = generate_password_hash(super_admin_pass)
         
         cur.execute("""
             INSERT INTO users (company_id, name, email, password_hash, role)
-            VALUES (NULL, 'Nathan Drugan', %s, %s, 'SuperAdmin')
+            VALUES (NULL, 'Super Admin', %s, %s, 'SuperAdmin')
         """, (super_admin_email, hashed_sa_pw))
         print("✅ Super Admin created.")
 
         # 4. CREATE DRUGAN GROUP TENANT (Info)
         print("4. Creating Drugan Group Tenant Account...")
-        dg_email = "info@drugangroup.co.uk"
-        dg_pass = "Drugan123!"
+        dg_email = os.environ.get("DEFAULT_TENANT_EMAIL", "info@drugangroup.co.uk")
+        dg_pass = os.environ.get("DEFAULT_TENANT_PASS")
+        if not dg_pass:
+            dg_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+            print("⚠️ WARNING: DEFAULT_TENANT_PASS not found in environment. Generated random password.")
         hashed_dg_pw = generate_password_hash(dg_pass)
         
         cur.execute("""
