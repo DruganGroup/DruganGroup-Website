@@ -421,19 +421,35 @@ def submit_support_ticket():
     subject = request.form.get('subject')
     description = request.form.get('description')
     
+    # Context Magic: Auto-capture user metadata
+    user_agent = request.headers.get('User-Agent', 'Unknown')
+    metadata = f"\n\n--- AUTO-DIAGNOSTICS ---\nUser ID: {user_id}\nBrowser/Device: {user_agent}\n"
+
     conn = get_db()
     cur = conn.cursor()
     try:
+        # Fetch the last 3 system errors for this company to append to the ticket
+        cur.execute("SELECT id, message, created_at FROM system_logs WHERE company_id = %s AND level = 'ERROR' ORDER BY created_at DESC LIMIT 3", (comp_id,))
+        recent_errors = cur.fetchall()
+        if recent_errors:
+            metadata += "Recent System Errors:\n"
+            for err in recent_errors:
+                metadata += f"- [{err[2]}] (Log ID: {err[0]}) {err[1][:100]}...\n"
+        else:
+            metadata += "Recent System Errors: None\n"
+            
+        full_description = description + metadata
+
         cur.execute("""
             INSERT INTO bb_support_tickets (company_id, subject, description, status)
             VALUES (%s, %s, %s, 'Open') RETURNING id
-        """, (comp_id, subject, description))
+        """, (comp_id, subject, full_description))
         ticket_id = cur.fetchone()[0]
         
         cur.execute("""
             INSERT INTO bb_ticket_messages (ticket_id, sender_type, sender_id, message)
             VALUES (%s, 'Tenant', %s, %s)
-        """, (ticket_id, user_id, description))
+        """, (ticket_id, user_id, full_description))
         conn.commit()
         flash(_("✅ Support ticket submitted successfully. BB Support will contact you shortly."), "success")
     except Exception as e:

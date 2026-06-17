@@ -345,13 +345,18 @@ def super_admin_dashboard():
     total_companies = cur.fetchone()[0]
     total_pages = math.ceil(total_companies / per_page)
 
-    # C. Fetch Paginated Companies List
+    # C. Fetch Paginated Companies List with Health Diagnostics
     cur.execute("""
-        SELECT c.id, c.name, c.sub_domain, s.plan_tier, s.status, u.email, s.start_date
+        SELECT 
+            c.id, c.name, c.sub_domain, s.plan_tier, s.status, u.email, s.start_date,
+            (SELECT COUNT(*) FROM system_logs sl WHERE sl.company_id = c.id AND sl.level = 'ERROR' AND sl.created_at > NOW() - INTERVAL '7 days') as error_count,
+            (SELECT COUNT(*) FROM bb_support_tickets bt WHERE bt.company_id = c.id AND bt.status = 'Open') as open_tickets
         FROM companies c
         LEFT JOIN subscriptions s ON c.id = s.company_id
         LEFT JOIN users u ON c.id = u.company_id AND u.role = 'Admin'
-        ORDER BY c.id DESC
+        ORDER BY 
+            (SELECT COUNT(*) FROM system_logs sl WHERE sl.company_id = c.id AND sl.level = 'ERROR' AND sl.created_at > NOW() - INTERVAL '7 days') DESC,
+            c.id DESC
         LIMIT %s OFFSET %s
     """, (per_page, offset))
     
@@ -362,6 +367,19 @@ def super_admin_dashboard():
         comp_id = row[0]
         plan_name = row[3]
         status = row[4]
+        error_count = row[7] or 0
+        open_tickets = row[8] or 0
+
+        # Health Calculation
+        health_score = 100
+        if error_count > 50: health_score -= 40
+        elif error_count > 10: health_score -= 20
+        if open_tickets > 0: health_score -= 10
+        if status == 'Suspended': health_score = 0
+        
+        health_status = 'Healthy'
+        if health_score == 0: health_status = 'Critical'
+        elif health_score < 70: health_status = 'Warning'
 
         # --- CALCULATE STORAGE --- (Optimized because it only runs for 20 companies per page)
         total_rows = 0
@@ -397,7 +415,11 @@ def super_admin_dashboard():
             'users_count': u_count,
             'vehicles_count': v_count,
             'storage': est_storage_mb,
-            'bandwidth': est_bandwidth_mb
+            'bandwidth': est_bandwidth_mb,
+            'error_count': error_count,
+            'open_tickets': open_tickets,
+            'health_score': health_score,
+            'health_status': health_status
         })
 
     # D. Optimized System KPIs

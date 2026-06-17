@@ -142,7 +142,7 @@
             </thead>
             <tbody>
                 {% for c in companies %}
-                <tr>
+                <tr {% if c['health_status'] == 'Critical' %}style="border-left: 4px solid #e74c3c;"{% elif c['health_status'] == 'Warning' %}style="border-left: 4px solid #f39c12;"{% endif %}>
                     <td>
                         <div class="d-flex align-items-center">
                             <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
@@ -166,9 +166,17 @@
                     </td>
                     <td class="text-muted">{{ c['joined'] }}</td>
                     <td>
-                        <span class="status-badge {{ 'status-active' if c['status'] == 'Active' else 'status-suspended' }}">
-                            {{ c['status'] }}
-                        </span>
+                        <div class="d-flex flex-column gap-1">
+                            <span class="status-badge {{ 'status-active' if c['status'] == 'Active' else 'status-suspended' }}">
+                                {{ c['status'] }}
+                            </span>
+                            {% if c['error_count'] > 0 %}
+                            <span class="badge bg-danger"><i class="fas fa-bug"></i> {{ c['error_count'] }} errors (7d)</span>
+                            {% endif %}
+                            {% if c['open_tickets'] > 0 %}
+                            <span class="badge bg-warning text-dark"><i class="fas fa-ticket-alt"></i> {{ c['open_tickets'] }} tickets</span>
+                            {% endif %}
+                        </div>
                     </td>
                     <td class="text-end">
                         <a href="/super-admin/company/{{ c['id'] }}" class="btn btn-sm btn-outline-light" title="Inspect"><i class="fas fa-eye"></i></a>

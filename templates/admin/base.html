@@ -142,7 +142,16 @@
 </head>
 <body>
 
-    <div class="sidebar">
+    <!-- Ghost Mode Persistent Warning (Injected into body directly so it's always at the very top and highly visible) -->
+    {% if session.get('is_impersonating') %}
+    <div style="background: #e74c3c; color: white; text-align: center; padding: 10px; font-weight: 800; font-family: 'Montserrat', sans-serif; position: fixed; top: 0; left: 0; width: 100%; z-index: 10000; box-shadow: 0 2px 10px rgba(0,0,0,0.5);">
+        <i class="fas fa-ghost me-2"></i> 
+        GHOST MODE ACTIVE: You are diagnosing a tenant's environment. Actions taken here are real.
+        <a href="/admin/reset-me" class="btn btn-sm btn-dark ms-3 fw-bold text-white border-white">Return to Command Center</a>
+    </div>
+    {% endif %}
+
+    <div class="sidebar" {% if session.get('is_impersonating') %}style="margin-top: 40px;"{% endif %}>
         <a href="/super-admin" class="brand">
             <img src="/static/images/logo.png" alt="DG">
             <div>DRUGAN <span class="tagline">GROUP</span></div>
@@ -200,7 +209,7 @@
             </div>
         </div></div>
 
-    <div class="content">
+    <div class="content" {% if session.get('is_impersonating') %}style="margin-top: 40px;"{% endif %}>
         {% with messages = get_flashed_messages() %}
             {% if messages %}
                 <div class="alert alert-dark border-secondary shadow-lg mb-4 d-flex align-items-center">
