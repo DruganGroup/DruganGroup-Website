@@ -441,7 +441,7 @@ def submit_support_ticket():
         full_description = description + metadata
 
         cur.execute("""
-            INSERT INTO bb_support_tickets (company_id, subject, description, status)
+            INSERT INTO bb_support_tickets (tenant_id, subject, description, status)
             VALUES (%s, %s, %s, 'Open') RETURNING id
         """, (comp_id, subject, full_description))
         ticket_id = cur.fetchone()[0]
