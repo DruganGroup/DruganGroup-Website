@@ -14,24 +14,35 @@ else:
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 def get_db():
-    try:
-        if DB_URL:
-            # --- LIVE (Render) ---
-            conn = psycopg2.connect(DB_URL, sslmode='require')
-        else:
-            # --- LOCAL (Laptop) ---
-            conn = psycopg2.connect(
-                dbname=os.environ.get("DB_NAME", "businessbetter"),
-                user=os.environ.get("DB_USER", "postgres"),
-                password=os.environ.get("DB_PASSWORD", ""),
-                host=os.environ.get("DB_HOST", "localhost"),
-                port=os.environ.get("DB_PORT", "5432")
-            )
-        return conn
-    except Exception as e:
-        import logging
-        logging.error(f"DB Connection Error: {e}")
-        return None
+    from flask import g
+    
+    # Check if we already have a connection for this request
+    if 'db_conn' not in g:
+        try:
+            if DB_URL:
+                # --- LIVE (Render) ---
+                g.db_conn = psycopg2.connect(DB_URL, sslmode='require')
+            else:
+                # --- LOCAL (Laptop) ---
+                g.db_conn = psycopg2.connect(
+                    dbname=os.environ.get("DB_NAME", "businessbetter"),
+                    user=os.environ.get("DB_USER", "postgres"),
+                    password=os.environ.get("DB_PASSWORD", ""),
+                    host=os.environ.get("DB_HOST", "localhost"),
+                    port=os.environ.get("DB_PORT", "5432")
+                )
+        except Exception as e:
+            import logging
+            logging.error(f"DB Connection Error: {e}")
+            return None
+            
+    return g.db_conn
+    
+def close_db_connection(e=None):
+    from flask import g
+    conn = g.pop('db_conn', None)
+    if conn is not None:
+        conn.close()
 
 def get_site_config(comp_id):
     # Default Config
@@ -61,8 +72,6 @@ def get_site_config(comp_id):
     except Exception as e:
         print(f"Config Error: {e}")
         return default_config
-    finally:
-        if conn: conn.close()
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

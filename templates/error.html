@@ -19,11 +19,46 @@
         <div class="error-code">Oops!</div>
         <div class="error-message">Something went wrong.</div>
         
-        <p class="text-muted">{{ error }}</p>
+        <p class="text-white-50">{{ error }}</p>
 
         <div class="mt-4">
-            <a href="/" class="btn-home">Return to Dashboard</a>
+            <a href="javascript:history.back()" class="btn btn-outline-secondary me-2">Go Back</a>
+            <a href="/" class="btn-home me-2">Return to Dashboard</a>
+            
+            <!-- Context-Aware Support Trigger -->
+            <button type="button" class="btn btn-warning fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#errorSupportModal">
+                Report to BB Support
+            </button>
         </div>
     </div>
+
+    <!-- Error Context Support Modal -->
+    <div class="modal fade" id="errorSupportModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content shadow-lg" style="background-color: #2c2c2c; border: 1px solid #444; color: white;">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold">Report Technical Issue</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="/auth/submit-support-ticket" method="POST">
+                    <!-- Since error page might not have a session/csrf injected properly depending on error type, we just pass the form -->
+                    <input type="hidden" name="subject" value="System Error Encountered">
+                    <div class="modal-body text-start">
+                        <p class="small text-white-50 mb-3">Our support team has already been notified of the error context in the background. Please provide a brief description of what you were trying to do when this happened.</p>
+                        
+                        <div class="mb-3">
+                            <label class="form-label" style="color:#ccc;">What were you doing?</label>
+                            <textarea name="description" class="form-control" style="background:#333; color:white; border-color:#555;" rows="4" placeholder="I was trying to upload a file to a job..." required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-secondary">
+                        <button type="submit" class="btn btn-warning fw-bold text-dark w-100">Send Report</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -126,6 +126,17 @@ def load_tenant_context():
                     g.tenant_id = company[0]
                     g.tenant_name = company[1]
                     g.is_white_label = True
+                    
+                    # ENFORCE TENANT ISOLATION: 
+                    # If a user is logged in, ensure they actually belong to this subdomain's company
+                    # Skip check for SuperAdmins or if they are impersonating
+                    logged_in_company_id = session.get('company_id')
+                    if logged_in_company_id and not session.get('is_impersonating') and session.get('role') != 'SuperAdmin':
+                        if logged_in_company_id != g.tenant_id:
+                            # They are logged in, but navigating to another company's subdomain
+                            session.clear()
+                            flash("Session expired due to invalid tenant access. Please log in again.", "danger")
+                            return redirect(url_for('auth.login'))
                 else:
                     # Subdomain exists in URL but not in DB -> 404
                     g.is_white_label = False
@@ -133,12 +144,16 @@ def load_tenant_context():
             except Exception as e:
                 print(f"Subdomain Check Error: {e}")
                 g.is_white_label = False
-            finally:
-                conn.close()
         else:
             g.is_white_label = False
     else:
         g.is_white_label = False
+
+# =========================================================
+# DATABASE TEARDOWN (PREVENT CONNECTION LEAKS)
+# =========================================================
+from db import close_db_connection
+app.teardown_appcontext(close_db_connection)
 
 # =========================================================
 # GLOBAL ERROR CAPTURE

@@ -554,15 +554,13 @@ def stripe_webhook():
     conn = get_db()
     cur = conn.cursor()
     
-    # We'd fetch the master webhook secret from env or db, but for simplicity:
-    endpoint_secret = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+    # Strictly enforce Stripe Signature verification
+    endpoint_secret = os.environ.get('STRIPE_WEBHOOK_SECRET')
+    if not endpoint_secret:
+        return jsonify({'error': 'Webhook secret not configured. Payments disabled.'}), 400
     
     try:
-        if endpoint_secret:
-            event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
-        else:
-            # Fallback if no secret configured (not secure for prod, but works for testing)
-            event = json.loads(payload)
+        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
             
         if event['type'] == 'checkout.session.completed':
             session_obj = event['data']['object']
@@ -1055,6 +1053,13 @@ def setup_bb_support_db():
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
+        
+        # Ensure company_id exists in case table was created previously without it
+        try:
+            cur.execute("ALTER TABLE bb_support_tickets ADD COLUMN IF NOT EXISTS company_id INTEGER;")
+        except:
+            pass
+            
         cur.execute("""
             CREATE TABLE IF NOT EXISTS bb_ticket_messages (
                 id SERIAL PRIMARY KEY,
