@@ -288,7 +288,18 @@ def save_generic_cert(country_code, cert_type):
                 INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type, uploaded_at)
                 VALUES (%s, %s, %s, %s, NOW())
             """, (job_id, db_path, session.get('user_id'), cert_type_upper))
-        
+
+        # 4. Link to CP12 (Gas) or EICR (Electrical) logic
+        next_due = data.get('next_date')
+        if next_due:
+            gas_equivalents = ['gas_cert', 'qualigaz', 'gas_dvgw', 'epa_energy']
+            electrical_equivalents = ['nfpa70e', 'esa_defect', 'ccew', 'cie_elec', 'consuel', 'dguv_v3', 'dewa_elec']
+            
+            if cert_type.lower() in gas_equivalents:
+                cur.execute("UPDATE properties SET gas_expiry = %s WHERE id = %s AND company_id = %s", (next_due, prop_id, comp_id))
+            elif cert_type.lower() in electrical_equivalents:
+                cur.execute("UPDATE properties SET eicr_expiry = %s WHERE id = %s AND company_id = %s", (next_due, prop_id, comp_id))
+
         conn.commit(); conn.close()
         
         return jsonify({'success': True, 'redirect_url': '/office-hub'})

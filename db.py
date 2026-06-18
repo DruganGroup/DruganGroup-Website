@@ -2,7 +2,7 @@ import psycopg2
 import os
 
 # Database Configuration
-DB_URL = os.environ.get("DATABASE_URL")
+# Do not cache DB_URL globally so it can be dynamically loaded after dotenv is applied
 
 # --- THIS WAS MISSING ---
 # We define the upload folder here so other files can import it
@@ -19,9 +19,10 @@ def get_db():
     # Check if we already have a connection for this request
     if 'db_conn' not in g:
         try:
-            if DB_URL:
+            db_url = os.environ.get("DATABASE_URL")
+            if db_url:
                 # --- LIVE (Render) ---
-                g.db_conn = psycopg2.connect(DB_URL, sslmode='require')
+                g.db_conn = psycopg2.connect(db_url, sslmode='require')
             else:
                 # --- LOCAL (Laptop) ---
                 g.db_conn = psycopg2.connect(

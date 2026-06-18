@@ -102,6 +102,23 @@ Publicly accessible files served directly to the browser.
 
 ---
 
+## 7. Development Utilities
+- **`check_db.py`**: Local development utility to audit database schema.
+- **`factory_reset.py`**: Destructive script to drop and recreate database tables. Not used in production.
+- **`generate_codebase_map.py`**: A utility script used to generate a map of the codebase.
+
+---
+
+## 8. Regional Certificates & Compliance Routing
+The system dynamically routes and generates compliance certificates based on a company's country code. Rather than using the UK-specific CP12 and EICR certificates universally, the application will leverage native templates for relevant countries.
+
+**Mapping Logic (`utils/certificates.py` & `routes/compliance_routes.py`)**:
+- **Gas (CP12 Equivalents)**: `gas_cert` (Spain), `qualigaz` (France), `gas_dvgw` (Germany), `epa_energy` (USA).
+- **Electrical (EICR Equivalents)**: `nfpa70e` (USA), `esa_defect` (Canada), `ccew` (Australia), `cie_elec` (Spain), `consuel` (France), `dguv_v3` (Germany), `dewa_elec` (UAE).
+- When a regional certificate is generated and saved via `/office/cert/<country_code>/<cert_type>/save`, it intelligently updates the property's `gas_expiry` or `eicr_expiry` depending on the certificate class to ensure accurate compliance tracking.
+
+---
+
 ## System Workflow Example: A Tenant Lifecycle
 1. **Signup (`auth_routes.py`)**: User selects a plan on `/register`.
 2. **Payment (`stripe_webhook`)**: Stripe processes payment, pings webhook, marking `subscriptions.status = Active`.

@@ -7,6 +7,9 @@ public_bp = Blueprint('public', __name__)
 # --- CONFIGURATION ---
 DOMAIN_SOFTWARE = 'businessbetter.co.uk'
 
+def is_bb(host):
+    return DOMAIN_SOFTWARE in host or 'localhost' in host or '127.0.0.1' in host
+
 # --- MAIN PAGES ---
 @public_bp.route('/')
 @public_bp.route('/index')
@@ -52,7 +55,7 @@ def home():
         conn.close()
 
     # 2. DEFAULT: SHOW MARKETING SITE
-    if 'businessbetter.co.uk' in host:
+    if is_bb(host):
         return render_template('publicbb/index.html')
     else:
         return render_template('public/index.html')
@@ -62,7 +65,7 @@ def home():
 def about():
     host = request.host.lower()
     
-    if DOMAIN_SOFTWARE in host:
+    if is_bb(host):
         return render_template('publicbb/about.html')
     else:
         return render_template('public/about.html')
@@ -72,7 +75,7 @@ def about():
 def contact():
     host = request.host.lower()
 
-    if DOMAIN_SOFTWARE in host:
+    if is_bb(host):
         # Points to Business Better contact page
         return render_template('publicbb/contact.html') 
     else:
@@ -114,7 +117,7 @@ def pricing():
 @public_bp.route('/features')
 def features():
     host = request.host.lower()
-    if DOMAIN_SOFTWARE in host:
+    if is_bb(host):
         return render_template('publicbb/features.html')
     else:
         return render_template('public/index.html')
@@ -123,7 +126,7 @@ def features():
 @public_bp.route('/features/trade')
 def features_trade():
     host = request.host.lower()
-    if DOMAIN_SOFTWARE in host:
+    if is_bb(host):
         return render_template('publicbb/features_trade.html')
     else:
         return render_template('public/index.html')
@@ -132,7 +135,7 @@ def features_trade():
 @public_bp.route('/features/agents')
 def features_agents():
     host = request.host.lower()
-    if DOMAIN_SOFTWARE in host:
+    if is_bb(host):
         return render_template('publicbb/features_agents.html')
     else:
         return render_template('public/index.html')
@@ -141,7 +144,7 @@ def features_agents():
 @public_bp.route('/comparison')
 def comparison():
     host = request.host.lower()
-    if DOMAIN_SOFTWARE in host:
+    if is_bb(host):
         return render_template('publicbb/comparison.html')
     else:
         return render_template('public/index.html')
@@ -150,7 +153,7 @@ def comparison():
 @public_bp.route('/demo')
 def demo():
     host = request.host.lower()
-    if DOMAIN_SOFTWARE in host:
+    if is_bb(host):
         return render_template('publicbb/demo.html')
     else:
         return render_template('public/index.html')
@@ -182,7 +185,7 @@ def login_page():
     host = request.host.lower()
 
     # Check domain to ensure the right login design is shown
-    if DOMAIN_SOFTWARE in host:
+    if is_bb(host):
         return render_template('publicbb/login.html')
     else:
         return render_template('public/login.html')
@@ -221,7 +224,7 @@ def management():
 @public_bp.route('/help')
 def help_center():
     host = request.host.lower()
-    if DOMAIN_SOFTWARE in host:
+    if is_bb(host):
         return render_template('publicbb/help.html')
     else:
         # If trade site users need help, maybe redirect to contact or a different page

@@ -1,6 +1,8 @@
 import os
 import traceback
 from datetime import timedelta
+from dotenv import load_dotenv
+load_dotenv()
 # Added 'g' to imports for White Label Logic
 from flask import Flask, render_template, request, session, send_from_directory, abort, redirect, url_for, session, g
 from werkzeug.exceptions import HTTPException
