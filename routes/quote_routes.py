@@ -121,17 +121,6 @@ def smart_calculate(trade_type):
     finally:
         if conn: conn.close()
 
-# --- HELPER: GET SITE CONFIG (PRESERVED) ---
-def get_site_config(comp_id):
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
-    settings = {row[0]: row[1] for row in cur.fetchall()}
-    conn.close()
-    return {
-        'color': settings.get('brand_color', '#333333'),
-        'logo': settings.get('logo', '')
-    }
-
 # =========================================================
 # 1. NEW QUOTE (Display Page) - UPGRADED
 # =========================================================
