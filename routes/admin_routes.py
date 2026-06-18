@@ -350,7 +350,7 @@ def super_admin_dashboard():
         SELECT 
             c.id, c.name, c.sub_domain, s.plan_tier, s.status, u.email, s.start_date,
             (SELECT COUNT(*) FROM system_logs sl WHERE sl.company_id = c.id AND sl.level = 'ERROR' AND sl.created_at > NOW() - INTERVAL '7 days') as error_count,
-            (SELECT COUNT(*) FROM bb_support_tickets bt WHERE bt.company_id = c.id AND bt.status = 'Open') as open_tickets
+            (SELECT COUNT(*) FROM bb_support_tickets bt WHERE bt.tenant_id = c.id AND bt.status = 'Open') as open_tickets
         FROM companies c
         LEFT JOIN subscriptions s ON c.id = s.company_id
         LEFT JOIN users u ON c.id = u.company_id AND u.role = 'Admin'
