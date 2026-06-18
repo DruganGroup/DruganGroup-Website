@@ -1044,7 +1044,7 @@ def setup_bb_support_db():
         cur.execute("""
             CREATE TABLE IF NOT EXISTS bb_support_tickets (
                 id SERIAL PRIMARY KEY,
-                company_id INTEGER,
+                tenant_id INTEGER,
                 subject VARCHAR(200),
                 description TEXT,
                 status VARCHAR(50) DEFAULT 'Open',
@@ -1054,9 +1054,9 @@ def setup_bb_support_db():
             );
         """)
         
-        # Ensure company_id exists in case table was created previously without it
+        # Ensure tenant_id exists in case table was created previously without it
         try:
-            cur.execute("ALTER TABLE bb_support_tickets ADD COLUMN IF NOT EXISTS company_id INTEGER;")
+            cur.execute("ALTER TABLE bb_support_tickets ADD COLUMN IF NOT EXISTS tenant_id INTEGER;")
         except:
             pass
             
