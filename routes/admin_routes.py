@@ -987,6 +987,36 @@ def delete_company(company_id):
         
     return redirect(url_for('admin.super_admin_dashboard'))
 
+@admin_bp.route('/super-admin/wipe-clients-quotes', methods=['POST'])
+def wipe_clients_quotes():
+    if session.get('role') != 'SuperAdmin': return "Access Denied", 403
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("TRUNCATE TABLE clients CASCADE;")
+        conn.commit()
+        
+        uploads_dir = os.path.join(current_app.static_folder, 'uploads')
+        if os.path.exists(uploads_dir):
+            for company_dir in os.listdir(uploads_dir):
+                if company_dir.startswith('company_'):
+                    company_path = os.path.join(uploads_dir, company_dir)
+                    for subfolder in ['documents', 'evidence', 'requests', 'expenses', 'overheads', 'inbox']:
+                        target = os.path.join(company_path, subfolder)
+                        if os.path.exists(target):
+                            import shutil
+                            shutil.rmtree(target)
+                            
+        log_audit("WIPE", "All Clients & Quotes", "Surgically wiped clients, quotes, and related files.")
+        flash("✅ All clients, quotes, jobs, and associated files have been securely wiped.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error wiping clients: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('admin.super_admin_dashboard'))
+
 # --- 5. DATA CLEANUP (FORENSIC MODE) ---
 @admin_bp.route('/admin/cleanup-my-data')
 def cleanup_super_admin_data():

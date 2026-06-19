@@ -220,8 +220,8 @@ def download_invoice_pdf(invoice_id):
     }
     
     import re
-    safe_client = re.sub(r'[^a-zA-Z0-9_-]', '_', inv[4] or 'Client')
-    safe_title = re.sub(r'[^a-zA-Z0-9_-]', '_', inv[9] or 'Job')
+    safe_client = re.sub(r'[^a-zA-Z0-9_-]', '_', str(inv[4] or 'Client'))
+    safe_title = re.sub(r'[^a-zA-Z0-9_-]', '_', str(inv[9] or 'Job'))
     filename = f"Invoice_{safe_client}_{safe_title}_{ref_display}.pdf"
     try:
         pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
@@ -328,8 +328,8 @@ def download_quote_pdf(quote_id):
     }
     
     import re
-    safe_client = re.sub(r'[^a-zA-Z0-9_-]', '_', quote[4] or 'Client')
-    safe_title = re.sub(r'[^a-zA-Z0-9_-]', '_', quote[9] or 'Job')
+    safe_client = re.sub(r'[^a-zA-Z0-9_-]', '_', str(quote[4] or 'Client'))
+    safe_title = re.sub(r'[^a-zA-Z0-9_-]', '_', str(quote[9] or 'Job'))
     filename = f"Quote_{safe_client}_{safe_title}_{quote[1]}.pdf"
     
     try:

@@ -18,12 +18,12 @@ else:
 
 cur = conn.cursor()
 try:
-    print("Truncating clients cascade...")
-    cur.execute("TRUNCATE TABLE clients CASCADE;")
-    conn.commit()
-    print("Success!")
+    cur.execute("SELECT company_id, key, value FROM settings WHERE key IN ('brand_color', 'logo')")
+    rows = cur.fetchall()
+    print("SETTINGS TABLE:")
+    for r in rows:
+        print(r)
 except Exception as e:
-    conn.rollback()
     print(f"Error: {e}")
 finally:
     conn.close()
