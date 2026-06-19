@@ -9,3 +9,4 @@ cryptography
 Flask-Limiter
 celery
 redis
+python-dotenv
