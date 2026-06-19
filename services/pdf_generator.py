@@ -307,6 +307,7 @@ def generate_pdf(template_name, context, output_filename):
     else:
         pdf = ModernPDF(brand_color, company.get('name', ''))
 
+    pdf.set_title(output_filename)
     pdf.alias_nb_pages()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)

@@ -282,6 +282,7 @@ def inject_branding():
             
         return dict(brand_color=session.get('brand_color', default_color), 
                     logo=session.get('logo', default_logo),
+                    logo_url=session.get('logo', default_logo),
                     company_name=session.get('company_name', 'My Company'))
 
     # 2. IF NOT LOGGED IN BUT ON SUBDOMAIN (Use Interceptor Data)
@@ -297,13 +298,14 @@ def inject_branding():
             return dict(
                 brand_color=settings.get('brand_color', default_color),
                 logo=settings.get('logo', default_logo),
+                logo_url=settings.get('logo', default_logo),
                 company_name=g.tenant_name # Pass name for "Login to [Company]" text
             )
         except:
             pass
 
     # 3. FALLBACK (Main Marketing Site)
-    return dict(brand_color=default_color, logo=default_logo)
+    return dict(brand_color=default_color, logo=default_logo, logo_url=default_logo)
     
 @app.route('/uploads/<path:filename>')
 def serve_uploads(filename):

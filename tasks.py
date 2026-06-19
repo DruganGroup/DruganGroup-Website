@@ -244,8 +244,8 @@ def send_tenant_email_task(company_id, recipient_email, subject, body_html, atta
             attachment_path = os.path.normpath(attachment_path)
             if os.path.exists(attachment_path):
                 with open(attachment_path, "rb") as f:
-                    part = MIMEApplication(f.read(), Name=os.path.basename(attachment_path))
-                part['Content-Disposition'] = f'attachment; filename="{os.path.basename(attachment_path)}"'
+                    part = MIMEApplication(f.read(), _subtype="pdf", Name=os.path.basename(attachment_path))
+                part.add_header('Content-Disposition', 'attachment', filename=os.path.basename(attachment_path))
                 msg.attach(part)
             else:
                 print(f"⚠️ ATTACHMENT ERROR: File not found at {attachment_path}")
