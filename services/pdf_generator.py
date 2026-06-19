@@ -316,26 +316,33 @@ def generate_pdf(template_name, context, output_filename):
     if config.get('logo'):
         raw_logo = config['logo']
         final_logo_path = None
-        if os.path.exists(raw_logo):
-            final_logo_path = raw_logo
-        elif '/static/' in raw_logo:
-            try:
-                clean_path = raw_logo.split('/static/')[-1]
-                possible_path = os.path.join(current_app.static_folder, clean_path)
-                if os.path.exists(possible_path): final_logo_path = possible_path
-            except: pass
         
-        # Try relative fallback
-        if not final_logo_path:
-            try:
-                rel_path = raw_logo.lstrip('/')
-                possible_path = os.path.join(current_app.root_path, rel_path)
-                if os.path.exists(possible_path): final_logo_path = possible_path
-            except: pass
+        # 1. Clean the path by removing file:// if it exists
+        clean_logo = raw_logo.replace('file://', '')
+        
+        # 2. Check if absolute path exists
+        if os.path.exists(clean_logo):
+            final_logo_path = clean_logo
+        else:
+            # 3. Handle relative or web paths (like /uploads/... or /static/...)
+            # Strip leading slashes to prevent os.path.join from treating it as root
+            rel_logo = clean_logo.lstrip('/')
+            
+            # Try against static folder
+            static_guess = os.path.join(current_app.static_folder, rel_logo.replace('static/', ''))
+            if os.path.exists(static_guess):
+                final_logo_path = static_guess
+            else:
+                # Try against root folder
+                root_guess = os.path.join(current_app.root_path, rel_logo)
+                if os.path.exists(root_guess):
+                    final_logo_path = root_guess
 
         if final_logo_path:
-            try: pdf.image(final_logo_path, 10, 10 if selected_theme=='Minimal' else 25, 40 if selected_theme=='Minimal' else 50)
-            except: pass
+            try:
+                pdf.image(final_logo_path, 10, 10 if selected_theme=='Minimal' else 25, 40 if selected_theme=='Minimal' else 50)
+            except Exception as e:
+                print(f"Error drawing logo in PDF: {e}")
 
     # --- HEADER ---
     pdf.set_y(25 if selected_theme != 'Minimal' else 15)

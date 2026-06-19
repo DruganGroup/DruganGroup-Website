@@ -259,46 +259,46 @@ def inject_currency():
         return dict(currency_symbol=symbol)
     except: return dict(currency_symbol=default_sym)
 
+from db import get_site_config
+
 @app.context_processor
 def inject_branding():
     # Defaults
     default_color = '#c5a059' # Gold
     default_logo = '/static/images/logo.png' # Business Better Logo
     
-    # 1. IF LOGGED IN (Use Session Data)
+    # 1. IF LOGGED IN
     if 'company_id' in session:
-        # If session data is missing, try to fetch it
-        if not session.get('brand_color') or not session.get('logo') or not session.get('company_name'):
-            try:
-                conn = get_db()
-                cur = conn.cursor()
-                cur.execute("SELECT key, value FROM settings WHERE company_id = %s AND key IN ('brand_color', 'logo', 'company_name')", (session['company_id'],))
-                settings = dict(cur.fetchall())
-                conn.close()
-                session['brand_color'] = settings.get('brand_color', default_color)
-                session['logo'] = settings.get('logo', default_logo)
-                session['company_name'] = settings.get('company_name', 'My Company')
-            except: pass
+        try:
+            config = get_site_config(session['company_id'])
             
-        return dict(brand_color=session.get('brand_color', default_color), 
-                    logo=session.get('logo', default_logo),
-                    logo_url=session.get('logo', default_logo),
-                    company_name=session.get('company_name', 'My Company'))
+            # Ensure session company_name is set
+            if not session.get('company_name'):
+                conn = get_db()
+                if conn:
+                    cur = conn.cursor()
+                    cur.execute("SELECT name FROM companies WHERE id = %s", (session['company_id'],))
+                    comp = cur.fetchone()
+                    if comp: session['company_name'] = comp[0]
+                    conn.close()
+                    
+            return dict(
+                brand_color=config.get('color') or default_color, 
+                logo=config.get('logo') or default_logo,
+                logo_url=config.get('logo') or default_logo,
+                company_name=session.get('company_name') or 'My Company'
+            )
+        except:
+            pass
 
     # 2. IF NOT LOGGED IN BUT ON SUBDOMAIN (Use Interceptor Data)
     if hasattr(g, 'is_white_label') and g.is_white_label:
         try:
-            conn = get_db()
-            cur = conn.cursor()
-            cur.execute("SELECT key, value FROM settings WHERE company_id = %s AND key IN ('brand_color', 'logo')", (g.tenant_id,))
-            settings = dict(cur.fetchall())
-            conn.close()
-            
-            # Return the Company's Branding
+            config = get_site_config(g.tenant_id)
             return dict(
-                brand_color=settings.get('brand_color', default_color),
-                logo=settings.get('logo', default_logo),
-                logo_url=settings.get('logo', default_logo),
+                brand_color=config.get('color') or default_color,
+                logo=config.get('logo') or default_logo,
+                logo_url=config.get('logo') or default_logo,
                 company_name=g.tenant_name # Pass name for "Login to [Company]" text
             )
         except:

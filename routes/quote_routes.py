@@ -570,13 +570,13 @@ def email_quote(quote_id):
         subject = f"Quote {ref} - {title or 'Proposal'}"
         body_html = f"Dear {client_name},<br><br>Please find attached the quote for {title}.<br><br>Total: {settings.get('currency_symbol','£')}{total_val:.2f}<br><br>Kind regards,<br>{session.get('company_name')}"
         
-        send_tenant_email_task.delay(
-            company_id=company_id,
-            recipient_email=client_email,
-            subject=subject,
-            body_html=body_html,
-            attachment_path=pdf_path
-        )
+        send_tenant_email_task.apply_async(kwargs={
+            'company_id': company_id,
+            'recipient_email': client_email,
+            'subject': subject,
+            'body_html': body_html,
+            'attachment_path': pdf_path
+        })
         
         cur.execute("UPDATE quotes SET status = 'Sent' WHERE id = %s", (quote_id,))
         conn.commit()
