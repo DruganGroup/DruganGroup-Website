@@ -927,27 +927,49 @@ def delete_company(company_id):
         comp_name = comp[0]
 
         # 2. Tiered Deletion (Wipe dependent data first to avoid foreign key blocks)
-        # Tier 3 (Grandchildren)
-        for t in ['invoice_items', 'quote_items', 'overhead_items', 'vehicle_crews', 'job_logs']:
-            try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
-            except: cur.connection.rollback()
+        # Tier 3 (Grandchildren without company_id)
+        subquery_deletes = [
+            "DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE company_id = %s)",
+            "DELETE FROM quote_items WHERE quote_id IN (SELECT id FROM quotes WHERE company_id = %s)",
+            "DELETE FROM overhead_items WHERE category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)",
+            "DELETE FROM job_materials WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)",
+            "DELETE FROM job_evidence WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)",
+            "DELETE FROM job_rams WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)",
+            "DELETE FROM site_diary WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)",
+            "DELETE FROM request_updates WHERE request_id IN (SELECT id FROM service_requests WHERE company_id = %s)",
+            "DELETE FROM client_notifications WHERE client_id IN (SELECT id FROM clients WHERE company_id = %s)",
+            "DELETE FROM bb_ticket_messages WHERE ticket_id IN (SELECT id FROM bb_support_tickets WHERE tenant_id = %s)"
+        ]
+        for q in subquery_deletes:
+            try: cur.execute(q, (company_id,))
+            except Exception as e:
+                print(f"Error in tier 3 delete: {e}")
+                cur.connection.rollback()
             
         # Tier 2 (Children)
-        for t in ['maintenance_logs', 'materials', 'overhead_categories', 'transactions', 'service_requests', 'invoices', 'quotes', 'jobs', 'bb_support_tickets']:
-            try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
-            except: cur.connection.rollback()
+        for t in ['vehicle_crews', 'maintenance_logs', 'materials', 'overhead_categories', 'transactions', 'service_requests', 'invoices', 'quotes', 'jobs', 'bb_support_tickets', 'company_partners', 'staff_timesheets', 'job_expenses']:
+            try: 
+                if t == 'bb_support_tickets':
+                    cur.execute("DELETE FROM bb_support_tickets WHERE tenant_id = %s", (company_id,))
+                else:
+                    cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
+            except Exception as e:
+                print(f"Error in tier 2 {t} delete: {e}")
+                cur.connection.rollback()
             
         # Protect Super Admins who might be impersonating this company
         cur.execute("UPDATE users SET company_id = NULL WHERE company_id = %s AND role = 'SuperAdmin'", (company_id,))
         
         # Tier 1 (Parents)
-        for t in ['vehicles', 'staff', 'properties', 'clients', 'users', 'subscriptions', 'settings', 'audit_logs', 'system_logs']:
+        for t in ['vehicles', 'staff', 'properties', 'clients', 'users', 'subscriptions', 'settings', 'audit_logs', 'system_logs', 'certificates']:
             try: 
                 if t == 'users':
                     cur.execute(f"DELETE FROM {t} WHERE company_id = %s AND role != 'SuperAdmin'", (company_id,))
                 else:
                     cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
-            except: cur.connection.rollback()
+            except Exception as e:
+                print(f"Error in tier 1 {t} delete: {e}")
+                cur.connection.rollback()
 
         # 3. Finally, delete the company itself
         cur.execute("DELETE FROM companies WHERE id = %s", (company_id,))
@@ -996,20 +1018,37 @@ def cleanup_super_admin_data():
         except: pass
 
         # 2. DELETE ORDER
-        grandchildren = ['invoice_items', 'quote_items', 'overhead_items', 'vehicle_crews', 'job_logs']
-        for t in grandchildren:
-            try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (target_id,))
-            except: conn.rollback() 
+        # Tier 3 (Grandchildren without company_id)
+        subquery_deletes = [
+            "DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE company_id = %s)",
+            "DELETE FROM quote_items WHERE quote_id IN (SELECT id FROM quotes WHERE company_id = %s)",
+            "DELETE FROM overhead_items WHERE category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)",
+            "DELETE FROM job_materials WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)",
+            "DELETE FROM job_evidence WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)",
+            "DELETE FROM job_rams WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)",
+            "DELETE FROM site_diary WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)",
+            "DELETE FROM request_updates WHERE request_id IN (SELECT id FROM service_requests WHERE company_id = %s)",
+            "DELETE FROM client_notifications WHERE client_id IN (SELECT id FROM clients WHERE company_id = %s)"
+        ]
+        for q in subquery_deletes:
+            try: cur.execute(q, (target_id,))
+            except Exception as e:
+                print(f"Cleanup error tier 3: {e}")
+                conn.rollback()
 
-        children = ['maintenance_logs', 'materials', 'overhead_categories', 'transactions', 'service_requests', 'invoices', 'quotes', 'jobs']
+        children = ['vehicle_crews', 'maintenance_logs', 'materials', 'overhead_categories', 'transactions', 'service_requests', 'invoices', 'quotes', 'jobs', 'staff_timesheets', 'job_expenses']
         for t in children:
             try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (target_id,))
-            except: conn.rollback()
+            except Exception as e:
+                print(f"Cleanup error tier 2 {t}: {e}")
+                conn.rollback()
 
-        parents = ['vehicles', 'staff', 'properties', 'clients']
+        parents = ['vehicles', 'staff', 'properties', 'clients', 'certificates']
         for t in parents:
             try: cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (target_id,))
-            except: conn.rollback()
+            except Exception as e:
+                print(f"Cleanup error tier 1 {t}: {e}")
+                conn.rollback()
 
         conn.commit()
         

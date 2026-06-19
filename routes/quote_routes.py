@@ -524,7 +524,19 @@ def email_quote(quote_id):
     date_fmt = '%m/%d/%Y' if country == 'US' else '%d/%m/%Y'
     formatted_date = q_date.strftime(date_fmt) if q_date else datetime.now().strftime(date_fmt)
 
+    cur.execute("SELECT name FROM companies WHERE id = %s", (company_id,))
+    c_row = cur.fetchone()
+    company_name = c_row[0] if c_row else "My Company"
+
     context = {
+        'company_id': company_id,
+        'company': {
+            'name': company_name,
+            'address': settings.get('company_address', ''),
+            'email': settings.get('company_email', ''),
+            'phone': settings.get('company_phone', ''),
+            'reg': settings.get('company_reg_number', '')
+        },
         'invoice': {
             'ref': ref, 
             'date': formatted_date,
@@ -544,7 +556,10 @@ def email_quote(quote_id):
         'is_quote': True
     }
 
-    filename = f"Quote_{ref}.pdf"
+    import re
+    safe_client = re.sub(r'[^a-zA-Z0-9_-]', '_', client_name or 'Client')
+    safe_title = re.sub(r'[^a-zA-Z0-9_-]', '_', title or 'Job')
+    filename = f"Quote_{safe_client}_{safe_title}_{ref}.pdf"
     
     try:
         pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)

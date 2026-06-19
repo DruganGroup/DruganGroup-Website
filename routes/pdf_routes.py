@@ -187,6 +187,7 @@ def download_invoice_pdf(invoice_id):
     payment_link = f"{request.host_url}pay/invoice/{invoice_id}" if stripe_key else None
 
     context = {
+        'company_id': comp_id,
         'payment_link': payment_link,
         'invoice': {
             'ref': ref_display, 
@@ -218,7 +219,10 @@ def download_invoice_pdf(invoice_id):
         'is_quote': False 
     }
     
-    filename = f"Invoice_{ref_display}.pdf"
+    import re
+    safe_client = re.sub(r'[^a-zA-Z0-9_-]', '_', inv[4] or 'Client')
+    safe_title = re.sub(r'[^a-zA-Z0-9_-]', '_', inv[9] or 'Job')
+    filename = f"Invoice_{safe_client}_{safe_title}_{ref_display}.pdf"
     try:
         pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
         return send_file(pdf_path, as_attachment=False, download_name=filename)
@@ -292,6 +296,7 @@ def download_quote_pdf(quote_id):
     country = settings.get('country_code', 'UK')
 
     context = {
+        'company_id': comp_id,
         'invoice': {
             'ref': quote[1], 
             'date': format_date_local(quote[2], country),
@@ -322,7 +327,10 @@ def download_quote_pdf(quote_id):
         'is_quote': True 
     }
     
-    filename = f"Quote_{quote[1]}.pdf"
+    import re
+    safe_client = re.sub(r'[^a-zA-Z0-9_-]', '_', quote[4] or 'Client')
+    safe_title = re.sub(r'[^a-zA-Z0-9_-]', '_', quote[9] or 'Job')
+    filename = f"Quote_{safe_client}_{safe_title}_{quote[1]}.pdf"
     
     try:
         pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
@@ -615,7 +623,7 @@ def save_and_download_rams(job_id):
 
     # 4. SAVE TO DISK
     filename = f"RAMS_{ref}_{datetime.now().strftime('%Y%m%d%H%M')}.pdf"
-    save_dir = os.path.join(current_app.static_folder, 'uploads', 'documents')
+    save_dir = os.path.join(current_app.static_folder, 'uploads', f"company_{comp_id}", 'documents')
     os.makedirs(save_dir, exist_ok=True)
     
     abs_path = os.path.join(save_dir, filename)
@@ -631,7 +639,7 @@ def save_and_download_rams(job_id):
             VALUES (%s, %s, %s, %s, %s, %s, NOW())
         """, (job_id, comp_id, json.dumps(hazards), json.dumps(ppe), method_stmt, filename))
 
-        db_path = f"static/uploads/documents/{filename}"
+        db_path = f"static/uploads/company_{comp_id}/documents/{filename}"
         cur.execute("""
             INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type, uploaded_at)
             VALUES (%s, %s, %s, 'RAMS Document', NOW())

@@ -34,6 +34,22 @@ def factory_reset():
             cur.execute(truncate_query)
             print("✅ All data wiped successfully.")
             
+            # --- PURGE UPLOAD DIRECTORIES ---
+            import shutil
+            uploads_dir = os.path.join(os.getcwd(), 'static', 'uploads')
+            print("Cleaning up old uploaded files...")
+            try:
+                if os.path.exists(uploads_dir):
+                    for item in os.listdir(uploads_dir):
+                        item_path = os.path.join(uploads_dir, item)
+                        if os.path.isdir(item_path):
+                            shutil.rmtree(item_path)
+                        else:
+                            os.remove(item_path)
+                    print("✅ All old uploads removed.")
+            except Exception as e:
+                print(f"⚠️ Error cleaning uploads: {e}")
+            
         # 2. SEED DEFAULT PRICING PLANS
         print("2. Seeding Plans...")
         plans = [

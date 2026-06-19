@@ -268,7 +268,12 @@ def generate_pdf(template_name, context, output_filename):
     Main entry point. Routes to specific generator based on filename/template.
     """
     # 1. SETUP PATHS
-    save_dir = os.path.join(current_app.static_folder, 'uploads', 'documents')
+    company_id = context.get('company_id')
+    if company_id:
+        save_dir = os.path.join(current_app.static_folder, 'uploads', f'company_{company_id}', 'documents')
+    else:
+        save_dir = os.path.join(current_app.static_folder, 'uploads', 'documents')
+        
     os.makedirs(save_dir, exist_ok=True)
     
     if os.path.isabs(output_filename):

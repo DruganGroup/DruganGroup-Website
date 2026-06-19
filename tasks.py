@@ -63,6 +63,7 @@ def generate_invoice_pdf_task(invoice_id, company_id, company_name):
         total_val = float(inv[3]) if inv[3] else 0.0
         
         context = {
+            'company_id': company_id,
             'invoice': {
                 'ref': inv[1], 'date': inv[2], 'due': inv[2],
                 'client_name': inv[5], 'client_address': inv[7], 'client_email': inv[6],
@@ -75,7 +76,9 @@ def generate_invoice_pdf_task(invoice_id, company_id, company_name):
             'config': config 
         }
 
-        filename = f"Invoice_{invoice_ref}.pdf"
+        import re
+        safe_client = re.sub(r'[^a-zA-Z0-9_-]', '_', inv[5] or 'Client')
+        filename = f"Invoice_{safe_client}_{invoice_ref}.pdf"
         
         # GENERATE PDF
         pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
