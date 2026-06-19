@@ -625,9 +625,10 @@ def settings_general():
     comp_row = cur.fetchone()
     sub_domain = comp_row[0] if comp_row else ''
     
+    config = get_site_config(comp_id)
     conn.close()
 
-    return render_template('finance/settings_general.html', settings=settings, active_tab='general', sub_domain=sub_domain)
+    return render_template('finance/settings_general.html', settings=settings, active_tab='general', sub_domain=sub_domain, brand_color=config['color'], logo_url=config['logo'])
 
 @finance_bp.route('/finance/settings/banking', methods=['GET', 'POST'])
 def settings_banking():

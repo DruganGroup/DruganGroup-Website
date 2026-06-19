@@ -239,11 +239,16 @@ def send_tenant_email_task(company_id, recipient_email, subject, body_html, atta
         msg.attach(MIMEText(body_html, 'html'))
 
         # 4. Handle Optional Attachments (e.g., Invoices or Quotes)
-        if attachment_path and os.path.exists(attachment_path):
-            with open(attachment_path, "rb") as f:
-                part = MIMEApplication(f.read(), Name=os.path.basename(attachment_path))
-            part['Content-Disposition'] = f'attachment; filename="{os.path.basename(attachment_path)}"'
-            msg.attach(part)
+        if attachment_path:
+            # Normalize path just in case
+            attachment_path = os.path.normpath(attachment_path)
+            if os.path.exists(attachment_path):
+                with open(attachment_path, "rb") as f:
+                    part = MIMEApplication(f.read(), Name=os.path.basename(attachment_path))
+                part['Content-Disposition'] = f'attachment; filename="{os.path.basename(attachment_path)}"'
+                msg.attach(part)
+            else:
+                print(f"⚠️ ATTACHMENT ERROR: File not found at {attachment_path}")
 
         # 5. Connect and Send (Dynamically handles SSL vs TLS)
         port = int(smtp_port)
