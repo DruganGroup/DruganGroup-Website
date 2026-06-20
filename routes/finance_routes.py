@@ -1351,31 +1351,31 @@ def export_payroll():
                         'staff': staff_data,
                         'currency': settings.get('currency_symbol', '£')
                     }
-                      filename = f"Payslip_{name.replace(' ', '_')}_{today.strftime('%Y%m%d')}.pdf"
-                      pdf_path = generate_pdf('finance/pdf_payslip.html', context, filename)
+                    filename = f"Payslip_{name.replace(' ', '_')}_{today.strftime('%Y%m%d')}.pdf"
+                    pdf_path = generate_pdf('finance/pdf_payslip.html', context, filename)
 
-                      import base64
-                      import os
-                      attachment_b64 = None
-                      if os.path.exists(pdf_path):
-                          with open(pdf_path, "rb") as pdf_file:
-                              attachment_b64 = base64.b64encode(pdf_file.read()).decode('utf-8')
+                    import base64
+                    import os
+                    attachment_b64 = None
+                    if os.path.exists(pdf_path):
+                        with open(pdf_path, "rb") as pdf_file:
+                            attachment_b64 = base64.b64encode(pdf_file.read()).decode('utf-8')
 
-                      # Send Email (via Celery)
-                      from tasks import send_tenant_email_task
+                    # Send Email (via Celery)
+                    from tasks import send_tenant_email_task
 
-                      subject = f"Payslip: W/C {start_of_week.strftime('%d/%m/%Y')}"
-                      body_html = f"Hi {name},<br><br>Please find attached your payslip for the week commencing {start_of_week.strftime('%d/%m/%Y')}.<br><br>Your net pay of {settings.get('currency_symbol', '£')}{net:.2f} will be transferred shortly.<br><br>Best regards,<br>{session.get('company_name')}"
+                    subject = f"Payslip: W/C {start_of_week.strftime('%d/%m/%Y')}"
+                    body_html = f"Hi {name},<br><br>Please find attached your payslip for the week commencing {start_of_week.strftime('%d/%m/%Y')}.<br><br>Your net pay of {settings.get('currency_symbol', '£')}{net:.2f} will be transferred shortly.<br><br>Best regards,<br>{session.get('company_name')}"
 
-                      send_tenant_email_task.delay(
-                          company_id=comp_id,
-                          recipient_email=staff_email,
-                          subject=subject,
-                          body_html=body_html,
-                          attachment_path=pdf_path,
-                          attachment_b64=attachment_b64,
-                          attachment_name=filename
-                      )
+                    send_tenant_email_task.delay(
+                        company_id=comp_id,
+                        recipient_email=staff_email,
+                        subject=subject,
+                        body_html=body_html,
+                        attachment_path=pdf_path,
+                        attachment_b64=attachment_b64,
+                        attachment_name=filename
+                    )
                 except Exception as e:
                     print(f"Failed to queue payslip email for {staff_email}: {e}")
             
