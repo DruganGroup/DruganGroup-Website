@@ -30,7 +30,7 @@ The application uses Flask Blueprints to organize routing logically by business 
 - **`plans.py`**: Management of subscription tiers (Bronze, Silver, Gold), pricing, and feature limitations.
 
 ### Tenant Office Hub (Operations)
-- **`office_routes.py`**: The main dashboard for tenant admins.
+- **`office_routes.py`**: The main dashboard for tenant admins. Also handles partner network dispatching and AI email summaries.
 - **`client_routes.py`**: CRM functionality; managing clients and their physical properties/sites.
 - **`quote_routes.py`**: Building, sending, and tracking estimates/quotes.
 - **`job_routes.py`**: Scheduling jobs, assigning crews/vehicles, and tracking job statuses.
@@ -48,15 +48,19 @@ The application uses Flask Blueprints to organize routing logically by business 
 ### Tenant Client Portal
 - **`portal_routes.py`**: The external-facing portal where a tenant's clients can log in to view their quotes, pay invoices, and submit service requests.
 
+### External Webhooks & API Integration
+- **`public_routes.py`**: Handles tenant Stripe checkout sessions and signatureless Stripe webhooks to automatically mark invoices as "Paid".
+- **`tasks.py`**: Background Celery workers handling intensive jobs like converting Base64 PDF data to physical attachments for automated email dispatch.
+
 ---
 
 ## 3. Microservices & Engines (`/services`)
 Isolated Python modules that handle heavy lifting and third-party interactions.
 
-- **`pdf_generator.py`**: The engine responsible for converting HTML templates and data into downloadable PDF files using libraries like `pdfkit` or `WeasyPrint`.
+- **`pdf_generator.py`**: The engine responsible for converting HTML templates and data into downloadable PDF files using libraries like `fpdf`. Injects custom branding and Stripe payment links into outputs.
 - **`imap_engine.py`**: Handles reading incoming emails (e.g., parsing replies to support tickets or automated invoice ingestion).
 - **`tax_engine.py`**: Calculates VAT/Tax based on the tenant's configured country code and local tax laws.
-- **`ai_assistant.py`**: Integration with OpenAI/LLMs to provide smart suggestions, draft emails, or analyze data.
+- **`ai_assistant.py`**: Integration with OpenAI, Anthropic, and Google Gemini to provide smart suggestions, draft emails, and analyze document inputs.
 - **`enforcement.py`**: Logic that checks tenant subscription limits (e.g., locking out users if they exceed their plan's max user limit).
 - **`calculators/`**: Sub-directory for specific complex mathematical logic (e.g., profit margin calculators).
 

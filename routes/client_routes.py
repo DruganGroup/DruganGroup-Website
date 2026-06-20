@@ -29,7 +29,7 @@ def client_dashboard():
     conn = get_db(); cur = conn.cursor()
 
     cur.execute("""
-        SELECT id, name, email, phone, site_address, status, gate_code, billing_address, notes 
+        SELECT id, name, email, phone, site_address, status, gate_code, billing_address, notes, portal_access 
         FROM clients WHERE company_id = %s ORDER BY name ASC
     """, (comp_id,))
     clients = cur.fetchall()
@@ -58,18 +58,33 @@ def add_client():
     
     # FIX: Get the correct field name from your HTML form
     billing_addr = request.form.get('billing_address')
+    portal_access = 1 if request.form.get('portal_access') == 'on' else 0
 
     # LOGIC: If address is empty, set a placeholder so DB doesn't crash
     safe_addr = billing_addr if billing_addr and billing_addr.strip() else "Address Pending"
     
     conn = get_db(); cur = conn.cursor()
     try:
-        # 1. Create Client (using billing_address)
+        from werkzeug.security import generate_password_hash
+        import secrets
+        import string
+        from tasks import send_client_portal_invite_task
+        
+        hashed_pass = None
+        temp_pass = None
+        
+        if portal_access == 1:
+            # Generate secure random password
+            alphabet = string.ascii_letters + string.digits
+            temp_pass = ''.join(secrets.choice(alphabet) for i in range(10))
+            hashed_pass = generate_password_hash(temp_pass)
+
+        # 1. Create Client (using billing_address & password_hash)
         cur.execute("""
-            INSERT INTO clients (company_id, name, email, phone, billing_address, status)
-            VALUES (%s, %s, %s, %s, %s, 'Active')
+            INSERT INTO clients (company_id, name, email, phone, billing_address, status, password_hash, portal_access)
+            VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s)
             RETURNING id
-        """, (comp_id, name, email, phone, safe_addr))
+        """, (comp_id, name, email, phone, safe_addr, hashed_pass, portal_access))
         new_id = cur.fetchone()[0]
         
         # 2. Create First Property (using the same address as the 'Site Address')
@@ -78,10 +93,113 @@ def add_client():
             VALUES (%s, %s, %s, '', 'Property', 'Active')
         """, (comp_id, new_id, safe_addr))
         
+        # 3. Fetch Company Details to construct the portal URL
+        cur.execute("SELECT subdomain, name FROM companies WHERE id = %s", (comp_id,))
+        comp_row = cur.fetchone()
+        
         conn.commit()
         flash("✅ Client Added")
+        
+        # 4. Trigger the background email task if portal access is enabled
+        if portal_access == 1 and email and comp_row and comp_row[0]:
+            subdomain = comp_row[0]
+            company_name = comp_row[1]
+            portal_url = f"https://{subdomain}.businessbetter.co.uk/portal/login/{comp_id}"
+            
+            send_client_portal_invite_task.delay(
+                company_id=comp_id,
+                client_email=email,
+                client_name=name,
+                temp_pass=temp_pass,
+                portal_url=portal_url,
+                company_name=company_name
+            )
+            flash("✉️ Welcome email with portal details is being sent to the client.", "info")
+
     except Exception as e:
         conn.rollback(); flash(f"Error: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('client.client_dashboard'))
+
+@client_bp.route('/clients/update', methods=['POST'])
+def update_client():
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Office']: return redirect(url_for('auth.login'))
+    
+    client_id = request.form.get('client_id')
+    comp_id = session.get('company_id')
+    name = request.form.get('name')
+    email = request.form.get('email')
+    phone = request.form.get('phone')
+    status = request.form.get('status')
+    billing_address = request.form.get('billing_address')
+    notes = request.form.get('notes')
+    portal_access = 1 if request.form.get('portal_access') == 'on' else 0
+
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Check current portal access to see if it's being toggled ON
+        cur.execute("SELECT portal_access, password_hash FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
+        row = cur.fetchone()
+        
+        needs_password = False
+        temp_pass = None
+        hashed_pass = None
+
+        if row:
+            current_access = row[0]
+            has_password = bool(row[1])
+            
+            # If they are enabling portal access and it was disabled OR they have no password yet
+            if portal_access == 1 and (current_access == 0 or not has_password):
+                needs_password = True
+                
+        if needs_password:
+            from werkzeug.security import generate_password_hash
+            import secrets
+            import string
+            
+            alphabet = string.ascii_letters + string.digits
+            temp_pass = ''.join(secrets.choice(alphabet) for i in range(10))
+            hashed_pass = generate_password_hash(temp_pass)
+            
+            cur.execute("""
+                UPDATE clients SET 
+                    name=%s, email=%s, phone=%s, status=%s, billing_address=%s, notes=%s, portal_access=%s, password_hash=%s
+                WHERE id=%s AND company_id=%s
+            """, (name, email, phone, status, billing_address, notes, portal_access, hashed_pass, client_id, comp_id))
+            
+            # Fetch Company Details to construct the portal URL
+            cur.execute("SELECT subdomain, name FROM companies WHERE id = %s", (comp_id,))
+            comp_row = cur.fetchone()
+            
+            if email and comp_row and comp_row[0]:
+                from tasks import send_client_portal_invite_task
+                subdomain = comp_row[0]
+                company_name = comp_row[1]
+                portal_url = f"https://{subdomain}.businessbetter.co.uk/portal/login/{comp_id}"
+                
+                send_client_portal_invite_task.delay(
+                    company_id=comp_id,
+                    client_email=email,
+                    client_name=name,
+                    temp_pass=temp_pass,
+                    portal_url=portal_url,
+                    company_name=company_name
+                )
+                flash("✉️ Portal access enabled. Welcome email sent to client.", "info")
+        else:
+            cur.execute("""
+                UPDATE clients SET 
+                    name=%s, email=%s, phone=%s, status=%s, billing_address=%s, notes=%s, portal_access=%s
+                WHERE id=%s AND company_id=%s
+            """, (name, email, phone, status, billing_address, notes, portal_access, client_id, comp_id))
+            flash("✅ Client updated successfully.")
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback(); flash(f"Error updating client: {e}", "error")
     finally:
         conn.close()
         
@@ -322,6 +440,77 @@ def get_client_properties(client_id):
     props = [{'id': r[0], 'address': f"{r[1]} {r[2] or ''}"} for r in cur.fetchall()]
     conn.close()
     return jsonify(props)
+
+@client_bp.route('/client/<int:client_id>/reset-password', methods=['POST'])
+def reset_client_password(client_id):
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Office']: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    
+    try:
+        # Verify client and ensure they have portal access
+        cur.execute("SELECT name, email, portal_access FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
+        client_row = cur.fetchone()
+        
+        if not client_row:
+            flash("Client not found.", "error")
+            return redirect(url_for('client.client_dashboard'))
+            
+        client_name, client_email, portal_access = client_row
+        
+        if not portal_access:
+            flash("Cannot reset password: This client does not have Portal Access enabled.", "error")
+            return redirect(url_for('client.view_client', client_id=client_id))
+            
+        if not client_email:
+            flash("Cannot reset password: This client does not have an email address on file.", "error")
+            return redirect(url_for('client.view_client', client_id=client_id))
+
+        from werkzeug.security import generate_password_hash
+        import secrets
+        import string
+        from tasks import send_client_portal_invite_task
+        
+        # Generate new password
+        alphabet = string.ascii_letters + string.digits
+        temp_pass = ''.join(secrets.choice(alphabet) for i in range(10))
+        hashed_pass = generate_password_hash(temp_pass)
+        
+        # Update DB
+        cur.execute("UPDATE clients SET password_hash = %s WHERE id = %s AND company_id = %s", (hashed_pass, client_id, comp_id))
+        
+        # Fetch company details for email
+        cur.execute("SELECT subdomain, name FROM companies WHERE id = %s", (comp_id,))
+        comp_row = cur.fetchone()
+        
+        conn.commit()
+        
+        if comp_row and comp_row[0]:
+            subdomain = comp_row[0]
+            company_name = comp_row[1]
+            portal_url = f"https://{subdomain}.businessbetter.co.uk/portal/login/{comp_id}"
+            
+            send_client_portal_invite_task.delay(
+                company_id=comp_id,
+                client_email=client_email,
+                client_name=client_name,
+                temp_pass=temp_pass,
+                portal_url=portal_url,
+                company_name=company_name
+            )
+            flash(f"✅ Password regenerated. A new login email has been sent to {client_email}.", "success")
+        else:
+            flash("Password updated, but could not send email (missing company details).", "warning")
+
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error resetting password: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('client.view_client', client_id=client_id))
+
 
 @client_bp.route('/client/delete/<int:client_id>')
 def delete_client(client_id):

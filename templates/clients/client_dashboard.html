@@ -80,7 +80,14 @@
                                 <button class="btn btn-sm btn-outline-dark" 
                                         title="Edit Client"
                                         type="button"
-                                        onclick="openEditModal('{{ c[0] }}', '{{ c[1] }}', '{{ c[2] }}', '{{ c[3] }}', '{{ c[5] }}', '{{ c[8] or '' }}')">
+                                        data-client-id="{{ c[0] }}"
+                                        data-client-name="{{ c[1]|e }}"
+                                        data-client-email="{{ c[2]|e if c[2] else '' }}"
+                                        data-client-phone="{{ c[3]|e if c[3] else '' }}"
+                                        data-client-status="{{ c[5]|e }}"
+                                        data-client-notes="{{ c[8]|e if c[8] else '' }}"
+                                        data-client-portal="{{ c[9] or 0 }}"
+                                        onclick="openEditModalFromData(this)">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 
@@ -145,6 +152,16 @@
                                 <label class="small fw-bold">Internal Notes</label>
                                 <input type="text" name="notes" id="c_notes" class="form-control" placeholder="Key codes, access info, etc.">
                             </div>
+                            
+                            <div class="col-12 mt-4 pt-3 border-top">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="c_portal_access" name="portal_access">
+                                    <label class="form-check-label fw-bold small text-primary" for="c_portal_access">
+                                        <i class="fas fa-globe me-1"></i> Enable Client Portal Access
+                                    </label>
+                                </div>
+                                <small class="text-muted d-block mt-1">If enabled, the client will receive an email with their login credentials.</small>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer bg-light">
@@ -172,25 +189,29 @@
         myModal.show();
     }
 
-    // 2. OPEN MODAL FOR EDITING (Fills the form with data)
-    function openEditModal(id, name, email, phone, status, notes) {
+    // 2. OPEN MODAL FOR EDITING (Fills the form with data from data attributes)
+    function openEditModalFromData(button) {
         // Reset first
         document.getElementById('clientForm').reset();
         
         // Point form to UPDATE route
         document.getElementById('clientForm').action = "/clients/update";
-        document.getElementById('client_id').value = id;
+        document.getElementById('client_id').value = button.getAttribute('data-client-id');
         
         // Update Title
+        var name = button.getAttribute('data-client-name');
         document.getElementById('modalTitle').innerText = "Edit Client: " + name;
         document.getElementById('modalSubmitBtn').innerText = "Update Record";
 
         // Inject data into inputs
         document.getElementById('c_name').value = name;
-        document.getElementById('c_email').value = (email == 'None' ? '' : email);
-        document.getElementById('c_phone').value = (phone == 'None' ? '' : phone);
-        document.getElementById('c_status').value = status;
-        document.getElementById('c_notes').value = (notes == 'None' ? '' : notes);
+        document.getElementById('c_email').value = button.getAttribute('data-client-email');
+        document.getElementById('c_phone').value = button.getAttribute('data-client-phone');
+        document.getElementById('c_status').value = button.getAttribute('data-client-status');
+        document.getElementById('c_notes').value = button.getAttribute('data-client-notes');
+        
+        // Set portal access toggle
+        document.getElementById('c_portal_access').checked = (button.getAttribute('data-client-portal') === '1');
 
         // Show the shared modal
         var myModal = new bootstrap.Modal(document.getElementById('clientModal'));

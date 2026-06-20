@@ -156,6 +156,42 @@ def send_system_email_task(smtp_settings, recipient, subject, body):
         print(f"Celery System Email Error: {e}")
         return False
 
+@celery.task(name='tasks.send_client_portal_invite_task')
+def send_client_portal_invite_task(company_id, client_email, client_name, temp_pass, portal_url, company_name):
+    """
+    Background task to send a welcome email to a new client with their portal login details.
+    Uses the universal send_tenant_email_task logic behind the scenes or directly constructs it.
+    """
+    subject = f"Welcome to the {company_name} Client Portal"
+    
+    body_html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+        <h2 style="color: #2c3e50;">Welcome, {client_name}!</h2>
+        <p>Your new client portal for <strong>{company_name}</strong> is ready.</p>
+        <p>You can securely access your quotes, invoices, and job history here:</p>
+        <p style="margin: 20px 0;">
+            <a href="{portal_url}" style="background-color: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Access Your Portal</a>
+        </p>
+        <p>Or copy this link into your browser: <br> <a href="{portal_url}">{portal_url}</a></p>
+        
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-top: 20px;">
+            <p style="margin-top: 0; font-weight: bold;">Your Login Credentials:</p>
+            <ul style="list-style-type: none; padding-left: 0;">
+                <li><strong>Email:</strong> {client_email}</li>
+                <li><strong>Temporary Password:</strong> <span style="font-family: monospace; background-color: #e9ecef; padding: 2px 6px; border-radius: 3px;">{temp_pass}</span></li>
+            </ul>
+        </div>
+        
+        <p style="margin-top: 20px;">For security reasons, we strongly recommend changing your password once you log in.</p>
+        <br>
+        <p>Best regards,<br>The {company_name} Team</p>
+    </div>
+    """
+    
+    # We call the universal tenant email sender task
+    return send_tenant_email_task(company_id, client_email, subject, body_html)
+
+
 @celery.task(name='tasks.send_staff_email_task')
 def send_staff_email_task(smtp_settings, recipient, name, staff_role, temp_pass):
     try:

@@ -62,9 +62,13 @@ def portal_auth():
     password = request.form.get('password')
     conn = get_db(); cur = conn.cursor()
     try:
-        cur.execute("SELECT id, name, password_hash FROM clients WHERE email=%s AND company_id=%s", (email, company_id))
+        cur.execute("SELECT id, name, password_hash, portal_access FROM clients WHERE email=%s AND company_id=%s", (email, company_id))
         user = cur.fetchone()
         if user and user[2] and check_password_hash(user[2], password):
+            if not user[3]:
+                flash("❌ Your portal access has been disabled by the administration.")
+                return redirect(url_for('portal.portal_login', company_id=company_id))
+                
             session['portal_client_id'] = user[0]
             session['portal_company_id'] = company_id
             session['portal_client_name'] = user[1]

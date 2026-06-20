@@ -203,7 +203,7 @@ def bb_support_dashboard():
             SELECT t.id, c.name, t.subject, t.status, t.created_at, u.name 
             FROM bb_support_tickets t
             LEFT JOIN companies c ON t.tenant_id = c.id
-            LEFT JOIN users u ON t.assigned_to = u.id
+            LEFT JOIN users u ON t.assigned_to = CAST(u.id AS VARCHAR)
             ORDER BY t.created_at DESC
         """)
         tickets = cur.fetchall()
@@ -243,7 +243,7 @@ def bb_ticket_detail(ticket_id):
         SELECT t.id, c.name, t.subject, t.status, t.created_at, u.name, t.description
         FROM bb_support_tickets t
         LEFT JOIN companies c ON t.tenant_id = c.id
-        LEFT JOIN users u ON t.assigned_to = u.id
+        LEFT JOIN users u ON t.assigned_to = CAST(u.id AS VARCHAR)
         WHERE t.id = %s
     """, (ticket_id,))
     ticket = cur.fetchone()

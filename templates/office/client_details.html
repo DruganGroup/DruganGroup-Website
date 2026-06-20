@@ -43,6 +43,13 @@
                 <ul class="dropdown-menu dropdown-menu-end shadow">
                     <li><a class="dropdown-item" href="/office/quote/new?client_id={{ client.id }}">New Quote</a></li>
                     <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form action="/client/{{ client.id }}/reset-password" method="POST" class="m-0 p-0" onsubmit="return confirm('Are you sure you want to regenerate the portal password? This will immediately send a new login email to the client.');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="dropdown-item text-primary"><i class="fas fa-key me-2"></i>Reset Portal Password</button>
+                        </form>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item text-danger" href="/client/delete/{{ client.id }}" onclick="return confirm('Archive this client?');">Delete Client</a></li>
                 </ul>
             </div>
