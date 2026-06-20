@@ -39,7 +39,6 @@ def get_date_fmt_str(company_id):
         conn = get_db(); cur = conn.cursor()
         cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'company_country'", (company_id,))
         row = cur.fetchone()
-        conn.close()
         country = row[0] if row else 'Default'
         return COUNTRY_FORMATS.get(country, COUNTRY_FORMATS['Default'])
     except:
