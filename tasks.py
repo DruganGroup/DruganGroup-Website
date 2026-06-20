@@ -189,7 +189,7 @@ def send_staff_email_task(smtp_settings, recipient, name, staff_role, temp_pass)
     
 
 @celery.task(name='tasks.send_tenant_email_task')
-def send_tenant_email_task(company_id, recipient_email, subject, body_html, attachment_path=None):
+def send_tenant_email_task(company_id, recipient_email, subject, body_html, attachment_path=None, attachment_b64=None, attachment_name=None):
     """
     Universal background task to send an email using a specific tenant's SMTP credentials.
     """
@@ -239,7 +239,13 @@ def send_tenant_email_task(company_id, recipient_email, subject, body_html, atta
         msg.attach(MIMEText(body_html, 'html'))
 
         # 4. Handle Optional Attachments (e.g., Invoices or Quotes)
-        if attachment_path:
+        if attachment_b64 and attachment_name:
+            import base64
+            file_data = base64.b64decode(attachment_b64)
+            part = MIMEApplication(file_data, _subtype="pdf", Name=attachment_name)
+            part.add_header('Content-Disposition', 'attachment', filename=attachment_name)
+            msg.attach(part)
+        elif attachment_path:
             # Normalize path just in case
             attachment_path = os.path.normpath(attachment_path)
             if os.path.exists(attachment_path):

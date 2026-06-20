@@ -1192,18 +1192,27 @@ def email_materials_supplier(job_id):
         from services.pdf_generator import generate_pdf
         filename = f"Materials_{job[0]}.pdf"
         pdf_path = generate_pdf('office/pdf_materials.html', context, filename)
-        
+
+        import base64
+        import os
+        attachment_b64 = None
+        if os.path.exists(pdf_path):
+            with open(pdf_path, "rb") as pdf_file:
+                attachment_b64 = base64.b64encode(pdf_file.read()).decode('utf-8')
+
         from tasks import send_tenant_email_task
-        
+
         subject = f"Material Order - Ref: {job[0]}"
         body_html = f"Please find attached the material order for delivery.<br><br>Delivery Address:<br>{delivery_address}<br><br>Thank you,<br>{session.get('company_name')}"
-        
+
         send_tenant_email_task.delay(
             company_id=comp_id,
             recipient_email=supplier_email,
             subject=subject,
             body_html=body_html,
-            attachment_path=pdf_path
+            attachment_path=pdf_path,
+            attachment_b64=attachment_b64,
+            attachment_name=filename
         )
         
         return jsonify({'success': 'Email queued successfully'})

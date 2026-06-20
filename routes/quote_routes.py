@@ -563,19 +563,28 @@ def email_quote(quote_id):
     
     try:
         pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
-        
+
+        import base64
+        import os
+        attachment_b64 = None
+        if os.path.exists(pdf_path):
+            with open(pdf_path, "rb") as pdf_file:
+                attachment_b64 = base64.b64encode(pdf_file.read()).decode('utf-8')
+
         # 6. Send Email (via Celery)
         from tasks import send_tenant_email_task
-        
+
         subject = f"Quote {ref} - {title or 'Proposal'}"
         body_html = f"Dear {client_name},<br><br>Please find attached the quote for {title}.<br><br>Total: {settings.get('currency_symbol','£')}{total_val:.2f}<br><br>Kind regards,<br>{session.get('company_name')}"
-        
+
         send_tenant_email_task.apply_async(kwargs={
             'company_id': company_id,
             'recipient_email': client_email,
             'subject': subject,
             'body_html': body_html,
-            'attachment_path': pdf_path
+            'attachment_path': pdf_path,
+            'attachment_b64': attachment_b64,
+            'attachment_name': filename
         })
         
         cur.execute("UPDATE quotes SET status = 'Sent' WHERE id = %s", (quote_id,))
