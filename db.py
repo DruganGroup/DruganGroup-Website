@@ -17,6 +17,10 @@ def get_db():
     from flask import g
     
     # Check if we already have a connection for this request
+    # If connection was manually closed by a route, reconnect
+    if 'db_conn' in g and getattr(g.db_conn, 'closed', 1) != 0:
+        g.pop('db_conn', None)
+
     if 'db_conn' not in g:
         try:
             db_url = os.environ.get("DATABASE_URL")
