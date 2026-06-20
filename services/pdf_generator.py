@@ -485,6 +485,16 @@ def generate_pdf(template_name, context, output_filename):
     
     pdf.multi_cell(0, 5, terms + bank)
 
+    payment_link = context.get('payment_link')
+    if payment_link:
+        pdf.ln(5)
+        pdf.set_font('Helvetica', 'B', 10)
+        pdf.set_text_color(*pdf.brand_color)
+        pdf.cell(0, 8, "Pay Securely Online via Stripe:", ln=True)
+        pdf.set_font('Helvetica', 'U', 10)
+        pdf.set_text_color(0, 102, 204)
+        pdf.cell(0, 5, payment_link, link=payment_link, ln=True)
+
     # --- SAVE ---
     pdf.output(file_path)
     return file_path

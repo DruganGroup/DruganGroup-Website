@@ -230,6 +230,176 @@ def help_center():
         # If trade site users need help, maybe redirect to contact or a different page
         return render_template('public/contact.html')
 
+import stripe
+
+@public_bp.route('/pay/invoice/<int:invoice_id>')
+def pay_invoice(invoice_id):
+    """
+    Public route for an end-client to pay an invoice via Stripe.
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # 1. Fetch invoice details
+        cur.execute("""
+            SELECT i.company_id, i.total, i.reference, i.status, c.name, c.email
+            FROM invoices i
+            JOIN clients c ON i.client_id = c.id
+            WHERE i.id = %s
+        """, (invoice_id,))
+        inv = cur.fetchone()
+        
+        if not inv:
+            return "Invoice not found.", 404
+            
+        comp_id, total, ref, status, client_name, client_email = inv
+        
+        if status == 'Paid':
+            return "This invoice has already been paid. Thank you!", 200
+            
+        # 2. Fetch the tenant's Stripe Secret Key
+        cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'stripe_secret_key'", (comp_id,))
+        stripe_row = cur.fetchone()
+        if not stripe_row or not stripe_row[0]:
+            return "Online payments are not configured for this company.", 400
+            
+        from utils.encryption import get_encryptor
+        encryptor = get_encryptor()
+        stripe_key = encryptor.decrypt(stripe_row[0])
+        
+        # 3. Create Stripe Checkout Session
+        stripe.api_key = stripe_key
+        
+        # Convert total to cents/pence
+        amount_cents = int(float(total) * 100)
+        
+        cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'currency_symbol'", (comp_id,))
+        curr_row = cur.fetchone()
+        currency_sym = curr_row[0] if curr_row else '£'
+        currency_code = 'gbp' if currency_sym == '£' else 'usd' # Simplified mapping
+        
+        # Build success/cancel URLs
+        base_url = request.host_url.rstrip('/')
+        success_url = f"{base_url}/pay/invoice/{invoice_id}/success?session_id={{CHECKOUT_SESSION_ID}}"
+        cancel_url = f"{base_url}/pay/invoice/{invoice_id}/cancel"
+        
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            customer_email=client_email,
+            line_items=[{
+                'price_data': {
+                    'currency': currency_code,
+                    'product_data': {
+                        'name': f"Invoice {ref}",
+                        'description': f"Payment for {client_name}",
+                    },
+                    'unit_amount': amount_cents,
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata={'invoice_id': invoice_id, 'company_id': comp_id}
+        )
+        
+        return redirect(session.url)
+        
+    except Exception as e:
+        return f"Error processing payment: {e}", 500
+    finally:
+        conn.close()
+
+@public_bp.route('/pay/invoice/<int:invoice_id>/success')
+def pay_invoice_success(invoice_id):
+    session_id = request.args.get('session_id')
+    if not session_id:
+        return "Invalid session.", 400
+        
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        cur.execute("SELECT company_id FROM invoices WHERE id = %s", (invoice_id,))
+        comp_row = cur.fetchone()
+        if not comp_row:
+            return "Invoice not found.", 404
+            
+        comp_id = comp_row[0]
+        
+        # Fetch key
+        cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'stripe_secret_key'", (comp_id,))
+        stripe_row = cur.fetchone()
+        if stripe_row and stripe_row[0]:
+            from utils.encryption import get_encryptor
+            encryptor = get_encryptor()
+            stripe.api_key = encryptor.decrypt(stripe_row[0])
+            
+            checkout_session = stripe.checkout.Session.retrieve(session_id)
+            if checkout_session.payment_status == 'paid':
+                cur.execute("UPDATE invoices SET status = 'Paid' WHERE id = %s", (invoice_id,))
+                conn.commit()
+                return "<h1>Payment Successful!</h1><p>Thank you. Your invoice has been marked as paid.</p>", 200
+                
+        return "Payment verification failed.", 400
+        
+    except Exception as e:
+        return f"Error: {e}", 500
+    finally:
+        conn.close()
+
+@public_bp.route('/pay/invoice/<int:invoice_id>/cancel')
+def pay_invoice_cancel(invoice_id):
+    return "<h1>Payment Cancelled</h1><p>You can try again when you are ready.</p>", 200
+
+from utils.extensions import csrf
+
+@public_bp.route('/webhooks/tenant/stripe', methods=['POST'])
+@csrf.exempt
+def tenant_stripe_webhook():
+    """
+    Handles Stripe webhooks for tenant invoices securely without requiring a webhook secret.
+    It takes the session ID from the webhook and fetches the actual session from Stripe 
+    to verify its authenticity and payment status.
+    """
+    payload = request.get_json(silent=True)
+    if not payload:
+        return "No payload", 400
+        
+    if payload.get('type') == 'checkout.session.completed':
+        session_obj = payload.get('data', {}).get('object', {})
+        session_id = session_obj.get('id')
+        
+        metadata = session_obj.get('metadata', {})
+        invoice_id = metadata.get('invoice_id')
+        comp_id = metadata.get('company_id')
+        
+        if not invoice_id or not comp_id or not session_id:
+            return "Missing metadata", 200
+            
+        conn = get_db()
+        cur = conn.cursor()
+        try:
+            cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'stripe_secret_key'", (comp_id,))
+            row = cur.fetchone()
+            if row and row[0]:
+                from utils.encryption import get_encryptor
+                stripe.api_key = get_encryptor().decrypt(row[0])
+                
+                # Fetch directly from Stripe to verify authenticity
+                verified_session = stripe.checkout.Session.retrieve(session_id)
+                if verified_session.payment_status == 'paid':
+                    cur.execute("UPDATE invoices SET status = 'Paid' WHERE id = %s AND company_id = %s", (invoice_id, comp_id))
+                    conn.commit()
+        except Exception as e:
+            conn.rollback()
+            print(f"Tenant Webhook Error: {e}")
+        finally:
+            conn.close()
+            
+    return "OK", 200
+
 @public_bp.route('/set-language/<lang>')
 def set_public_language(lang):
     """Sets the public website language in the session and redirects back."""

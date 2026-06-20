@@ -207,6 +207,25 @@ def dispatch_to_partner():
         # 3. Update my request status
         cur.execute("UPDATE service_requests SET status = 'Sent to Partner' WHERE id = %s", (req_id,))
         
+        # 4. Notify Partner via Email (From the dispatching tenant to the partner)
+        cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'company_email'", (partner_id,))
+        partner_email_row = cur.fetchone()
+        
+        if partner_email_row and partner_email_row[0]:
+            partner_email = partner_email_row[0]
+            my_company_name = session.get('company_name', 'A partner company')
+            
+            subject = f"New Partner Job Dispatched: {priority} Priority"
+            body = f"Hello,<br><br><strong>{my_company_name}</strong> has dispatched a new service request to your network.<br><br><strong>Priority:</strong> {priority}<br><strong>Description:</strong> {desc}<br><strong>Location:</strong> {address}<br><br>Please check your Service Desk to view and action this request.<br><br>Thank you."
+            
+            from tasks import send_tenant_email_task
+            send_tenant_email_task.delay(
+                company_id=comp_id,
+                recipient_email=partner_email,
+                subject=subject,
+                body_html=body
+            )
+
         conn.commit()
         flash("✅ Job successfully dispatched to partner network!", "success")
     except Exception as e:
@@ -763,17 +782,62 @@ def api_email_summarize(email_id):
     if not check_office_access(): return jsonify({'error': 'Unauthorized'}), 401
     conn = get_db(); cur = conn.cursor()
     try:
-        cur.execute("SELECT body FROM emails WHERE id = %s AND company_id = %s", (email_id, session.get('company_id')))
+        comp_id = session.get('company_id')
+        cur.execute("SELECT body FROM emails WHERE id = %s AND company_id = %s", (email_id, comp_id))
         row = cur.fetchone()
         if not row: return jsonify({'error': 'Email not found'}), 404
         
         body = row[0]
-        # In a real app we'd call openai API
-        # For now, a simple mock summary
-        from services.ai_assistant import get_openai_client
-        summary = f"Client is inquiring about..."
-        if "quote" in body.lower() and "accept" in body.lower():
-            summary = "Client is accepting a quote. You should schedule the job."
+        
+        # 1. Fetch AI Keys
+        cur.execute("SELECT key, value FROM settings WHERE company_id = %s AND key IN ('openai_api_key', 'anthropic_api_key', 'google_ai_key')", (comp_id,))
+        keys = {r[0]: r[1] for r in cur.fetchall()}
+        
+        from utils.encryption import get_encryptor
+        encryptor = get_encryptor()
+        
+        summary = "AI summarization is not configured. Please add an OpenAI, Anthropic, or Google AI API key in Settings > Integrations."
+        
+        if keys.get('openai_api_key'):
+            try:
+                import openai
+                client = openai.OpenAI(api_key=encryptor.decrypt(keys['openai_api_key']))
+                resp = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant. Summarize the following client email in 1-2 short sentences."},
+                        {"role": "user", "content": body}
+                    ]
+                )
+                summary = resp.choices[0].message.content
+            except Exception as e:
+                summary = f"OpenAI Error: {e}"
+                
+        elif keys.get('anthropic_api_key'):
+            try:
+                import anthropic
+                client = anthropic.Anthropic(api_key=encryptor.decrypt(keys['anthropic_api_key']))
+                resp = client.messages.create(
+                    model="claude-3-haiku-20240307",
+                    max_tokens=150,
+                    messages=[
+                        {"role": "user", "content": f"Summarize the following client email in 1-2 short sentences:\n\n{body}"}
+                    ]
+                )
+                summary = resp.content[0].text
+            except Exception as e:
+                summary = f"Anthropic Error: {e}"
+                
+        elif keys.get('google_ai_key'):
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=encryptor.decrypt(keys['google_ai_key']))
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                resp = model.generate_content(f"Summarize the following client email in 1-2 short sentences:\n\n{body}")
+                summary = resp.text
+            except Exception as e:
+                summary = f"Google AI Error: {e}"
+                
         return jsonify({'summary': summary})
     finally:
         conn.close()
@@ -850,12 +914,62 @@ def api_email_draft(email_id):
     if not check_office_access(): return jsonify({'error': 'Unauthorized'}), 401
     conn = get_db(); cur = conn.cursor()
     try:
-        cur.execute("SELECT body FROM emails WHERE id = %s AND company_id = %s", (email_id, session.get('company_id')))
+        comp_id = session.get('company_id')
+        cur.execute("SELECT body FROM emails WHERE id = %s AND company_id = %s", (email_id, comp_id))
         row = cur.fetchone()
         if not row: return jsonify({'error': 'Email not found'}), 404
         
-        # Mocking draft
+        body = row[0]
+        
+        # 1. Fetch AI Keys
+        cur.execute("SELECT key, value FROM settings WHERE company_id = %s AND key IN ('openai_api_key', 'anthropic_api_key', 'google_ai_key')", (comp_id,))
+        keys = {r[0]: r[1] for r in cur.fetchall()}
+        
+        from utils.encryption import get_encryptor
+        encryptor = get_encryptor()
+        
         draft = "Thank you for getting in touch. We have received your message and will respond shortly.\n\nBest regards,\nThe Office Team"
+        
+        system_prompt = f"You are an assistant for a service company named {session.get('company_name', 'our company')}. Draft a professional, polite, and concise reply to the following client email. Only return the email body without subject line."
+        
+        if keys.get('openai_api_key'):
+            try:
+                import openai
+                client = openai.OpenAI(api_key=encryptor.decrypt(keys['openai_api_key']))
+                resp = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": body}
+                    ]
+                )
+                draft = resp.choices[0].message.content
+            except: pass
+                
+        elif keys.get('anthropic_api_key'):
+            try:
+                import anthropic
+                client = anthropic.Anthropic(api_key=encryptor.decrypt(keys['anthropic_api_key']))
+                resp = client.messages.create(
+                    model="claude-3-haiku-20240307",
+                    max_tokens=300,
+                    system=system_prompt,
+                    messages=[
+                        {"role": "user", "content": body}
+                    ]
+                )
+                draft = resp.content[0].text
+            except: pass
+                
+        elif keys.get('google_ai_key'):
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=encryptor.decrypt(keys['google_ai_key']))
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                resp = model.generate_content(f"{system_prompt}\n\nClient Email:\n{body}")
+                draft = resp.text
+            except: pass
+                
         return jsonify({'draft': draft})
     finally:
         conn.close()

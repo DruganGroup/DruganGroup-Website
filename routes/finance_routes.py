@@ -770,6 +770,10 @@ def email_invoice(invoice_id):
 
     total_val = float(inv[3]) if inv[3] else 0.0
     
+    payment_link = None
+    if settings.get('stripe_secret_key'):
+        payment_link = f"{request.host_url.rstrip('/')}/pay/invoice/{invoice_id}"
+
     context = {
         'invoice': {
             'ref': inv[1], 'date': inv[2], 'due': inv[2],
@@ -777,6 +781,7 @@ def email_invoice(invoice_id):
             'total': total_val, 'subtotal': total_val, 'tax': 0.0,
             'currency_symbol': settings.get('currency_symbol', '£')
         },
+        'payment_link': payment_link,
         'company': {'name': session.get('company_name')},
         'items': items, 
         'settings': settings, 
@@ -798,7 +803,13 @@ def email_invoice(invoice_id):
         from tasks import send_tenant_email_task
 
         subject = f"Invoice {invoice_ref} from {session.get('company_name')}"
-        body_html = f"Dear {inv[5]},<br><br>Please find attached invoice {invoice_ref}.<br><br>Total Due: {settings.get('currency_symbol','£')}{total_val:.2f}<br><br>Kind regards,<br>{session.get('company_name')}"
+        body_html = f"Dear {inv[5]},<br><br>Please find attached invoice {invoice_ref}.<br><br>Total Due: {settings.get('currency_symbol','£')}{total_val:.2f}<br><br>"
+        
+        # Add Stripe Payment Link if configured
+        if payment_link:
+            body_html += f"<a href='{payment_link}' style='background-color: {settings.get('brand_color', '#0d6efd')}; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; margin-bottom: 20px;'>Pay Securely via Stripe</a><br><br>"
+            
+        body_html += f"Kind regards,<br>{session.get('company_name')}"
 
         send_tenant_email_task.delay(
             company_id=company_id,
