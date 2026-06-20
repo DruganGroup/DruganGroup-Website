@@ -1194,7 +1194,6 @@ def email_materials_supplier(job_id):
         pdf_path = generate_pdf('office/pdf_materials.html', context, filename)
 
         import base64
-        import os
         attachment_b64 = None
         if os.path.exists(pdf_path):
             with open(pdf_path, "rb") as pdf_file:

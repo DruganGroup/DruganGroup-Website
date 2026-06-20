@@ -565,7 +565,6 @@ def email_quote(quote_id):
         pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
 
         import base64
-        import os
         attachment_b64 = None
         if os.path.exists(pdf_path):
             with open(pdf_path, "rb") as pdf_file:
