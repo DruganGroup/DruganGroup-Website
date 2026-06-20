@@ -179,6 +179,19 @@ def forensics():
 def legal():
     return render_template('publicbb/legal.html')
 
+@public_bp.route('/status')
+def system_status():
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        db_status = "Operational"
+        conn.close()
+    except:
+        db_status = "Outage"
+        
+    return render_template('publicbb/status.html', db_status=db_status)
+
 @public_bp.route('/login')
 @public_bp.route('/login.html')
 def login_page():

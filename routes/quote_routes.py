@@ -124,6 +124,58 @@ def smart_calculate(trade_type):
 # =========================================================
 # 1. NEW QUOTE (Display Page) - UPGRADED
 # =========================================================
+@quote_bp.route('/office/quotes', methods=['GET'])
+def office_quotes():
+    if not check_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+
+    cur.execute("SELECT value FROM settings WHERE key='currency_symbol' AND company_id=%s", (comp_id,))
+    res = cur.fetchone(); currency = res[0] if res else '£'
+
+    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'date_format'", (comp_id,))
+    row = cur.fetchone()
+    date_fmt = row[0] if row and row[0] else '%d/%m/%Y'
+
+    def format_date(d, fmt_str):
+        if not d: return ""
+        try:
+            from datetime import datetime
+            if isinstance(d, str):
+                try: d = datetime.strptime(d[:10], '%Y-%m-%d')
+                except: return str(d)
+            return d.strftime(fmt_str)
+        except: return str(d)
+
+    cur.execute("""
+        SELECT q.id, q.reference, c.name, q.date, q.total, q.status 
+        FROM quotes q 
+        LEFT JOIN clients c ON q.client_id = c.id 
+        WHERE q.company_id = %s 
+        ORDER BY q.date DESC
+    """, (comp_id,))
+    
+    quotes = []
+    for r in cur.fetchall():
+        quotes.append({
+            'id': r[0], 
+            'ref': r[1], 
+            'client': r[2], 
+            'date': format_date(r[3], date_fmt), 
+            'total': r[4], 
+            'status': r[5]
+        })
+        
+    conn.close()
+    
+    return render_template('office/office_quotes.html', 
+                           quotes=quotes, 
+                           brand_color=config['color'], 
+                           logo_url=config['logo'],
+                           currency=currency)
+
 @quote_bp.route('/office/quote/new', methods=['GET'])
 def new_quote():
     if not check_access(): return redirect(url_for('auth.login'))

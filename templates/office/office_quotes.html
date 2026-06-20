@@ -1,0 +1,63 @@
+{% extends "office/office_base.html" %}
+{% from "components/_macros.html" import status_badge %}
+
+{% block title %}All Quotes | Business Better{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold m-0">Quote Manager</h2>
+            <p class="text-muted mb-0">Track all quotes and estimates</p>
+        </div>
+        <div class="btn-group shadow-sm">
+             <a href="/office/quote/new" class="btn btn-primary fw-bold"><i class="fas fa-plus me-2"></i>New Quote</a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white p-3 border-bottom d-flex justify-content-between">
+            <h5 class="fw-bold m-0 text-secondary">All Quotes</h5>
+            <span class="badge bg-light text-dark border">{{ quotes|length }} Records</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light text-uppercase small">
+                    <tr>
+                        <th class="ps-4">Reference</th>
+                        <th>Client</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th class="text-end pe-4">Value</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for q in quotes %}
+                    <tr>
+                        <td class="ps-4 fw-bold text-primary">{{ q.ref }}</td>
+                        <td>{{ q.client }}</td>
+                        <td class="small">{{ q.date }}</td>
+                        <td>
+                            <span class="badge rounded-pill 
+                                {% if q.status == 'Sent' %}bg-primary
+                                {% elif q.status == 'Draft' %}bg-secondary
+                                {% elif q.status == 'Accepted' %}bg-success
+                                {% else %}bg-warning text-dark{% endif %}">
+                                {{ q.status }}
+                            </span>
+                        </td>
+                        <td class="text-end pe-4 fw-bold">{{ currency }}{{ "%.2f"|format(q.total or 0) }}</td>
+                        <td class="text-end pe-4">
+                            <a href="/office/quote/{{ q.id }}" class="btn btn-sm btn-light border">
+                                View <i class="fas fa-arrow-right ms-1"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="text-center py-5 text-muted">No quotes found. Create a new quote to get started.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

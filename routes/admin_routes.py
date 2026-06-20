@@ -226,11 +226,11 @@ def bb_ticket_detail(ticket_id):
                     INSERT INTO bb_ticket_messages (ticket_id, sender_type, sender_id, message)
                     VALUES (%s, 'BB_Staff', %s, %s)
                 """, (ticket_id, session.get('user_id'), message))
-                cur.execute("UPDATE bb_support_tickets SET status = 'In Progress', updated_at = CURRENT_TIMESTAMP WHERE id = %s", (ticket_id,))
+                cur.execute("UPDATE bb_support_tickets SET status = 'In Progress' WHERE id = %s", (ticket_id,))
                 conn.commit()
                 flash("Reply sent successfully.", "success")
         elif action == 'close':
-            cur.execute("UPDATE bb_support_tickets SET status = 'Resolved', updated_at = CURRENT_TIMESTAMP WHERE id = %s", (ticket_id,))
+            cur.execute("UPDATE bb_support_tickets SET status = 'Resolved' WHERE id = %s", (ticket_id,))
             conn.commit()
             flash("Ticket marked as resolved.", "success")
         elif action == 'assign_me':
@@ -907,6 +907,71 @@ def company_details(company_id):
     stats['storage_mb'] = get_real_company_usage(company_id, cur)
     conn.close()
     return render_template('admin/company_details.html', company=company, stats=stats, settings=settings, audit_logs=audit_logs)
+
+@admin_bp.route('/super-admin/company/<int:company_id>/wipe', methods=['POST'])
+def wipe_company_data(company_id):
+    if session.get('role') != 'SuperAdmin': 
+        return redirect(url_for('auth.login'))
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        cur.execute("SELECT name FROM companies WHERE id = %s", (company_id,))
+        comp = cur.fetchone()
+        if not comp:
+            flash("❌ Company not found.")
+            return redirect(url_for('admin.super_admin_dashboard'))
+            
+        comp_name = comp[0]
+
+        # Tier 3 (Grandchildren without company_id)
+        subquery_deletes = [
+            "DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE company_id = %s)",
+            "DELETE FROM quote_items WHERE quote_id IN (SELECT id FROM quotes WHERE company_id = %s)",
+            "DELETE FROM overhead_items WHERE category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)",
+            "DELETE FROM job_materials WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)",
+            "DELETE FROM job_evidence WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)",
+            "DELETE FROM job_rams WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)",
+            "DELETE FROM site_diary WHERE job_id IN (SELECT id FROM jobs WHERE company_id = %s)",
+            "DELETE FROM request_updates WHERE request_id IN (SELECT id FROM service_requests WHERE company_id = %s)",
+            "DELETE FROM client_notifications WHERE client_id IN (SELECT id FROM clients WHERE company_id = %s)",
+            "DELETE FROM bb_ticket_messages WHERE ticket_id IN (SELECT id FROM bb_support_tickets WHERE tenant_id = %s)"
+        ]
+        for q in subquery_deletes:
+            try: cur.execute(q, (company_id,))
+            except Exception as e:
+                cur.connection.rollback()
+            
+        # Tier 2 (Children)
+        for t in ['vehicle_crews', 'maintenance_logs', 'materials', 'overhead_categories', 'transactions', 'service_requests', 'invoices', 'quotes', 'jobs', 'bb_support_tickets', 'company_partners', 'staff_timesheets', 'job_expenses']:
+            try: 
+                if t == 'bb_support_tickets':
+                    cur.execute("DELETE FROM bb_support_tickets WHERE tenant_id = %s", (company_id,))
+                else:
+                    cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
+            except Exception as e:
+                cur.connection.rollback()
+            
+        # Tier 1 (Parents)
+        for t in ['vehicles', 'staff', 'properties', 'clients', 'certificates']:
+            try: 
+                cur.execute(f"DELETE FROM {t} WHERE company_id = %s", (company_id,))
+            except Exception as e:
+                cur.connection.rollback()
+
+        conn.commit()
+        
+        log_audit("WIPE TENANT DATA", comp_name, f"Completely wiped data for company ID {company_id} but kept tenant active.")
+        flash(f"🗑️ Data for '{comp_name}' has been permanently deleted, but the tenant account remains active.")
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f"❌ Error wiping tenant data: {e}")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('admin.company_details', company_id=company_id))
 
 @admin_bp.route('/super-admin/company/<int:company_id>/delete', methods=['POST'])
 def delete_company(company_id):

@@ -301,6 +301,16 @@
                     </div>
 
                     <div class="card shadow-sm border-0 mb-3">
+                        <div class="card-header bg-white fw-bold"><i class="fas fa-heartbeat me-2 text-secondary"></i>Emergency Contact</div>
+                        <div class="card-body row g-3">
+                            <div class="col-md-6"><label class="small fw-bold text-muted">Next of Kin Name</label><input type="text" name="nok_name" value="{{ staff.nok_name }}" class="form-control"></div>
+                            <div class="col-md-6"><label class="small fw-bold text-muted">Relationship</label><input type="text" name="nok_relationship" value="{{ staff.nok_relationship }}" class="form-control"></div>
+                            <div class="col-md-6"><label class="small fw-bold text-muted">Phone Number</label><input type="text" name="nok_phone" value="{{ staff.nok_phone }}" class="form-control"></div>
+                            <div class="col-md-6"><label class="small fw-bold text-muted">Address</label><input type="text" name="nok_address" value="{{ staff.nok_address }}" class="form-control"></div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm border-0 mb-3">
                         <div class="card-header bg-white fw-bold"><i class="fas fa-briefcase me-2 text-secondary"></i>Employment & Payroll</div>
                         <div class="card-body row g-3 align-items-end">
                             <div class="col-md-4">
