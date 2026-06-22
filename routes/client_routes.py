@@ -94,7 +94,7 @@ def add_client():
         """, (comp_id, new_id, safe_addr))
         
         # 3. Fetch Company Details to construct the portal URL
-        cur.execute("SELECT subdomain, name FROM companies WHERE id = %s", (comp_id,))
+        cur.execute("SELECT COALESCE(sub_domain, subdomain), name FROM companies WHERE id = %s", (comp_id,))
         comp_row = cur.fetchone()
         
         conn.commit()
@@ -171,7 +171,7 @@ def update_client():
             """, (name, email, phone, status, billing_address, notes, portal_access, hashed_pass, client_id, comp_id))
             
             # Fetch Company Details to construct the portal URL
-            cur.execute("SELECT subdomain, name FROM companies WHERE id = %s", (comp_id,))
+            cur.execute("SELECT COALESCE(sub_domain, subdomain), name FROM companies WHERE id = %s", (comp_id,))
             comp_row = cur.fetchone()
             
             if email and comp_row and comp_row[0]:
@@ -481,7 +481,7 @@ def reset_client_password(client_id):
         cur.execute("UPDATE clients SET password_hash = %s WHERE id = %s AND company_id = %s", (hashed_pass, client_id, comp_id))
         
         # Fetch company details for email
-        cur.execute("SELECT subdomain, name FROM companies WHERE id = %s", (comp_id,))
+        cur.execute("SELECT COALESCE(sub_domain, subdomain), name FROM companies WHERE id = %s", (comp_id,))
         comp_row = cur.fetchone()
         
         conn.commit()
