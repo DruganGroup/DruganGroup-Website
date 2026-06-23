@@ -345,6 +345,41 @@ def archive_property(property_id):
         
     return redirect('/portal/home')
 
+@portal_bp.route('/portal/invoices')
+def portal_invoices():
+    if not check_portal_access(): return redirect(get_login_url())
+    
+    client_id = session['portal_client_id']
+    comp_id = session['portal_company_id']
+    config = get_site_config(comp_id)
+    
+    conn = get_db(); cur = conn.cursor()
+    
+    cur.execute("""
+        SELECT id, reference, date, due_date, total, status 
+        FROM invoices 
+        WHERE client_id = %s AND status != 'Archived'
+        ORDER BY date DESC
+    """, (client_id,))
+    
+    invoices_raw = cur.fetchall()
+    invoices = []
+    
+    for r in invoices_raw:
+        inv = list(r)
+        inv[2] = format_date_by_country(inv[2], comp_id) # Format the date
+        inv[3] = format_date_by_country(inv[3], comp_id) # Format due date
+        invoices.append(inv)
+        
+    conn.close()
+    
+    return render_template('portal/portal_invoices.html',
+                           client_name=session.get('portal_client_name'),
+                           company_name=config.get('name'), 
+                           logo_url=config.get('logo'),
+                           brand_color=config.get('color'),
+                           invoices=invoices)
+
 @portal_bp.route('/portal/quotes')
 def portal_quotes():
     if not check_portal_access(): return redirect(get_login_url())
@@ -618,3 +653,56 @@ def portal_view_request(request_id):
                            completion=completion, 
                            updates=updates,
                            company_name=session.get('portal_company_name', 'Client Portal'))
+
+@portal_bp.route('/portal/settings', methods=['GET', 'POST'])
+def portal_settings():
+    if not check_portal_access(): return redirect(get_login_url())
+    
+    client_id = session['portal_client_id']
+    comp_id = session['portal_company_id']
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+    
+    if request.method == 'POST':
+        name = request.form.get('name')
+        phone = request.form.get('phone')
+        password = request.form.get('password')
+        
+        try:
+            if password:
+                hashed_pass = generate_password_hash(password)
+                cur.execute("""
+                    UPDATE clients SET name = %s, phone = %s, password_hash = %s 
+                    WHERE id = %s AND company_id = %s
+                """, (name, phone, hashed_pass, client_id, comp_id))
+            else:
+                cur.execute("""
+                    UPDATE clients SET name = %s, phone = %s 
+                    WHERE id = %s AND company_id = %s
+                """, (name, phone, client_id, comp_id))
+                
+            conn.commit()
+            session['portal_client_name'] = name
+            flash("✅ Account settings updated successfully.", "success")
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error updating settings: {e}", "error")
+            
+        return redirect(url_for('portal.portal_settings'))
+        
+    cur.execute("SELECT name, email, phone FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
+    client_row = cur.fetchone()
+    conn.close()
+    
+    client_data = {
+        'name': client_row[0],
+        'email': client_row[1],
+        'phone': client_row[2] or ''
+    }
+    
+    return render_template('portal/portal_settings.html',
+                           client=client_data,
+                           client_name=session.get('portal_client_name'),
+                           company_name=config.get('name'), 
+                           logo_url=config.get('logo'),
+                           brand_color=config.get('color'))
