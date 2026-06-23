@@ -42,6 +42,9 @@
                 </div>
                 <form action="/auth/submit-support-ticket" method="POST">
                     <!-- Since error page might not have a session/csrf injected properly depending on error type, we just pass the form -->
+                    {% if csrf_token %}
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    {% endif %}
                     <input type="hidden" name="subject" value="System Error Encountered">
                     <div class="modal-body text-start">
                         <p class="small text-white-50 mb-3">Our support team has already been notified of the error context in the background. Please provide a brief description of what you were trying to do when this happened.</p>

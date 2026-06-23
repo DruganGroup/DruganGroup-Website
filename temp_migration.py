@@ -8,17 +8,12 @@ def alter_db():
     try:
         db_url = os.environ.get("DATABASE_URL")
         if not db_url:
-            db_url = "postgresql://postgres:@localhost:5432/businessbetter" # Adjust if needed
+            db_url = "postgresql://postgres:@localhost:5432/businessbetter"
         conn = psycopg2.connect(db_url, sslmode='require' if 'render.com' in db_url else None)
         cur = conn.cursor()
         
-        # Add columns to quotes
-        cur.execute("ALTER TABLE quotes ADD COLUMN IF NOT EXISTS needs_followup BOOLEAN DEFAULT FALSE;")
-        cur.execute("ALTER TABLE quotes ADD COLUMN IF NOT EXISTS client_response TEXT;")
-        
-        # Add columns to invoices
-        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS needs_followup BOOLEAN DEFAULT FALSE;")
-        cur.execute("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS client_response TEXT;")
+        # Add service_request_id to jobs if missing
+        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS service_request_id INTEGER;")
         
         conn.commit()
         print("Database migration successful.")

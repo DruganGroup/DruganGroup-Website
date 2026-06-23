@@ -167,6 +167,61 @@ def service_desk():
                            logo=config['logo'],
                            now=now_func)
 
+@office_bp.route('/office/create-work-order', methods=['POST'])
+def create_work_order():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    req_id = request.form.get('request_id')
+    staff_id = request.form.get('assigned_staff_id')
+    schedule_date = request.form.get('schedule_date')
+    
+    if not req_id or not staff_id or not schedule_date:
+        flash("❌ Missing required fields for dispatch.", "error")
+        return redirect(url_for('office.service_desk'))
+        
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # 1. Update the Service Request status
+        cur.execute("UPDATE service_requests SET status = 'Scheduled' WHERE id = %s AND company_id = %s", (req_id, comp_id))
+        
+        # 2. Get details from the service request to create a job
+        cur.execute("""
+            SELECT client_id, property_id, issue_description, priority 
+            FROM service_requests 
+            WHERE id = %s AND company_id = %s
+        """, (req_id, comp_id))
+        row = cur.fetchone()
+        
+        if row:
+            client_id, prop_id, desc, priority = row
+            
+            # Generate a JOB reference
+            cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id = %s", (comp_id,))
+            job_count = cur.fetchone()[0] + 1000
+            job_ref = f"JOB-{job_count}"
+            
+            # 3. Create the Job
+            cur.execute("""
+                INSERT INTO jobs (
+                    company_id, client_id, property_id, ref, description, 
+                    status, start_date, engineer_id, service_request_id, created_at
+                ) VALUES (%s, %s, %s, %s, %s, 'Scheduled', %s, %s, %s, NOW())
+            """, (comp_id, client_id, prop_id, job_ref, desc, schedule_date, staff_id, req_id))
+            
+            flash(f"✅ Job '{job_ref}' successfully scheduled and dispatched!", "success")
+        else:
+            flash("❌ Original request not found.", "error")
+            
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error creating work order: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('office.service_desk'))
+
 @office_bp.route('/office/dispatch-to-partner', methods=['POST'])
 def dispatch_to_partner():
     if not check_office_access(): return redirect(url_for('auth.login'))
@@ -1020,7 +1075,7 @@ def calendar_data():
             'end': end_date,
             'color': color,
             'allDay': True,
-            'url': f"/office/job/{row[0]}" # Click to open job
+            'url': f"/office/job/{row[0]}/files" # Click to open job
         })
         
     conn.close()

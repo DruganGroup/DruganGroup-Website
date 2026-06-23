@@ -540,6 +540,33 @@ def portal_accept_quote(quote_id):
         conn.close()
         
     return redirect(url_for('portal.portal_view_quote', quote_id=quote_id))
+
+@portal_bp.route('/portal/quote/<int:quote_id>/decline', methods=['POST'])
+def portal_decline_quote(quote_id):
+    if not check_portal_access(): return redirect(get_login_url())
+    
+    client_id = session['portal_client_id']
+    reason = request.form.get('decline_reason', 'No reason provided')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("""
+            UPDATE quotes 
+            SET status = 'Declined', 
+                client_response = %s,
+                needs_followup = TRUE
+            WHERE id = %s AND client_id = %s
+        """, (reason, quote_id, client_id))
+        
+        conn.commit()
+        flash("Quote has been declined. Thank you for your feedback.", "info")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error declining quote: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('portal.portal_view_quote', quote_id=quote_id))
     
 @portal_bp.route('/portal/request/<int:request_id>')
 def portal_view_request(request_id):
