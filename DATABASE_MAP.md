@@ -315,6 +315,7 @@
 | unit_price | numeric | None | YES |
 | added_at | timestamp without time zone | None | YES |
 | description | character varying | 255 | NO |
+| cost_price | numeric | None | YES |
 
 ## Table: `staff`
 

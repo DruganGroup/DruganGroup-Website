@@ -100,12 +100,12 @@ def job_files(job_id):
     expenses = float(cur.fetchone()[0])
     
     # C. Materials
-    cur.execute("SELECT COALESCE(SUM(quantity * unit_price), 0) FROM job_materials WHERE job_id = %s", (job_id,))
+    cur.execute("SELECT COALESCE(SUM(quantity * cost_price), 0) FROM job_materials WHERE job_id = %s", (job_id,))
     materials_cost = float(cur.fetchone()[0])
     
     # D. Labor (Timesheets)
     cur.execute("""
-        SELECT COALESCE(SUM(t.total_hours * s.pay_rate), 0), COUNT(DISTINCT t.date) 
+        SELECT COALESCE(SUM(t.total_hours * COALESCE(s.pay_rate, 0)), 0), COUNT(DISTINCT t.date) 
         FROM staff_timesheets t 
         JOIN staff s ON t.staff_id = s.id 
         WHERE t.job_id = %s
@@ -113,6 +113,16 @@ def job_files(job_id):
     labor_data = cur.fetchone()
     labour_cost = float(labor_data[0])
     days_worked = int(labor_data[1]) # Count how many unique days people worked
+    
+    # D2. Missing Pay Rate Check
+    cur.execute("""
+        SELECT COUNT(t.id) 
+        FROM staff_timesheets t 
+        JOIN staff s ON t.staff_id = s.id 
+        WHERE t.job_id = %s AND (s.pay_rate IS NULL OR s.pay_rate = 0)
+    """, (job_id,))
+    missing_pay_rate_count = cur.fetchone()[0]
+    missing_pay_rate_warning = missing_pay_rate_count > 0
     
     # E. Vehicle Cost (NEW CALCULATION)
     # We charge the van cost for every day the team was on site
@@ -138,7 +148,7 @@ def job_files(job_id):
         files.append(('Expense', row[1], row[2], str(row[3]), row[4], row[0]))
 
     # Fetch Materials
-    cur.execute("SELECT id, description, (quantity * unit_price), added_at FROM job_materials WHERE job_id = %s", (job_id,))
+    cur.execute("SELECT id, description, (quantity * cost_price), added_at FROM job_materials WHERE job_id = %s", (job_id,))
     for row in cur.fetchall():
         files.append(('Material', row[1], row[2], str(row[3])[:10], 'Logged', row[0]))
 
@@ -180,7 +190,8 @@ def job_files(job_id):
                            profit=profit, quote_total=quote_total,
                            budget_remaining=budget_remaining, 
                            staff=staff_list, diary=diary, today=date.today(),
-                           certificates=certificates, country_code=country_code)
+                           certificates=certificates, country_code=country_code,
+                           missing_pay_rate_warning=missing_pay_rate_warning)
 
 
 # --- MANUAL COST ENTRY ---

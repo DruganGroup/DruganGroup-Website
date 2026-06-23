@@ -268,6 +268,14 @@ def view_client(client_id):
         ORDER BY date DESC
     """, (client_id,))
     invoices = cur.fetchall()
+
+    # 4. Fetch Country and Certificates
+    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'country_code'", (comp_id,))
+    country_row = cur.fetchone()
+    country_code = country_row[0] if country_row else 'UK'
+    
+    from utils.certificates import get_certificates_for_country
+    certificates = get_certificates_for_country(country_code)
     
     conn.close()
     
@@ -275,6 +283,7 @@ def view_client(client_id):
                            client=client, 
                            properties=properties, 
                            invoices=invoices,
+                           certificates=certificates,
                            current_date=date.today())
 
 # =========================================================

@@ -4,24 +4,30 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def alter_db():
+def migrate():
+    db_url = os.environ.get("DATABASE_URL")
+    if db_url:
+        conn = psycopg2.connect(db_url, sslmode='require')
+    else:
+        conn = psycopg2.connect(
+            dbname=os.environ.get("DB_NAME", "businessbetter"),
+            user=os.environ.get("DB_USER", "postgres"),
+            password=os.environ.get("DB_PASSWORD", ""),
+            host=os.environ.get("DB_HOST", "localhost"),
+            port=os.environ.get("DB_PORT", "5432")
+        )
+    
+    cur = conn.cursor()
     try:
-        db_url = os.environ.get("DATABASE_URL")
-        if not db_url:
-            db_url = "postgresql://postgres:@localhost:5432/businessbetter"
-        conn = psycopg2.connect(db_url, sslmode='require' if 'render.com' in db_url else None)
-        cur = conn.cursor()
-        
-        # Add service_request_id to jobs if missing
-        cur.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS service_request_id INTEGER;")
-        
+        cur.execute("ALTER TABLE job_materials ADD COLUMN IF NOT EXISTS cost_price NUMERIC DEFAULT 0;")
         conn.commit()
-        print("Database migration successful.")
+        print("Successfully added cost_price to job_materials")
     except Exception as e:
         print(f"Error: {e}")
+        conn.rollback()
     finally:
-        if 'conn' in locals():
-            conn.close()
+        cur.close()
+        conn.close()
 
-if __name__ == '__main__':
-    alter_db()
+if __name__ == "__main__":
+    migrate()

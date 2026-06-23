@@ -65,6 +65,16 @@
 </div>
     </div>
 
+    {% if missing_pay_rate_warning %}
+    <div class="alert alert-warning py-2 mb-4 d-flex align-items-center">
+        <i class="fas fa-exclamation-triangle me-2 fs-5"></i>
+        <div>
+            <strong>Warning:</strong> Some logged hours have no associated staff pay rate. 
+            <span class="small">Cost calculations may be inaccurate. Please update staff profiles.</span>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm h-100 border-start border-4 border-info">

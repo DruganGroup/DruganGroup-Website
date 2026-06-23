@@ -352,12 +352,27 @@ def finance_materials():
         'unit': m[4], 'price': m[5], 'supplier': m[6] or 'General'
     } for m in cur.fetchall()]
 
+    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'default_markup'", (comp_id,))
+    markup_row = cur.fetchone()
+    if markup_row and markup_row[0]:
+        try:
+            default_markup = float(markup_row[0])
+            markup_missing = False
+        except:
+            default_markup = 0.0
+            markup_missing = True
+    else:
+        default_markup = 0.0
+        markup_missing = True
+
     conn.close()
     return render_template('finance/finance_materials.html', 
                            materials=materials, 
                            suppliers=suppliers, 
                            brand_color=config['color'], 
-                           logo_url=config['logo'])
+                           logo_url=config['logo'],
+                           default_markup=default_markup,
+                           markup_missing=markup_missing)
 
 @finance_bp.route('/finance/suppliers/add', methods=['POST'])
 def add_supplier():

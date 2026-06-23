@@ -19,6 +19,16 @@
         </div>
     </div>
 
+    {% if markup_missing %}
+    <div class="alert alert-warning py-2 mb-3 d-flex align-items-center">
+        <i class="fas fa-exclamation-triangle me-2 fs-5"></i>
+        <div>
+            <strong>Warning:</strong> System default markup is not set. 
+            <span class="small">Sale prices are equal to Cost prices. Please configure your markup in Settings.</span>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="d-flex gap-2 mb-3 overflow-auto">
         <span class="badge bg-dark p-2 d-flex align-items-center">All Items</span>
         {% for s in suppliers %}
@@ -45,7 +55,8 @@
                         <th>SKU</th>
                         <th>Product Name</th>
                         <th>{{ _('Category') }}</th>
-                        <th class="text-end pe-4">Cost Price</th>
+                        <th class="text-end">Cost Price</th>
+                        <th class="text-end pe-4">Sale Price</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -56,13 +67,14 @@
                         <td class="small font-monospace text-muted">{{ m.sku }}</td>
                         <td class="fw-bold">{{ m.name }}</td>
                         <td>{{ m.category }}</td>
-                        <td class="text-end pe-4">£{{ "%.2f"|format(m.price) }}</td>
+                        <td class="text-end">£{{ "%.2f"|format(m.price) }}</td>
+                        <td class="text-end pe-4 fw-bold text-success">£{{ "%.2f"|format(m.price + (m.price * (default_markup / 100))) }}</td>
                         <td class="text-end">
                             <a href="/finance/materials/delete/{{ m.id }}" class="text-danger"><i class="fas fa-trash"></i></a>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="6" class="text-center py-5 text-muted">No materials. Add a Supplier then Upload a CSV.</td></tr>
+                    <tr><td colspan="7" class="text-center py-5 text-muted">No materials. Add a Supplier then Upload a CSV.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
