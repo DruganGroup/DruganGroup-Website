@@ -120,6 +120,9 @@
         <a href="/clients" class="{% if 'client' in request.path %}active{% endif %}">
             <i class="fas fa-address-book me-3"></i> {{ _('Clients') }}
         </a>
+        <a href="/office/sales" class="{% if 'sales' in request.path %}active{% endif %}">
+            <i class="fas fa-file-invoice-dollar me-3"></i> Sales & Invoicing
+        </a>
         <a href="/office/fleet" class="{% if 'fleet' in request.path %}active{% endif %}">
             <i class="fas fa-truck me-3"></i> Fleet Manager
         </a>

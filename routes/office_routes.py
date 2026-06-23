@@ -1333,3 +1333,91 @@ def email_materials_supplier(job_id):
         return jsonify({'error': str(e)}), 500
     finally:
         conn.close()
+
+# =========================================================
+# 6. SALES & INVOICING (UNIFIED DASHBOARD)
+# =========================================================
+
+@office_bp.route('/office/sales')
+def office_sales_dashboard():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+    
+    cur.execute("SELECT value FROM settings WHERE key='currency_symbol' AND company_id=%s", (comp_id,))
+    res = cur.fetchone(); currency = res[0] if res else '£'
+    
+    # 1. Fetch Quotes (Including new columns)
+    cur.execute("""
+        SELECT q.id, q.reference, c.name, q.date, q.total, q.status, q.needs_followup, q.client_response
+        FROM quotes q
+        LEFT JOIN clients c ON q.client_id = c.id
+        WHERE q.company_id = %s
+        ORDER BY q.date DESC
+    """, (comp_id,))
+    
+    quotes = []
+    for r in cur.fetchall():
+        quotes.append({
+            'id': r[0], 'ref': r[1], 'client': r[2], 'date': r[3], 'total': r[4], 
+            'status': r[5], 'needs_followup': r[6], 'client_response': r[7]
+        })
+        
+    # 2. Fetch Invoices (Including new columns)
+    cur.execute("""
+        SELECT i.id, i.reference, c.name, i.date, i.total, i.status, i.needs_followup, i.client_response, i.due_date
+        FROM invoices i
+        LEFT JOIN clients c ON i.client_id = c.id
+        WHERE i.company_id = %s
+        ORDER BY i.date DESC
+    """, (comp_id,))
+    
+    invoices = []
+    for r in cur.fetchall():
+        invoices.append({
+            'id': r[0], 'ref': r[1], 'client': r[2], 'date': r[3], 'total': r[4], 
+            'status': r[5], 'needs_followup': r[6], 'client_response': r[7], 'due_date': r[8]
+        })
+        
+    conn.close()
+    
+    return render_template('office/sales_dashboard.html', 
+                           quotes=quotes, invoices=invoices,
+                           currency=currency, brand_color=config['color'], logo_url=config['logo'])
+
+@office_bp.route('/office/sales/update', methods=['POST'])
+def update_sales_record():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    record_type = request.form.get('record_type') # 'quote' or 'invoice'
+    record_id = request.form.get('record_id')
+    
+    new_status = request.form.get('status')
+    client_response = request.form.get('client_response')
+    needs_followup = 1 if request.form.get('needs_followup') == 'on' else 0
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        if record_type == 'quote':
+            cur.execute("""
+                UPDATE quotes SET status = %s, client_response = %s, needs_followup = %s
+                WHERE id = %s AND company_id = %s
+            """, (new_status, client_response, needs_followup, record_id, comp_id))
+        elif record_type == 'invoice':
+            cur.execute("""
+                UPDATE invoices SET status = %s, client_response = %s, needs_followup = %s
+                WHERE id = %s AND company_id = %s
+            """, (new_status, client_response, needs_followup, record_id, comp_id))
+        
+        conn.commit()
+        flash("✅ Record updated successfully.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error updating record: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('office.office_sales_dashboard'))

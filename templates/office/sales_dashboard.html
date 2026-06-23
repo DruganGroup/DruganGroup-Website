@@ -1,0 +1,261 @@
+{% extends "office/office_base.html" %}
+
+{% block title %}Sales & Invoicing | Business Better{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold m-0">Sales & Invoicing</h2>
+        <p class="text-muted mb-0">Track quotes, invoices, and client responses</p>
+    </div>
+    <div>
+        <a href="/office/quote/new" class="btn btn-primary fw-bold"><i class="fas fa-plus me-2"></i>New Quote</a>
+        <a href="/finance/invoices" class="btn btn-secondary fw-bold ms-2"><i class="fas fa-file-invoice me-2"></i>Finance Invoices</a>
+    </div>
+</div>
+
+<div class="card p-3 mb-4 border-0 shadow-sm">
+    <div class="input-group">
+        <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+        <input type="text" id="salesSearch" class="form-control border-start-0 ps-0" placeholder="Search by reference, client, or status..." onkeyup="filterSales()">
+    </div>
+</div>
+
+<ul class="nav nav-pills mb-4" id="salesTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold px-4" id="invoices-tab" data-bs-toggle="pill" data-bs-target="#invoices" type="button" role="tab" aria-controls="invoices" aria-selected="true">
+            <i class="fas fa-file-invoice-dollar me-2"></i> Invoices
+            <span class="badge bg-white text-dark ms-2 border">{{ invoices|length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold px-4" id="quotes-tab" data-bs-toggle="pill" data-bs-target="#quotes" type="button" role="tab" aria-controls="quotes" aria-selected="false">
+            <i class="fas fa-file-signature me-2"></i> Quotes
+            <span class="badge bg-white text-dark ms-2 border">{{ quotes|length }}</span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="salesTabContent">
+    <!-- INVOICES TAB -->
+    <div class="tab-pane fade show active" id="invoices" role="tabpanel" aria-labelledby="invoices-tab">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="invoicesTable">
+                    <thead class="table-light text-uppercase small">
+                        <tr>
+                            <th class="ps-4">Reference</th>
+                            <th>Client</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Client Response</th>
+                            <th class="text-end">Value</th>
+                            <th class="text-center">Follow-up</th>
+                            <th class="text-end pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for i in invoices %}
+                        <tr class="sales-row">
+                            <td class="ps-4 fw-bold text-primary">{{ i.ref }}</td>
+                            <td class="client-name">{{ i.client }}</td>
+                            <td class="small">{{ i.date }}</td>
+                            <td class="status-cell">
+                                <span class="badge rounded-pill 
+                                    {% if i.status == 'Paid' %}bg-success
+                                    {% elif i.status == 'Unpaid' %}bg-warning text-dark
+                                    {% elif i.status == 'Overdue' %}bg-danger
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ i.status }}
+                                </span>
+                            </td>
+                            <td class="small text-muted response-cell" style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                {{ i.client_response or 'No response yet.' }}
+                            </td>
+                            <td class="text-end fw-bold">{{ currency }}{{ "%.2f"|format(i.total or 0) }}</td>
+                            <td class="text-center">
+                                {% if i.needs_followup %}
+                                    <span class="text-danger fw-bold"><i class="fas fa-exclamation-circle"></i> Yes</span>
+                                {% else %}
+                                    <span class="text-success"><i class="fas fa-check-circle"></i> No</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <button class="btn btn-sm btn-light border" onclick="openUpdateModal('invoice', '{{ i.id }}', '{{ i.ref }}', '{{ i.status }}', '{{ i.client_response|e }}', {{ 'true' if i.needs_followup else 'false' }})">
+                                    Update
+                                </button>
+                                <a href="/finance/invoice/{{ i.id }}" class="btn btn-sm btn-outline-primary ms-1"><i class="fas fa-eye"></i></a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="8" class="text-center py-5 text-muted">No invoices found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- QUOTES TAB -->
+    <div class="tab-pane fade" id="quotes" role="tabpanel" aria-labelledby="quotes-tab">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="quotesTable">
+                    <thead class="table-light text-uppercase small">
+                        <tr>
+                            <th class="ps-4">Reference</th>
+                            <th>Client</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Client Response</th>
+                            <th class="text-end">Value</th>
+                            <th class="text-center">Follow-up</th>
+                            <th class="text-end pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for q in quotes %}
+                        <tr class="sales-row">
+                            <td class="ps-4 fw-bold text-primary">{{ q.ref }}</td>
+                            <td class="client-name">{{ q.client }}</td>
+                            <td class="small">{{ q.date }}</td>
+                            <td class="status-cell">
+                                <span class="badge rounded-pill 
+                                    {% if q.status == 'Sent' %}bg-primary
+                                    {% elif q.status == 'Draft' %}bg-secondary
+                                    {% elif q.status == 'Accepted' %}bg-success
+                                    {% else %}bg-warning text-dark{% endif %}">
+                                    {{ q.status }}
+                                </span>
+                            </td>
+                            <td class="small text-muted response-cell" style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                {{ q.client_response or 'No response yet.' }}
+                            </td>
+                            <td class="text-end fw-bold">{{ currency }}{{ "%.2f"|format(q.total or 0) }}</td>
+                            <td class="text-center">
+                                {% if q.needs_followup %}
+                                    <span class="text-danger fw-bold"><i class="fas fa-exclamation-circle"></i> Yes</span>
+                                {% else %}
+                                    <span class="text-success"><i class="fas fa-check-circle"></i> No</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <button class="btn btn-sm btn-light border" onclick="openUpdateModal('quote', '{{ q.id }}', '{{ q.ref }}', '{{ q.status }}', '{{ q.client_response|e }}', {{ 'true' if q.needs_followup else 'false' }})">
+                                    Update
+                                </button>
+                                <a href="/office/quote/{{ q.id }}" class="btn btn-sm btn-outline-primary ms-1"><i class="fas fa-eye"></i></a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="8" class="text-center py-5 text-muted">No quotes found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Update Modal -->
+<div class="modal fade" id="updateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="updateModalLabel">Update Record</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/office/sales/update" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="record_type" id="modal_record_type">
+                <input type="hidden" name="record_id" id="modal_record_id">
+                
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Status</label>
+                        <select name="status" id="modal_status" class="form-select">
+                            <!-- Options injected by JS based on type -->
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Client Response / Notes</label>
+                        <textarea name="client_response" id="modal_client_response" class="form-control" rows="3" placeholder="What did the client say?"></textarea>
+                    </div>
+                    
+                    <div class="form-check form-switch mt-4">
+                        <input class="form-check-input" type="checkbox" role="switch" id="modal_needs_followup" name="needs_followup">
+                        <label class="form-check-label fw-bold text-danger" for="modal_needs_followup">
+                            Requires Follow-Up
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="submit" class="btn btn-primary fw-bold w-100">Save Updates</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function filterSales() {
+        var input = document.getElementById("salesSearch");
+        var filter = input.value.toUpperCase();
+        var rows = document.getElementsByClassName("sales-row");
+
+        for (var i = 0; i < rows.length; i++) {
+            var text = rows[i].textContent || rows[i].innerText;
+            if (text.toUpperCase().indexOf(filter) > -1) {
+                rows[i].style.display = "";
+            } else {
+                rows[i].style.display = "none";
+            }
+        }
+    }
+
+    function openUpdateModal(type, id, ref, currentStatus, response, needsFollowup) {
+        document.getElementById('modal_record_type').value = type;
+        document.getElementById('modal_record_id').value = id;
+        document.getElementById('updateModalLabel').innerText = "Update " + (type === 'quote' ? "Quote" : "Invoice") + " " + ref;
+        
+        var statusSelect = document.getElementById('modal_status');
+        statusSelect.innerHTML = ''; // clear
+        
+        var options = [];
+        if (type === 'quote') {
+            options = ['Draft', 'Sent', 'Accepted', 'Declined'];
+        } else {
+            options = ['Draft', 'Sent', 'Unpaid', 'Paid', 'Overdue'];
+        }
+        
+        // Populate options and handle potential unknown statuses
+        var found = false;
+        options.forEach(function(opt) {
+            var el = document.createElement('option');
+            el.value = opt;
+            el.innerText = opt;
+            if (opt === currentStatus) {
+                el.selected = true;
+                found = true;
+            }
+            statusSelect.appendChild(el);
+        });
+        
+        if (!found && currentStatus) {
+             var el = document.createElement('option');
+             el.value = currentStatus;
+             el.innerText = currentStatus;
+             el.selected = true;
+             statusSelect.appendChild(el);
+        }
+
+        document.getElementById('modal_client_response').value = response;
+        document.getElementById('modal_needs_followup').checked = needsFollowup;
+        
+        var myModal = new bootstrap.Modal(document.getElementById('updateModal'));
+        myModal.show();
+    }
+</script>
+{% endblock %}
