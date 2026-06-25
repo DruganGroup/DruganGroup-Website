@@ -1,10 +1,11 @@
 import os
 import traceback
+import time
 from datetime import timedelta
 from dotenv import load_dotenv
 load_dotenv()
 # Added 'g' to imports for White Label Logic
-from flask import Flask, render_template, request, session, send_from_directory, abort, redirect, url_for, session, g
+from flask import Flask, render_template, request, session, send_from_directory, abort, redirect, url_for, g
 from werkzeug.exceptions import HTTPException
 from db import get_db
 from utils.extensions import limiter, csrf
@@ -45,7 +46,7 @@ if not app.secret_key:
         app.secret_key = "dev_key_123_CHANGE_IN_PRODUCTION"
         print("⚠️  WARNING: Using development secret key. Set SECRET_KEY environment variable!")
 
-app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'static', 'uploads', 'logos')
+app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads', 'logos')
 
 # --- SECURITY: SESSION HARDENING (HTTPS ENABLED) ---
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=12)
@@ -229,21 +230,28 @@ def inject_translations():
         
     return dict(_=translate, lang_dir=get_lang_direction(lang_code), current_lang=lang_code)
 
+global_alert_cache = {'msg': None, 'last_fetched': 0}
+
 @app.context_processor
 def inject_global_alert():
-    alert_msg = None
-    try:
-        conn = get_db()
-        if conn:
-            cur = conn.cursor()
-            try:
-                cur.execute("SELECT value FROM system_settings WHERE key = 'global_alert'")
-                row = cur.fetchone()
-                if row and row[0]: alert_msg = row[0]
-            except: pass
-            conn.close()
-    except: pass
-    return dict(global_system_alert=alert_msg)
+    now = time.time()
+    if now - global_alert_cache['last_fetched'] > 60: # 60 seconds cache
+        alert_msg = None
+        try:
+            conn = get_db()
+            if conn:
+                cur = conn.cursor()
+                try:
+                    cur.execute("SELECT value FROM system_settings WHERE key = 'global_alert'")
+                    row = cur.fetchone()
+                    if row and row[0]: alert_msg = row[0]
+                except: pass
+                conn.close()
+        except: pass
+        global_alert_cache['msg'] = alert_msg
+        global_alert_cache['last_fetched'] = now
+
+    return dict(global_system_alert=global_alert_cache['msg'])
 
 @app.context_processor
 def inject_currency():
@@ -269,6 +277,14 @@ def inject_branding():
     
     # 1. IF LOGGED IN
     if 'company_id' in session:
+        if 'brand_color' in session and 'logo_url' in session and session.get('company_name'):
+            return dict(
+                brand_color=session['brand_color'], 
+                logo=session['logo_url'],
+                logo_url=session['logo_url'],
+                company_name=session['company_name']
+            )
+
         try:
             config = get_site_config(session['company_id'])
             
@@ -282,10 +298,16 @@ def inject_branding():
                     if comp: session['company_name'] = comp[0]
                     conn.close()
                     
+            color = config.get('color') or default_color
+            logo = config.get('logo') or default_logo
+
+            session['brand_color'] = color
+            session['logo_url'] = logo
+
             return dict(
-                brand_color=config.get('color') or default_color, 
-                logo=config.get('logo') or default_logo,
-                logo_url=config.get('logo') or default_logo,
+                brand_color=color, 
+                logo=logo,
+                logo_url=logo,
                 company_name=session.get('company_name') or 'My Company'
             )
         except:
