@@ -446,10 +446,18 @@ def update_job(job_id):
                 hours = float(hours)
                 
                 # Fetch Pay Rate from Staff Table
-                cur.execute("SELECT name, pay_rate FROM staff WHERE id = %s", (s_id,))
+                cur.execute("SELECT name, pay_rate, pay_model FROM staff WHERE id = %s", (s_id,))
                 staff_row = cur.fetchone()
                 s_name = staff_row[0]
-                base_rate = float(staff_row[1] or 0) # Wages
+                raw_rate = float(staff_row[1] or 0) # Wages
+                pay_model = staff_row[2] if len(staff_row) > 2 else 'Hour'
+                
+                if pay_model == 'Day':
+                    base_rate = raw_rate / 8.0
+                elif pay_model == 'Year':
+                    base_rate = raw_rate / (260.0 * 8.0)
+                else:
+                    base_rate = raw_rate
                 
                 # Apply Profit Markup
                 charge_rate = base_rate + (base_rate * labour_markup)
@@ -461,7 +469,7 @@ def update_job(job_id):
                 """, (inv_id, f"Labour: {s_name}", hours, charge_rate, line_total))
 
             # 5. CALCULATE MATERIALS (Real Data)
-            cur.execute("SELECT description, quantity, unit_price FROM job_materials WHERE job_id = %s", (job_id,))
+            cur.execute("SELECT description, quantity, COALESCE(cost_price, unit_price) FROM job_materials WHERE job_id = %s", (job_id,))
             for mat in cur.fetchall():
                 qty = float(mat[1] or 0)
                 cost_price = float(mat[2] or 0)
@@ -524,13 +532,32 @@ def update_job(job_id):
 def add_job_material(job_id):
     if 'user_id' not in session: return redirect('/login')
     
+    comp_id = session.get('company_id')
     desc = request.form.get('description')
     qty = request.form.get('quantity')
     price = request.form.get('price') or 0
 
     conn = get_db(); cur = conn.cursor()
     try:
-        cur.execute("INSERT INTO job_materials (job_id, description, quantity, unit_price) VALUES (%s, %s, %s, %s)", (job_id, desc, qty, price))
+        # Check if material exists in master DB
+        if desc and desc.strip():
+            clean_desc = desc.strip()
+            cur.execute("SELECT id FROM materials WHERE company_id = %s AND LOWER(name) = LOWER(%s)", (comp_id, clean_desc))
+            mat_row = cur.fetchone()
+            
+            if mat_row:
+                # Update existing price
+                cur.execute("UPDATE materials SET cost_price = %s WHERE id = %s", (price, mat_row[0]))
+            else:
+                # Insert new material
+                sku = f"MAT-{int(datetime.now().timestamp())}"
+                cur.execute("""
+                    INSERT INTO materials (company_id, sku, name, category, unit, cost_price) 
+                    VALUES (%s, %s, %s, 'General', 'Each', %s)
+                """, (comp_id, sku, clean_desc, price))
+
+        # Add to Job
+        cur.execute("INSERT INTO job_materials (job_id, description, quantity, unit_price, cost_price) VALUES (%s, %s, %s, %s, %s)", (job_id, desc, qty, price, price))
         conn.commit(); flash("✅ Item Added")
     except Exception as e: conn.rollback(); flash(f"Error: {e}")
     finally: conn.close()

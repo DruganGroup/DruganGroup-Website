@@ -90,6 +90,45 @@
                 <!-- FAQ Accordion -->
                 <div class="accordion" id="helpAccordion">
 
+                    <!-- SETTINGS & INTEGRATIONS -->
+                    <h5 id="settings" class="fw-bold text-gold mb-3 mt-5 text-uppercase small"><i class="fas fa-cogs me-2"></i> Settings & Integrations</h5>
+
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark help-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-settings-api">
+                                How do I set up my API keys for OpenAI/Anthropic?
+                            </button>
+                        </h2>
+                        <div id="faq-settings-api" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
+                                <p>To enable the AI Email Assistant and AI Receipt Scanning:</p>
+                                <ol>
+                                    <li>Navigate to <strong>Settings > Integrations</strong> in the Office Hub.</li>
+                                    <li>Paste your OpenAI or Anthropic API key into the designated field.</li>
+                                    <li>Click <strong>Save Keys</strong>. Your keys are immediately encrypted using AES-256 and stored securely.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark help-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-settings-stripe">
+                                How do I connect Stripe for instant invoice payments?
+                            </button>
+                        </h2>
+                        <div id="faq-settings-stripe" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
+                                <p>To allow clients to pay invoices directly via credit card or Apple Pay:</p>
+                                <ol>
+                                    <li>Go to <strong>Settings > Financial Integrations</strong>.</li>
+                                    <li>Click <strong>Connect with Stripe</strong> and follow the secure onboarding flow.</li>
+                                    <li>Once connected, all PDF invoices will automatically include a "Pay Now" button that routes to your Stripe checkout.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- INBOX & AI -->
                     <h5 id="inbox" class="fw-bold text-gold mb-3 mt-5 text-uppercase small"><i class="fas fa-envelope-open-text me-2"></i> Inbox & Email AI</h5>
 
@@ -178,6 +217,24 @@
 
                     <!-- SITE APP -->
                     <h5 id="siteapp" class="fw-bold text-gold mb-3 mt-5 text-uppercase small"><i class="fas fa-mobile-alt me-2"></i> Site App for Workers</h5>
+
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark help-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-site-leave">
+                                How do I manage and approve Staff Annual Leave?
+                            </button>
+                        </h2>
+                        <div id="faq-site-leave" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
+                                <p>Staff can request leave directly from their mobile app:</p>
+                                <ol>
+                                    <li>Workers navigate to the <strong>HR Tab</strong> in the Site App and submit a leave request.</li>
+                                    <li>The request appears in the Office Hub under <strong>HR & Payroll > Leave Requests</strong>.</li>
+                                    <li>Once you click <strong>Approve</strong>, the system automatically logs 8-hour paid timesheets for the approved dates, drawing from their 12.07% holiday accrual balance.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark help-item">
                         <h2 class="accordion-header">
@@ -277,6 +334,27 @@
                         </div>
                     </div>
 
+                    <!-- B2B NETWORK -->
+                    <h5 id="b2b" class="fw-bold text-gold mb-3 mt-5 text-uppercase small"><i class="fas fa-network-wired me-2"></i> B2B Partner Network</h5>
+
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark help-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-b2b">
+                                How do I invite a partner company using Partner Codes?
+                            </button>
+                        </h2>
+                        <div id="faq-b2b" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
+                                <p>To link databases with a sub-contractor or estate agent:</p>
+                                <ol>
+                                    <li>Go to <strong>Settings > Company Profile</strong> to find your unique Partner Code.</li>
+                                    <li>Share this code with your partner company. They must enter it into their <strong>B2B Directory</strong>.</li>
+                                    <li>Once the request is accepted, you can instantly dispatch service requests to them, and statuses will sync live between both systems.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- GPS & FLEET -->
                     <h5 id="fleet" class="fw-bold text-gold mb-3 mt-5 text-uppercase small"><i class="fas fa-map-marked-alt me-2"></i> GPS & Fleet Tracking</h5>
 
@@ -294,6 +372,24 @@
                                     <li>Enter your provider's API key securely.</li>
                                     <li>Go to the <strong>Live Operations</strong> tab in the Office Hub to view real-time locations mapped against job addresses.</li>
                                 </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded-3 overflow-hidden bg-dark help-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold bg-dark text-white border-0" type="button" data-bs-toggle="collapse" data-bs-target="#faq-fleet-maint">
+                                How do I manage fleet maintenance and expiries?
+                            </button>
+                        </h2>
+                        <div id="faq-fleet-maint" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body text-secondary bg-black border-top border-secondary">
+                                <p>Business Better tracks the entire lifecycle of your vehicles:</p>
+                                <ul>
+                                    <li><strong>Expiries:</strong> The Fleet Dashboard automatically tracks MOT, Road Tax, and Insurance dates, warning you 30 days prior to expiration.</li>
+                                    <li><strong>Fuel Logs:</strong> Site workers can snap photos of fuel receipts in their app, which logs directly into the vehicle's maintenance history.</li>
+                                    <li><strong>Defect Checks:</strong> Morning safety check defects (e.g., bald tires) are instantly flagged on the Office Dashboard with photographic evidence.</li>
+                                </ul>
                             </div>
                         </div>
                     </div>

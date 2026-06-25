@@ -520,7 +520,17 @@ def finance_analysis():
         cur.execute("SELECT COALESCE(SUM(cost), 0) FROM job_expenses WHERE job_id=%s", (job_id,))
         expenses = float(cur.fetchone()[0])
         
-        cur.execute("SELECT COALESCE(SUM(t.total_hours * s.pay_rate), 0) FROM staff_timesheets t JOIN staff s ON t.staff_id=s.id WHERE t.job_id=%s", (job_id,))
+        cur.execute("""
+            SELECT COALESCE(SUM(
+                t.total_hours * 
+                CASE 
+                    WHEN s.pay_model = 'Day' THEN (COALESCE(s.pay_rate, 0) / 8.0)
+                    WHEN s.pay_model = 'Year' THEN (COALESCE(s.pay_rate, 0) / (260.0 * 8.0))
+                    ELSE COALESCE(s.pay_rate, 0)
+                END
+            ), 0)
+            FROM staff_timesheets t JOIN staff s ON t.staff_id=s.id WHERE t.job_id=%s
+        """, (job_id,))
         labor = float(cur.fetchone()[0]) if cur.rowcount > 0 else 0.0
 
         actual_cost = expenses + labor; profit = revenue - actual_cost
@@ -1527,6 +1537,88 @@ def finance_bookkeeping():
                     VALUES (%s, %s, %s, %s, CURRENT_DATE, %s)
                 """, (comp_id, job_id, desc, cost, db_path))
                 flash("✅ Assigned to Job Expense.")
+
+            elif action == 'scan_materials':
+                from utils.encryption import get_encryptor
+                from services.ai_assistant import extract_receipt_materials
+                
+                # Fetch API key
+                cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'google_ai_key'", (comp_id,))
+                row = cur.fetchone()
+                if not row or not row[0]:
+                    flash("❌ You do not have an API set up, please process via the sorting office manually.", "error")
+                    conn.close()
+                    return redirect(url_for('finance.finance_bookkeeping'))
+                
+                api_key = get_encryptor().decrypt(row[0])
+                
+                # Fetch context
+                cur.execute("SELECT name FROM suppliers WHERE company_id = %s", (comp_id,))
+                suppliers_list = [r[0] for r in cur.fetchall()]
+                cur.execute("SELECT name FROM materials WHERE company_id = %s", (comp_id,))
+                materials_list = [r[0] for r in cur.fetchall()]
+                
+                res = extract_receipt_materials(src_file, api_key, materials_list, suppliers_list)
+                if not res.get('success'):
+                    flash(f"❌ AI Extraction failed: {res.get('error')}", "error")
+                else:
+                    data = res['data']
+                    vendor = data.get('vendor')
+                    supplier_id = None
+                    if vendor:
+                        cur.execute("SELECT id FROM suppliers WHERE company_id = %s AND LOWER(name) = LOWER(%s)", (comp_id, vendor.strip()))
+                        s_row = cur.fetchone()
+                        if s_row:
+                            supplier_id = s_row[0]
+                        else:
+                            cur.execute("INSERT INTO suppliers (company_id, name) VALUES (%s, %s) RETURNING id", (comp_id, vendor.strip()))
+                            supplier_id = cur.fetchone()[0]
+                    
+                    line_items = data.get('line_items', [])
+                    items_added = 0
+                    for item in line_items:
+                        desc = item.get('description')
+                        price = item.get('unit_price')
+                        if desc and price is not None:
+                            clean_desc = desc.strip()
+                            cur.execute("SELECT id FROM materials WHERE company_id = %s AND LOWER(name) = LOWER(%s)", (comp_id, clean_desc))
+                            mat_row = cur.fetchone()
+                            if mat_row:
+                                cur.execute("UPDATE materials SET cost_price = %s, supplier_id = %s WHERE id = %s", (price, supplier_id, mat_row[0]))
+                            else:
+                                sku = f"MAT-{int(datetime.now().timestamp())}-{items_added}"
+                                cur.execute("""
+                                    INSERT INTO materials (company_id, sku, name, category, unit, cost_price, supplier_id)
+                                    VALUES (%s, %s, %s, 'General', 'Each', %s, %s)
+                                """, (comp_id, sku, clean_desc, price, supplier_id))
+                            items_added += 1
+                    
+                    # File the receipt to Overheads (or generic expenses)
+                    dest_dir = os.path.join(current_app.static_folder, 'uploads', f"company_{comp_id}", 'overheads')
+                    os.makedirs(dest_dir, exist_ok=True)
+                    dest_path = os.path.join(dest_dir, filename)
+                    shutil.move(src_file, dest_path)
+                    
+                    db_path = f"/uploads/company_{comp_id}/overheads/{filename}"
+                    
+                    # Try to get a default category, or insert one
+                    cur.execute("SELECT id FROM overhead_categories WHERE company_id = %s LIMIT 1", (comp_id,))
+                    cat_row = cur.fetchone()
+                    if cat_row:
+                        cat_id = cat_row[0]
+                    else:
+                        cur.execute("INSERT INTO overhead_categories (company_id, name) VALUES (%s, 'General Supplies') RETURNING id", (comp_id,))
+                        cat_id = cur.fetchone()[0]
+                        
+                    total_cost = data.get('total_cost') or cost
+                    desc_text = f"Supplies from {vendor}" if vendor else "General Supplies"
+                    
+                    cur.execute("""
+                        INSERT INTO overhead_items (category_id, name, amount, date_incurred, receipt_path)
+                        VALUES (%s, %s, %s, CURRENT_DATE, %s)
+                    """, (cat_id, desc_text, total_cost, db_path))
+                    
+                    flash(f"✅ AI Extracted {items_added} materials from {vendor or 'receipt'}.", "success")
 
             elif action == 'assign_overhead':
                 cat_id = request.form.get('category_id')

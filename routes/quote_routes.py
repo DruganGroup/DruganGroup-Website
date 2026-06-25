@@ -379,6 +379,20 @@ def save_unified_quote():
             if d.strip(): 
                 qty = float(q) if q else 1
                 price = float(p) if p else 0
+                
+                clean_desc = d.strip()
+                cur.execute("SELECT id FROM materials WHERE company_id = %s AND LOWER(name) = LOWER(%s)", (comp_id, clean_desc))
+                mat_row = cur.fetchone()
+                
+                if mat_row:
+                    cur.execute("UPDATE materials SET cost_price = %s WHERE id = %s", (price, mat_row[0]))
+                else:
+                    sku = f"MAT-{int(datetime.now().timestamp())}"
+                    cur.execute("""
+                        INSERT INTO materials (company_id, sku, name, category, unit, cost_price) 
+                        VALUES (%s, %s, %s, 'General', 'Each', %s)
+                    """, (comp_id, sku, clean_desc, price))
+                
                 cur.execute("""
                     INSERT INTO quote_items (quote_id, description, quantity, unit_price, total)
                     VALUES (%s, %s, %s, %s, %s)

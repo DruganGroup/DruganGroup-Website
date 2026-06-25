@@ -40,12 +40,16 @@
         </div>
 
         <div class="bg-white p-4 border-top shadow-sm" id="action-panel" style="display:none;">
-		<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <input type="hidden" name="file_id" id="selected-id">
             <form method="POST">
-			<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+			    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="file_id" id="selected-id">
                 
                 <div class="row g-3">
+                    <div class="col-12 mb-2">
+                        <button type="submit" name="action" value="scan_materials" class="btn btn-warning w-100 fw-bold" onclick="this.innerHTML='<i class=\'fas fa-spinner fa-spin me-2\'></i> Extracting... Please wait';">
+                            <i class="fas fa-robot me-2"></i> AI Extract Materials & Supplier
+                        </button>
+                    </div>
                     <div class="col-md-4">
                         <label class="small fw-bold text-muted">Cost (£)</label>
                         <input type="number" step="0.01" name="cost" id="selected-cost" class="form-control fw-bold">

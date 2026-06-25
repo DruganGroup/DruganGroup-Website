@@ -100,12 +100,21 @@ def job_files(job_id):
     expenses = float(cur.fetchone()[0])
     
     # C. Materials
-    cur.execute("SELECT COALESCE(SUM(quantity * cost_price), 0) FROM job_materials WHERE job_id = %s", (job_id,))
+    cur.execute("SELECT COALESCE(SUM(quantity * COALESCE(cost_price, unit_price, 0)), 0) FROM job_materials WHERE job_id = %s", (job_id,))
     materials_cost = float(cur.fetchone()[0])
     
     # D. Labor (Timesheets)
     cur.execute("""
-        SELECT COALESCE(SUM(t.total_hours * COALESCE(s.pay_rate, 0)), 0), COUNT(DISTINCT t.date) 
+        SELECT 
+            COALESCE(SUM(
+                t.total_hours * 
+                CASE 
+                    WHEN s.pay_model = 'Day' THEN (COALESCE(s.pay_rate, 0) / 8.0)
+                    WHEN s.pay_model = 'Year' THEN (COALESCE(s.pay_rate, 0) / (260.0 * 8.0))
+                    ELSE COALESCE(s.pay_rate, 0)
+                END
+            ), 0), 
+            COUNT(DISTINCT t.date) 
         FROM staff_timesheets t 
         JOIN staff s ON t.staff_id = s.id 
         WHERE t.job_id = %s

@@ -53,29 +53,42 @@ def run_regex_scan(filename):
     return result
 
 # --- TIER 2: GOOGLE GEMINI SCANNER (Smart & Paid) ---
-def run_gemini_scan(file_path):
-    if not GOOGLE_API_KEY: 
+def run_gemini_scan(file_path, api_key=None, context_materials=None, context_suppliers=None):
+    active_key = api_key if api_key else GOOGLE_API_KEY
+    if not active_key: 
         return {'success': False, 'error': "Google API Key missing"}
 
     try:
         # Prepare the model
+        genai.configure(api_key=active_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
         
         # Load the image
         image_data = encode_image(file_path)
         
         # The Prompt
-        prompt = """
+        prompt = f"""
         Analyze this document image. Extract the following fields as valid JSON only:
-        {
+        {{
             "doc_type": "supplier_invoice" or "fuel_receipt" or "certificate",
             "job_ref": "Look for Job Numbers like JOB-101, J-105, or Project References",
-            "total_cost": 0.00 (Extract the grand total),
+            "total_cost": 0.00,
             "date": "YYYY-MM-DD",
             "vendor": "Company Name",
-            "vehicle_reg": "Vehicle Registration if found (e.g. AB12 CDE)"
-        }
+            "vehicle_reg": "Vehicle Registration if found",
+            "line_items": [
+                {{
+                    "description": "Item name",
+                    "quantity": 0.00,
+                    "unit_price": 0.00
+                }}
+            ]
+        }}
         If a field is missing, set it to null. Do not include markdown formatting.
+        Context constraints:
+        - Known Suppliers: {context_suppliers or 'None'}
+        - Known Materials: {context_materials or 'None'}
+        If the vendor or a material matches closely with the known context, use the exact name from the context to prevent duplicates.
         """
         
         # Send to Gemini
@@ -95,7 +108,7 @@ def run_gemini_scan(file_path):
         return {'success': False, 'error': str(e)}
 
 # --- MAIN CONTROLLER ---
-def universal_sort_document(file_path):
+def universal_sort_document(file_path, api_key=None, context_materials=None, context_suppliers=None):
     """
     The Master Sorting Function.
     Flow: Regex -> Gemini -> Manual Review
@@ -119,7 +132,7 @@ def universal_sort_document(file_path):
 
     # 2. RUN GEMINI AI (Tier 2) - Only if Regex failed to find Job ID
     print("⚠️ Regex failed to find Job ID. Calling Gemini...")
-    ai_result = run_gemini_scan(file_path)
+    ai_result = run_gemini_scan(file_path, api_key, context_materials, context_suppliers)
     
     if ai_result['success']:
         data = ai_result['data']
@@ -145,3 +158,10 @@ def universal_sort_document(file_path):
             'data': regex_result['data'] # Pass whatever partial data Regex found
         }
     }
+
+def extract_receipt_materials(file_path, api_key=None, context_materials=None, context_suppliers=None):
+    """
+    Specifically forces Gemini to read line items from a receipt.
+    Bypasses Regex completely because we need the deep data.
+    """
+    return run_gemini_scan(file_path, api_key, context_materials, context_suppliers)
