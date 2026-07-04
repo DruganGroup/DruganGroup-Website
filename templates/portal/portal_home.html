@@ -8,9 +8,14 @@
             <h2 class="fw-bold m-0">My Dashboard</h2>
             <p class="text-muted mb-0">Welcome back, {{ client_name }}</p>
         </div>
-        <button class="btn btn-brand shadow-sm" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
-            <i class="fas fa-plus me-2"></i>Add Property
-        </button>
+        <div>
+            <button class="btn btn-brand shadow-sm me-2" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
+                <i class="fas fa-plus me-2"></i>Add Property
+            </button>
+            <button class="btn btn-info text-white shadow-sm" data-bs-toggle="modal" data-bs-target="#massEmailModal">
+                <i class="fas fa-envelope me-2"></i>Mass Email Tenants
+            </button>
+        </div>
     </div>
 
     <div class="card border-0 shadow-sm mb-4">
@@ -182,13 +187,17 @@
                         </div>
                         <h6 class="text-uppercase text-muted small fw-bold mb-3">Access & Tenant Info</h6>
                         <div class="row g-3">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label class="form-label">Tenant Name</label>
                                 <input type="text" name="tenant_name" class="form-control">
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label class="form-label">Tenant Phone</label>
                                 <input type="text" name="tenant_phone" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Tenant Email</label>
+                                <input type="email" name="tenant_email" class="form-control">
                             </div>
                             <div class="col-md-12">
                                 <label class="form-label text-danger fw-bold">Access Code</label>
@@ -199,6 +208,34 @@
                     <div class="modal-footer bg-light">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
                         <button type="submit" class="btn btn-brand px-4">Save Property</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="massEmailModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-envelope me-2"></i>Mass Email Tenants</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="/portal/property/mass-email" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="modal-body">
+                        <p class="text-muted small">This will send an email to all your tenants provided they have an email address saved in their property details.</p>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Subject</label>
+                            <input type="text" name="subject" class="form-control" required placeholder="Important Notice">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Message</label>
+                            <textarea name="message" class="form-control" rows="5" required placeholder="Type your message here..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
+                        <button type="submit" class="btn btn-info text-white fw-bold">Send Mass Email</button>
                     </div>
                 </form>
             </div>

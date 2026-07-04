@@ -325,6 +325,84 @@ def portal_request_submit():
     return redirect(f'/portal/property/{prop_id}')
 
 # --- 6. ARCHIVE PROPERTY (WAS DELETE) ---
+@portal_bp.route('/portal/property/mass-email', methods=['POST'])
+def portal_mass_email_tenants():
+    if not check_portal_access(): return redirect(get_login_url())
+    
+    comp_id = session.get('portal_company_id')
+    client_id = session.get('portal_client_id')
+    
+    subject = request.form.get('subject')
+    message = request.form.get('message')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Get all properties for this client that have a tenant email
+        cur.execute("""
+            SELECT tenant_email 
+            FROM properties 
+            WHERE client_id = %s AND company_id = %s AND tenant_email IS NOT NULL AND tenant_email != ''
+        """, (client_id, comp_id))
+        
+        emails = [row[0] for row in cur.fetchall()]
+        
+        if not emails:
+            flash("No tenant emails found in your properties.", "warning")
+            return redirect(url_for('portal.portal_home'))
+            
+        from tasks import send_tenant_email_task
+        
+        sent_count = 0
+        for email in emails:
+            # Send Email (via Celery)
+            send_tenant_email_task.delay(
+                company_id=comp_id,
+                recipient_email=email,
+                subject=subject,
+                body_html=f"<p>{message}</p>"
+            )
+            sent_count += 1
+            
+        flash(f"✅ Mass email queued for {sent_count} tenants.", "success")
+    except Exception as e:
+        flash(f"Error: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('portal.portal_home'))
+
+# --- 6. ARCHIVE PROPERTY (WAS DELETE) ---
+@portal_bp.route('/portal/property/add', methods=['POST'])
+def portal_add_property():
+    if not check_portal_access(): return redirect(get_login_url())
+    
+    comp_id = session.get('portal_company_id')
+    client_id = session.get('portal_client_id')
+    
+    addr = request.form.get('address')
+    postcode = request.form.get('postcode')
+    prop_type = request.form.get('type')
+    tenant_name = request.form.get('tenant_name')
+    tenant_phone = request.form.get('tenant_phone')
+    tenant_email = request.form.get('tenant_email')
+    key_code = request.form.get('key_code')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO properties (company_id, client_id, address_line1, postcode, type, tenant_name, tenant_phone, tenant_email, key_code, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')
+        """, (comp_id, client_id, addr, postcode, prop_type, tenant_name, tenant_phone, tenant_email, key_code))
+        conn.commit()
+        flash("✅ Property added successfully.", "success")
+    except Exception as e:
+        conn.rollback(); flash(f"Error adding property: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('portal.portal_home'))
+
+# --- 6. ARCHIVE PROPERTY (WAS DELETE) ---
 @portal_bp.route('/portal/property/archive/<int:property_id>', methods=['POST'])
 def archive_property(property_id):
     if not check_portal_access(): return redirect(get_login_url())

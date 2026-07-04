@@ -36,6 +36,9 @@
             <button class="btn btn-success fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
                 <i class="fas fa-plus-circle me-2"></i>Add Property
             </button>
+            <button class="btn btn-info text-white fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#massEmailModal">
+                <i class="fas fa-envelope me-2"></i>Mass Email Tenants
+            </button>
             <div class="dropdown">
                 <button class="btn btn-outline-dark dropdown-toggle fw-bold" type="button" data-bs-toggle="dropdown">
                     Actions
@@ -200,7 +203,8 @@
                     <div class="row g-2 mb-4">
                         <div class="col-6"><input type="text" name="tenant_name" class="form-control" placeholder="Tenant Name"></div>
                         <div class="col-6"><input type="text" name="tenant_phone" class="form-control" placeholder="Tenant Phone"></div>
-                        <div class="col-12 mt-2"><input type="text" name="key_code" class="form-control" placeholder="Key Safe Code"></div>
+                        <div class="col-6 mt-2"><input type="email" name="tenant_email" class="form-control" placeholder="Tenant Email"></div>
+                        <div class="col-6 mt-2"><input type="text" name="key_code" class="form-control" placeholder="Key Safe Code"></div>
                     </div>
                     
                     <h6 class="fw-bold text-danger border-top pt-3">Compliance Dates</h6>
@@ -213,6 +217,33 @@
                 </div>
                 <div class="modal-footer">
                     <button type="submit" class="btn btn-success fw-bold">Add Property</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="massEmailModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-envelope me-2"></i>Mass Email Tenants</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/office/client/{{ client.id }}/mass-email" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <p class="text-muted small">This will send an email to all tenants associated with properties under this client, provided they have an email address on file.</p>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Subject</label>
+                        <input type="text" name="subject" class="form-control" required placeholder="Important Notice from Estate Agent">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Message</label>
+                        <textarea name="message" class="form-control" rows="5" required placeholder="Type your message here..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-info text-white fw-bold">Send Mass Email</button>
                 </div>
             </form>
         </div>

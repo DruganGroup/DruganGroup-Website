@@ -299,6 +299,7 @@ def add_property(client_id):
     post = request.form.get('postcode')
     tenant = request.form.get('tenant_name')
     t_phone = request.form.get('tenant_phone') 
+    t_email = request.form.get('tenant_email')
     key = request.form.get('key_code')
     
     gas = request.form.get('gas_expiry') or None
@@ -307,9 +308,9 @@ def add_property(client_id):
     conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("""
-            INSERT INTO properties (company_id, client_id, address_line1, postcode, tenant_name, tenant_phone, key_code, gas_expiry, eicr_expiry)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (comp_id, client_id, addr, post, tenant, t_phone, key, gas, eicr))
+            INSERT INTO properties (company_id, client_id, address_line1, postcode, tenant_name, tenant_phone, tenant_email, key_code, gas_expiry, eicr_expiry)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (comp_id, client_id, addr, post, tenant, t_phone, t_email, key, gas, eicr))
         conn.commit()
         flash("✅ Property added.")
     except Exception as e:
@@ -395,6 +396,50 @@ def view_property(property_id):
     
     return render_template('office/property_details.html', prop=prop, client=client, jobs=jobs, certs=certs, today=date.today())
 
+@client_bp.route('/office/client/<int:client_id>/mass-email', methods=['POST'])
+def mass_email_tenants(client_id):
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    subject = request.form.get('subject')
+    message = request.form.get('message')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Get all properties for this client that have a tenant email
+        cur.execute("""
+            SELECT tenant_email 
+            FROM properties 
+            WHERE client_id = %s AND company_id = %s AND tenant_email IS NOT NULL AND tenant_email != ''
+        """, (client_id, comp_id))
+        
+        emails = [row[0] for row in cur.fetchall()]
+        
+        if not emails:
+            flash("No tenant emails found for this client.", "warning")
+            return redirect(url_for('client.view_client', client_id=client_id))
+            
+        from tasks import send_tenant_email_task
+        
+        sent_count = 0
+        for email in emails:
+            # Send Email (via Celery)
+            send_tenant_email_task.delay(
+                company_id=comp_id,
+                recipient_email=email,
+                subject=subject,
+                body_html=f"<p>{message}</p>"
+            )
+            sent_count += 1
+            
+        flash(f"✅ Mass email queued for {sent_count} tenants.", "success")
+    except Exception as e:
+        flash(f"Error: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(url_for('client.view_client', client_id=client_id))
+
 @client_bp.route('/office/property/update', methods=['POST'])
 def update_property():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
@@ -406,6 +451,7 @@ def update_property():
     post = request.form.get('postcode')
     tenant = request.form.get('tenant_name')
     t_phone = request.form.get('tenant_phone')
+    t_email = request.form.get('tenant_email')
     key = request.form.get('key_code')
     
     gas = request.form.get('gas_expiry') or None
@@ -417,10 +463,10 @@ def update_property():
     try:
         cur.execute("""
             UPDATE properties 
-            SET address_line1=%s, postcode=%s, tenant_name=%s, tenant_phone=%s, key_code=%s,
+            SET address_line1=%s, postcode=%s, tenant_name=%s, tenant_phone=%s, tenant_email=%s, key_code=%s,
                 gas_expiry=%s, eicr_expiry=%s, pat_expiry=%s, epc_expiry=%s
             WHERE id=%s
-        """, (addr, post, tenant, t_phone, key, gas, eicr, pat, epc, prop_id))
+        """, (addr, post, tenant, t_phone, t_email, key, gas, eicr, pat, epc, prop_id))
         conn.commit()
         flash("✅ Property updated.")
     except Exception as e:

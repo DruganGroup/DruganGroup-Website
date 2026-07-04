@@ -531,6 +531,7 @@
 | city | character varying | 100 | YES |
 | county | character varying | 100 | YES |
 | tenant | character varying | 100 | YES |
+| tenant_email | character varying | 255 | YES |
 
 ## Table: `suppliers`
 
