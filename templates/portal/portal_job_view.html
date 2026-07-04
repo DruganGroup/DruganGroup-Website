@@ -49,6 +49,27 @@
             </div>
         </div>
 
+        {% if job_docs %}
+        <div class="card shadow-sm border-0 mt-4">
+            <div class="card-header bg-white py-3 border-0">
+                <h5 class="m-0 fw-bold"><i class="fas fa-folder-open me-2 text-brand"></i>Project Documents</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for doc in job_docs %}
+                <div class="list-group-item py-3 d-flex justify-content-between align-items-center bg-light">
+                    <div>
+                        <span class="badge bg-secondary mb-1">{{ doc.type }}</span>
+                        <div class="small fw-bold text-muted">{{ doc.date }}</div>
+                    </div>
+                    <a href="/{{ doc.path }}" target="_blank" class="btn btn-sm btn-outline-dark">
+                        <i class="fas fa-download"></i> View
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <div class="card shadow-sm border-0 mt-4">
             <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
                 <h5 class="m-0 fw-bold"><i class="fas fa-camera me-2 text-brand"></i>Site Gallery</h5>

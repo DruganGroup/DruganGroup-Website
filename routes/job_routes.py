@@ -163,10 +163,10 @@ def job_files(job_id):
 
     # Fetch Photos/Evidence
     # FIX: Use 'filepath' based on schema
-    cur.execute("SELECT id, filepath, uploaded_at, file_type FROM job_evidence WHERE job_id = %s", (job_id,))
+    cur.execute("SELECT id, filepath, uploaded_at, file_type, visible_to_client FROM job_evidence WHERE job_id = %s", (job_id,))
     for row in cur.fetchall():
         f_type = row[3] if row[3] else "Photo"
-        files.append((f_type, "Evidence Upload", 0, str(row[2])[:10], row[1], row[0]))
+        files.append((f_type, "Evidence Upload", 0, str(row[2])[:10], row[1], row[0], row[4]))
 
     # 4. Add a "Virtual" receipt for the Van Cost so it shows in the list
     if vehicle_cost > 0:
@@ -298,6 +298,46 @@ def log_hours(job_id):
         
     return redirect(f"/office/job/{job_id}/files")
     
+@jobs_bp.route('/office/job/<int:job_id>/upload-document', methods=['POST'])
+def upload_job_document(job_id):
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    doc_type = request.form.get('document_type')
+    visible_to_client = True if request.form.get('visible_to_client') == '1' else False
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        from werkzeug.utils import secure_filename
+        import os
+        from flask import current_app
+        
+        if 'file' in request.files:
+            file = request.files['file']
+            if file and file.filename != '':
+                from datetime import datetime
+                relative_path = f"company_{comp_id}/job_evidence"
+                save_dir = os.path.join(current_app.static_folder, 'uploads', relative_path)
+                os.makedirs(save_dir, exist_ok=True)
+                
+                filename = secure_filename(f"JOB_{job_id}_{int(datetime.now().timestamp())}_{file.filename}")
+                file.save(os.path.join(save_dir, filename))
+                
+                db_path = f"/uploads/{relative_path}/{filename}"
+                cur.execute("""
+                    INSERT INTO job_evidence (job_id, filepath, file_type, uploaded_by, visible_to_client) 
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (job_id, db_path, doc_type, session['user_id'], visible_to_client))
+                flash("📄 Document uploaded successfully.", "success")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error uploading document: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(request.referrer)
+
 @jobs_bp.route('/office/job/save', methods=['POST'])
 def save_job_action():
     if 'user_id' not in session: return redirect(url_for('auth.login'))

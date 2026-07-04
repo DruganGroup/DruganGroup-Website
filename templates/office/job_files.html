@@ -184,6 +184,13 @@
                                     {% if f[2] > 0 %}£{{ "%.2f"|format(f[2]) }}{% else %}-{% endif %}
                                 </td>
                                 <td class="text-end pe-3">
+                                    {% if 'Invoice' not in f[0] and f[0] != 'Material' and f[0] != 'Expense' and f[0] != 'Timesheet' and f[0] != 'RAMS' and f[0] != 'Vehicle' %}
+                                        <div class="form-check form-switch d-inline-block me-2 mb-0" title="Toggle Client Visibility">
+                                            <input class="form-check-input toggle-visibility" type="checkbox" role="switch" 
+                                                data-table="job_evidence" data-id="{{ f[5] }}" 
+                                                {% if f[6] %}checked{% endif %}>
+                                        </div>
+                                    {% endif %}
                                     {% if 'Invoice' in f[0] %}
                                         <a href="#" data-invoice-id="{{ f[5] }}" class="btn btn-xs btn-outline-primary async-download" title="Download PDF">
                                             <i class="fas fa-download icon-placeholder"></i>
@@ -220,11 +227,23 @@
                 <div class="card-body tab-content bg-light rounded-bottom">
                     
                     <div class="tab-pane fade show active" id="tab-upload">
-                        <form action="/office/upload-center" method="POST" enctype="multipart/form-data">
+                        <form action="/office/job/{{ job.id }}/upload-document" method="POST" enctype="multipart/form-data">
 						<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="job_ref" value="{{ job.ref }}">
-                            <label class="small fw-bold mb-2">Upload File / Photo</label>
-                            <input type="file" name="file" class="form-control form-control-sm mb-3" required>
+                            <label class="small fw-bold mb-2">Upload Document / Photo</label>
+                            <select name="document_type" class="form-select form-select-sm mb-2" required>
+                                <option value="">Select Type...</option>
+                                <option value="Site Photo">Site Photo</option>
+                                <option value="Project Plan">Project Plan</option>
+                                <option value="Layout Drawing">Layout Drawing</option>
+                                <option value="Building Rights">Building Rights</option>
+                                <option value="Certificate">Certificate</option>
+                                <option value="Other">Other</option>
+                            </select>
+                            <input type="file" name="file" class="form-control form-control-sm mb-2" required>
+                            <div class="form-check d-flex align-items-center mb-3">
+                                <input class="form-check-input mt-0 me-1" type="checkbox" name="visible_to_client" id="visCheckJob" value="1">
+                                <label class="form-check-label small fw-bold" for="visCheckJob">Share with Client in Portal</label>
+                            </div>
                             <button class="btn btn-primary w-100 fw-bold btn-sm">Upload</button>
                         </form>
                     </div>
@@ -424,5 +443,36 @@ function emailSupplier(jobId) {
         });
     }
 }
+
+document.querySelectorAll('.toggle-visibility').forEach(toggle => {
+    toggle.addEventListener('change', function() {
+        const table = this.dataset.table;
+        const id = this.dataset.id;
+        const originalState = !this.checked;
+        
+        let csrfToken = '';
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        if (csrfInput) csrfToken = csrfInput.value;
+
+        fetch(`/api/document/${table}/${id}/toggle-visibility`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                alert('Error toggling visibility');
+                this.checked = originalState;
+            }
+        })
+        .catch(err => {
+            alert('Network error');
+            this.checked = originalState;
+        });
+    });
+});
 </script>
 {% endblock %}

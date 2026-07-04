@@ -964,6 +964,44 @@ def send_office_email():
         
     return redirect(url_for('office.inbox'))
 
+@office_bp.route('/api/document/<string:table_name>/<int:doc_id>/toggle-visibility', methods=['POST'])
+def api_toggle_document_visibility(table_name, doc_id):
+    if not check_office_access(): return jsonify({'error': 'Unauthorized'}), 401
+    
+    valid_tables = {'job_evidence', 'property_documents', 'quote_documents'}
+    if table_name not in valid_tables:
+        return jsonify({'error': 'Invalid table'}), 400
+        
+    comp_id = session.get('company_id')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Check current state
+        if table_name == 'job_evidence':
+            cur.execute("SELECT visible_to_client FROM job_evidence WHERE id = %s", (doc_id,))
+        else:
+            cur.execute(f"SELECT visible_to_client FROM {table_name} WHERE id = %s AND company_id = %s", (doc_id, comp_id))
+            
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Document not found'}), 404
+            
+        new_state = not row[0]
+        
+        if table_name == 'job_evidence':
+            cur.execute("UPDATE job_evidence SET visible_to_client = %s WHERE id = %s", (new_state, doc_id))
+        else:
+            cur.execute(f"UPDATE {table_name} SET visible_to_client = %s WHERE id = %s AND company_id = %s", (new_state, doc_id, comp_id))
+            
+        conn.commit()
+        return jsonify({'success': True, 'new_state': new_state})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
 @office_bp.route('/office/api/email/<int:email_id>/draft')
 def api_email_draft(email_id):
     if not check_office_access(): return jsonify({'error': 'Unauthorized'}), 401

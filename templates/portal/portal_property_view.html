@@ -67,6 +67,27 @@
             </div>
         </div>
 
+        {% if prop_docs %}
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white fw-bold py-3">
+                <i class="fas fa-folder-open me-2 text-brand"></i>Property Documents
+            </div>
+            <div class="list-group list-group-flush">
+                {% for d in prop_docs %}
+                <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                    <div>
+                        <div class="fw-bold text-dark">{{ d.type }}</div>
+                        <small class="text-muted">{{ d.date }}</small>
+                    </div>
+                    <a href="/static{{ d.path }}" target="_blank" class="btn btn-sm btn-outline-dark">
+                        <i class="fas fa-download"></i>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <div class="card shadow-sm border-0">
              <div class="card-header bg-danger text-white fw-bold py-3">
                 <i class="fas fa-exclamation-triangle me-2"></i>Report an Issue

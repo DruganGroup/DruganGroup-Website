@@ -84,6 +84,56 @@
                     {% endfor %}
                 </div>
             </div>
+            
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-folder-open me-2 text-primary"></i>Property Documents</span>
+                </div>
+                <div class="card-body p-3 bg-light border-bottom">
+                    <form action="/office/property/{{ prop.id }}/upload-document" method="POST" enctype="multipart/form-data" class="d-flex gap-2">
+                        <select name="document_type" class="form-select form-select-sm w-auto" required>
+                            <option value="">Select Type...</option>
+                            <option value="Project Plan">Project Plan</option>
+                            <option value="Layout Drawing">Layout Drawing</option>
+                            <option value="Building Rights">Building Rights</option>
+                            <option value="Certificate">Certificate</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <input type="file" name="document" class="form-control form-control-sm" required>
+                        <div class="form-check d-flex align-items-center mb-0 mt-1 me-2">
+                            <input class="form-check-input mt-0 me-1" type="checkbox" name="visible_to_client" id="visCheck" value="1">
+                            <label class="form-check-label small fw-bold text-nowrap" for="visCheck">Share with Client</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm fw-bold">Upload</button>
+                    </form>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for d in prop_docs %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-secondary me-2">{{ d.type }}</span>
+                            <span class="small text-muted">{{ d.date.strftime('%d/%m/%Y') }}</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="form-check form-switch me-3 mb-0" title="Toggle Client Visibility">
+                                <input class="form-check-input toggle-visibility" type="checkbox" role="switch" 
+                                    data-table="property_documents" data-id="{{ d.id }}" 
+                                    {% if d.visible %}checked{% endif %}>
+                                <label class="form-check-label small" style="font-size: 0.7rem;">Client View</label>
+                            </div>
+                            <a href="/static{{ d.path }}" target="_blank" class="btn btn-sm btn-outline-dark me-1">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="/office/property/delete-document/{{ d.id }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this document?');">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="p-3 text-center text-muted small">No documents uploaded directly to this property.</div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
 
         <div class="col-lg-8">
@@ -170,4 +220,36 @@
         </div>
     </div>
 </div>
+<script>
+document.querySelectorAll('.toggle-visibility').forEach(toggle => {
+    toggle.addEventListener('change', function() {
+        const table = this.dataset.table;
+        const id = this.dataset.id;
+        const originalState = !this.checked;
+        
+        let csrfToken = '';
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        if (csrfInput) csrfToken = csrfInput.value;
+
+        fetch(`/api/document/${table}/${id}/toggle-visibility`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                alert('Error toggling visibility');
+                this.checked = originalState;
+            }
+        })
+        .catch(err => {
+            alert('Network error');
+            this.checked = originalState;
+        });
+    });
+});
+</script>
 {% endblock %}

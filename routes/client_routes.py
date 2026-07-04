@@ -392,9 +392,21 @@ def view_property(property_id):
     for c in cur.fetchall():
         certs.append({'type': c[1], 'date': c[2], 'job_ref': c[3], 'path': c[4]})
 
+    # 4. Fetch Property Documents
+    cur.execute("""
+        SELECT id, document_type, filepath, uploaded_at, visible_to_client 
+        FROM property_documents 
+        WHERE property_id = %s AND company_id = %s
+        ORDER BY uploaded_at DESC
+    """, (property_id, session.get('company_id')))
+    
+    prop_docs = []
+    for d in cur.fetchall():
+        prop_docs.append({'id': d[0], 'type': d[1], 'path': d[2], 'date': d[3], 'visible': d[4]})
+
     conn.close()
     
-    return render_template('office/property_details.html', prop=prop, client=client, jobs=jobs, certs=certs, today=date.today())
+    return render_template('office/property_details.html', prop=prop, client=client, jobs=jobs, certs=certs, prop_docs=prop_docs, today=date.today())
 
 @client_bp.route('/office/client/<int:client_id>/mass-email', methods=['POST'])
 def mass_email_tenants(client_id):
@@ -439,6 +451,63 @@ def mass_email_tenants(client_id):
         conn.close()
         
     return redirect(url_for('client.view_client', client_id=client_id))
+
+@client_bp.route('/office/property/<int:property_id>/upload-document', methods=['POST'])
+def upload_property_document(property_id):
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    doc_type = request.form.get('document_type')
+    visible_to_client = True if request.form.get('visible_to_client') == '1' else False
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        from werkzeug.utils import secure_filename
+        import os
+        from flask import current_app
+        
+        if 'document' in request.files:
+            file = request.files['document']
+            if file and file.filename != '':
+                from datetime import datetime
+                relative_path = f"company_{comp_id}/property_documents"
+                save_dir = os.path.join(current_app.static_folder, 'uploads', relative_path)
+                os.makedirs(save_dir, exist_ok=True)
+                
+                filename = secure_filename(f"PROP_{property_id}_{int(datetime.now().timestamp())}_{file.filename}")
+                file.save(os.path.join(save_dir, filename))
+                
+                db_path = f"/uploads/{relative_path}/{filename}"
+                cur.execute("""
+                    INSERT INTO property_documents (company_id, property_id, document_type, filepath, uploaded_by, visible_to_client) 
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (comp_id, property_id, doc_type, db_path, session['user_id'], visible_to_client))
+                flash("📄 Document uploaded successfully.", "success")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error uploading document: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(request.referrer)
+
+@client_bp.route('/office/property/delete-document/<int:doc_id>')
+def delete_property_document(doc_id):
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Office']: return redirect(url_for('auth.login'))
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Security check: ensure doc belongs to user's company
+        cur.execute("DELETE FROM property_documents WHERE id = %s AND company_id = %s", (doc_id, session.get('company_id')))
+        conn.commit()
+        flash("🗑️ Document deleted.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}", "error")
+    finally:
+        conn.close()
+    return redirect(request.referrer)
 
 @client_bp.route('/office/property/update', methods=['POST'])
 def update_property():

@@ -178,22 +178,32 @@ def portal_job_view(job_id):
         SELECT filepath, uploaded_at, file_type 
         FROM job_evidence 
         WHERE job_id = %s 
-        AND file_type IN ('Site Photo', 'Completion Photo', 'Evidence')
+        AND visible_to_client = TRUE
         ORDER BY uploaded_at DESC
     """, (job_id,))
     
-    raw_photos = cur.fetchall()
+    raw_files = cur.fetchall()
     photos = []
-    for p in raw_photos:
-        ph = list(p)
-        ph[1] = format_date_by_country(ph[1], comp_id)
-        photos.append(ph)
+    job_docs = []
+    for p in raw_files:
+        filepath = p[0]
+        date_str = format_date_by_country(p[1], comp_id)
+        file_type = p[2]
+        is_pdf = filepath.lower().endswith('.pdf') if filepath else False
+        
+        item = {'path': filepath, 'date': date_str, 'type': file_type}
+        
+        if is_pdf or file_type in ['Project Plan', 'Layout Drawing', 'Building Rights', 'Certificate']:
+            job_docs.append(item)
+        else:
+            photos.append(item)
         
     conn.close()
     
     return render_template('portal/portal_job_view.html', 
                            job=job, 
                            photos=photos, 
+                           job_docs=job_docs,
                            company_name=config.get('name'), 
                            logo_url=config.get('logo'), 
                            brand_color=config.get('color'))
@@ -268,12 +278,20 @@ def property_detail(property_id):
         j[4] = format_date_by_country(j[4], comp_id)
         job_history.append(j)
 
+    cur.execute("""
+        SELECT document_type, filepath, uploaded_at 
+        FROM property_documents 
+        WHERE property_id = %s AND company_id = %s AND visible_to_client = TRUE
+        ORDER BY uploaded_at DESC
+    """, (property_id, comp_id))
+    prop_docs = [{'type': r[0], 'path': r[1], 'date': format_date_by_country(r[2], comp_id)} for r in cur.fetchall()]
+
     conn.close()
     return render_template('portal/portal_property_view.html', 
                          client_name=session.get('portal_client_name'),
                          company_name=config.get('name'), logo_url=config.get('logo'), 
                          brand_color=config.get('color'), prop=prop_row, 
-                         compliance=compliance, job_history=job_history)
+                         compliance=compliance, job_history=job_history, prop_docs=prop_docs)
 
 # --- 6. ARCHIVE PROPERTY (WAS DELETE) ---
 @portal_bp.route('/portal/request/submit', methods=['POST'])
@@ -564,6 +582,14 @@ def portal_view_quote(quote_id):
     tax_amount = subtotal * tax_rate
     grand_total = subtotal + tax_amount
 
+    cur.execute("""
+        SELECT document_type, filepath, uploaded_at 
+        FROM quote_documents 
+        WHERE quote_id = %s AND company_id = %s AND visible_to_client = TRUE
+        ORDER BY uploaded_at DESC
+    """, (quote_id, comp_id))
+    quote_docs = [{'type': r[0], 'path': r[1], 'date': format_date_by_country(r[2], comp_id)} for r in cur.fetchall()]
+
     # Package Data
     quote = {
         'id': quote_row[0],
@@ -587,7 +613,8 @@ def portal_view_quote(quote_id):
                            brand_color=config['color'],
                            config=config,
                            quote=quote,
-                           items=items)
+                           items=items,
+                           quote_docs=quote_docs)
 
 @portal_bp.route('/portal/quote/<int:quote_id>/accept')
 def portal_accept_quote(quote_id):

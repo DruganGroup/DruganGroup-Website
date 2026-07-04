@@ -460,6 +460,9 @@ def view_quote(quote_id):
     res = cur.fetchone()
     currency = res[0] if res else '£'
 
+    cur.execute("SELECT id, document_type, filepath, uploaded_at, visible_to_client FROM quote_documents WHERE quote_id = %s AND company_id = %s ORDER BY uploaded_at DESC", (quote_id, comp_id))
+    quote_docs = [{'id': r[0], 'type': r[1], 'path': r[2], 'date': r[3], 'visible': r[4]} for r in cur.fetchall()]
+
     conn.close()
     
     if not quote: return "Quote not found", 404
@@ -468,7 +471,8 @@ def view_quote(quote_id):
                            quote=quote, 
                            currency_symbol=currency,
                            brand_color=config['color'], 
-                           logo_url=config['logo'])
+                           logo_url=config['logo'],
+                           quote_docs=quote_docs)
                            
 @quote_bp.route('/office/quote/<int:quote_id>/book-job')
 def convert_to_job(quote_id):
@@ -778,6 +782,62 @@ def convert_to_invoice(quote_id):
 # =========================================================
 # 6. PDF REDIRECT
 # =========================================================
+@quote_bp.route('/office/quote/<int:quote_id>/upload-document', methods=['POST'])
+def upload_quote_document(quote_id):
+    if not check_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    doc_type = request.form.get('document_type')
+    visible_to_client = True if request.form.get('visible_to_client') == '1' else False
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        from werkzeug.utils import secure_filename
+        import os
+        from flask import current_app
+        
+        if 'document' in request.files:
+            file = request.files['document']
+            if file and file.filename != '':
+                from datetime import datetime
+                relative_path = f"company_{comp_id}/quote_documents"
+                save_dir = os.path.join(current_app.static_folder, 'uploads', relative_path)
+                os.makedirs(save_dir, exist_ok=True)
+                
+                filename = secure_filename(f"QUOTE_{quote_id}_{int(datetime.now().timestamp())}_{file.filename}")
+                file.save(os.path.join(save_dir, filename))
+                
+                db_path = f"/uploads/{relative_path}/{filename}"
+                cur.execute("""
+                    INSERT INTO quote_documents (company_id, quote_id, document_type, filepath, uploaded_by, visible_to_client) 
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (comp_id, quote_id, doc_type, db_path, session['user_id'], visible_to_client))
+                flash("📄 Document uploaded successfully.", "success")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error uploading document: {e}", "error")
+    finally:
+        conn.close()
+        
+    return redirect(request.referrer)
+
+@quote_bp.route('/office/quote/delete-document/<int:doc_id>')
+def delete_quote_document(doc_id):
+    if not check_access(): return redirect(url_for('auth.login'))
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM quote_documents WHERE id = %s AND company_id = %s", (doc_id, session.get('company_id')))
+        conn.commit()
+        flash("🗑️ Document deleted.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}", "error")
+    finally:
+        conn.close()
+    return redirect(request.referrer)
+
 @quote_bp.route('/office/quote/<int:quote_id>/pdf')
 def pdf_redirect(quote_id):
     # This catches the old link and sends it to the new PDF engine

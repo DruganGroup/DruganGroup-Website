@@ -70,8 +70,54 @@
         <div class="mb-4">
             <label class="small text-muted text-uppercase fw-bold">Total Value</label>
             <div class="fs-4 fw-bold text-success">{{ currency_symbol }}{{ "%.2f"|format(quote[4]) }}</div> </div>
+
+        <hr class="border-secondary">
+
+        <h6 class="fw-bold mb-3 small text-uppercase text-light"><i class="fas fa-folder-open me-2"></i> Documents</h6>
+        <div class="mb-3">
+            <form action="{{ url_for('quote.upload_quote_document', quote_id=quote[0]) }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <select name="document_type" class="form-select form-select-sm mb-2 text-dark" required>
+                    <option value="">Select Type...</option>
+                    <option value="Project Plan">Project Plan</option>
+                    <option value="Layout Drawing">Layout Drawing</option>
+                    <option value="Building Rights">Building Rights</option>
+                    <option value="Certificate">Certificate</option>
+                    <option value="Building Control Sign-off">Building Control Sign-off</option>
+                    <option value="Other">Other</option>
+                </select>
+                <input type="file" name="document" class="form-control form-control-sm mb-2" required>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="visible_to_client" id="visCheckQuote" value="1">
+                    <label class="form-check-label small text-light" for="visCheckQuote">Share with Client in Portal</label>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">Upload Document</button>
+            </form>
+        </div>
+
+        <div class="list-group list-group-flush mb-4" style="max-height: 200px; overflow-y: auto;">
+            {% for d in quote_docs %}
+            <div class="list-group-item bg-dark border-secondary d-flex justify-content-between align-items-center p-2">
+                <div class="text-truncate" style="max-width: 140px;">
+                    <span class="badge bg-secondary mb-1" style="font-size: 0.65rem;">{{ d.type }}</span>
+                    <br><small class="text-light" style="font-size: 0.7rem;">{{ d.date.strftime('%d/%m/%y') }}</small>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="form-check form-switch me-2 mb-0" title="Toggle Client Visibility">
+                        <input class="form-check-input toggle-visibility" type="checkbox" role="switch" 
+                            data-table="quote_documents" data-id="{{ d.id }}" 
+                            {% if d.visible %}checked{% endif %}>
+                    </div>
+                    <a href="/static{{ d.path }}" target="_blank" class="btn btn-xs btn-outline-light me-1 py-0 px-1"><i class="fas fa-eye"></i></a>
+                    <a href="{{ url_for('quote.delete_quote_document', doc_id=d.id) }}" class="btn btn-xs btn-outline-danger py-0 px-1" onclick="return confirm('Delete document?');"><i class="fas fa-trash"></i></a>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-muted small p-2 text-center bg-dark rounded border border-secondary">No documents uploaded.</div>
+            {% endfor %}
+        </div>
         
-        <div class="d-grid gap-2 mt-5">
+        <div class="d-grid gap-2 mt-auto">
             <a href="/office-hub" class="btn btn-outline-light"><i class="fas fa-arrow-left me-2"></i> Back to Dashboard</a>
             
             <a href="{{ url_for('quote.email_quote', quote_id=quote[0]) }}" class="btn btn-outline-info" onclick="return confirm('Send this quote to the client via email?');">
@@ -118,5 +164,37 @@
         <iframe src="/office/quote/{{ quote[0] }}/pdf" id="pdfFrame"></iframe>
     </div>
 
+<script>
+document.querySelectorAll('.toggle-visibility').forEach(toggle => {
+    toggle.addEventListener('change', function() {
+        const table = this.dataset.table;
+        const id = this.dataset.id;
+        const originalState = !this.checked;
+        
+        let csrfToken = '';
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        if (csrfInput) csrfToken = csrfInput.value;
+
+        fetch(`/api/document/${table}/${id}/toggle-visibility`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                alert('Error toggling visibility');
+                this.checked = originalState;
+            }
+        })
+        .catch(err => {
+            alert('Network error');
+            this.checked = originalState;
+        });
+    });
+});
+</script>
 </body>
 </html>
