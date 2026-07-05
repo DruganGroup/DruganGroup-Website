@@ -485,13 +485,10 @@ def update_job(job_id):
 
             # 6. FINAL TOTALS & TAX
             cur.execute("SELECT SUM(total) FROM invoice_items WHERE invoice_id = %s", (inv_id,))
-            subtotal = cur.fetchone()[0] or 0.0
+            subtotal = float(cur.fetchone()[0] or 0.0)
             
-            is_vat = (settings.get('vat_registered') == 'yes')
-            tax_rate = 0.20 if (is_vat and settings.get('country_code', 'UK') == 'UK') else 0.0
-            
-            tax_amt = float(subtotal) * tax_rate
-            final_total = float(subtotal) + tax_amt
+            from services.tax_engine import TaxEngine
+            tax_rate, tax_amt, final_total = TaxEngine.calculate_invoice_totals(settings, subtotal)
             
             cur.execute("UPDATE invoices SET subtotal = %s, tax = %s, total = %s WHERE id = %s", (subtotal, tax_amt, final_total, inv_id))
             flash(f"✅ Job Completed. Invoice {inv_ref} Generated.")
@@ -501,18 +498,12 @@ def update_job(job_id):
             if 'photo' in request.files:
                 file = request.files['photo']
                 if file.filename != '':
-                    # SECURITY UPDATE: Use company_{id} folder
-                    relative_path = f"company_{comp_id}/job_evidence"
-                    save_dir = os.path.join(current_app.static_folder, 'uploads', relative_path)
-                    os.makedirs(save_dir, exist_ok=True)
-                    
-                    filename = secure_filename(f"JOB_{job_id}_{int(datetime.now().timestamp())}_{file.filename}")
-                    file.save(os.path.join(save_dir, filename))
-                    
-                    # DB Path must match app.py bouncer logic
-                    db_path = f"/uploads/{relative_path}/{filename}"
-                    cur.execute("INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type) VALUES (%s, %s, %s, 'Site Photo')", (job_id, db_path, session['user_id']))
-                    flash("📷 Photo Uploaded")
+                    from utils.validators import save_secure_file
+                    db_path = save_secure_file(file, f"company_{comp_id}/job_evidence", f"JOB_{job_id}_")
+                    if db_path:
+                        # Visibility false by default for site photos
+                        cur.execute("INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type, visible_to_client) VALUES (%s, %s, %s, 'Site Photo', FALSE)", (job_id, db_path, session['user_id']))
+                        flash("📷 Photo Uploaded")
 
         conn.commit()
     except Exception as e:

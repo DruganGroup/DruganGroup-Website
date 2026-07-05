@@ -251,11 +251,21 @@ def delete_job_item(item_id, item_type):
         if 'Invoice' in item_type:
              flash("⚠️ Cannot delete Invoices from here. Go to Finance > Invoices.", "warning")
         elif 'Expense' in item_type or 'Receipt' in item_type or 'Manual' in item_type:
+            cur.execute("SELECT receipt_path FROM job_expenses WHERE id = %s", (item_id,))
+            row = cur.fetchone()
+            if row and row[0]:
+                from utils.validators import delete_file_safely
+                delete_file_safely(row[0])
             cur.execute("DELETE FROM job_expenses WHERE id = %s", (item_id,))
             flash("🗑️ Expense/Receipt Deleted", "success")
-        elif 'Photo' in item_type or 'Evidence' in item_type:
+        elif 'Photo' in item_type or 'Evidence' in item_type or 'Project' in item_type or 'Layout' in item_type or 'Building' in item_type or 'Certificate' in item_type or 'Other' in item_type:
+            cur.execute("SELECT filepath FROM job_evidence WHERE id = %s", (item_id,))
+            row = cur.fetchone()
+            if row and row[0]:
+                from utils.validators import delete_file_safely
+                delete_file_safely(row[0])
             cur.execute("DELETE FROM job_evidence WHERE id = %s", (item_id,))
-            flash("🗑️ Photo Deleted", "success")
+            flash("🗑️ Document Deleted", "success")
         elif 'Material' in item_type:
              cur.execute("DELETE FROM job_materials WHERE id = %s", (item_id,))
              flash("🗑️ Material Removed", "success")
@@ -308,22 +318,12 @@ def upload_job_document(job_id):
     
     conn = get_db(); cur = conn.cursor()
     try:
-        from werkzeug.utils import secure_filename
-        import os
-        from flask import current_app
+        from utils.validators import save_secure_file
         
         if 'file' in request.files:
             file = request.files['file']
-            if file and file.filename != '':
-                from datetime import datetime
-                relative_path = f"company_{comp_id}/job_evidence"
-                save_dir = os.path.join(current_app.static_folder, 'uploads', relative_path)
-                os.makedirs(save_dir, exist_ok=True)
-                
-                filename = secure_filename(f"JOB_{job_id}_{int(datetime.now().timestamp())}_{file.filename}")
-                file.save(os.path.join(save_dir, filename))
-                
-                db_path = f"/uploads/{relative_path}/{filename}"
+            db_path = save_secure_file(file, f"company_{comp_id}/job_evidence", f"JOB_{job_id}_")
+            if db_path:
                 cur.execute("""
                     INSERT INTO job_evidence (job_id, filepath, file_type, uploaded_by, visible_to_client) 
                     VALUES (%s, %s, %s, %s, %s)

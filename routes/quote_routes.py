@@ -11,19 +11,6 @@ from services.calculators import AVAILABLE_CALCS, get_calculator
 
 quote_bp = Blueprint('quote', __name__)
 
-# --- TAX RATES CONFIGURATION (PRESERVED) ---
-TAX_RATES = {
-    'UK': 0.20,  # United Kingdom (20%)
-    'IE': 0.23,  # Ireland (23%)
-    'US': 0.00,  # USA (Sales tax varies)
-    'CAN': 0.05, # Canada (GST 5%)
-    'AUS': 0.10, # Australia (GST 10%)
-    'NZ': 0.15,  # New Zealand (GST 15%)
-    'FR': 0.20,  # France
-    'DE': 0.19,  # Germany
-    'ES': 0.21   # Spain
-}
-
 def check_access():
     if 'user_id' not in session: return False
     return True
@@ -202,29 +189,9 @@ def new_quote():
     vehicles = []
     for r in cur.fetchall():
         v_id, reg, model, base_cost, driver_id = r
-        daily_total = float(base_cost or 0)
         
-        # A. Add Driver Cost (Checking Pay Model)
-        if driver_id:
-            cur.execute("SELECT pay_rate, pay_model FROM staff WHERE id = %s", (driver_id,))
-            d_row = cur.fetchone()
-            if d_row:
-                rate, model_type = float(d_row[0] or 0), d_row[1]
-                if model_type == 'Hour': daily_total += (rate * 8)
-                elif model_type == 'Day': daily_total += rate
-                elif model_type == 'Year': daily_total += (rate / 260)
-
-        # B. Add Crew Cost (Checking Pay Model)
-        cur.execute("""
-            SELECT s.pay_rate, s.pay_model FROM vehicle_crews vc
-            JOIN staff s ON vc.staff_id = s.id
-            WHERE vc.vehicle_id = %s
-        """, (v_id,))
-        for c_row in cur.fetchall():
-            rate, model_type = float(c_row[0] or 0), c_row[1]
-            if model_type == 'Hour': daily_total += (rate * 8)
-            elif model_type == 'Day': daily_total += rate
-            elif model_type == 'Year': daily_total += (rate / 260)
+        from services.pricing_engine import calculate_vehicle_daily_cost
+        daily_total = calculate_vehicle_daily_cost(cur, v_id, base_cost, driver_id)
 
         vehicles.append({
             'id': v_id, 
@@ -248,17 +215,8 @@ def new_quote():
 
     conn.close()
 
-    # Tax Logic (PRESERVED)
-    country = settings.get('country_code', 'UK')
-    vat_reg = settings.get('vat_registered', 'no')
-    tax_rate = 0.00
-    
-    if vat_reg in ['yes', 'on', 'true', '1']:
-        manual_rate = settings.get('default_tax_rate')
-        if manual_rate and float(manual_rate) > 0:
-            tax_rate = float(manual_rate) / 100
-        else:
-            tax_rate = TAX_RATES.get(country, 0.20)
+    from services.tax_engine import TaxEngine
+    tax_rate = TaxEngine.get_tax_rate(settings)
 
     return render_template('office/create_quote.html', 
                            clients=clients, 
@@ -337,31 +295,12 @@ def save_unified_quote():
             van = cur.fetchone()
             
             if van:
-                daily_total = float(van[0]) if van[0] else 0.0
+                base_cost = float(van[0]) if van[0] else 0.0
                 driver_id = van[1]
                 reg_plate = van[2]
 
-                # Add Driver (Checking Pay Model)
-                if driver_id:
-                    cur.execute("SELECT pay_rate, pay_model FROM staff WHERE id=%s", (driver_id,))
-                    d_row = cur.fetchone()
-                    if d_row:
-                        rate, model = float(d_row[0] or 0), d_row[1]
-                        if model == 'Hour': daily_total += (rate * 8)
-                        elif model == 'Day': daily_total += rate
-                        elif model == 'Year': daily_total += (rate / 260)
-
-                # Add Crew (Checking Pay Model)
-                cur.execute("""
-                    SELECT s.pay_rate, s.pay_model FROM vehicle_crews vc
-                    JOIN staff s ON vc.staff_id = s.id
-                    WHERE vc.vehicle_id = %s
-                """, (pref_van,))
-                for c_row in cur.fetchall():
-                    rate, model = float(c_row[0] or 0), c_row[1]
-                    if model == 'Hour': daily_total += (rate * 8)
-                    elif model == 'Day': daily_total += rate
-                    elif model == 'Year': daily_total += (rate / 260)
+                from services.pricing_engine import calculate_vehicle_daily_cost
+                daily_total = calculate_vehicle_daily_cost(cur, pref_van, base_cost, driver_id)
 
                 res_total = daily_total * est_days
                 if res_total > 0:
@@ -406,14 +345,10 @@ def save_unified_quote():
         # Calculate tax again for saving total
         cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
         settings = {row[0]: row[1] for row in cur.fetchall()}
-        country = settings.get('country_code', 'UK')
-        vat_reg = settings.get('vat_registered', 'no')
-        tax_rate = 0.0
-        if vat_reg in ['yes', 'on', 'true', '1']:
-            manual = settings.get('default_tax_rate')
-            tax_rate = float(manual)/100 if manual else TAX_RATES.get(country, 0.20)
+        
+        from services.tax_engine import TaxEngine
+        tax_rate, tax_amount, grand_total = TaxEngine.calculate_invoice_totals(settings, net)
             
-        grand_total = net * (1 + tax_rate)
         cur.execute("UPDATE quotes SET total = %s WHERE id = %s", (grand_total, quote_id))
         
         conn.commit()
@@ -688,7 +623,6 @@ def convert_to_invoice(quote_id):
         cur.execute("""
             SELECT key, value FROM settings 
             WHERE company_id = %s 
-            AND key IN ('payment_days', 'labour_markup_percent', 'material_markup_percent', 'vat_registered', 'country_code')
         """, (comp_id,))
         settings = {row[0]: row[1] for row in cur.fetchall()}
         days = int(settings.get('payment_days', 14))
@@ -761,10 +695,8 @@ def convert_to_invoice(quote_id):
                 """, (new_inv_id, item[0], item[1], item[2], item[3]))
 
         # 6. Calculate Tax & Final Total
-        is_vat = (settings.get('vat_registered') == 'yes')
-        tax_rate = 0.20 if (is_vat and settings.get('country_code', 'UK') == 'UK') else 0.0
-        tax_amt = float(subtotal) * tax_rate
-        final_total = float(subtotal) + tax_amt
+        from services.tax_engine import TaxEngine
+        tax_rate, tax_amt, final_total = TaxEngine.calculate_invoice_totals(settings, subtotal)
 
         cur.execute("UPDATE invoices SET subtotal = %s, tax = %s, total = %s WHERE id = %s", (subtotal, tax_amt, final_total, new_inv_id))
         cur.execute("UPDATE quotes SET status = 'Converted' WHERE id = %s", (quote_id,))
@@ -792,22 +724,12 @@ def upload_quote_document(quote_id):
     
     conn = get_db(); cur = conn.cursor()
     try:
-        from werkzeug.utils import secure_filename
-        import os
-        from flask import current_app
+        from utils.validators import save_secure_file
         
         if 'document' in request.files:
             file = request.files['document']
-            if file and file.filename != '':
-                from datetime import datetime
-                relative_path = f"company_{comp_id}/quote_documents"
-                save_dir = os.path.join(current_app.static_folder, 'uploads', relative_path)
-                os.makedirs(save_dir, exist_ok=True)
-                
-                filename = secure_filename(f"QUOTE_{quote_id}_{int(datetime.now().timestamp())}_{file.filename}")
-                file.save(os.path.join(save_dir, filename))
-                
-                db_path = f"/uploads/{relative_path}/{filename}"
+            db_path = save_secure_file(file, f"company_{comp_id}/quote_documents", f"QUOTE_{quote_id}_")
+            if db_path:
                 cur.execute("""
                     INSERT INTO quote_documents (company_id, quote_id, document_type, filepath, uploaded_by, visible_to_client) 
                     VALUES (%s, %s, %s, %s, %s, %s)
@@ -828,6 +750,12 @@ def delete_quote_document(doc_id):
     
     conn = get_db(); cur = conn.cursor()
     try:
+        cur.execute("SELECT filepath FROM quote_documents WHERE id = %s AND company_id = %s", (doc_id, session.get('company_id')))
+        row = cur.fetchone()
+        if row and row[0]:
+            from utils.validators import delete_file_safely
+            delete_file_safely(row[0])
+            
         cur.execute("DELETE FROM quote_documents WHERE id = %s AND company_id = %s", (doc_id, session.get('company_id')))
         conn.commit()
         flash("🗑️ Document deleted.", "success")

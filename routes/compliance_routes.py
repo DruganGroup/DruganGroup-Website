@@ -87,6 +87,27 @@ def save_eicr():
             next_date = payload.get('next_date')
             if next_date: 
                 cur.execute("UPDATE properties SET eicr_expiry = %s WHERE id = %s AND company_id = %s", (next_date, prop_id, comp_id))
+            
+            # Auto-bill Certificate
+            job_id = payload.get('job_id')
+            if job_id:
+                cur.execute("SELECT value FROM settings WHERE key='fee_eicr_base' AND company_id=%s", (comp_id,))
+                base_fee_row = cur.fetchone()
+                base_fee = float(base_fee_row[0]) if base_fee_row and base_fee_row[0] else 0.0
+                
+                cur.execute("SELECT value FROM settings WHERE key='fee_eicr_circuit' AND company_id=%s", (comp_id,))
+                circuit_fee_row = cur.fetchone()
+                circuit_fee = float(circuit_fee_row[0]) if circuit_fee_row and circuit_fee_row[0] else 0.0
+                
+                num_circuits = len(payload.get('circuits', []))
+                total_fee = base_fee + (num_circuits * circuit_fee)
+                
+                if total_fee > 0:
+                    desc = f"EICR Certificate (Base + {num_circuits} Circuits)"
+                    cur.execute("""
+                        INSERT INTO job_materials (job_id, description, quantity, unit_price, cost_price, added_at)
+                        VALUES (%s, %s, 1, %s, 0.0, NOW())
+                    """, (job_id, desc, total_fee))
 
         conn.commit(); conn.close()
         
@@ -136,6 +157,16 @@ def save_gas_cert():
                 INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type, uploaded_at)
                 VALUES (%s, %s, %s, 'CP12', NOW())
             """, (job_id, db_path, session.get('user_id')))
+            
+            # Auto-bill Certificate
+            cur.execute("SELECT value FROM settings WHERE key='fee_cp12' AND company_id=%s", (comp_id,))
+            fee_row = cur.fetchone()
+            fee = float(fee_row[0]) if fee_row and fee_row[0] else 0.0
+            if fee > 0:
+                cur.execute("""
+                    INSERT INTO job_materials (job_id, description, quantity, unit_price, cost_price, added_at)
+                    VALUES (%s, 'Gas Safety Certificate (CP12)', 1, %s, 0.0, NOW())
+                """, (job_id, fee))
         
         # 4. THE "ISSUED" LOGIC (Updates Property Table)
         # Gas safety is valid for 1 year
@@ -186,6 +217,16 @@ def save_epc_cert():
                 INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type, uploaded_at)
                 VALUES (%s, %s, %s, 'EPC', NOW())
             """, (job_id, db_path, session.get('user_id')))
+            
+            # Auto-bill Certificate
+            cur.execute("SELECT value FROM settings WHERE key='fee_epc' AND company_id=%s", (comp_id,))
+            fee_row = cur.fetchone()
+            fee = float(fee_row[0]) if fee_row and fee_row[0] else 0.0
+            if fee > 0:
+                cur.execute("""
+                    INSERT INTO job_materials (job_id, description, quantity, unit_price, cost_price, added_at)
+                    VALUES (%s, 'Energy Performance Certificate (EPC)', 1, %s, 0.0, NOW())
+                """, (job_id, fee))
         
         next_due = data.get('next_date')
         if next_due: 
@@ -234,6 +275,16 @@ def save_legionella_cert():
                 INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type, uploaded_at)
                 VALUES (%s, %s, %s, 'Legionella Risk', NOW())
             """, (job_id, db_path, session.get('user_id')))
+            
+            # Auto-bill Certificate
+            cur.execute("SELECT value FROM settings WHERE key='fee_legionella' AND company_id=%s", (comp_id,))
+            fee_row = cur.fetchone()
+            fee = float(fee_row[0]) if fee_row and fee_row[0] else 0.0
+            if fee > 0:
+                cur.execute("""
+                    INSERT INTO job_materials (job_id, description, quantity, unit_price, cost_price, added_at)
+                    VALUES (%s, 'Legionella Risk Assessment', 1, %s, 0.0, NOW())
+                """, (job_id, fee))
         
         # We don't have a specific legionella column, but we can reuse PAT or add a new one if available.
         # Let's see if there is one. We'll skip updating property table for now or we could add a new column later.

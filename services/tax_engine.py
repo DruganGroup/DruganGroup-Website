@@ -73,3 +73,39 @@ class TaxEngine:
         weekly_social = social / 52
         
         return round(weekly_tax, 2), round(weekly_social, 2)
+
+    @staticmethod
+    def get_tax_rate(settings):
+        """
+        Gets the applicable tax/VAT rate based on company settings.
+        Returns a float (e.g., 0.20 for 20%)
+        """
+        vat_reg = settings.get('vat_registered', 'no')
+        if vat_reg not in ['yes', 'on', 'true', '1']:
+            return 0.0
+            
+        manual = settings.get('default_tax_rate')
+        if manual and str(manual).strip() != '':
+            try:
+                return float(manual) / 100.0
+            except ValueError:
+                pass
+                
+        country = settings.get('country_code', 'UK')
+        # Default fallback rates if not set manually
+        TAX_RATES = {
+            'UK': 0.20,  'IE': 0.23,  'US': 0.00,  
+            'CAN': 0.05, 'AUS': 0.10, 'NZ': 0.15,  
+            'FR': 0.20,  'DE': 0.19,  'ES': 0.21   
+        }
+        return TAX_RATES.get(country, 0.20)
+
+    @staticmethod
+    def calculate_invoice_totals(settings, subtotal):
+        """
+        Calculates the tax amount and grand total.
+        Returns (tax_rate, tax_amount, grand_total)
+        """
+        rate = TaxEngine.get_tax_rate(settings)
+        tax_amount = subtotal * rate
+        return rate, tax_amount, subtotal + tax_amount

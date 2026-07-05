@@ -498,6 +498,13 @@ def delete_property_document(doc_id):
     
     conn = get_db(); cur = conn.cursor()
     try:
+        # Fetch file path for deletion
+        cur.execute("SELECT filepath FROM property_documents WHERE id = %s AND company_id = %s", (doc_id, session.get('company_id')))
+        row = cur.fetchone()
+        if row and row[0]:
+            from utils.validators import delete_file_safely
+            delete_file_safely(row[0])
+            
         # Security check: ensure doc belongs to user's company
         cur.execute("DELETE FROM property_documents WHERE id = %s AND company_id = %s", (doc_id, session.get('company_id')))
         conn.commit()
