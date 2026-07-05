@@ -1,16 +1,13 @@
 import os
 import psycopg2
-from psycopg2.pool import SimpleConnectionPool
+from psycopg2.pool import ThreadedConnectionPool
 
 # Global connection pool
 _db_pool = None
 
 # --- THIS WAS MISSING ---
 # We define the upload folder here so other files can import it
-if os.path.exists('/opt/render/project/src'):
-    UPLOAD_FOLDER = '/opt/render/project/src/static/uploads/logos'
-else:
-    UPLOAD_FOLDER = 'static/uploads/logos'
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'logos')
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
@@ -20,10 +17,10 @@ def _get_pool():
         db_url = os.environ.get("DATABASE_URL")
         try:
             if db_url:
-                _db_pool = SimpleConnectionPool(1, 10, db_url, sslmode='require')
+                _db_pool = ThreadedConnectionPool(1, 20, db_url, sslmode='require')
             else:
-                _db_pool = SimpleConnectionPool(
-                    1, 10,
+                _db_pool = ThreadedConnectionPool(
+                    1, 20,
                     dbname=os.environ.get("DB_NAME", "businessbetter"),
                     user=os.environ.get("DB_USER", "postgres"),
                     password=os.environ.get("DB_PASSWORD", ""),

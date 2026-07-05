@@ -20,13 +20,7 @@ def check_office_access():
     if session.get('role') not in ALLOWED_OFFICE_ROLES: return False
     return True
 
-def format_date(d, fmt_str='%d/%m/%Y'):
-    if not d: return ""
-    try:
-        if isinstance(d, str): d = datetime.strptime(d, '%Y-%m-%d')
-        return d.strftime(fmt_str)
-    except:
-        return str(d)
+from utils.date_utils import format_date
 
 @office_bp.route('/office/service-desk')
 def service_desk():
@@ -180,8 +174,8 @@ def create_work_order():
         flash("❌ Missing required fields for dispatch.", "error")
         return redirect(url_for('office.service_desk'))
         
-    conn = get_db(); cur = conn.cursor()
-    try:
+    from utils.db_utils import db_transaction
+    with db_transaction() as cur:
         # 1. Update the Service Request status
         cur.execute("UPDATE service_requests SET status = 'Scheduled' WHERE id = %s AND company_id = %s", (req_id, comp_id))
         
@@ -213,13 +207,6 @@ def create_work_order():
         else:
             flash("❌ Original request not found.", "error")
             
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error creating work order: {e}", "error")
-    finally:
-        conn.close()
-        
     return redirect(url_for('office.service_desk'))
 
 @office_bp.route('/office/dispatch-to-partner', methods=['POST'])
@@ -234,8 +221,8 @@ def dispatch_to_partner():
         flash("❌ No partner selected.", "error")
         return redirect(url_for('office.service_desk'))
         
-    conn = get_db(); cur = conn.cursor()
-    try:
+    from utils.db_utils import db_transaction
+    with db_transaction() as cur:
         # 1. Fetch original request details
         cur.execute("""
             SELECT sr.issue_description, sr.priority, sr.photo_path, p.address_line1
@@ -281,13 +268,7 @@ def dispatch_to_partner():
                 body_html=body
             )
 
-        conn.commit()
         flash("✅ Job successfully dispatched to partner network!", "success")
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error dispatching to partner: {e}", "error")
-    finally:
-        conn.close()
         
     return redirect(url_for('office.service_desk'))
 
@@ -297,141 +278,25 @@ def office_dashboard():
     
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
-    conn = get_db(); cur = conn.cursor()
-
-    # --- GET SETTINGS ---
-    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'date_format'", (comp_id,))
-    row = cur.fetchone()
-    user_date_fmt = row[0] if row and row[0] else '%d/%m/%Y'
-
-    # --- HELPER: Date Formatter ---
-    def process_date(date_val, fmt):
-        if not date_val: return "TBC", None, None
-        dt = date_val
-        if isinstance(date_val, str):
-            try: dt = datetime.strptime(date_val[:10], '%Y-%m-%d')
-            except: return str(date_val), None, None
-        return dt.strftime(fmt), dt.strftime('%d'), dt.strftime('%b')
-
-    # --- COUNTERS ---
-    cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id=%s AND status='Pending'", (comp_id,))
-    leads_count = cur.fetchone()[0]
     
-    cur.execute("""SELECT COUNT(*) FROM quotes WHERE company_id=%s AND status IN ('Draft', 'Sent', 'Pending', 'Accepted')""", (comp_id,))
-    pending_quotes = cur.fetchone()[0]
-    
-    cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id=%s AND status='Scheduled'", (comp_id,))
-    active_jobs = cur.fetchone()[0]
-    
-    cur.execute("SELECT COUNT(*) FROM invoices WHERE company_id=%s AND status='Unpaid'", (comp_id,))
-    unpaid_inv = cur.fetchone()[0]
+    from utils.date_utils import get_date_fmt_str
+    user_date_fmt = get_date_fmt_str(comp_id)
 
-    # --- LISTS ---
-    
-    # 1. NEW REQUESTS (Now includes client_id for the button)
-    cur.execute("""
-        SELECT r.id, c.name, c.phone, r.created_at, r.issue_description, r.client_id
-        FROM service_requests r
-        JOIN clients c ON r.client_id = c.id
-        WHERE r.company_id = %s AND r.status = 'Pending'
-        ORDER BY r.created_at DESC LIMIT 5
-    """, (comp_id,))
-    
-    incoming_requests = []
-    for r in cur.fetchall():
-        fmt_date, _, _ = process_date(r[3], user_date_fmt)
-        incoming_requests.append({
-            'id': r[0], 
-            'client_name': r[1], 
-            'phone': r[2], 
-            'date_added': fmt_date,
-            'desc': r[4],
-            'client_id': r[5]  # Critical for the Review button
-        })
-        
-    # 4. RECENT QUOTES (The Missing List)
-    cur.execute("""
-        SELECT q.id, q.reference, c.name, q.total, q.status, q.date
-        FROM quotes q
-        JOIN clients c ON q.client_id = c.id
-        WHERE q.company_id = %s AND q.status IN ('Draft', 'Sent', 'Pending', 'Accepted')
-        ORDER BY q.date DESC LIMIT 5
-    """, (comp_id,))
-    
-    recent_quotes = []
-    for r in cur.fetchall():
-        fmt_date = format_date(r[5], user_date_fmt)
-        recent_quotes.append({
-            'id': r[0], 'ref': r[1], 'client_name': r[2], 
-            'total': r[3], 'status': r[4], 'date': fmt_date
-        })
-
-    # 2. UPCOMING JOBS
-    cur.execute("""
-        SELECT j.id, j.ref, j.site_address, c.name, j.start_date, j.status 
-        FROM jobs j 
-        LEFT JOIN clients c ON j.client_id = c.id 
-        WHERE j.company_id = %s AND j.status = 'Scheduled' 
-        ORDER BY j.start_date ASC LIMIT 5
-    """, (comp_id,))
-    
-    upcoming_jobs = []
-    for r in cur.fetchall():
-        fmt_full, day_num, month_abbr = process_date(r[4], user_date_fmt)
-        upcoming_jobs.append({
-            'id': r[0], 'ref': r[1], 'address': r[2], 'client_name': r[3],
-            'start_date_fmt': fmt_full, 'day': day_num, 'month': month_abbr
-        })
-
-    # 3. UNINVOICED JOBS
-    cur.execute("""
-        SELECT j.id, j.ref, c.name, j.quote_total
-        FROM jobs j
-        LEFT JOIN invoices i ON j.id = i.job_id
-        LEFT JOIN clients c ON j.client_id = c.id
-        WHERE j.company_id = %s AND j.status = 'Completed' AND i.id IS NULL
-        ORDER BY j.start_date DESC LIMIT 5
-    """, (comp_id,))
-    
-    uninvoiced_jobs = []
-    for r in cur.fetchall():
-        uninvoiced_jobs.append({'id': r[0], 'ref': r[1], 'client_name': r[2], 'total': r[3]})
-
-    # --- PIPELINE ---
-    cur.execute("SELECT status, COUNT(*), SUM(total) FROM quotes WHERE company_id=%s GROUP BY status", (comp_id,))
-    pipe_raw = cur.fetchall()
-    pipeline = {
-        'Draft': {'count': 0, 'value': 0},
-        'Sent': {'count': 0, 'value': 0},
-        'Accepted': {'count': 0, 'value': 0},
-        'Rejected': {'count': 0, 'value': 0}
-    }
-    for r in pipe_raw:
-        if r[0] in pipeline:
-            pipeline[r[0]]['count'] = r[1]
-            pipeline[r[0]]['value'] = float(r[2] or 0)
-
-    # Dropdowns
-    cur.execute("SELECT id, name FROM clients WHERE company_id=%s ORDER BY name", (comp_id,))
-    clients = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
-    
-    cur.execute("SELECT id, reg_plate FROM vehicles WHERE company_id=%s AND status='Active'", (comp_id,))
-    vehicles = [{'id': r[0], 'reg': r[1]} for r in cur.fetchall()]
-
-    conn.close()
+    from services.dashboard_service import get_office_dashboard_data
+    data = get_office_dashboard_data(comp_id, user_date_fmt)
 
     return render_template('office/office_dashboard.html',
-                           leads_count=leads_count,
-                           pending_quotes=pending_quotes,
-                           active_jobs=active_jobs,
-                           unpaid_inv=unpaid_inv,
-                           incoming_requests=incoming_requests,
-                           upcoming_jobs=upcoming_jobs,
-                           uninvoiced_jobs=uninvoiced_jobs,
-                           recent_quotes=recent_quotes,
-                           pipeline=pipeline,
-                           clients=clients,
-                           vehicles=vehicles)
+                           leads_count=data.get('leads_count', 0),
+                           pending_quotes=data.get('pending_quotes', 0),
+                           active_jobs=data.get('active_jobs', 0),
+                           unpaid_inv=data.get('unpaid_inv', 0),
+                           incoming_requests=data.get('incoming_requests', []),
+                           upcoming_jobs=data.get('upcoming_jobs', []),
+                           uninvoiced_jobs=data.get('uninvoiced_jobs', []),
+                           recent_quotes=data.get('recent_quotes', []),
+                           pipeline=data.get('pipeline', {}),
+                           clients=data.get('clients', []),
+                           vehicles=data.get('vehicles', []))
 
 @office_bp.route('/office/live-ops', methods=['GET', 'POST'])
 def live_ops():

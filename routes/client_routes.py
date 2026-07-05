@@ -63,8 +63,8 @@ def add_client():
     # LOGIC: If address is empty, set a placeholder so DB doesn't crash
     safe_addr = billing_addr if billing_addr and billing_addr.strip() else "Address Pending"
     
-    conn = get_db(); cur = conn.cursor()
-    try:
+    from utils.db_utils import db_transaction
+    with db_transaction() as cur:
         from werkzeug.security import generate_password_hash
         import secrets
         import string
@@ -116,11 +116,6 @@ def add_client():
             )
             flash("✉️ Welcome email with portal details is being sent to the client.", "info")
 
-    except Exception as e:
-        conn.rollback(); flash(f"Error: {e}", "error")
-    finally:
-        conn.close()
-        
     return redirect(url_for('client.client_dashboard'))
 
 @client_bp.route('/clients/update', methods=['POST'])

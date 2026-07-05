@@ -342,11 +342,10 @@ def upload_job_document(job_id):
 def save_job_action():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
     
-    conn = get_db()
-    cur = conn.cursor()
     comp_id = session.get('company_id')
     
-    try:
+    from utils.db_utils import db_transaction
+    with db_transaction() as cur:
         # 1. Capture Form Data
         client_id = request.form.get('client_id')
         description = request.form.get('description')
@@ -381,14 +380,5 @@ def save_job_action():
         """, (comp_id, client_id, property_id, engineer_id, vehicle_id, ref, description, start_date, est_days))
         
         new_job_id = cur.fetchone()[0]
-        conn.commit()
-        
         flash(f"✅ Job {ref} Created Successfully", "success")
         return redirect(f"/office/job/{new_job_id}/files")
-
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error creating job: {e}", "error")
-        return redirect(request.referrer or '/office-hub')
-    finally:
-        conn.close()

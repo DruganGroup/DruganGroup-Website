@@ -26,42 +26,7 @@ except ImportError:
 
 finance_bp = Blueprint('finance', __name__)
 
-# --- CONFIG: DATE FORMATS BY COUNTRY ---
-COUNTRY_FORMATS = {
-    'United Kingdom': '%d/%m/%Y',
-    'United States': '%m/%d/%Y',
-    'Default': '%d/%m/%Y'
-}
-
-# --- HELPER: GET COMPANY DATE FORMAT ---
-def get_date_fmt_str(company_id):
-    try:
-        conn = get_db(); cur = conn.cursor()
-        cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'company_country'", (company_id,))
-        row = cur.fetchone()
-        country = row[0] if row else 'Default'
-        return COUNTRY_FORMATS.get(country, COUNTRY_FORMATS['Default'])
-    except:
-        return COUNTRY_FORMATS['Default']
-
-# --- HELPER: FORMAT A DATE STRING (FOR DISPLAY) ---
-def format_date(d, fmt_str):
-    if not d: return ""
-    try:
-        if isinstance(d, str):
-            try: d = datetime.strptime(d, '%Y-%m-%d')
-            except: 
-                try: d = datetime.strptime(d, '%Y-%m-%d %H:%M:%S')
-                except: return d
-        return d.strftime(fmt_str)
-    except: return str(d)
-
-# --- HELPER: PARSE DB DATE (FOR MATH) ---
-def parse_date(d):
-    if isinstance(d, str):
-        try: return datetime.strptime(d, '%Y-%m-%d').date()
-        except: return None
-    return d
+from utils.date_utils import get_date_fmt_str, format_date, parse_date
 
 @finance_bp.route('/finance/invoices')
 def finance_invoices():
@@ -136,7 +101,8 @@ def finance_fleet():
     if request.method == 'POST':
         action = request.form.get('action')
         
-        try:
+        from utils.db_utils import db_transaction
+        with db_transaction() as t_cur:
             if action == 'add_vehicle':
                 reg = request.form.get('reg_number').upper() 
                 model = request.form.get('make_model')
@@ -144,7 +110,7 @@ def finance_fleet():
                 tracker = request.form.get('tracker_url')
                 driver = request.form.get('driver_id') or None
                 
-                cur.execute("""
+                t_cur.execute("""
                     INSERT INTO vehicles (company_id, reg_plate, make_model, daily_cost, tracker_url, assigned_driver_id, status)
                     VALUES (%s, %s, %s, %s, %s, %s, 'Active')
                 """, (comp_id, reg, model, daily, tracker, driver))
@@ -164,7 +130,7 @@ def finance_fleet():
                 serv = request.form.get('service_expiry') or None
 
                 # 1. Update Vehicle Details
-                cur.execute("""
+                t_cur.execute("""
                     UPDATE vehicles 
                     SET daily_cost = %s, tracker_url = %s, assigned_driver_id = %s,
                         mot_expiry = %s, tax_expiry = %s, ins_expiry = %s, service_expiry = %s
@@ -175,23 +141,17 @@ def finance_fleet():
                 crew_ids = request.form.getlist('crew_ids')
                 
                 # Clear existing crew
-                cur.execute("DELETE FROM vehicle_crews WHERE vehicle_id = %s", (veh_id,))
+                t_cur.execute("DELETE FROM vehicle_crews WHERE vehicle_id = %s", (veh_id,))
                 
                 # Insert new crew
                 for staff_id in crew_ids:
                     if str(staff_id) != str(driver_id):
-                        cur.execute("""
+                        t_cur.execute("""
                             INSERT INTO vehicle_crews (company_id, vehicle_id, staff_id) 
                             VALUES (%s, %s, %s)
                         """, (comp_id, veh_id, staff_id))
                 
                 flash("✅ Vehicle & Crew updated.")
-
-            conn.commit()
-            
-        except Exception as e:
-            conn.rollback()
-            flash(f"Error: {e}")
 
     # --- GET REQUEST (DISPLAY DATA) ---
     
@@ -377,31 +337,21 @@ def finance_materials():
 @finance_bp.route('/finance/suppliers/add', methods=['POST'])
 def add_supplier():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
-    conn = get_db(); cur = conn.cursor()
-    try:
+    from utils.db_utils import db_transaction
+    with db_transaction() as cur:
         cur.execute("INSERT INTO suppliers (company_id, name) VALUES (%s, %s)", (session.get('company_id'), request.form.get('name')))
-        conn.commit(); flash("✅ Supplier Added")
-    except Exception as e: conn.rollback(); flash(f"Error: {e}")
-    finally: conn.close()
+        flash("✅ Supplier Added")
     return redirect(url_for('finance.finance_materials'))
     
 @finance_bp.route('/finance/suppliers/delete/<int:id>')
 def delete_supplier(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
     
-    conn = get_db()
-    cur = conn.cursor()
-    
-    try:
+    from utils.db_utils import db_transaction
+    with db_transaction() as cur:
         cur.execute("UPDATE materials SET supplier_id = NULL WHERE supplier_id = %s", (id,))
         cur.execute("DELETE FROM suppliers WHERE id = %s", (id,))
-        conn.commit()
         flash("✅ Supplier deleted.")
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error: {e}")
-    finally:
-        conn.close()
 
     return redirect(url_for('finance.finance_materials'))
 
@@ -445,7 +395,9 @@ def import_materials():
 
 @finance_bp.route('/finance/materials/delete/<int:id>')
 def delete_material(id):
-    conn = get_db(); cur = conn.cursor(); cur.execute("DELETE FROM materials WHERE id=%s", (id,)); conn.commit(); conn.close()
+    from utils.db_utils import db_transaction
+    with db_transaction() as cur:
+        cur.execute("DELETE FROM materials WHERE id=%s", (id,))
     return redirect(url_for('finance.finance_materials'))
 
 @finance_bp.route('/api/materials/search')
@@ -893,116 +845,21 @@ def finance_dashboard():
     
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
-    conn = get_db()
-    cur = conn.cursor()
     
-    cur.execute("SELECT value FROM settings WHERE key='currency_symbol' AND company_id=%s", (comp_id,))
-    res = cur.fetchone()
-    currency = res[0] if res else '£'
-
-    cur.execute("""
-        SELECT COALESCE(SUM(total), 0) 
-        FROM invoices 
-        WHERE company_id = %s AND status != 'Void'
-    """, (comp_id,))
-    total_income = float(cur.fetchone()[0])
-
-    cur.execute("SELECT COALESCE(SUM(cost), 0) FROM maintenance_logs WHERE company_id = %s", (comp_id,))
-    fleet_cost = float(cur.fetchone()[0])
-    
-    cur.execute("SELECT COALESCE(SUM(amount), 0) FROM overhead_items JOIN overhead_categories c ON overhead_items.category_id = c.id WHERE c.company_id = %s", (comp_id,))
-    monthly_overhead = float(cur.fetchone()[0])
-    
-    total_expense = fleet_cost + monthly_overhead
-    total_balance = total_income - total_expense
-    break_even = (monthly_overhead * 12) / 365 if monthly_overhead > 0 else 0
-
-    query = """
-        (
-            SELECT 
-                date_created as date, 
-                'Income' as type, 
-                'Sales' as category, 
-                ref || ' - ' || COALESCE((SELECT name FROM clients WHERE id = invoices.client_id), 'Unknown Client') as description, 
-                COALESCE(total, 0) as amount, 
-                job_id
-            FROM invoices 
-            WHERE company_id = %s AND status = 'Paid'
-        )
-        UNION ALL
-        (
-            SELECT 
-                date, 
-                'Expense' as type, 
-                'Job Cost' as category, 
-                COALESCE(description, 'Uncategorized Expense'), 
-                COALESCE(cost, 0) as amount, 
-                job_id
-            FROM job_expenses 
-            WHERE company_id = %s
-        )
-        UNION ALL
-        (
-            SELECT 
-                date_incurred as date, 
-                'Expense' as type, 
-                'Overhead' as category, 
-                COALESCE(name, 'General Overhead'), 
-                COALESCE(amount, 0) as amount,
-                NULL as job_id
-            FROM overhead_items 
-            WHERE category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)
-        )
-        ORDER BY date DESC 
-        LIMIT 15
-    """
-    cur.execute(query, (comp_id, comp_id, comp_id))
-    transactions = cur.fetchall()
-
-    chart_labels = []
-    chart_income = []
-    chart_expense = []
-    
-    today = date.today()
-    for i in range(5, -1, -1):
-        d = today - timedelta(days=i*30)
-        month_str = d.strftime("%B")
-        chart_labels.append(month_str)
-        
-        cur.execute("""
-            SELECT COALESCE(SUM(total), 0) FROM invoices 
-            WHERE company_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s
-        """, (comp_id, d.month, d.year))
-        chart_income.append(float(cur.fetchone()[0]))
-        
-        cur.execute("""
-            SELECT COALESCE(SUM(cost), 0) FROM maintenance_logs 
-            WHERE company_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s
-        """, (comp_id, d.month, d.year))
-        chart_expense.append(float(cur.fetchone()[0]) + monthly_overhead)
-
-    cur.execute("""
-        SELECT created_at, admin_email, action, details 
-        FROM audit_logs 
-        WHERE company_id = %s OR company_id IS NULL
-        ORDER BY created_at DESC LIMIT 5
-    """, (comp_id,))
-    raw_logs = cur.fetchall()
-    logs = [{'time': format_date(r[0], "%d/%m %H:%M"), 'user': r[1], 'action': r[2], 'details': r[3]} for r in raw_logs]
-
-    conn.close()
+    from services.dashboard_service import get_finance_dashboard_data
+    data = get_finance_dashboard_data(comp_id)
 
     return render_template('finance/finance_dashboard.html',
-                           currency_symbol=currency,
-                           total_income=total_income,
-                           total_expense=total_expense,
-                           total_balance=total_balance,
-                           break_even=break_even,
-                           transactions=transactions,
-                           logs=logs,
-                           chart_labels=chart_labels,
-                           chart_income=chart_income,
-                           chart_expense=chart_expense,
+                           currency_symbol=data.get('currency_symbol', '£'),
+                           total_income=data.get('total_income', 0),
+                           total_expense=data.get('total_expense', 0),
+                           total_balance=data.get('total_balance', 0),
+                           break_even=data.get('break_even', 0),
+                           transactions=data.get('transactions', []),
+                           logs=data.get('logs', []),
+                           chart_labels=data.get('chart_labels', []),
+                           chart_income=data.get('chart_income', []),
+                           chart_expense=data.get('chart_expense', []),
                            brand_color=config['color'],
                            logo_url=config['logo'])
                            

@@ -39,12 +39,8 @@ limiter.init_app(app)
 # Configuration
 app.secret_key = os.environ.get("SECRET_KEY")
 if not app.secret_key:
-    if os.environ.get("FLASK_ENV") == "production":
-        raise RuntimeError("SECRET_KEY environment variable must be set in production!")
-    else:
-        # Only use fallback in development
-        app.secret_key = "dev_key_123_CHANGE_IN_PRODUCTION"
-        print("⚠️  WARNING: Using development secret key. Set SECRET_KEY environment variable!")
+    # Strictly enforce SECRET_KEY in all environments for security
+    raise RuntimeError("CRITICAL SECURITY ERROR: SECRET_KEY environment variable is missing and MUST be set in your .env file or host environment!")
 
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads', 'logos')
 
@@ -106,9 +102,8 @@ def load_tenant_context():
     """
     host = request.host.lower()
     
-    # CHANGE THIS to your live domain when deploying
-    base_domain = 'businessbetter.co.uk' 
-    # For testing on Render, you might need to check 'onrender.com' too
+    # Allow overriding base domain via environment variable
+    base_domain = os.environ.get('BASE_DOMAIN', 'businessbetter.co.uk')
     
     # 1. Check if we are on a subdomain (and NOT www)
     if base_domain in host and not host.startswith('www.') and host != base_domain:
