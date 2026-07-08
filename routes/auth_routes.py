@@ -141,6 +141,10 @@ def login():
         password = request.form.get('password')
         
         conn = get_db()
+        if not conn:
+            flash(_("System Error: Could not connect to the database. Please try again later."), "error")
+            return render_template('publicbb/login.html')
+            
         cur = conn.cursor()
         
         # Fetch user AND settings

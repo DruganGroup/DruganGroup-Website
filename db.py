@@ -1,6 +1,6 @@
 import os
 import psycopg2
-from psycopg2.pool import ThreadedConnectionPool
+from psycopg2.pool import SimpleConnectionPool
 
 # Global connection pool
 _db_pool = None
@@ -17,10 +17,10 @@ def _get_pool():
         db_url = os.environ.get("DATABASE_URL")
         try:
             if db_url:
-                _db_pool = ThreadedConnectionPool(1, 20, db_url, sslmode='require')
+                _db_pool = SimpleConnectionPool(1, 10, db_url, sslmode='require')
             else:
-                _db_pool = ThreadedConnectionPool(
-                    1, 20,
+                _db_pool = SimpleConnectionPool(
+                    1, 10,
                     dbname=os.environ.get("DB_NAME", "businessbetter"),
                     user=os.environ.get("DB_USER", "postgres"),
                     password=os.environ.get("DB_PASSWORD", ""),
