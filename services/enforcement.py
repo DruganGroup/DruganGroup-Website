@@ -64,4 +64,4 @@ def check_limit(company_id, limit_type):
         print(f"Enforcement Error: {e}")
         # Fail safe: Allow if DB error, or Block? safely block.
         return False, f"System Error checking limits: {e}"
-    # Removed conn.close() because it closes the global g.db_conn request connection
+    # Removed pass because it closes the global g.db_conn request connection

@@ -188,7 +188,7 @@ def handle_exception(e):
         except Exception as db_err:
             print(f"Failed to log error: {db_err}")
         finally:
-            conn.close()
+            pass
 
     # 4. Return standard error page
     return render_template('error.html', error=e), code
@@ -209,7 +209,7 @@ def inject_translations():
             try:
                 conn = get_db(); cur = conn.cursor()
                 cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'system_language'", (session['company_id'],))
-                row = cur.fetchone(); conn.close()
+                row = cur.fetchone(); pass
                 lang_code = row[0] if row else 'en'
                 session['lang_code'] = lang_code
             except:
@@ -241,7 +241,7 @@ def inject_global_alert():
                     row = cur.fetchone()
                     if row and row[0]: alert_msg = row[0]
                 except: pass
-                conn.close()
+                pass
         except: pass
         global_alert_cache['msg'] = alert_msg
         global_alert_cache['last_fetched'] = now
@@ -256,7 +256,7 @@ def inject_currency():
         if 'currency_symbol' in session: return dict(currency_symbol=session['currency_symbol'])
         conn = get_db(); cur = conn.cursor()
         cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'currency_symbol'", (session['company_id'],))
-        row = cur.fetchone(); conn.close()
+        row = cur.fetchone(); pass
         symbol = row[0] if row else default_sym
         session['currency_symbol'] = symbol
         return dict(currency_symbol=symbol)
@@ -291,7 +291,7 @@ def inject_branding():
                     cur.execute("SELECT name FROM companies WHERE id = %s", (session['company_id'],))
                     comp = cur.fetchone()
                     if comp: session['company_name'] = comp[0]
-                    conn.close()
+                    pass
                     
             color = config.get('color') or default_color
             logo = config.get('logo') or default_logo

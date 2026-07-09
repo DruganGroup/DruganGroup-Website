@@ -82,7 +82,7 @@ def review_timesheets():
             'jobs_worked': jobs_worked
         })
         
-    conn.close()
+    pass
     return render_template('hr/timesheets.html', timesheets=timesheets)
 
 @hr_bp.route('/hr/timesheets/approve', methods=['POST'])
@@ -117,7 +117,7 @@ def approve_timesheet():
         conn.rollback()
         flash(f"Error updating timesheet: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('hr_bp.review_timesheets'))
 
@@ -210,7 +210,7 @@ def manage_leave():
     """, (comp_id,))
     leaves = cur.fetchall()
     
-    conn.close()
+    pass
     return render_template('hr/leave.html', staff=staff, leaves=leaves)
 
 @hr_bp.route('/hr/dashboard')
@@ -251,7 +251,7 @@ def hr_dashboard():
     cols = [desc[0] for desc in cur.description]
     staff = [dict(zip(cols, row)) for row in cur.fetchall()]
     
-    conn.close()
+    pass
     return render_template('finance/finance_hr.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
 
 @hr_bp.route('/hr/staff/<int:staff_id>')
@@ -270,7 +270,7 @@ def staff_profile(staff_id):
     cur.execute("SELECT * FROM staff WHERE id = %s", (staff_id,))
     staff_raw = cur.fetchone()
     if not staff_raw: 
-        conn.close()
+        pass
         return "Staff member not found", 404
         
     colnames = [desc[0] for desc in cur.description]
@@ -374,7 +374,7 @@ def staff_profile(staff_id):
     cur.execute("SELECT date, type, description, cost FROM maintenance_logs WHERE description LIKE %s ORDER BY date DESC LIMIT 5", (f"%{staff['name']}%",))
     checks = [{'date': r[0], 'passed': 'Check' in r[1], 'notes': r[2], 'reg_number': 'Van Check'} for r in cur.fetchall()]
 
-    conn.close()
+    pass
     
     return render_template('hr/staff_profile.html', 
                            staff=staff, 
@@ -526,7 +526,7 @@ def save_staff():
         conn.rollback()
         flash(f"Error: {e}")
     finally:
-        conn.close()
+        pass
 
     return redirect(url_for('hr_bp.hr_dashboard'))
 
@@ -546,7 +546,7 @@ def delete_staff(id):
     except Exception as e:
         conn.rollback(); flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
     return redirect(url_for('hr_bp.hr_dashboard'))
     
 # --- DUPLICATE ROUTE REMOVED ---

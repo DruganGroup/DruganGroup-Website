@@ -63,7 +63,7 @@ def finance_invoices():
             'status': r[6]
         })
         
-    conn.close()
+    pass
     
     return render_template('finance/finance_invoices.html', 
                            invoices=invoices, 
@@ -79,7 +79,7 @@ def finance_hr():
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT id, name, position, dept, pay_rate, pay_model, access_level, email, phone, employment_type, address, tax_id FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
     cols = [desc[0] for desc in cur.description]; staff = [dict(zip(cols, row)) for row in cur.fetchall()]
-    conn.close()
+    pass
     return render_template('finance/finance_hr.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
     
 @finance_bp.route('/finance/hr/delete/<int:id>')
@@ -87,7 +87,7 @@ def delete_staff(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
     conn = get_db(); cur = conn.cursor()
     cur.execute("DELETE FROM staff WHERE id = %s AND company_id = %s", (id, session.get('company_id')))
-    conn.commit(); conn.close()
+    conn.commit(); pass
     return redirect(url_for('finance.finance_hr'))
 
 @finance_bp.route('/finance/fleet', methods=['GET', 'POST'])
@@ -237,7 +237,7 @@ def finance_fleet():
             'telematics': telematics_data
         })
 
-    conn.close()
+    pass
     
     return render_template('finance/finance_fleet.html', 
                            vehicles=vehicles, 
@@ -273,7 +273,7 @@ def delete_vehicle(id):
         flash(f"❌ Could not archive vehicle: {e}", "error")
         
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('finance.finance_fleet'))
 
@@ -325,7 +325,7 @@ def finance_materials():
         default_markup = 0.0
         markup_missing = True
 
-    conn.close()
+    pass
     return render_template('finance/finance_materials.html', 
                            materials=materials, 
                            suppliers=suppliers, 
@@ -389,7 +389,7 @@ def import_materials():
                 conn.rollback()
                 flash(f"❌ Import Error: {e}")
             finally:
-                conn.close()
+                pass
                 
     return redirect(url_for('finance.finance_materials'))
 
@@ -446,7 +446,7 @@ def search_materials_api():
         conn.rollback()
         return jsonify([])
     finally:
-        conn.close()
+        pass
 
 @finance_bp.route('/finance/analysis')
 def finance_analysis():
@@ -490,7 +490,7 @@ def finance_analysis():
         total_rev += revenue; total_cost += actual_cost
         analyzed.append({"ref": ref, "client": client, "status": status, "rev": revenue, "cost": actual_cost, "profit": profit, "margin": margin})
     
-    conn.close()
+    pass
     total_profit = total_rev - total_cost
     avg_margin = (total_profit / total_rev * 100) if total_rev > 0 else 0
     return render_template('finance/finance_analysis.html', jobs=analyzed, total_rev=total_rev, total_cost=total_cost, total_profit=total_profit, avg_margin=avg_margin, brand_color=config['color'], logo_url=config['logo'])
@@ -514,7 +514,7 @@ def finance_audit_logs():
     
     raw_logs = cur.fetchall()
     audit_logs = [{'action': r[0], 'target': r[1], 'details': r[2], 'time': r[3].strftime('%d/%m/%Y %H:%M'), 'user': r[4]} for r in raw_logs]
-    conn.close()
+    pass
     
     return render_template('finance/finance_audit_logs.html', logs=audit_logs, brand_color=config['color'], logo_url=config['logo'])
 
@@ -602,7 +602,7 @@ def settings_general():
     sub_domain = comp_row[0] if comp_row else ''
     
     config = get_site_config(comp_id)
-    conn.close()
+    pass
 
     return render_template('finance/settings_general.html', settings=settings, active_tab='general', sub_domain=sub_domain, brand_color=config['color'], logo_url=config['logo'])
 
@@ -647,7 +647,7 @@ def settings_banking():
         
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
-    conn.close()
+    pass
     
     return render_template('finance/settings_banking.html', settings=settings, active_tab='banking', brand_color=config['color'], logo_url=config['logo'])
 
@@ -670,7 +670,7 @@ def settings_overheads():
     for c in cats:
         cur.execute("SELECT id, name, amount FROM overhead_items WHERE category_id = %s", (c[0],)); items = cur.fetchall()
         ct = sum([float(i[2]) for i in items]); tot += ct; overheads.append(CO(c[0], c[1], items, ct))
-    conn.close()
+    pass
     return render_template('finance/settings_overheads.html', settings=settings, overheads=overheads, total_overhead=tot, active_tab='overheads', brand_color=config['color'], logo_url=config['logo'])
     
 @finance_bp.route('/finance/setup-templates')
@@ -694,7 +694,7 @@ def setup_invoice_templates():
         conn.rollback()
         return f"❌ Migration Error: {e}"
     finally:
-        conn.close()
+        pass
 
 @finance_bp.route('/finance/invoice/<int:invoice_id>/email')
 def email_invoice(invoice_id):
@@ -715,7 +715,7 @@ def email_invoice(invoice_id):
     inv = cur.fetchone()
     
     if not inv:
-        conn.close(); flash("❌ Invoice not found.", "error")
+        pass; flash("❌ Invoice not found.", "error")
         return redirect(url_for('finance.finance_invoices'))
 
     client_email = inv[6]
@@ -731,7 +731,7 @@ def email_invoice(invoice_id):
     settings['smtp_password'] = encryptor.decrypt(raw_pass) if raw_pass else None
 
     if 'smtp_host' not in settings:
-        conn.close(); flash("⚠️ SMTP Settings missing.", "warning")
+        pass; flash("⚠️ SMTP Settings missing.", "warning")
         return redirect(url_for('finance.finance_invoices'))
 
     cur.execute("SELECT description, quantity, unit_price, total FROM invoice_items WHERE invoice_id = %s", (invoice_id,))
@@ -805,7 +805,7 @@ def email_invoice(invoice_id):
     except Exception as e:
         flash(f"❌ Email task failed: {e}", "error")
     
-    conn.close()
+    pass
     return redirect(url_for('finance.finance_invoices'))
 
 @finance_bp.route('/finance/invoice/<int:invoice_id>/mark-sent')
@@ -814,7 +814,7 @@ def mark_invoice_sent(invoice_id):
     
     conn = get_db(); cur = conn.cursor()
     cur.execute("UPDATE invoices SET status = 'Sent' WHERE id = %s", (invoice_id,))
-    conn.commit(); conn.close()
+    conn.commit(); pass
     
     flash("✅ Invoice manually marked as Sent.", "success")
     return redirect(url_for('finance.finance_invoices'))
@@ -834,7 +834,7 @@ def delete_invoice(invoice_id):
         conn.rollback()
         flash(f"Error deleting invoice: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('finance.finance_invoices'))
     
@@ -997,7 +997,7 @@ def settings_integrations():
         else:
             settings[key] = value
 
-    conn.close()
+    pass
 
     return render_template('finance/settings_integrations.html',
                            settings=settings, 
@@ -1120,7 +1120,7 @@ def finance_payroll():
         totals['holiday'] += holiday_accrued
         totals['net'] += net
 
-    conn.close()
+    pass
     
     return render_template('finance/finance_payroll.html', 
                            payroll=payroll,
@@ -1269,7 +1269,7 @@ def export_payroll():
                 except Exception as e:
                     print(f"Failed to queue payslip email for {staff_email}: {e}")
             
-    conn.close()
+    pass
     
     return Response(
         output.getvalue(),
@@ -1329,7 +1329,7 @@ def settings_import():
                             count += 1
                 
                 conn.commit()
-                conn.close()
+                pass
                 flash(f"✅ Successfully imported {count} records.", "success")
                 
             except Exception as e:
@@ -1341,7 +1341,7 @@ def settings_import():
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
-    conn.close()
+    pass
 
     return render_template('finance/settings_import.html', settings=settings, active_tab='import')
     
@@ -1404,7 +1404,7 @@ def finance_bookkeeping():
                 row = cur.fetchone()
                 if not row or not row[0]:
                     flash("❌ You do not have an API set up, please process via the sorting office manually.", "error")
-                    conn.close()
+                    pass
                     return redirect(url_for('finance.finance_bookkeeping'))
                 
                 api_key = get_encryptor().decrypt(row[0])
@@ -1512,6 +1512,6 @@ def finance_bookkeeping():
     jobs = cur.fetchall()
     cur.execute("SELECT id, name FROM overhead_categories WHERE company_id=%s", (comp_id,))
     categories = cur.fetchall()
-    conn.close()
+    pass
 
     return render_template('finance/bookkeeping_inbox.html', unsorted=unsorted_files, jobs=jobs, categories=categories)

@@ -37,7 +37,7 @@ def inject_system_settings():
     except Exception as e:
         return dict(system_config={}, global_alert='')
     finally:
-        conn.close()
+        pass
 
 # --- HELPER: RECORD AUDIT LOG ---
 def log_audit(action, target, details=""):
@@ -55,7 +55,7 @@ def log_audit(action, target, details=""):
             VALUES (%s, %s, %s, %s, %s)
         """, (email, action, target, details, ip))
         conn.commit()
-        conn.close()
+        pass
     except Exception as e:
         print(f"Logging Failed: {e}") 
 
@@ -174,7 +174,7 @@ def super_admin_staff():
 
     cur.execute("SELECT id, name, email, role FROM users WHERE company_id IS NULL AND role != 'SuperAdmin'")
     staff = cur.fetchall()
-    conn.close()
+    pass
     return render_template('admin/super_admin_staff.html', staff=staff)
 
 @admin_bp.route('/super-admin/staff/delete/<int:staff_id>', methods=['POST'])
@@ -191,7 +191,7 @@ def delete_super_admin_staff(staff_id):
         conn.rollback()
         flash(f"❌ Error deleting staff: {e}")
     finally:
-        conn.close()
+        pass
     return redirect(url_for('admin.super_admin_staff'))
 
 @admin_bp.route('/super-admin/bb-helpdesk')
@@ -209,7 +209,7 @@ def bb_support_dashboard():
         tickets = cur.fetchall()
     except:
         tickets = []
-    conn.close()
+    pass
     return render_template('admin/bb_support_dashboard.html', tickets=tickets)
 
 @admin_bp.route('/super-admin/bb-ticket/<int:ticket_id>', methods=['GET', 'POST'])
@@ -258,7 +258,7 @@ def bb_ticket_detail(ticket_id):
     """, (ticket_id,))
     messages = cur.fetchall()
     
-    conn.close()
+    pass
     return render_template('admin/bb_ticket_detail.html', ticket=ticket, messages=messages)
 
 @admin_bp.route('/super-admin', methods=['GET', 'POST'])
@@ -446,7 +446,7 @@ def super_admin_dashboard():
         bb_staff_count = cur.fetchone()[0]
     except: bb_staff_count = 0
 
-    conn.close()
+    pass
     
     return render_template('admin/super_admin.html', 
                            companies=companies, 
@@ -470,7 +470,7 @@ def export_tenants():
         ORDER BY c.id ASC
     """)
     rows = cur.fetchall()
-    conn.close()
+    pass
 
     import csv
     from flask import Response
@@ -539,7 +539,7 @@ def super_admin_analytics():
         stat['bandwidth_usage'] = round(stat['total_rows'] * 0.05, 2)
         analytics_data.append(stat)
     
-    conn.close()
+    pass
     return render_template('admin/super_admin_analytics.html', data=analytics_data, db_inventory=db_inventory)
 
 import stripe
@@ -614,7 +614,7 @@ def stripe_webhook():
         conn.rollback()
         return jsonify({'error': str(e)}), 400
     finally:
-        conn.close()
+        pass
 
 # --- 3. UTILITIES ---
 @admin_bp.route('/admin/reset-password', methods=['POST'])
@@ -658,7 +658,7 @@ def reset_user_password():
             log_audit("RESET PASSWORD", user[1], "Admin reset via dashboard")
             conn.commit()
     except Exception as e: conn.rollback(); flash(f"Error: {e}")
-    finally: conn.close()
+    finally: pass
     return redirect(url_for('admin.super_admin_dashboard'))
 
 @admin_bp.route('/admin/settings', methods=['POST'])
@@ -689,7 +689,7 @@ def save_system_settings():
         conn.commit(); flash("✅ Settings Saved")
         log_audit("UPDATE SETTINGS", "System Settings", "Updated SMTP/Alert Config")
     except Exception as e: conn.rollback(); flash(f"Error: {e}")
-    finally: conn.close()
+    finally: pass
     return redirect(url_for('admin.super_admin_dashboard'))
 
 @admin_bp.route('/admin/assign-me/<int:company_id>')
@@ -715,7 +715,7 @@ def toggle_suspend(company_id):
     cur.execute("UPDATE subscriptions SET status = CASE WHEN status = 'Active' THEN 'Suspended' ELSE 'Active' END WHERE company_id = %s", (company_id,))
     conn.commit()
     log_audit("TOGGLE SUSPEND", f"Company ID {company_id}", "Changed subscription status")
-    conn.close()
+    pass
     return redirect(url_for('admin.super_admin_dashboard'))
 
 # --- BACKUP SYSTEM: VIEW LIST ---
@@ -785,7 +785,7 @@ def create_backup():
     except Exception as e:
         flash(f"❌ Backup Failed: {e}")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('admin.view_backups'))
 
@@ -837,7 +837,7 @@ def setup_fleet_db():
         cur.execute("CREATE TABLE IF NOT EXISTS maintenance_logs (id SERIAL PRIMARY KEY, company_id INTEGER NOT NULL, vehicle_id INTEGER NOT NULL, date DATE DEFAULT CURRENT_DATE, type VARCHAR(50), description TEXT, cost DECIMAL(10,2) DEFAULT 0.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);")
         conn.commit(); flash("✅ Fleet DB Upgraded")
     except Exception as e: conn.rollback(); flash(f"Error: {e}")
-    finally: conn.close()
+    finally: pass
     return redirect(url_for('admin.super_admin_dashboard'))
 
 @admin_bp.route('/admin/setup-overheads-db')
@@ -848,7 +848,7 @@ def setup_overheads_db():
         cur.execute("CREATE TABLE IF NOT EXISTS overhead_items (id SERIAL PRIMARY KEY, category_id INTEGER NOT NULL, name VARCHAR(100) NOT NULL, amount DECIMAL(10,2) DEFAULT 0.00, frequency VARCHAR(20) DEFAULT 'Monthly', FOREIGN KEY (category_id) REFERENCES overhead_categories(id) ON DELETE CASCADE);")
         conn.commit(); flash("✅ Finance DB Upgraded")
     except Exception as e: conn.rollback(); flash(f"Error: {e}")
-    finally: conn.close()
+    finally: pass
     return redirect(url_for('admin.super_admin_dashboard'))
     
 # --- GLOBAL SEARCH ---
@@ -873,7 +873,7 @@ def global_search():
             results['vehicles'] = cur.fetchall()
         except: pass
     except Exception as e: print(f"Search Error: {e}")
-    finally: conn.close()
+    finally: pass
     return render_template('admin/search_results.html', query=query, results=results)
     
 # --- 4. COMPANY INSPECTION ---
@@ -883,7 +883,7 @@ def company_details(company_id):
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT c.id, c.name, c.sub_domain, c.contact_email, s.plan_tier, s.status, s.start_date FROM companies c LEFT JOIN subscriptions s ON c.id = s.company_id WHERE c.id = %s", (company_id,))
     comp = cur.fetchone()
-    if not comp: conn.close(); return "Company not found", 404
+    if not comp: pass; return "Company not found", 404
     company = {'id': comp[0], 'name': comp[1], 'subdomain': comp[2], 'email': comp[3], 'plan': comp[4], 'status': comp[5], 'joined': comp[6]}
     
     tables = ['users', 'staff', 'clients', 'vehicles', 'properties', 'jobs', 'quotes', 'invoices', 'transactions', 'service_requests']
@@ -905,7 +905,7 @@ def company_details(company_id):
     except Exception: conn.rollback(); audit_logs = []
     
     stats['storage_mb'] = get_real_company_usage(company_id, cur)
-    conn.close()
+    pass
     return render_template('admin/company_details.html', company=company, stats=stats, settings=settings, audit_logs=audit_logs)
 
 @admin_bp.route('/super-admin/company/<int:company_id>/wipe', methods=['POST'])
@@ -969,7 +969,7 @@ def wipe_company_data(company_id):
         conn.rollback()
         flash(f"❌ Error wiping tenant data: {e}")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('admin.company_details', company_id=company_id))
 
@@ -1048,7 +1048,7 @@ def delete_company(company_id):
         conn.rollback()
         flash(f"❌ Error deleting tenant: {e}")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('admin.super_admin_dashboard'))
 
@@ -1078,7 +1078,7 @@ def wipe_clients_quotes():
         conn.rollback()
         flash(f"❌ Error wiping clients: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('admin.super_admin_dashboard'))
 
@@ -1152,7 +1152,7 @@ def cleanup_super_admin_data():
         
         flash(f"✅ Wipe Complete. Checked Audit Log for details.")
     except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
-    finally: conn.close()
+    finally: pass
     return redirect(url_for('admin.super_admin_dashboard'))
     
 @admin_bp.route('/admin/wipe-fleet-data')
@@ -1166,7 +1166,7 @@ def wipe_fleet_data():
         cur.execute("DELETE FROM vehicles WHERE company_id = %s", (target_id,))
         conn.commit(); flash("✅ Fleet Data Wiped")
     except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
-    finally: conn.close()
+    finally: pass
     return redirect(url_for('admin.super_admin_dashboard'))
     
 # --- SETUP: CREATE LOG TABLES ---
@@ -1206,7 +1206,7 @@ def setup_bb_support_db():
         """)
         conn.commit(); flash("✅ BB Support Tables Created Successfully")
     except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
-    finally: conn.close()
+    finally: pass
     return redirect(url_for('admin.super_admin_dashboard'))
 
 @admin_bp.route('/admin/setup-logs-db')
@@ -1226,7 +1226,7 @@ def setup_logs_db():
         """)
         conn.commit(); flash("✅ Log Tables Created Successfully")
     except Exception as e: conn.rollback(); flash(f"❌ Error: {e}")
-    finally: conn.close()
+    finally: pass
     return redirect(url_for('admin.super_admin_dashboard'))
 
 @admin_bp.route('/admin/audit-logs/delete', methods=['POST'])
@@ -1256,7 +1256,7 @@ def delete_audit_logs():
         conn.rollback()
         flash(f"❌ Error: {e}")
     finally:
-        conn.close()
+        pass
     return redirect(url_for('admin.view_audit_logs'))
 
 @admin_bp.route('/admin/audit-logs')
@@ -1289,7 +1289,7 @@ def view_audit_logs():
         LIMIT %s OFFSET %s
     """, (per_page, offset))
     logs = cur.fetchall()
-    conn.close()
+    pass
     
     return render_template('admin/audit_logs.html', 
                            logs=logs, 
@@ -1324,7 +1324,7 @@ def delete_system_logs():
         conn.rollback()
         flash(f"❌ Error: {e}")
     finally:
-        conn.close()
+        pass
     return redirect(url_for('admin.view_system_logs'))
 
 @admin_bp.route('/admin/system-logs')
@@ -1384,7 +1384,7 @@ def view_system_logs():
         """
         cur.execute(query, (comp_id, per_page, offset))
     logs = cur.fetchall()
-    conn.close()
+    pass
     
     return render_template('admin/system_logs.html', 
                            logs=logs, 

@@ -33,7 +33,7 @@ def client_dashboard():
         FROM clients WHERE company_id = %s ORDER BY name ASC
     """, (comp_id,))
     clients = cur.fetchall()
-    conn.close()
+    pass
     
     return render_template('clients/client_dashboard.html', 
                            clients=clients, 
@@ -196,7 +196,7 @@ def update_client():
     except Exception as e:
         conn.rollback(); flash(f"Error updating client: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('client.client_dashboard'))
 
@@ -218,7 +218,7 @@ def view_client(client_id):
     cur.execute("SELECT company_id FROM clients WHERE id = %s", (client_id,))
     client_row = cur.fetchone()
     if not client_row or client_row[0] != comp_id:
-        conn.close()
+        pass
         return "Unauthorized: Client not found or belongs to different company", 403
     
     
@@ -231,7 +231,7 @@ def view_client(client_id):
     client_row = cur.fetchone()
     
     if not client_row:
-        conn.close()
+        pass
         return "Client not found", 404
 
     client = {
@@ -272,7 +272,7 @@ def view_client(client_id):
     from utils.certificates import get_certificates_for_country
     certificates = get_certificates_for_country(country_code)
     
-    conn.close()
+    pass
     
     return render_template('office/client_details.html', 
                            client=client, 
@@ -311,7 +311,7 @@ def add_property(client_id):
     except Exception as e:
         conn.rollback(); flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('client.view_client', client_id=client_id))
 
@@ -334,7 +334,7 @@ def view_property(property_id):
     row = cur.fetchone()
     
     if not row:
-        conn.close()
+        pass
         return "Property not found", 404
 
     prop = {
@@ -399,7 +399,7 @@ def view_property(property_id):
     for d in cur.fetchall():
         prop_docs.append({'id': d[0], 'type': d[1], 'path': d[2], 'date': d[3], 'visible': d[4]})
 
-    conn.close()
+    pass
     
     return render_template('office/property_details.html', prop=prop, client=client, jobs=jobs, certs=certs, prop_docs=prop_docs, today=date.today())
 
@@ -443,7 +443,7 @@ def mass_email_tenants(client_id):
     except Exception as e:
         flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('client.view_client', client_id=client_id))
 
@@ -483,7 +483,7 @@ def upload_property_document(property_id):
         conn.rollback()
         flash(f"Error uploading document: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(request.referrer)
 
@@ -508,7 +508,7 @@ def delete_property_document(doc_id):
         conn.rollback()
         flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
     return redirect(request.referrer)
 
 @client_bp.route('/office/property/update', methods=['POST'])
@@ -543,7 +543,7 @@ def update_property():
     except Exception as e:
         conn.rollback(); flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('client.view_client', client_id=client_id))
 
@@ -564,7 +564,7 @@ def get_client_properties(client_id):
     """, (client_id, session.get('company_id')))
     
     props = [{'id': r[0], 'address': f"{r[1]} {r[2] or ''}"} for r in cur.fetchall()]
-    conn.close()
+    pass
     return jsonify(props)
 
 @client_bp.route('/client/<int:client_id>/reset-password', methods=['POST'])
@@ -633,7 +633,7 @@ def reset_client_password(client_id):
         conn.rollback()
         flash(f"Error resetting password: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('client.view_client', client_id=client_id))
 
@@ -650,7 +650,7 @@ def delete_client(client_id):
     except Exception as e:
         conn.rollback(); flash(f"Error: {e}")
     finally:
-        conn.close()
+        pass
     return redirect(url_for('client.client_dashboard'))
 
 @client_bp.route('/track/<job_ref>')
@@ -694,5 +694,5 @@ def track_job(job_ref):
         api_key = settings.get('samsara_api_key')
         telematics = get_tracker_data(tracker_url, api_key=api_key)
 
-    conn.close()
+    pass
     return render_template('public/track_job.html', job=job_data, engineer=engineer_data, telematics=telematics, settings=settings)

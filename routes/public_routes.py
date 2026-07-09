@@ -37,7 +37,7 @@ def home():
             cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (company_id,))
             settings_rows = cur.fetchall()
             settings = dict(settings_rows) # Convert to dictionary { 'key': 'value' }
-            conn.close()
+            pass
 
             # Smart Lookup: Try 'brand_color' OR default to Gold
             brand_color = settings.get('brand_color', '#c5a059')
@@ -52,7 +52,7 @@ def home():
                                    brand_color=brand_color,
                                    logo_url=logo_url)
         
-        conn.close()
+        pass
 
     # 2. DEFAULT: SHOW MARKETING SITE
     if is_bb(host):
@@ -106,7 +106,7 @@ def pricing():
             
             plans.append(p)
     
-    conn.close()
+    pass
     
     # 3. Render the page with the live data
     return render_template('publicbb/pricing.html', plans=plans)
@@ -186,7 +186,7 @@ def system_status():
         cur = conn.cursor()
         cur.execute("SELECT 1")
         db_status = "Operational"
-        conn.close()
+        pass
     except:
         db_status = "Outage"
         
@@ -322,7 +322,7 @@ def pay_invoice(invoice_id):
     except Exception as e:
         return f"Error processing payment: {e}", 500
     finally:
-        conn.close()
+        pass
 
 @public_bp.route('/pay/invoice/<int:invoice_id>/success')
 def pay_invoice_success(invoice_id):
@@ -360,7 +360,7 @@ def pay_invoice_success(invoice_id):
     except Exception as e:
         return f"Error: {e}", 500
     finally:
-        conn.close()
+        pass
 
 @public_bp.route('/pay/invoice/<int:invoice_id>/cancel')
 def pay_invoice_cancel(invoice_id):
@@ -409,7 +409,7 @@ def tenant_stripe_webhook():
             conn.rollback()
             print(f"Tenant Webhook Error: {e}")
         finally:
-            conn.close()
+            pass
             
     return "OK", 200
 

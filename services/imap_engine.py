@@ -40,14 +40,14 @@ def fetch_emails(comp_id):
     settings = {row[0]: row[1] for row in cur.fetchall()}
     
     if not settings.get('imap_server') or not settings.get('imap_user') or not settings.get('imap_password'):
-        conn.close()
+        pass
         return []
 
     encryptor = get_encryptor()
     password = encryptor.decrypt(settings.get('imap_password'))
     
     if not password:
-        conn.close()
+        pass
         return []
         
     try:
@@ -109,7 +109,7 @@ def fetch_emails(comp_id):
     except Exception as e:
         print("IMAP Error:", e)
     finally:
-        conn.close()
+        pass
         
     return fetched
 

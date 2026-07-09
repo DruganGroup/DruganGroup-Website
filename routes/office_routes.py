@@ -147,7 +147,7 @@ def service_desk():
     """, (comp_id, comp_id))
     active_partners = [{'name': r[1], 'id': r[2]} for r in cur.fetchall()]
 
-    conn.close()
+    pass
     
     from datetime import datetime
     now_func = datetime.now
@@ -392,7 +392,7 @@ def live_ops():
     for v in cur.fetchall():
         fleet.append({'id': v[0], 'reg': v[1], 'model': v[2], 'driver_id': v[3], 'tracker_url': v[4]})
 
-    conn.close()
+    pass
     return render_template('office/live_ops.html', staff=staff_status, all_staff=staff_status, fleet=fleet, brand_color=config['color'], logo_url=config['logo'])
                            
 
@@ -458,7 +458,7 @@ def office_calendar():
             'duration_iso': f"P{days}D"
         })
 
-    conn.close()
+    pass
 
     return render_template('office/calendar.html',
                            config=config,
@@ -498,7 +498,7 @@ def get_calendar_events():
             'url': f"/office/job/{r[0]}/files"
         })
         
-    conn.close()
+    pass
     return jsonify(events)
     
 # =========================================================
@@ -546,7 +546,7 @@ def schedule_job():
                     elif isinstance(ex_start, str): ex_start = datetime.strptime(ex_start, '%Y-%m-%d').date()
                     ex_end = ex_start + timedelta(days=int(r[3] or 1) - 1)
                     if (new_start <= ex_end) and (ex_start <= new_end):
-                        conn.close()
+                        pass
                         return jsonify({'status': 'conflict', 'message': f'Vehicle is already assigned to {r[1]} on these dates.'})
 
             # Check Engineer Conflicts
@@ -562,7 +562,7 @@ def schedule_job():
                     elif isinstance(ex_start, str): ex_start = datetime.strptime(ex_start, '%Y-%m-%d').date()
                     ex_end = ex_start + timedelta(days=int(r[3] or 1) - 1)
                     if (new_start <= ex_end) and (ex_start <= new_end):
-                        conn.close()
+                        pass
                         return jsonify({'status': 'conflict', 'message': f'Engineer is already assigned to {r[1]} on these dates.'})
 
                 # Check Leave Conflicts
@@ -577,7 +577,7 @@ def schedule_job():
                     l_end = r[1]
                     if isinstance(l_end, str): l_end = datetime.strptime(l_end, '%Y-%m-%d').date()
                     if (new_start <= l_end) and (l_start <= new_end):
-                        conn.close()
+                        pass
                         return jsonify({'status': 'conflict', 'message': f'Engineer is on leave ({r[2]}) during these dates.'})
         
         # 1. Update Job
@@ -591,7 +591,7 @@ def schedule_job():
         # Assuming you just need the job updated for now.
         
         conn.commit()
-        conn.close()
+        pass
         
         return jsonify({'status': 'success'})
 
@@ -633,7 +633,7 @@ def inbox():
         emails = []
         inbox_count = 0
     finally:
-        conn.close()
+        pass
         
     return render_template('office/inbox.html', emails=emails, current_folder=folder, inbox_count=inbox_count)
 
@@ -683,7 +683,7 @@ def api_client_files():
         print(f"Error fetching client files: {e}")
         return jsonify([])
     finally:
-        conn.close()
+        pass
 
 @office_bp.route('/office/inbox/sync')
 def sync_emails():
@@ -760,7 +760,7 @@ def api_email_summarize(email_id):
                 
         return jsonify({'summary': summary})
     finally:
-        conn.close()
+        pass
 
 @office_bp.route('/office/inbox/send', methods=['POST'])
 def send_office_email():
@@ -821,7 +821,7 @@ def send_office_email():
         except Exception as e:
             print(f"Error logging sent email: {e}")
         finally:
-            conn.close()
+            pass
             
         flash("✅ Email sent successfully!", "success")
     else:
@@ -849,7 +849,7 @@ def api_toggle_document_visibility(table_name, doc_id):
             
         row = cur.fetchone()
         if not row:
-            conn.close()
+            pass
             return jsonify({'error': 'Document not found'}), 404
             
         new_state = not row[0]
@@ -865,7 +865,7 @@ def api_toggle_document_visibility(table_name, doc_id):
         conn.rollback()
         return jsonify({'error': str(e)}), 500
     finally:
-        conn.close()
+        pass
 
 @office_bp.route('/office/api/email/<int:email_id>/draft')
 def api_email_draft(email_id):
@@ -930,7 +930,7 @@ def api_email_draft(email_id):
                 
         return jsonify({'draft': draft})
     finally:
-        conn.close()
+        pass
 
 # B. LOAD CALENDAR DATA (Show the bars on the calendar)
 @office_bp.route('/office/calendar/data')
@@ -981,7 +981,7 @@ def calendar_data():
             'url': f"/office/job/{row[0]}/files" # Click to open job
         })
         
-    conn.close()
+    pass
     return jsonify(events)
 
 # C. HANDLE DRAG-TO-MOVE (Reschedule logic)
@@ -1002,7 +1002,7 @@ def reschedule_job_drag():
     except:
         return jsonify({'status': 'error'})
     finally:
-        conn.close()
+        pass
 
     # =========================================================
 # FLEET MANAGEMENT (Office Side)
@@ -1120,7 +1120,7 @@ def office_fleet():
             'history': history
         })
 
-    conn.close()
+    pass
     
     # Note: Ensure this matches the file you uploaded: 'office/fleet_management.html'
     return render_template('office/fleet_management.html', 
@@ -1145,7 +1145,7 @@ def get_client_properties(client_id):
     """, (client_id,))
     
     props = [{'id': r[0], 'address': f"{r[1]}, {r[2]}"} for r in cur.fetchall()]
-    conn.close()
+    pass
     
     return jsonify(props)
 
@@ -1161,7 +1161,7 @@ def generate_job_rams(job_id):
     comp_id = session.get('company_id')
     cur.execute("SELECT pdf_path FROM job_rams WHERE job_id = %s AND company_id = %s ORDER BY created_at DESC LIMIT 1", (job_id, comp_id))
     rams_row = cur.fetchone()
-    conn.close()
+    pass
     
     if rams_row and rams_row[0]:
         # Existing PDF
@@ -1191,7 +1191,7 @@ def job_materials_pdf(job_id):
     """, (job_id, comp_id))
     job = cur.fetchone()
     if not job: 
-        conn.close()
+        pass
         return "Job not found", 404
         
     delivery_address = f"{job[1]}, {job[2]}" if job[1] else (job[3] or "No delivery address logged")
@@ -1202,7 +1202,7 @@ def job_materials_pdf(job_id):
     
     # 3. Format items
     items = [{'desc': r[0], 'qty': r[1], 'supplier': 'General'} for r in rows]
-    conn.close()
+    pass
     
     # 4. Prepare Data for PDF
     context = {
@@ -1290,7 +1290,7 @@ def email_materials_supplier(job_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:
-        conn.close()
+        pass
 
 # =========================================================
 # 6. SALES & INVOICING (UNIFIED DASHBOARD)
@@ -1339,7 +1339,7 @@ def office_sales_dashboard():
             'status': r[5], 'needs_followup': r[6], 'client_response': r[7], 'due_date': r[8]
         })
         
-    conn.close()
+    pass
     
     return render_template('office/sales_dashboard.html', 
                            quotes=quotes, invoices=invoices,
@@ -1376,6 +1376,6 @@ def update_sales_record():
         conn.rollback()
         flash(f"Error updating record: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('office.office_sales_dashboard'))

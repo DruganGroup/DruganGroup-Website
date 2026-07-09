@@ -45,7 +45,7 @@ def compliance_dashboard():
     brand_color = settings.get('brand_color', '#333')
     logo = settings.get('logo', '/static/images/logo.png')
     
-    conn.close()
+    pass
     return render_template('office/compliance_dashboard.html', expiring_props=expiring_props, brand_color=brand_color, logo=logo)
 
 # --- 1. EICR (ELECTRICAL) SAVE LOGIC ---
@@ -109,7 +109,7 @@ def save_eicr():
                         VALUES (%s, %s, 1, %s, 0.0, NOW())
                     """, (job_id, desc, total_fee))
 
-        conn.commit(); conn.close()
+        conn.commit(); pass
         
         return jsonify({'success': True, 'message': msg, 'cert_id': cert_id})
 
@@ -174,7 +174,7 @@ def save_gas_cert():
         if next_due: 
             cur.execute("UPDATE properties SET gas_expiry = %s WHERE id = %s AND company_id = %s", (next_due, prop_id, comp_id))
             
-        conn.commit(); conn.close()
+        conn.commit(); pass
         
         return jsonify({'success': True, 'redirect_url': '/office-hub'})
 
@@ -232,7 +232,7 @@ def save_epc_cert():
         if next_due: 
             cur.execute("UPDATE properties SET epc_expiry = %s WHERE id = %s AND company_id = %s", (next_due, prop_id, comp_id))
             
-        conn.commit(); conn.close()
+        conn.commit(); pass
         
         return jsonify({'success': True, 'redirect_url': '/office-hub'})
 
@@ -289,7 +289,7 @@ def save_legionella_cert():
         # We don't have a specific legionella column, but we can reuse PAT or add a new one if available.
         # Let's see if there is one. We'll skip updating property table for now or we could add a new column later.
             
-        conn.commit(); conn.close()
+        conn.commit(); pass
         
         return jsonify({'success': True, 'redirect_url': '/office-hub'})
 
@@ -351,7 +351,7 @@ def save_generic_cert(country_code, cert_type):
             elif cert_type.lower() in electrical_equivalents:
                 cur.execute("UPDATE properties SET eicr_expiry = %s WHERE id = %s AND company_id = %s", (next_due, prop_id, comp_id))
 
-        conn.commit(); conn.close()
+        conn.commit(); pass
         
         return jsonify({'success': True, 'redirect_url': '/office-hub'})
 

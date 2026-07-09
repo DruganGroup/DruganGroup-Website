@@ -58,12 +58,12 @@ def generate_invoice_pdf_async(invoice_id):
     company_name = session.get('company_name', 'My Company')
     
     if not comp_id:
-        cur.close(); conn.close()
+        cur.close(); pass
         return jsonify({"error": "Unauthorized"}), 403
     
     cur.execute("SELECT company_id FROM invoices WHERE id = %s", (invoice_id,))
     invoice_row = cur.fetchone()
-    cur.close(); conn.close()
+    cur.close(); pass
     if not invoice_row or invoice_row[0] != comp_id:
         return jsonify({"error": "Invoice not found or belongs to different company"}), 403
 
@@ -103,13 +103,13 @@ def download_invoice_pdf(invoice_id):
     
     # ✅ SECURITY FIX: Verify invoice belongs to user's company
     if not comp_id:
-        cur.close(); conn.close()
+        cur.close(); pass
         return redirect(url_for('auth.login'))
     
     cur.execute("SELECT company_id FROM invoices WHERE id = %s", (invoice_id,))
     invoice_row = cur.fetchone()
     if not invoice_row or invoice_row[0] != comp_id:
-        cur.close(); conn.close()
+        cur.close(); pass
         return "Unauthorized: Invoice not found or belongs to different company", 403
 
     # 1. Fetch Invoice + Linked Data
@@ -127,7 +127,7 @@ def download_invoice_pdf(invoice_id):
     """, (invoice_id, comp_id))
     inv = cur.fetchone()
     
-    if not inv: conn.close(); return "Invoice not found", 404
+    if not inv: pass; return "Invoice not found", 404
 
     # 2. Resolve Addresses
     # BILLING: Always use the client's billing address
@@ -156,7 +156,7 @@ def download_invoice_pdf(invoice_id):
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     comp_name = get_company_name(cur, comp_id)
-    conn.close()
+    pass
 
     # --- THE BULLETPROOF LOGO FIX ---
     config = get_site_config(comp_id)
@@ -247,7 +247,7 @@ def download_quote_pdf(quote_id):
     """, (quote_id, comp_id))
     quote = cur.fetchone()
     
-    if not quote: conn.close(); return "Quote not found", 404
+    if not quote: pass; return "Quote not found", 404
 
     # Resolve Addresses
     billing_addr = quote[5]
@@ -270,7 +270,7 @@ def download_quote_pdf(quote_id):
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     comp_name = get_company_name(cur, comp_id)
-    conn.close()
+    pass
 
     # --- THE BULLETPROOF LOGO FIX ---
     config = get_site_config(comp_id)
@@ -347,13 +347,13 @@ def download_material_list(job_id):
     
     # ✅ SECURITY FIX: Verify job belongs to user's company
     if not comp_id:
-        cur.close(); conn.close()
+        cur.close(); pass
         return redirect(url_for('auth.login'))
     
     cur.execute("SELECT company_id FROM jobs WHERE id = %s", (job_id,))
     job_check = cur.fetchone()
     if not job_check or job_check[0] != comp_id:
-        conn.close()
+        pass
         return "Unauthorized: Job not found or belongs to different company", 403
     
     # 1. Fetch Job Details
@@ -364,7 +364,7 @@ def download_material_list(job_id):
     cur.execute("SELECT description, quantity FROM job_materials WHERE job_id = %s", (job_id,))
     items = [{'desc': r[0], 'qty': r[1]} for r in cur.fetchall()]
     
-    conn.close()
+    pass
     
     # 3. Generate PDF
     context = {
@@ -385,13 +385,13 @@ def create_rams_form(job_id):
     
     # ✅ SECURITY FIX: Verify job belongs to user's company
     if not comp_id:
-        cur.close(); conn.close()
+        cur.close(); pass
         return redirect(url_for('auth.login'))
     
     cur.execute("SELECT company_id FROM jobs WHERE id = %s", (job_id,))
     job_check = cur.fetchone()
     if not job_check or job_check[0] != comp_id:
-        conn.close()
+        pass
         return "Unauthorized: Job not found or belongs to different company", 403
     
     # 1. Fetch Job Info
@@ -403,7 +403,7 @@ def create_rams_form(job_id):
         WHERE j.id = %s
     """, (job_id,))
     job = cur.fetchone()
-    conn.close()
+    pass
 
     if not job: return "Job not found", 404
 
@@ -456,7 +456,7 @@ def create_cp12():
         WHERE p.id = %s
     """, (prop_id,))
     p_row = cur.fetchone()
-    conn.close()
+    pass
     
     if not p_row: return "Property not found", 404
     prop = {'id': p_row[0], 'address': f"{p_row[1]}, {p_row[2]}", 'client': p_row[3], 'client_email': p_row[4], 'job_id': job_id}
@@ -478,7 +478,7 @@ def create_eicr():
         WHERE p.id = %s
     """, (prop_id,))
     p_row = cur.fetchone()
-    conn.close()
+    pass
     
     if not p_row: return "Property not found", 404
     prop = {'id': p_row[0], 'address': f"{p_row[1]}, {p_row[2]}", 'client': p_row[3], 'client_email': p_row[4], 'job_id': job_id}
@@ -493,7 +493,7 @@ def create_epc():
     prop_id = request.args.get('prop_id')
     cur.execute("SELECT p.id, p.address_line1, p.postcode, c.name FROM properties p JOIN clients c ON p.client_id = c.id WHERE p.id = %s", (prop_id,))
     p_row = cur.fetchone()
-    conn.close()
+    pass
     if not p_row: return "Property not found", 404
     prop = {'id': p_row[0], 'address': f"{p_row[1]}, {p_row[2]}", 'client': p_row[3]}
     
@@ -508,7 +508,7 @@ def create_legionella():
     prop_id = request.args.get('prop_id')
     cur.execute("SELECT p.id, p.address_line1, p.postcode, c.name FROM properties p JOIN clients c ON p.client_id = c.id WHERE p.id = %s", (prop_id,))
     p_row = cur.fetchone()
-    conn.close()
+    pass
     if not p_row: return "Property not found", 404
     prop = {'id': p_row[0], 'address': f"{p_row[1]}, {p_row[2]}", 'client': p_row[3]}
     
@@ -652,7 +652,7 @@ def save_and_download_rams(job_id):
         print(f"DB Error: {e}")
         flash(f"Error saving to DB: {e}", "error")
     finally:
-        conn.close()
+        pass
 
     # 6. REDIRECT to the JOBS blueprint
     return redirect(url_for('jobs.job_files', job_id=job_id))
@@ -671,7 +671,7 @@ def create_generic_cert(country_code, cert_type):
         WHERE p.id = %s
     """, (prop_id,))
     p_row = cur.fetchone()
-    conn.close()
+    pass
     
     if not p_row: return "Property not found", 404
     prop = {'id': p_row[0], 'address': f"{p_row[1]}, {p_row[2]}", 'client': p_row[3], 'client_email': p_row[4], 'job_id': job_id}

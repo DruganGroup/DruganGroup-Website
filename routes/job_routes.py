@@ -40,7 +40,7 @@ def create_job():
         cur.execute("SELECT id, address_line1, postcode FROM properties WHERE id = %s", (pre_prop_id,))
         target_property = cur.fetchone()
         
-    conn.close()
+    pass
     
     # 3. Render
     return render_template('office/job/create_job.html',
@@ -77,7 +77,7 @@ def job_files(job_id):
     
     job_row = cur.fetchone()
     if not job_row:
-        conn.close(); return "Job not found", 404
+        pass; return "Job not found", 404
     
     van_daily_cost = float(job_row[10]) if job_row[10] else 0.0
     van_reg = job_row[11] or "No Vehicle"
@@ -188,7 +188,7 @@ def job_files(job_id):
     country_row = cur.fetchone()
     country_code = country_row[0] if country_row else 'UK'
 
-    conn.close()
+    pass
     
     from utils.certificates import get_certificates_for_country
     certificates = get_certificates_for_country(country_code)
@@ -235,7 +235,7 @@ def add_manual_cost(job_ref):
         conn.rollback()
         flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(f"/office/job/{job_id}/files")
 
@@ -275,7 +275,7 @@ def delete_job_item(item_id, item_type):
         conn.rollback()
         flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(request.referrer)
     
@@ -304,7 +304,7 @@ def log_hours(job_id):
         conn.rollback()
         flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(f"/office/job/{job_id}/files")
     
@@ -334,7 +334,7 @@ def upload_job_document(job_id):
         conn.rollback()
         flash(f"Error uploading document: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(request.referrer)
 

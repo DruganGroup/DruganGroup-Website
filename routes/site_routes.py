@@ -154,7 +154,7 @@ def site_dashboard():
 
             formatted_jobs.append(j_dict)
     
-    conn.close()
+    pass
     
     # Pass 'my_profile' dictionary so the HTML can read the picture
     return render_template('site/site_dashboard.html', 
@@ -219,7 +219,7 @@ def toggle_day_clock():
     except Exception as e:
         conn.rollback(); flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
 
     return redirect('/launcher')
 
@@ -277,7 +277,7 @@ def toggle_site_time(job_id):
     except Exception as e:
         conn.rollback(); flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('site.job_details', job_id=job_id))     
 
@@ -309,7 +309,7 @@ def job_details(job_id):
     """, (job_id,))
     row = cur.fetchone()
     
-    if not row: conn.close(); return "Job not found", 404
+    if not row: pass; return "Job not found", 404
 
     # Safe Dict
     job = {
@@ -345,7 +345,7 @@ def job_details(job_id):
     cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'logo'", (comp_id,))
     logo_url = cur.fetchone()[0] if cur.rowcount > 0 else None
     
-    conn.close()
+    pass
     return render_template('site/job_details.html', job=job, materials=materials, photos=photos, diary=diary, user_is_clocked_in=user_is_clocked_in, logo_url=logo_url)
 
 # --- ADD SITE DIARY NOTE (Worker -> Office) ---
@@ -371,7 +371,7 @@ def add_site_note(job_id):
         conn.rollback()
         flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
 
     return redirect(url_for('site.job_details', job_id=job_id))
 
@@ -513,7 +513,7 @@ def update_job(job_id):
         conn.commit()
         flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
     
     if action == 'complete': return redirect(url_for('site.site_dashboard'))
     return redirect(url_for('site.job_details', job_id=job_id))
@@ -551,7 +551,7 @@ def add_job_material(job_id):
         cur.execute("INSERT INTO job_materials (job_id, description, quantity, unit_price, cost_price) VALUES (%s, %s, %s, %s, %s)", (job_id, desc, qty, price, price))
         conn.commit(); flash("✅ Item Added")
     except Exception as e: conn.rollback(); flash(f"Error: {e}")
-    finally: conn.close()
+    finally: pass
     return redirect(url_for('site.job_details', job_id=job_id))
 
 # --- CERTIFICATES ---
@@ -628,7 +628,7 @@ def site_log_fuel():
             conn.rollback()
             flash(f"Error logging fuel: {e}", "error")
 
-    conn.close()
+    pass
     # Ensure this matches the file you uploaded: 'site/fuel_form.html'
     return render_template('site/fuel_form.html', reg=reg_plate)
     
@@ -691,7 +691,7 @@ def van_check_page():
         cur.execute("SELECT reg_plate FROM vehicles WHERE company_id = %s AND status='Active' ORDER BY reg_plate ASC", (comp_id,))
         vehicles = [r[0] for r in cur.fetchall()]
 
-    conn.close()
+    pass
     return render_template('site/van_check_form.html', 
                            assigned_van=assigned_van, 
                            vehicles=vehicles)

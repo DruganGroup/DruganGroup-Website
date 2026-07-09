@@ -29,7 +29,7 @@ def view_plans():
                 p['modules'] = []
             plans.append(p)
     
-    conn.close()
+    pass
     return render_template('admin/plans.html', plans=plans)
 
 # --- 2. CREATE & SYNC PLAN (THE AUTOMATION ENGINE) ---
@@ -121,7 +121,7 @@ def save_plan():
         conn.rollback()
         flash(f"❌ Error: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('plans.view_plans'))
     
@@ -185,7 +185,7 @@ def reset_database():
         return f"<h1>ERROR during wipe: {str(e)}</h1>"
         
     finally:
-        conn.close()
+        pass
 
 # --- 3. DELETE PLAN (CLEAN UP) ---
 @plans_bp.route('/admin/plans/delete/<int:plan_id>')
@@ -203,6 +203,6 @@ def delete_plan(plan_id):
         conn.rollback()
         flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('plans.view_plans'))

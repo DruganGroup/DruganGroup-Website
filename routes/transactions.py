@@ -17,7 +17,7 @@ def get_date_fmt_str(company_id):
         conn = get_db(); cur = conn.cursor()
         cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'country_code'", (company_id,))
         row = cur.fetchone()
-        conn.close()
+        pass
         country = row[0] if row else 'Default'
         return COUNTRY_FORMATS.get(country, COUNTRY_FORMATS['Default'])
     except: return COUNTRY_FORMATS['Default']
@@ -125,7 +125,7 @@ def finance_dashboard():
     chart_income = [income]
     chart_expense = [expense]
 
-    conn.close()
+    pass
     
     return render_template('finance/finance_dashboard.html', 
                            total_income=income, 
@@ -180,7 +180,7 @@ def set_invoice_status(invoice_id, new_status):
         conn.rollback()
         flash(f"Error: {e}")
     finally:
-        conn.close()
+        pass
 
     return redirect(url_for('finance.finance_invoices'))
     
@@ -273,7 +273,7 @@ def bookkeeping_inbox():
     except:
         categories = []
 
-    conn.close()
+    pass
     
     return render_template('finance/bookkeeping_inbox.html', 
                            unsorted=unsorted, 

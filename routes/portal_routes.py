@@ -75,7 +75,7 @@ def portal_auth():
             return redirect(url_for('portal.portal_home'))
         else:
             flash("❌ Invalid credentials."); return redirect(url_for('portal.portal_login', company_id=company_id))
-    finally: conn.close()
+    finally: pass
 
 # --- 3. DASHBOARD ---
 @portal_bp.route('/portal/home')
@@ -144,7 +144,7 @@ def portal_home():
         req[4] = format_date_by_country(req[4], comp_id)
         recent_requests.append(req)
 
-    conn.close()
+    pass
     return render_template('portal/portal_home.html', company_name=config.get('name'), 
                          client_name=client_name, properties=properties, active_jobs=active_jobs,
                          open_quotes_count=open_quotes, recent_requests=recent_requests,
@@ -167,7 +167,7 @@ def portal_job_view(job_id):
     """, (job_id, client_id))
     job_row = cur.fetchone()
     
-    if not job_row: conn.close(); return "Not Found", 404
+    if not job_row: pass; return "Not Found", 404
     
     job = list(job_row)
     job[4] = format_date_by_country(job[4], comp_id)
@@ -198,7 +198,7 @@ def portal_job_view(job_id):
         else:
             photos.append(item)
         
-    conn.close()
+    pass
     
     return render_template('portal/portal_job_view.html', 
                            job=job, 
@@ -223,7 +223,7 @@ def property_detail(property_id):
         FROM properties WHERE id=%s AND client_id=%s
     """, (property_id, client_id))
     prop_row = cur.fetchone()
-    if not prop_row: conn.close(); return redirect('/portal/home')
+    if not prop_row: pass; return redirect('/portal/home')
 
     # Build Smart Compliance Dictionary (Only include checks that have dates)
     compliance_raw = {
@@ -286,7 +286,7 @@ def property_detail(property_id):
     """, (property_id, comp_id))
     prop_docs = [{'type': r[0], 'path': r[1], 'date': format_date_by_country(r[2], comp_id)} for r in cur.fetchall()]
 
-    conn.close()
+    pass
     return render_template('portal/portal_property_view.html', 
                          client_name=session.get('portal_client_name'),
                          company_name=config.get('name'), logo_url=config.get('logo'), 
@@ -338,7 +338,7 @@ def portal_request_submit():
         conn.rollback()
         flash(f"Error submitting request: {e}", "error")
     finally:
-        conn.close()
+        pass
 
     return redirect(f'/portal/property/{prop_id}')
 
@@ -385,7 +385,7 @@ def portal_mass_email_tenants():
     except Exception as e:
         flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('portal.portal_home'))
 
@@ -416,7 +416,7 @@ def portal_add_property():
     except Exception as e:
         conn.rollback(); flash(f"Error adding property: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('portal.portal_home'))
 
@@ -437,7 +437,7 @@ def archive_property(property_id):
         conn.rollback()
         flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect('/portal/home')
 
@@ -467,7 +467,7 @@ def portal_invoices():
         inv[3] = format_date_by_country(inv[3], comp_id) # Format due date
         invoices.append(inv)
         
-    conn.close()
+    pass
     
     return render_template('portal/portal_invoices.html',
                            client_name=session.get('portal_client_name'),
@@ -502,7 +502,7 @@ def portal_quotes():
         q[2] = format_date_by_country(q[2], comp_id) # Format the date
         quotes.append(q)
         
-    conn.close()
+    pass
     
     return render_template('portal/portal_quotes.html',
                            client_name=session.get('portal_client_name'),
@@ -545,7 +545,7 @@ def portal_view_quote(quote_id):
     quote_row = cur.fetchone()
     
     if not quote_row:
-        conn.close()
+        pass
         return "Quote not found or access denied", 404
 
     # 3. FETCH LINE ITEMS
@@ -563,7 +563,7 @@ def portal_view_quote(quote_id):
         subtotal += float(r[3] or 0)
         items.append(r)
 
-    conn.close()
+    pass
 
     # 4. TAX LOGIC (Matches Office/PDF Logic)
     vat_reg = settings.get('vat_registered', 'no')
@@ -677,7 +677,7 @@ def portal_accept_quote(quote_id):
         conn.rollback()
         flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('portal.portal_view_quote', quote_id=quote_id))
 
@@ -704,7 +704,7 @@ def portal_decline_quote(quote_id):
         conn.rollback()
         flash(f"Error declining quote: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('portal.portal_view_quote', quote_id=quote_id))
     
@@ -725,7 +725,7 @@ def portal_view_request(request_id):
     req = cur.fetchone()
     
     if not req: 
-        conn.close()
+        pass
         return "Request not found", 404
 
     # 2. Fetch Completion Report (If job is done)
@@ -751,7 +751,7 @@ def portal_view_request(request_id):
     except Exception:
         pass # Table might not exist yet, fail gracefully
 
-    conn.close()
+    pass
 
     return render_template('portal/portal_request_view.html', 
                            req=req, 
@@ -797,7 +797,7 @@ def portal_settings():
         
     cur.execute("SELECT name, email, phone FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
     client_row = cur.fetchone()
-    conn.close()
+    pass
     
     client_data = {
         'name': client_row[0],

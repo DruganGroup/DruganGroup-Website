@@ -106,7 +106,7 @@ def smart_calculate(trade_type):
         print(f"CALC ERROR: {e}")
         return jsonify({'error': str(e)}), 500
     finally:
-        if conn: conn.close()
+        if conn: pass
 
 # =========================================================
 # 1. NEW QUOTE (Display Page) - UPGRADED
@@ -155,7 +155,7 @@ def office_quotes():
             'status': r[5]
         })
         
-    conn.close()
+    pass
     
     return render_template('office/office_quotes.html', 
                            quotes=quotes, 
@@ -213,7 +213,7 @@ def new_quote():
         if row:
             source_request = {'client_id': row[0], 'property_id': row[1], 'desc': row[2]}
 
-    conn.close()
+    pass
 
     from services.tax_engine import TaxEngine
     tax_rate = TaxEngine.get_tax_rate(settings)
@@ -360,7 +360,7 @@ def save_unified_quote():
         flash(f"Error saving quote: {e}", "error")
         return redirect(request.referrer)
     finally:
-        conn.close()
+        pass
 
 @quote_bp.route('/office/quote/<int:quote_id>')
 def view_quote(quote_id):
@@ -398,7 +398,7 @@ def view_quote(quote_id):
     cur.execute("SELECT id, document_type, filepath, uploaded_at, visible_to_client FROM quote_documents WHERE quote_id = %s AND company_id = %s ORDER BY uploaded_at DESC", (quote_id, comp_id))
     quote_docs = [{'id': r[0], 'type': r[1], 'path': r[2], 'date': r[3], 'visible': r[4]} for r in cur.fetchall()]
 
-    conn.close()
+    pass
     
     if not quote: return "Quote not found", 404
     
@@ -469,7 +469,7 @@ def convert_to_job(quote_id):
         flash(f"Error converting to job: {e}", "error")
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
     finally:
-        conn.close()
+        pass
 
 @quote_bp.route('/office/quote/<int:quote_id>/email')
 def email_quote(quote_id):
@@ -489,7 +489,7 @@ def email_quote(quote_id):
     q = cur.fetchone()
     
     if not q or not q[2]:
-        conn.close(); flash("❌ Client has no email address.", "error")
+        pass; flash("❌ Client has no email address.", "error")
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
 
     # Unpack variables
@@ -506,7 +506,7 @@ def email_quote(quote_id):
     settings['smtp_password'] = encryptor.decrypt(raw_pass) if raw_pass else None
 
     if 'smtp_host' not in settings:
-        conn.close(); flash("⚠️ SMTP Settings missing.", "warning")
+        pass; flash("⚠️ SMTP Settings missing.", "warning")
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
 
     cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))
@@ -598,7 +598,7 @@ def email_quote(quote_id):
     except Exception as e:
         flash(f"❌ Email task failed: {e}", "error")
     
-    conn.close()
+    pass
     return redirect(url_for('quote.view_quote', quote_id=quote_id))
   
 @quote_bp.route('/office/quote/<int:quote_id>/convert')
@@ -709,7 +709,7 @@ def convert_to_invoice(quote_id):
         flash(f"Error: {e}", "error")
         return redirect(url_for('quote.view_quote', quote_id=quote_id))
     finally:
-        conn.close()
+        pass
     
 # =========================================================
 # 6. PDF REDIRECT
@@ -740,7 +740,7 @@ def upload_quote_document(quote_id):
         conn.rollback()
         flash(f"Error uploading document: {e}", "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(request.referrer)
 
@@ -763,7 +763,7 @@ def delete_quote_document(doc_id):
         conn.rollback()
         flash(f"Error: {e}", "error")
     finally:
-        conn.close()
+        pass
     return redirect(request.referrer)
 
 @quote_bp.route('/office/quote/<int:quote_id>/pdf')

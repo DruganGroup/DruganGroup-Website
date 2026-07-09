@@ -30,7 +30,7 @@ def show_signup():
     # We filter out any test plans that might have price=0 if you want
     cur.execute("SELECT id, name, price FROM plans WHERE price > 0 ORDER BY price ASC")
     rows = cur.fetchall()
-    conn.close()
+    pass
     
     # Format for the template
     plans = [{'id': r[0], 'name': r[1], 'price': r[2]} for r in rows]
@@ -124,7 +124,7 @@ def process_signup():
         flash(_("System Error: {error}").format(error=str(e)), "error")
         return redirect(url_for('auth.show_signup'))
     finally:
-        conn.close()
+        pass
 
 # =========================================================
 #  2. LOGIN / LOGOUT
@@ -179,7 +179,7 @@ def login():
             ip = request.remote_addr
             cur.execute("INSERT INTO audit_logs (company_id, admin_email, action, target, ip_address) VALUES (%s, %s, 'LOGIN', 'System', %s)", (user[4], user[5], ip))
             conn.commit()
-            conn.close()
+            pass
             
             # --- NEW TRAFFIC COP ROUTING ---
             user_role = session.get('role')
@@ -194,7 +194,7 @@ def login():
                 return redirect(url_for('auth.main_launcher'))
         else:
             flash(_("❌ Invalid credentials"), "error")
-            conn.close()
+            pass
 
     return render_template('publicbb/login.html')
 
@@ -249,7 +249,7 @@ def forgot_password():
             # Send the email using your existing service
             send_company_email(comp_id, email, subject, body)
             
-        conn.close()
+        pass
         
         # We ALWAYS show success to prevent hackers from guessing which emails exist in your DB
         flash(_("If an account exists with that email, a reset link has been sent."), "success")
@@ -290,7 +290,7 @@ def reset_password_with_token(token):
         """, (hashed_pw, email))
         
         conn.commit()
-        conn.close()
+        pass
         
         flash(_("✅ Your password has been updated! You can now log in."), "success")
         return redirect(url_for('auth.login'))
@@ -340,7 +340,7 @@ def main_launcher():
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
 
-    conn.close()
+    pass
     
     return render_template('main_launcher.html', 
                            role=session.get('role'), 
@@ -380,7 +380,7 @@ def update_profile():
         conn.rollback()
         flash(_("Error updating profile: {error}").format(error=e), "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('auth.main_launcher'))
 
@@ -404,14 +404,14 @@ def change_password():
     user_row = cur.fetchone()
     
     if not user_row or not check_password_hash(user_row[0], old_pass):
-        conn.close()
+        pass
         flash(_("❌ Current password is incorrect."), "error")
         return redirect(request.referrer)
     
     # 2. Update to New Password
     new_hash = generate_password_hash(new_pass)
     cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, user_id))
-    conn.commit(); conn.close()
+    conn.commit(); pass
     
     flash(_("✅ Password updated successfully!"), "success")
     return redirect(request.referrer)
@@ -460,7 +460,7 @@ def submit_support_ticket():
         conn.rollback()
         flash(_("❌ Error submitting ticket: {error}").format(error=e), "error")
     finally:
-        conn.close()
+        pass
         
     return redirect(url_for('auth.main_launcher'))
 
@@ -507,7 +507,7 @@ def test_email_connection():
             flash(_("❌ Error saving settings: {error}").format(error=e), "error")
             return redirect(request.referrer)
         finally:
-            conn.close()
+            pass
 
     # --- PHASE 2: BUILD THE TEST EMAIL ---
     # Try to send the test to the logged-in user, fallback to the SMTP email itself
@@ -608,7 +608,7 @@ def create_pending_account(data):
         print(f"DB Error: {e}")
         raise e 
     finally:
-        conn.close()
+        pass
         
 @auth_bp.route('/signup-success')
 def signup_success():
@@ -633,7 +633,7 @@ def signup_success():
                         """, (company_id, customer_id))
                     
                     conn.commit()
-                    conn.close()
+                    pass
         except Exception as e:
             print(f"Fallback activation error: {e}")
             
