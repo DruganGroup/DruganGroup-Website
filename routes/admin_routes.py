@@ -1342,26 +1342,50 @@ def view_system_logs():
     
     # Fetch Logs with User/Company Joins
     comp_id = session.get('company_id')
+    filter_company_id = request.args.get('company_id', type=int)
+    
     if session.get('role') == 'SuperAdmin' and session.get('is_global_admin', False):
-        query = """
-            SELECT 
-                s.id,
-                TO_CHAR(s.created_at, 'DD Mon HH24:MI') as time_str,
-                s.level,
-                s.message,
-                s.traceback,
-                s.route,
-                s.ip_address,
-                u.username,
-                c.name as company_name,
-                s.status_code
-            FROM system_logs s
-            LEFT JOIN users u ON s.user_id = u.id
-            LEFT JOIN companies c ON s.company_id = c.id
-            ORDER BY s.created_at DESC
-            LIMIT %s OFFSET %s
-        """
-        cur.execute(query, (per_page, offset))
+        if filter_company_id:
+            query = """
+                SELECT 
+                    s.id,
+                    TO_CHAR(s.created_at, 'DD Mon HH24:MI') as time_str,
+                    s.level,
+                    s.message,
+                    s.traceback,
+                    s.route,
+                    s.ip_address,
+                    u.username,
+                    c.name as company_name,
+                    s.status_code
+                FROM system_logs s
+                LEFT JOIN users u ON s.user_id = u.id
+                LEFT JOIN companies c ON s.company_id = c.id
+                WHERE s.company_id = %s
+                ORDER BY s.created_at DESC
+                LIMIT %s OFFSET %s
+            """
+            cur.execute(query, (filter_company_id, per_page, offset))
+        else:
+            query = """
+                SELECT 
+                    s.id,
+                    TO_CHAR(s.created_at, 'DD Mon HH24:MI') as time_str,
+                    s.level,
+                    s.message,
+                    s.traceback,
+                    s.route,
+                    s.ip_address,
+                    u.username,
+                    c.name as company_name,
+                    s.status_code
+                FROM system_logs s
+                LEFT JOIN users u ON s.user_id = u.id
+                LEFT JOIN companies c ON s.company_id = c.id
+                ORDER BY s.created_at DESC
+                LIMIT %s OFFSET %s
+            """
+            cur.execute(query, (per_page, offset))
     else:
         query = """
             SELECT 

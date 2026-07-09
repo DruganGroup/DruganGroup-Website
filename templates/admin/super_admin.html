@@ -171,7 +171,9 @@
                                 {{ c['status'] }}
                             </span>
                             {% if c['error_count'] > 0 %}
-                            <span class="badge bg-danger"><i class="fas fa-bug"></i> {{ c['error_count'] }} errors (7d)</span>
+                            <a href="/admin/system-logs?company_id={{ c['id'] }}" class="text-decoration-none">
+                                <span class="badge bg-danger"><i class="fas fa-bug"></i> {{ c['error_count'] }} errors (7d)</span>
+                            </a>
                             {% endif %}
                             {% if c['open_tickets'] > 0 %}
                             <span class="badge bg-warning text-dark"><i class="fas fa-ticket-alt"></i> {{ c['open_tickets'] }} tickets</span>
