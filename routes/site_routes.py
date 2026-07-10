@@ -392,6 +392,15 @@ def update_job(job_id):
             private_notes = request.form.get('private_notes')
             signature = request.form.get('signature')
             
+            # 0. Auto-clock out anyone still clocked in to this job
+            cur.execute("""
+                UPDATE staff_timesheets 
+                SET clock_out = CURRENT_TIMESTAMP, 
+                    total_hours = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - clock_in))/3600,
+                    status = 'Pending'
+                WHERE job_id = %s AND clock_out IS NULL
+            """, (job_id,))
+
             # 1. Mark Job as Completed
             cur.execute("""
                 UPDATE jobs 
@@ -432,11 +441,11 @@ def update_job(job_id):
             material_markup = float(settings.get('material_markup_percent', 0)) / 100
 
             # 4. CALCULATE LABOUR (Real Data)
-            # Fetch actual hours from timesheets for this job (Only Approved hours are billed)
+            # Fetch actual hours from timesheets for this job (Bill both Approved and Pending)
             cur.execute("""
                 SELECT t.staff_id, SUM(t.total_hours) 
                 FROM staff_timesheets t 
-                WHERE t.job_id = %s AND t.status = 'Approved'
+                WHERE t.job_id = %s AND t.status IN ('Approved', 'Pending')
                 GROUP BY t.staff_id
             """, (job_id,))
             time_entries = cur.fetchall()
