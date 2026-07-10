@@ -168,6 +168,21 @@ def job_files(job_id):
         f_type = row[3] if row[3] else "Photo"
         files.append((f_type, "Evidence Upload", 0, str(row[2])[:10], row[1], row[0], row[4]))
 
+    # Fetch Timesheets for file list
+    cur.execute("""
+        SELECT t.id, s.name, t.total_hours, t.date,
+               (t.total_hours * CASE 
+                    WHEN s.pay_model = 'Day' THEN (COALESCE(s.pay_rate, 0) / 8.0)
+                    WHEN s.pay_model = 'Year' THEN (COALESCE(s.pay_rate, 0) / (260.0 * 8.0))
+                    ELSE COALESCE(s.pay_rate, 0)
+                END) as cost
+        FROM staff_timesheets t
+        JOIN staff s ON t.staff_id = s.id
+        WHERE t.job_id = %s AND t.total_hours IS NOT NULL
+    """, (job_id,))
+    for row in cur.fetchall():
+        files.append(('Timesheet', f"{row[1]} ({float(row[2]):.1f} hrs)", float(row[4] or 0.0), str(row[3])[:10], 'Logged', row[0]))
+
     # 4. Add a "Virtual" receipt for the Van Cost so it shows in the list
     if vehicle_cost > 0:
         files.append(('Vehicle', f"Fleet Charge: {van_reg} ({days_worked} days)", vehicle_cost, str(date.today()), 'Auto-Calc', 0))
@@ -269,6 +284,9 @@ def delete_job_item(item_id, item_type):
         elif 'Material' in item_type:
              cur.execute("DELETE FROM job_materials WHERE id = %s", (item_id,))
              flash("🗑️ Material Removed", "success")
+        elif 'Timesheet' in item_type:
+             cur.execute("DELETE FROM staff_timesheets WHERE id = %s", (item_id,))
+             flash("🗑️ Logged Hours Removed", "success")
              
         conn.commit()
     except Exception as e:

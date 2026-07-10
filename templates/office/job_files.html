@@ -122,9 +122,10 @@
                         {% set has_photos = false %}
                         {% for f in files if f[0] == 'Site Photo' %}
                             {% set has_photos = true %}
+                            {% set file_url = f[4] if f[4].startswith('/') else '/' ~ f[4] %}
                             <div class="col-4 col-sm-3 col-md-2">
-                                <a href="/{{ f[4] }}" target="_blank" class="d-block position-relative ratio ratio-1x1 border rounded overflow-hidden">
-                                    <img src="/{{ f[4] }}" class="w-100 h-100 object-fit-cover" alt="Site Photo">
+                                <a href="{{ file_url }}" target="_blank" class="d-block position-relative ratio ratio-1x1 border rounded overflow-hidden">
+                                    <img src="{{ file_url }}" class="w-100 h-100 object-fit-cover" alt="Site Photo">
                                 </a>
                             </div>
                         {% endfor %}
@@ -195,8 +196,9 @@
                                         <a href="#" data-invoice-id="{{ f[5] }}" class="btn btn-xs btn-outline-primary async-download" title="Download PDF">
                                             <i class="fas fa-download icon-placeholder"></i>
                                         </a>
-                                    {% elif f[4] != 'No Link' and f[4] != 'Material' %}
-                                        <a href="/{{ f[4] }}" target="_blank" class="btn btn-xs btn-outline-secondary"><i class="fas fa-eye"></i></a>
+                                    {% elif f[4] and f[4] not in ['No Link', 'Logged', 'Auto-Calc', 'Manual Entry', 'Pending'] and f[0] not in ['Material', 'Timesheet', 'Vehicle'] %}
+                                        {% set file_url = f[4] if f[4].startswith('/') else '/' ~ f[4] %}
+                                        <a href="{{ file_url }}" target="_blank" class="btn btn-xs btn-outline-secondary"><i class="fas fa-eye"></i></a>
                                     {% endif %}
                                     
                                     {% if 'Invoice' not in f[0] %}
