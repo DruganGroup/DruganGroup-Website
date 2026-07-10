@@ -225,8 +225,16 @@
                 <h6 class="text-muted fw-bold text-uppercase small mb-3">Evidence Gallery</h6>
                 <div class="d-flex flex-wrap gap-2">
                     {% for p in photos %}
-                        <a href="/static/{{ p }}" target="_blank">
-                            <img src="/static/{{ p }}" class="evidence-img">
+                        {% set raw_p = p.replace('/static/', '').replace('static/', '').lstrip('/') %}
+                        {% set file_url = '/static/' ~ raw_p %}
+                        <a href="{{ file_url }}" target="_blank">
+                            {% if file_url.lower().endswith('.pdf') %}
+                                <div class="evidence-img d-flex align-items-center justify-content-center bg-light border text-danger">
+                                    <i class="fas fa-file-pdf fa-2x"></i>
+                                </div>
+                            {% else %}
+                                <img src="{{ file_url }}" class="evidence-img">
+                            {% endif %}
                         </a>
                     {% endfor %}
                 </div>

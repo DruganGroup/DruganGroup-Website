@@ -12,16 +12,25 @@
         </p>
     </div>
     
-    <div class="d-flex gap-2">
-        <button class="btn btn-outline-dark fw-bold" onclick="window.print()">
-            <i class="fas fa-print me-2"></i> Print Report
-        </button>
-        <form action="/finance/payroll/export" method="POST" class="m-0">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-success fw-bold shadow-sm">
-                <i class="fas fa-file-csv me-2"></i> Finalize & Export Bank CSV
-            </button>
+    <div class="d-flex align-items-center gap-3">
+        <form action="/finance/payroll" method="GET" class="d-flex align-items-center gap-2 m-0 border border-secondary p-1 rounded bg-white">
+            <input type="date" name="start_date" class="form-control form-control-sm border-0" value="{{ week_start }}" required>
+            <span class="text-muted small">to</span>
+            <input type="date" name="end_date" class="form-control form-control-sm border-0" value="{{ week_end }}" required>
+            <button type="submit" class="btn btn-sm btn-dark"><i class="fas fa-search"></i></button>
         </form>
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-dark fw-bold" onclick="window.print()">
+                <i class="fas fa-print me-2"></i> Print Report
+            </button>
+            <form action="/finance/payroll/export" method="POST" class="m-0">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-success fw-bold shadow-sm">
+                    <i class="fas fa-file-csv me-2"></i> Finalize & Export Bank CSV
+                </button>
+            </form>
+        </div>
     </div>
 </div>
 

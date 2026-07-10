@@ -1040,10 +1040,18 @@ def finance_payroll():
     brand_color = settings.get('brand_color', '#333')
     logo = settings.get('logo')
 
-    # 2. Date Range (Current Week: Mon - Sun)
-    today = date.today()
-    start_of_week = today - timedelta(days=today.weekday()) 
-    end_of_week = start_of_week + timedelta(days=6)         
+    # 2. Date Range
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+    
+    if start_date_str and end_date_str:
+        start_of_week = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_of_week = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    else:
+        # Default to Current Week: Mon - Sun
+        today = date.today()
+        start_of_week = today - timedelta(days=today.weekday()) 
+        end_of_week = start_of_week + timedelta(days=6)         
     
     # 3. FETCH DATA (FIXED: NOW READING FROM staff_attendance)
     from services.tax_engine import TaxEngine
@@ -1057,7 +1065,6 @@ def finance_payroll():
         FROM staff s
         LEFT JOIN staff_attendance a ON s.id = a.staff_id 
             AND a.date >= %s AND a.date <= %s
-            AND a.status = 'Approved'
         WHERE s.company_id = %s
         GROUP BY s.id
         ORDER BY s.name ASC

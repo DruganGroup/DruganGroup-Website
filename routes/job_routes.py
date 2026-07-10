@@ -171,11 +171,12 @@ def job_files(job_id):
     # Fetch Timesheets for file list
     cur.execute("""
         SELECT t.id, s.name, t.total_hours, t.date,
-               (COALESCE(t.total_hours, 0) * CASE 
+               (COALESCE(t.total_hours, GREATEST(0, EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - t.clock_in))/3600.0)) * CASE 
                     WHEN s.pay_model = 'Day' THEN (COALESCE(s.pay_rate, 0) / 8.0)
                     WHEN s.pay_model = 'Year' THEN (COALESCE(s.pay_rate, 0) / (260.0 * 8.0))
                     ELSE COALESCE(s.pay_rate, 0)
-                END) as cost
+                END) as cost,
+               t.clock_in
         FROM staff_timesheets t
         JOIN staff s ON t.staff_id = s.id
         WHERE t.job_id = %s
@@ -183,7 +184,8 @@ def job_files(job_id):
     for row in cur.fetchall():
         if row[2] is None:
             # Active timer
-            files.append(('Timesheet', f"{row[1]} (Clocked In)", 0.0, str(row[3])[:10] if row[3] else str(date.today()), 'Pending', row[0]))
+            cost = float(row[4] or 0.0)
+            files.append(('Timesheet', f"{row[1]} (Clocked In)", cost, str(row[3])[:10] if row[3] else str(date.today()), 'Pending', row[0]))
         else:
             files.append(('Timesheet', f"{row[1]} ({float(row[2]):.1f} hrs)", float(row[4] or 0.0), str(row[3])[:10], 'Logged', row[0]))
 
