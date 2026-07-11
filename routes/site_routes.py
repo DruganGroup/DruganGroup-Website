@@ -510,8 +510,8 @@ def update_job(job_id):
                     from utils.validators import save_secure_file
                     db_path = save_secure_file(file, f"company_{comp_id}/job_evidence", f"JOB_{job_id}_")
                     if db_path:
-                        # Visibility false by default for site photos
-                        cur.execute("INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type, visible_to_client) VALUES (%s, %s, %s, 'Site Photo', FALSE)", (job_id, db_path, session['user_id']))
+                        # Visibility true by default for site photos so clients can see them
+                        cur.execute("INSERT INTO job_evidence (job_id, filepath, uploaded_by, file_type, visible_to_client) VALUES (%s, %s, %s, 'Site Photo', TRUE)", (job_id, db_path, session['user_id']))
                         flash("📷 Photo Uploaded")
 
         conn.commit()
@@ -625,10 +625,14 @@ def site_log_fuel():
             # Save to Database (Maintenance Logs)
             cur.execute("""
                 INSERT INTO maintenance_logs 
-                (company_id, vehicle_id, date, type, description, cost, receipt_path, mileage)
-                VALUES (%s, %s, %s, 'Fuel', %s, %s, %s, %s)
-            """, (comp_id, vehicle_id, date.today(), f"Fuel: {litres}L ({fuel_type})", total_cost, receipt_path, mileage))
+                (company_id, vehicle_id, date, type, description, cost, receipt_path)
+                VALUES (%s, %s, %s, 'Fuel', %s, %s, %s)
+            """, (comp_id, vehicle_id, date.today(), f"Fuel: {litres}L ({fuel_type})", total_cost, receipt_path))
             
+            # Update Vehicle Mileage
+            if mileage:
+                cur.execute("UPDATE vehicles SET mileage = %s WHERE id = %s", (mileage, vehicle_id))
+                
             conn.commit()
             flash("✅ Fuel logged successfully.", "success")
             return redirect(url_for('site.site_dashboard'))
@@ -682,10 +686,14 @@ def van_check_page():
             
             # Insert Log
             cur.execute("""
-                INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost, mileage)
-                VALUES (%s, %s, CURRENT_DATE, %s, %s, 0, %s)
-            """, (comp_id, target_veh_id, status_log, desc, mileage))
+                INSERT INTO maintenance_logs (company_id, vehicle_id, date, type, description, cost)
+                VALUES (%s, %s, CURRENT_DATE, %s, %s, 0)
+            """, (comp_id, target_veh_id, status_log, desc))
             
+            # Update Vehicle Mileage
+            if mileage:
+                cur.execute("UPDATE vehicles SET mileage = %s WHERE id = %s", (mileage, target_veh_id))
+                
             conn.commit()
             flash("✅ Safety check submitted.", "success")
             return redirect(url_for('site.site_dashboard'))
