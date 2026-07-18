@@ -11,7 +11,7 @@
         </div>
         <div class="btn-group shadow-sm">
              <button class="btn btn-outline-dark fw-bold"><i class="fas fa-filter me-2"></i>Filter</button>
-             <button class="btn btn-primary fw-bold"><i class="fas fa-plus me-2"></i>New Invoice</button>
+             <a href="{{ url_for('finance.create_invoice') }}" class="btn btn-primary fw-bold"><i class="fas fa-plus me-2"></i>New Invoice</a>
         </div>
     </div>
 

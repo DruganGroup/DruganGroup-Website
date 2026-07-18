@@ -70,6 +70,105 @@ def finance_invoices():
                            brand_color=config['color'], 
                            logo_url=config['logo'],
                            currency=currency)
+
+@finance_bp.route('/finance/invoice/create', methods=['GET', 'POST'])
+def create_invoice():
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']: 
+        return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+
+    if request.method == 'POST':
+        client_id = request.form.get('client_id')
+        job_id = request.form.get('job_id') or None
+        if not client_id:
+            flash("Error: Client is required.", "error")
+            return redirect(request.url)
+        
+        # 1. Fetch Settings & Tax Engine
+        cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+        settings = {r[0]: r[1] for r in cur.fetchall()}
+        
+        # 2. Get line items
+        descriptions = request.form.getlist('desc[]')
+        quantities = request.form.getlist('qty[]')
+        prices = request.form.getlist('price[]')
+        
+        subtotal = 0.0
+        items_to_insert = []
+        for d, q, p in zip(descriptions, quantities, prices):
+            if d.strip():
+                qty = float(q or 0)
+                price = float(p or 0)
+                line_total = qty * price
+                subtotal += line_total
+                items_to_insert.append((d.strip(), qty, price, line_total))
+                
+        # 3. Calculate Tax
+        tax_rate, tax_amt, final_total = TaxEngine.calculate_invoice_totals(settings, subtotal)
+        
+        # 4. Generate Reference
+        today_str = datetime.now().strftime('%y%m')
+        cur.execute("SELECT COUNT(*) FROM invoices WHERE company_id = %s AND date_trunc('month', date) = date_trunc('month', CURRENT_DATE)", (comp_id,))
+        count = cur.fetchone()[0] + 1
+        ref = f"INV-{today_str}-{count:03d}"
+        
+        # 5. Insert Invoice
+        from utils.db_utils import db_transaction
+        with db_transaction() as t_cur:
+            payment_days = int(settings.get('payment_days', 14))
+            due_date = date.today() + timedelta(days=payment_days)
+            
+            t_cur.execute("""
+                INSERT INTO invoices (company_id, client_id, job_id, reference, date, due_date, status, subtotal, tax, total)
+                VALUES (%s, %s, %s, %s, CURRENT_DATE, %s, 'Unpaid', %s, %s, %s)
+                RETURNING id
+            """, (comp_id, client_id, job_id, ref, due_date, subtotal, tax_amt, final_total))
+            
+            invoice_id = t_cur.fetchone()[0]
+            
+            # 6. Insert Line Items
+            for item in items_to_insert:
+                t_cur.execute("""
+                    INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (invoice_id, item[0], item[1], item[2], item[3]))
+            
+        flash(f"✅ Invoice {ref} Created Successfully!", "success")
+        return redirect(url_for('finance.finance_invoices'))
+
+    # GET Request: Fetch options
+    cur.execute("SELECT id, name FROM clients WHERE company_id = %s ORDER BY name", (comp_id,))
+    clients = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
+    
+    cur.execute("SELECT id, ref, job_title, status FROM jobs WHERE company_id = %s ORDER BY created_at DESC LIMIT 100", (comp_id,))
+    jobs = [{'id': r[0], 'ref': r[1], 'title': r[2], 'status': r[3]} for r in cur.fetchall()]
+    
+    cur.execute("SELECT id, name, pay_rate FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
+    staff_list = [{'id': r[0], 'name': r[1], 'pay_rate': r[2]} for r in cur.fetchall()]
+    
+    cur.execute("SELECT id, name, cost_price, supplier FROM materials WHERE company_id = %s ORDER BY name", (comp_id,))
+    materials = [{'id': r[0], 'name': r[1], 'cost': r[2], 'supplier': r[3]} for r in cur.fetchall()]
+    
+    cur.execute("SELECT id, reg_plate, make_model, daily_cost FROM vehicles WHERE company_id = %s", (comp_id,))
+    vehicles = [{'id': r[0], 'reg': r[1], 'make': r[2], 'cost': r[3]} for r in cur.fetchall()]
+    
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {r[0]: r[1] for r in cur.fetchall()}
+    tax_rate = TaxEngine.get_tax_rate(settings)
+
+    return render_template('finance/create_invoice.html', 
+                           brand_color=config['color'], 
+                           logo_url=config['logo'],
+                           clients=clients,
+                           jobs=jobs,
+                           staff_list=staff_list,
+                           materials=materials,
+                           vehicles=vehicles,
+                           settings=settings,
+                           tax_rate=tax_rate)
                            
 # --- 2. HR & STAFF ---
 @finance_bp.route('/finance/hr')
