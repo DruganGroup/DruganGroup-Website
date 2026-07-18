@@ -143,8 +143,7 @@ def create_invoice():
     cur.execute("SELECT id, name FROM clients WHERE company_id = %s ORDER BY name", (comp_id,))
     clients = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
     
-    cur.execute("SELECT id, ref, description, status FROM jobs WHERE company_id = %s ORDER BY created_at DESC LIMIT 100", (comp_id,))
-    jobs = [{'id': r[0], 'ref': r[1], 'title': r[2], 'status': r[3]} for r in cur.fetchall()]
+    # We don't fetch jobs here anymore; JS will fetch them dynamically based on client_id.
     
     cur.execute("SELECT id, name, pay_rate FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
     staff_list = [{'id': r[0], 'name': r[1], 'pay_rate': r[2]} for r in cur.fetchall()]
@@ -163,13 +162,21 @@ def create_invoice():
                            brand_color=config['color'], 
                            logo_url=config['logo'],
                            clients=clients,
-                           jobs=jobs,
                            staff_list=staff_list,
                            materials=materials,
                            vehicles=vehicles,
                            settings=settings,
                            tax_rate=tax_rate)
-                           
+
+@finance_bp.route('/api/client/<int:client_id>/jobs')
+def api_client_jobs_for_finance(client_id):
+    if 'user_id' not in session: return jsonify([])
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id, ref, description FROM jobs WHERE client_id = %s AND company_id = %s ORDER BY created_at DESC", (client_id, session.get('company_id')))
+    jobs = [{'id': r[0], 'ref': r[1], 'title': r[2]} for r in cur.fetchall()]
+    pass
+    return jsonify(jobs)
+
 # --- 2. HR & STAFF ---
 @finance_bp.route('/finance/hr')
 def finance_hr():
@@ -411,7 +418,7 @@ def finance_materials():
         'unit': m[4], 'price': m[5], 'supplier': m[6] or 'General'
     } for m in cur.fetchall()]
 
-    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'default_markup'", (comp_id,))
+    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'material_markup_percent'", (comp_id,))
     markup_row = cur.fetchone()
     if markup_row and markup_row[0]:
         try:
@@ -718,7 +725,7 @@ def settings_banking():
         keys_to_save = [
             'bank_name', 'account_number', 'sort_code', 
             'payment_terms', 'payment_days', 'invoice_footer', 'quote_footer',
-            'default_markup', 'default_profit_margin'
+            'material_markup_percent', 'labour_markup_percent', 'default_profit_margin'
         ]
         
         for k in keys_to_save:
@@ -1621,3 +1628,8 @@ def finance_bookkeeping():
     pass
 
     return render_template('finance/bookkeeping_inbox.html', unsorted=unsorted_files, jobs=jobs, categories=categories)
+</final_file_content>
+
+IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including any auto-formatting (e.g., if you used single quotes but the formatter converted them to double quotes). Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.
+
+

@@ -41,11 +41,8 @@
                     <hr>
 
                     <label class="form-label fw-bold small text-muted">Link to Existing Job (Optional)</label>
-                    <select name="job_id" class="form-select shadow-sm mb-3">
-                        <option value="">-- No Job (Standalone) --</option>
-                        {% for j in jobs %}
-                        <option value="{{ j.id }}">{{ j.ref }} - {{ j.title }}</option>
-                        {% endfor %}
+                    <select name="job_id" id="jobSelect" class="form-select shadow-sm mb-3" disabled>
+                        <option value="">-- Select Client First --</option>
                     </select>
                     <small class="text-muted">Linking to a job will attach this invoice to the property history and client portal under that specific job.</small>
                 </div>
@@ -194,8 +191,8 @@
     const TAX_RATE = {{ tax_rate }};
     const CURRENCY = "{{ settings.get('currency_symbol', '£') }}";
     
-    const LABOUR_MARKUP_PERCENT = parseFloat('{{ settings.get("labour_markup_percent", 0) or 0 }}');
-    const MATERIAL_MARKUP_PERCENT = parseFloat('{{ settings.get("material_markup_percent", 0) or 0 }}');
+    const LABOUR_MARKUP_PERCENT = parseFloat('{{ settings.get("labour_markup_percent", 0)|default(0, true) }}') || 0;
+    const MATERIAL_MARKUP_PERCENT = parseFloat('{{ settings.get("material_markup_percent", 0)|default(0, true) }}') || 0;
     
     const LABOUR_MULTIPLIER = 1 + (LABOUR_MARKUP_PERCENT / 100);
     const MATERIAL_MULTIPLIER = 1 + (MATERIAL_MARKUP_PERCENT / 100);
@@ -203,7 +200,40 @@
     // Initial Empty Row
     document.addEventListener('DOMContentLoaded', () => {
         addCustomRow();
+        
+        // Listen for Client selection to load jobs
+        const clientSelect = document.querySelector('select[name="client_id"]');
+        if (clientSelect) {
+            clientSelect.addEventListener('change', function() { loadJobs(this.value); });
+            if (clientSelect.value) loadJobs(clientSelect.value);
+        }
     });
+
+    // Load Jobs for Client
+    function loadJobs(clientId) {
+        const jobSelect = document.getElementById('jobSelect');
+        if (!clientId) return;
+        
+        jobSelect.innerHTML = '<option value="">Loading jobs...</option>';
+        jobSelect.disabled = true;
+
+        fetch(`/api/client/${clientId}/jobs`)
+            .then(res => res.json())
+            .then(data => {
+                jobSelect.disabled = false;
+                jobSelect.innerHTML = '<option value="">-- No Job (Standalone) --</option>';
+                data.forEach(job => {
+                    const opt = document.createElement('option');
+                    opt.value = job.id;
+                    opt.text = `${job.ref} - ${job.title}`;
+                    jobSelect.appendChild(opt);
+                });
+            })
+            .catch(err => {
+                jobSelect.innerHTML = '<option value="">-- No Job (Standalone) --</option>';
+                jobSelect.disabled = false;
+            });
+    }
 
     // 1. Add Custom Blank Row
     function addCustomRow(desc = '', qty = 1, price = '') {

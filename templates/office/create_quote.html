@@ -100,8 +100,11 @@
                         <button type="button" class="btn btn-sm btn-warning fw-bold text-dark me-2" data-bs-toggle="modal" data-bs-target="#smartCalcModal">
                             <i class="fas fa-magic me-1"></i> Auto-Calc
                         </button>
+                        <span class="badge bg-light text-dark border border-primary me-1">
+                            Labour Markup: {{ settings.get('labour_markup_percent', 0) }}%
+                        </span>
                         <span class="badge bg-light text-dark border border-warning">
-                            Markup: {{ settings.get('default_markup', 20) }}%
+                            Material Markup: {{ settings.get('material_markup_percent', 20) }}%
                         </span>
                     </div>
                 </div>
@@ -178,8 +181,8 @@
 <script>
     // 1. CONFIGURATION
     const TAX_RATE = {{ tax_rate }};
-    const storedMarkup = {{ settings.get('default_markup', 20) }};
-    const MARKUP = 1 + (parseFloat(storedMarkup) / 100);
+    const MATERIAL_MARKUP_PERCENT = parseFloat('{{ settings.get("material_markup_percent", 20)|default(20, true) }}') || 20;
+    const MARKUP = 1 + (MATERIAL_MARKUP_PERCENT / 100);
     let CALCULATORS = []; // Store definitions from backend
 
     // 2. PREVENT ENTER KEY SUBMIT
