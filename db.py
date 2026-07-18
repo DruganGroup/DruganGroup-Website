@@ -95,7 +95,9 @@ def get_site_config(comp_id):
         # This keeps the "logo" fix we added earlier
         return {
             "color": settings_dict.get('brand_color', '#27AE60'),
-            "logo": settings_dict.get('logo', '/static/images/logo.png') 
+            "logo": settings_dict.get('logo', '/static/images/logo.png'),
+            "name": settings_dict.get('company_name', 'Our Company'),
+            "email": settings_dict.get('company_email', '')
         }
     except Exception as e:
         print(f"Config Error: {e}")

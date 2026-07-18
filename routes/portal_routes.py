@@ -205,6 +205,7 @@ def portal_job_view(job_id):
                            photos=photos, 
                            job_docs=job_docs,
                            company_name=config.get('name'), 
+                           company_email=config.get('email'),
                            logo_url=config.get('logo'), 
                            brand_color=config.get('color'))
 
