@@ -97,7 +97,6 @@ def add_client():
         cur.execute("SELECT COALESCE(sub_domain, subdomain), name FROM companies WHERE id = %s", (comp_id,))
         comp_row = cur.fetchone()
         
-        conn.commit()
         flash("✅ Client Added")
         
         # 4. Trigger the background email task if portal access is enabled
