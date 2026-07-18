@@ -143,7 +143,7 @@ def create_invoice():
     cur.execute("SELECT id, name FROM clients WHERE company_id = %s ORDER BY name", (comp_id,))
     clients = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
     
-    cur.execute("SELECT id, ref, job_title, status FROM jobs WHERE company_id = %s ORDER BY created_at DESC LIMIT 100", (comp_id,))
+    cur.execute("SELECT id, ref, description, status FROM jobs WHERE company_id = %s ORDER BY created_at DESC LIMIT 100", (comp_id,))
     jobs = [{'id': r[0], 'ref': r[1], 'title': r[2], 'status': r[3]} for r in cur.fetchall()]
     
     cur.execute("SELECT id, name, pay_rate FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
