@@ -101,10 +101,10 @@
                             <i class="fas fa-magic me-1"></i> Auto-Calc
                         </button>
                         <span class="badge bg-light text-dark border border-primary me-1">
-                            Labour Markup: {{ settings.get('labour_markup_percent', 0) }}%
+                            Labour Markup: {{ settings.get('labour_markup_percent', '0') or '0' }}%
                         </span>
                         <span class="badge bg-light text-dark border border-warning">
-                            Material Markup: {{ settings.get('material_markup_percent', 20) }}%
+                            Material Markup: {{ settings.get('material_markup_percent', '20') or '20' }}%
                         </span>
                     </div>
                 </div>
@@ -182,7 +182,9 @@
     // 1. CONFIGURATION
     const TAX_RATE = {{ tax_rate }};
     const MATERIAL_MARKUP_PERCENT = parseFloat('{{ settings.get("material_markup_percent", 20)|default(20, true) }}') || 20;
+    const LABOUR_MARKUP_PERCENT = parseFloat('{{ settings.get("labour_markup_percent", 0)|default(0, true) }}') || 0;
     const MARKUP = 1 + (MATERIAL_MARKUP_PERCENT / 100);
+    const LABOUR_MARKUP = 1 + (LABOUR_MARKUP_PERCENT / 100);
     let CALCULATORS = []; // Store definitions from backend
 
     // 2. PREVENT ENTER KEY SUBMIT
@@ -394,7 +396,7 @@
             dailyCost = parseFloat(vehicleSelect.options[vehicleSelect.selectedIndex].getAttribute('data-cost')) || 0;
         }
         
-        const resTotal = days * dailyCost;
+        const resTotal = days * (dailyCost * LABOUR_MARKUP);
 
         // C. Update Displays
         document.getElementById('resourceCostDisplay').innerText = `Resource Cost: £${resTotal.toFixed(2)}`;
