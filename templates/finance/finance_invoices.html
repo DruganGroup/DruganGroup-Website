@@ -44,7 +44,7 @@
                             <div class="btn-group">
                                 <button class="btn btn-sm btn-light border" 
                                         title="Quick View"
-                                        onclick="openInvoiceDrawer('{{ inv.id }}', '{{ inv.ref }}', '{{ inv.client|replace(\"'\", \"\\'\") }}', '{{ '%.2f'|format(inv.total or 0) }}', '{{ inv.status }}')">
+                                        onclick='openInvoiceDrawer({{ inv.id|tojson }}, {{ inv.ref|tojson }}, {{ inv.client|tojson }}, {{ "%.2f"|format(inv.total or 0)|tojson }}, {{ inv.status|tojson }})'>
                                     <i class="fas fa-eye text-dark"></i>
                                 </button>
                                 
