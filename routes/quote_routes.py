@@ -680,10 +680,36 @@ def convert_to_invoice(quote_id):
                 subtotal += line_total
                 
                 cur.execute("""
-                    INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) 
+                    INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
                     VALUES (%s, %s, %s, %s, %s)
                 """, (new_inv_id, f"Material: {mat[0]}", qty, sell_price, line_total))
-                
+
+            # Fetch Vehicle Cost based on Days on Site
+            cur.execute("SELECT vehicle_id FROM jobs WHERE id = %s", (job_id,))
+            v_row = cur.fetchone()
+            if v_row and v_row[0]:
+                v_id = v_row[0]
+                cur.execute("SELECT reg_plate, make_model, daily_cost FROM vehicles WHERE id = %s", (v_id,))
+                van = cur.fetchone()
+                if van:
+                    v_reg = van[0]
+                    v_make = van[1] or 'Van'
+                    v_daily_cost = float(van[2] or 0)
+                    
+                    if v_daily_cost > 0:
+                        cur.execute("SELECT COUNT(DISTINCT date) FROM staff_timesheets WHERE job_id = %s AND status = 'Approved'", (job_id,))
+                        days_worked = int(cur.fetchone()[0] or 0)
+                        
+                        if days_worked > 0:
+                            v_sell_price = v_daily_cost + (v_daily_cost * material_markup)
+                            v_line_total = days_worked * v_sell_price
+                            subtotal += v_line_total
+                            
+                            cur.execute("""
+                                INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
+                                VALUES (%s, %s, %s, %s, %s)
+                            """, (new_inv_id, f"Equipment/Van: {v_reg} {v_make}", days_worked, v_sell_price, v_line_total))
+
         else:
             # Job not completed (or doesn't exist) - use original Quote items
             cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))

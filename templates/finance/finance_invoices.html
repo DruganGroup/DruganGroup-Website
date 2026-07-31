@@ -35,7 +35,7 @@
                 <tbody>
                     {% for inv in invoices %}
                     <tr>
-                        <td class="ps-4 fw-bold text-primary">{{ inv.ref }}</td>
+                        <td class="ps-4 fw-bold"><a href="/finance/invoice/{{ inv.id }}/view" class="text-primary text-decoration-none">{{ inv.ref }}</a></td>
                         <td>{{ inv.client }}</td>
                         <td class="small">{{ inv.date }}</td>
                         <td>{{ status_badge(inv.status) }}</td>
