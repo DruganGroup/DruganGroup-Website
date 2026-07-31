@@ -21,17 +21,6 @@
         
         .content { margin-left: 260px; height: 100vh; display: flex; flex-direction: column; }
         
-        /* TOOLBAR */
-        .toolbar {
-            background-color: #34495e;
-            color: white;
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-
         /* PDF FRAME */
         iframe {
             width: 100%;
@@ -70,6 +59,16 @@
         <div class="mb-4">
             <label class="small text-muted text-uppercase fw-bold">Total Value</label>
             <div class="fs-4 fw-bold text-success">{{ currency_symbol }}{{ "%.2f"|format(quote[4]) }}</div> </div>
+
+        <div class="mb-4">
+            <label class="small text-muted text-uppercase fw-bold">Status</label>
+            <div class="fs-6 fw-bold text-warning">{{ quote[5] }}</div>
+        </div>
+
+        <div class="mb-4">
+            <label class="small text-muted text-uppercase fw-bold">Created</label>
+            <div class="fs-6 fw-bold">{{ quote[3] }}</div>
+        </div>
 
         <hr class="border-secondary">
 
@@ -117,50 +116,37 @@
             {% endfor %}
         </div>
         
-        <div class="d-grid gap-2 mt-auto">
-            <a href="/office-hub" class="btn btn-outline-light"><i class="fas fa-arrow-left me-2"></i> Back to Dashboard</a>
+        <div class="d-grid gap-2 mt-auto pt-3">
+            <a href="/office-hub" class="btn btn-outline-light btn-sm"><i class="fas fa-arrow-left me-2"></i> Back</a>
             
-            <a href="{{ url_for('quote.email_quote', quote_id=quote[0]) }}" class="btn btn-outline-info" onclick="return confirm('Send this quote to the client via email?');">
+            <a href="{{ url_for('quote.email_quote', quote_id=quote[0]) }}" class="btn btn-outline-info btn-sm" onclick="return confirm('Send this quote to the client via email?');">
                 <i class="fas fa-envelope me-2"></i> Email to Client
+            </a>
+
+            {% if quote[5] != 'Converted' and quote[5] != 'Accepted' %}
+            <a href="{{ url_for('quote.convert_to_job', quote_id=quote[0]) }}" 
+               class="btn btn-outline-success btn-sm"
+               onclick="return confirm('Accept Quote and Create a Job on the Calendar?');">
+               <i class="fas fa-calendar-check me-2"></i> Book Job
+            </a>
+            {% endif %}
+
+            {% if quote[5] != 'Converted' %}
+            <a href="{{ url_for('quote.convert_to_invoice', quote_id=quote[0]) }}" 
+               class="btn btn-outline-warning btn-sm"
+               onclick="return confirm('Convert this Quote to an Invoice?');">
+               <i class="fas fa-file-invoice-dollar me-2"></i> Convert to Invoice
+            </a>
+            {% endif %}
+
+            <a href="{{ url_for('quote.view_quote', quote_id=quote[0], mode='pdf') }}" 
+               class="btn btn-outline-primary btn-sm" 
+               target="_blank"> <i class="fas fa-file-pdf me-2"></i> View PDF
             </a>
         </div>
     </div>
 
     <div class="content">
-<div class="toolbar">
-    <div>
-        <span class="badge bg-warning text-dark me-2">{{ quote[5] }}</span>
-        <span class="small text-white-50">Created: {{ quote[3] }}</span>
-    </div>
-    <div>
-        <a href="{{ url_for('quote.email_quote', quote_id=quote[0]) }}" 
-           class="btn btn-info btn-sm fw-bold me-2 text-white"
-           onclick="return confirm('Send this quote to the client via email?');">
-           <i class="fas fa-envelope me-2"></i> Email
-        </a>
-
-        {% if quote[5] != 'Converted' and quote[5] != 'Accepted' %}
-        <a href="{{ url_for('quote.convert_to_job', quote_id=quote[0]) }}" 
-           class="btn btn-success btn-sm fw-bold me-2"
-           onclick="return confirm('Accept Quote and Create a Job on the Calendar?');">
-           <i class="fas fa-calendar-check me-2"></i> Accept & Book Job
-        </a>
-        {% endif %}
-
-        {% if quote[5] != 'Converted' %}
-        <a href="{{ url_for('quote.convert_to_invoice', quote_id=quote[0]) }}" 
-           class="btn btn-warning btn-sm fw-bold me-2 text-dark"
-           onclick="return confirm('Convert this Quote to an Invoice?');">
-           <i class="fas fa-file-invoice-dollar me-2"></i> Convert to Invoice
-        </a>
-        {% endif %}
-
-        <a href="{{ url_for('quote.view_quote', quote_id=quote[0], mode='pdf') }}" 
-   class="btn btn-primary btn-sm fw-bold" 
-   target="_blank"> <i class="fas fa-file-pdf me-2"></i> View PDF
-</a>
-    </div>
-</div>
         <iframe src="/office/quote/{{ quote[0] }}/pdf" id="pdfFrame"></iframe>
     </div>
 
