@@ -944,6 +944,41 @@ def delete_invoice(invoice_id):
         
     return redirect(url_for('finance.finance_invoices'))
     
+@finance_bp.route('/finance/invoice/<int:invoice_id>/view')
+def view_invoice_dashboard(invoice_id):
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']:
+        return redirect(url_for('auth.login'))
+        
+    company_id = session.get('company_id')
+    conn = get_db()
+    cur = conn.cursor()
+    
+    cur.execute("SELECT value FROM settings WHERE key='currency_symbol' AND company_id=%s", (company_id,))
+    res = cur.fetchone(); currency = res[0] if res else '£'
+    
+    cur.execute("""
+        SELECT i.id, i.reference, c.name, i.date, i.total, i.status 
+        FROM invoices i 
+        JOIN clients c ON i.client_id = c.id 
+        WHERE i.id = %s AND i.company_id = %s
+    """, (invoice_id, company_id))
+    inv = cur.fetchone()
+    
+    if not inv:
+        flash("Invoice not found.", "error")
+        return redirect(url_for('finance.finance_invoices'))
+        
+    invoice = {
+        'id': inv[0],
+        'reference': inv[1],
+        'client_name': inv[2],
+        'date': inv[3].strftime('%d/%m/%Y') if hasattr(inv[3], 'strftime') else inv[3],
+        'total': inv[4],
+        'status': inv[5]
+    }
+    
+    return render_template('finance/view_invoice_dashboard.html', invoice=invoice, currency=currency)
+
 @finance_bp.route('/finance-dashboard')
 def finance_dashboard():
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']: 
@@ -1628,8 +1663,5 @@ def finance_bookkeeping():
     pass
 
     return render_template('finance/bookkeeping_inbox.html', unsorted=unsorted_files, jobs=jobs, categories=categories)
-</final_file_content>
-
-IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including any auto-formatting (e.g., if you used single quotes but the formatter converted them to double quotes). Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.
 
 
