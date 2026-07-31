@@ -21,17 +21,6 @@
         
         .content { margin-left: 260px; height: 100vh; display: flex; flex-direction: column; }
         
-        /* TOOLBAR */
-        .toolbar {
-            background-color: #34495e;
-            color: white;
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-
         /* PDF FRAME */
         iframe {
             width: 100%;
@@ -66,6 +55,11 @@
             <div class="fs-6 fw-bold text-warning">{{ invoice.status }}</div>
         </div>
 
+        <div class="mb-4">
+            <label class="small text-muted text-uppercase fw-bold">Created</label>
+            <div class="fs-6 fw-bold">{{ invoice.date }}</div>
+        </div>
+
         <hr class="border-secondary">
         
         <div class="d-grid gap-2 mt-auto">
@@ -82,24 +76,6 @@
     </div>
 
     <div class="content">
-        <div class="toolbar">
-            <div>
-                <span class="badge bg-warning text-dark me-2">{{ invoice.status }}</span>
-                <span class="small text-white-50">Created: {{ invoice.date }}</span>
-            </div>
-            <div>
-                <a href="{{ url_for('finance.email_invoice', invoice_id=invoice.id) }}" 
-                   class="btn btn-info btn-sm fw-bold me-2 text-white"
-                   onclick="return confirm('Send this invoice to the client via email?');">
-                   <i class="fas fa-envelope me-2"></i> Email
-                </a>
-
-                <a href="/finance/invoice/{{ invoice.id }}/download" 
-                   class="btn btn-primary btn-sm fw-bold" 
-                   target="_blank"> <i class="fas fa-download me-2"></i> Download PDF
-                </a>
-            </div>
-        </div>
         <iframe src="/finance/invoice/{{ invoice.id }}/download" id="pdfFrame"></iframe>
     </div>
 
