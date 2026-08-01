@@ -83,7 +83,10 @@ def create_invoice():
     if request.method == 'POST':
         client_id = request.form.get('client_id')
         job_id = request.form.get('job_id') or None
-        if not client_id:
+        
+        new_client_name = request.form.get('new_client_name')
+        
+        if not client_id and not new_client_name:
             flash("Error: Client is required.", "error")
             return redirect(request.url)
         
@@ -115,9 +118,29 @@ def create_invoice():
         count = cur.fetchone()[0] + 1
         ref = f"INV-{today_str}-{count:03d}"
         
-        # 5. Insert Invoice
+        # 5. Insert Invoice (and New Client if applicable)
         from utils.db_utils import db_transaction
         with db_transaction() as t_cur:
+            # Handle New Client logic inside the transaction
+            if not client_id and new_client_name:
+                new_addr = request.form.get('new_property_address') or ''
+                new_post = request.form.get('new_property_postcode') or ''
+                full_billing = f"{new_addr}, {new_post}".strip(', ')
+                
+                t_cur.execute("""
+                    INSERT INTO clients (company_id, name, email, phone, status, billing_address)
+                    VALUES (%s, %s, %s, %s, 'Lead', %s) RETURNING id
+                """, (comp_id, new_client_name, request.form.get('new_client_email'), 
+                      request.form.get('new_client_phone'), full_billing))
+                client_id = t_cur.fetchone()[0]
+                
+                if new_addr or new_post:
+                    t_cur.execute("""
+                        INSERT INTO properties (company_id, client_id, address_line1, postcode, status)
+                        VALUES (%s, %s, %s, %s, 'Active') RETURNING id
+                    """, (comp_id, client_id, new_addr, new_post))
+                    # no prop_id mapping in invoice unless needed
+            
             payment_days = int(settings.get('payment_days', 14))
             due_date = date.today() + timedelta(days=payment_days)
             
