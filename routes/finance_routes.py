@@ -444,8 +444,6 @@ def delete_vehicle(id):
         conn.rollback()
         flash(f"❌ Could not archive vehicle: {e}", "error")
         
-    finally:
-        
     return redirect(url_for('finance.finance_fleet'))
 
 # =========================================================
