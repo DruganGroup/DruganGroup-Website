@@ -874,7 +874,7 @@ def email_invoice(invoice_id):
     inv = cur.fetchone()
     
     if not inv:
-         flash("❌ Invoice not found.", "error")
+        flash("❌ Invoice not found.", "error")
         return redirect(url_for('finance.finance_invoices'))
 
     client_email = inv[6]
@@ -889,7 +889,7 @@ def email_invoice(invoice_id):
     settings['smtp_password'] = encryptor.decrypt(raw_pass) if raw_pass else None
 
     if 'smtp_host' not in settings:
-         flash("⚠️ SMTP Settings missing.", "warning")
+        flash("⚠️ SMTP Settings missing.", "warning")
         return redirect(url_for('finance.finance_invoices'))
 
     cur.execute("SELECT description, quantity, unit_price, total FROM invoice_items WHERE invoice_id = %s", (invoice_id,))
