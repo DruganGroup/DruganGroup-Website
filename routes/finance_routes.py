@@ -555,9 +555,7 @@ def import_materials():
                 flash(f"✅ Imported {count} items successfully.")
             except Exception as e:
                 conn.rollback()
-                flash(f"❌ Import Error: {e}")
-            finally:
-                
+                flash(f"❌ Import Error: {e}")    
     return redirect(url_for('finance.finance_materials'))
 
 @finance_bp.route('/finance/materials/delete/<int:id>')
@@ -611,8 +609,7 @@ def search_materials_api():
     except Exception as e:
         conn.rollback()
         return jsonify([])
-    finally:
-
+        conn.close()
 @finance_bp.route('/finance/analysis')
 def finance_analysis():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
@@ -856,7 +853,6 @@ def setup_invoice_templates():
     except Exception as e:
         conn.rollback()
         return f"❌ Migration Error: {e}"
-    finally:
 
 @finance_bp.route('/finance/invoice/<int:invoice_id>/email')
 def email_invoice(invoice_id):
@@ -994,7 +990,6 @@ def delete_invoice(invoice_id):
     except Exception as e:
         conn.rollback()
         flash(f"Error deleting invoice: {e}", "error")
-    finally:
         
     return redirect(url_for('finance.finance_invoices'))
     
