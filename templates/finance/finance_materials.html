@@ -68,7 +68,7 @@
                         <td class="fw-bold">{{ m.name }}</td>
                         <td>{{ m.category }}</td>
                         <td class="text-end">£{{ "%.2f"|format(m.price) }}</td>
-                        <td class="text-end pe-4 fw-bold text-success">£{{ "%.2f"|format(m.price + (m.price * (default_markup / 100))) }}</td>
+                        <td class="text-end pe-4 fw-bold text-success">£{{ "%.2f"|format(m.price|float + (m.price|float * (default_markup / 100))) }}</td>
                         <td class="text-end">
                             <a href="/finance/materials/delete/{{ m.id }}" class="text-danger"><i class="fas fa-trash"></i></a>
                         </td>
