@@ -10,3 +10,4 @@ Flask-Limiter
 celery
 redis
 python-dotenv
+google-generativeai
