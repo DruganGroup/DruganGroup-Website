@@ -366,7 +366,7 @@
                        value="${desc}" placeholder="Start typing item..." autocomplete="off" onkeyup="searchMaterials(this)">
                 <div class="suggestions-box d-none"></div>
             </td>
-            <td><input type="number" name="qty[]" class="form-control text-center" value="${qty}" min="0.1" step="0.1" oninput="calcTotal()"></td>
+            <td><input type="number" name="qty[]" class="form-control text-center" value="${qty}" min="0.01" step="0.01" oninput="calcTotal()"></td>
             <td><input type="number" name="price[]" class="form-control" value="${price}" placeholder="0.00" step="0.01" oninput="calcTotal()"></td>
             <td class="text-end pe-4 fw-bold row-total">0.00</td>
             <td><button type="button" class="btn btn-link text-danger p-0" onclick="this.closest('tr').remove(); calcTotal()"><i class="fas fa-times"></i></button></td>
