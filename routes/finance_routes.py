@@ -31,7 +31,6 @@ from services.pricing_engine import calculate_vehicle_daily_cost
 from utils.db_utils import db_transaction
 from utils.encryption import get_encryptor
 import base64
-from tasks import send_tenant_email_task
 from services.dashboard_service import get_finance_dashboard_data
 import secrets
 import string
@@ -934,7 +933,7 @@ def email_invoice(invoice_id):
                 attachment_b64 = base64.b64encode(pdf_file.read()).decode('utf-8')
 
         # 6. Send Email (via Celery)
-
+        from tasks import send_tenant_email_task
         subject = f"Invoice {invoice_ref} from {session.get('company_name')}"
         body_html = f"Dear {inv[5]},<br><br>Please find attached invoice {invoice_ref}.<br><br>Total Due: {settings.get('currency_symbol','£')}{total_val:.2f}<br><br>"
         
@@ -1441,6 +1440,7 @@ def export_payroll():
                             attachment_b64 = base64.b64encode(pdf_file.read()).decode('utf-8')
 
                     # Send Email (via Celery)
+                    from tasks import send_tenant_email_task
 
                     subject = f"Payslip: W/C {start_of_week.strftime('%d/%m/%Y')}"
                     body_html = f"Hi {name},<br><br>Please find attached your payslip for the week commencing {start_of_week.strftime('%d/%m/%Y')}.<br><br>Your net pay of {settings.get('currency_symbol', '£')}{net:.2f} will be transferred shortly.<br><br>Best regards,<br>{session.get('company_name')}"
