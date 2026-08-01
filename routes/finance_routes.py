@@ -201,8 +201,14 @@ def create_invoice():
     cur.execute("SELECT id, name, cost_price, supplier FROM materials WHERE company_id = %s ORDER BY name", (comp_id,))
     materials = [{'id': r[0], 'name': r[1], 'cost': r[2], 'supplier': r[3]} for r in cur.fetchall()]
     
-    cur.execute("SELECT id, reg_plate, make_model, daily_cost FROM vehicles WHERE company_id = %s", (comp_id,))
-    vehicles = [{'id': r[0], 'reg': r[1], 'make': r[2], 'cost': r[3]} for r in cur.fetchall()]
+    cur.execute("SELECT id, reg_plate, make_model, daily_cost, assigned_driver_id FROM vehicles WHERE company_id = %s", (comp_id,))
+    vehicles_data = cur.fetchall()
+    vehicles = []
+    from services.pricing_engine import calculate_vehicle_daily_cost
+    for r in vehicles_data:
+        v_id, reg, make, cost, drv_id = r
+        full_cost = calculate_vehicle_daily_cost(cur, v_id, cost, drv_id)
+        vehicles.append({'id': v_id, 'reg': reg, 'make': make, 'cost': full_cost})
     
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {r[0]: r[1] for r in cur.fetchall()}
