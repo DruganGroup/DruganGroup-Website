@@ -27,6 +27,18 @@ except ImportError:
 finance_bp = Blueprint('finance', __name__)
 
 from utils.date_utils import get_date_fmt_str, format_date, parse_date
+from services.pricing_engine import calculate_vehicle_daily_cost
+from utils.db_utils import db_transaction
+from utils.encryption import get_encryptor
+import base64
+from tasks import send_tenant_email_task
+from services.dashboard_service import get_finance_dashboard_data
+import secrets
+import string
+from services.tax_engine import TaxEngine
+import io
+import csv
+from services.ai_assistant import extract_receipt_materials
 
 @finance_bp.route('/finance/invoices')
 def finance_invoices():
@@ -35,7 +47,8 @@ def finance_invoices():
     
     company_id = session.get('company_id')
     config = get_site_config(company_id)
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     date_fmt = get_date_fmt_str(company_id)
 
     # 1. Get Currency
@@ -63,7 +76,6 @@ def finance_invoices():
             'status': r[6]
         })
         
-    pass
     
     return render_template('finance/finance_invoices.html', 
                            invoices=invoices, 
@@ -78,7 +90,8 @@ def create_invoice():
     
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
 
     if request.method == 'POST':
         client_id = request.form.get('client_id')
@@ -122,7 +135,6 @@ def create_invoice():
                 driver_id = van[1]
                 reg_plate = van[2]
 
-                from services.pricing_engine import calculate_vehicle_daily_cost
                 daily_total = calculate_vehicle_daily_cost(cur, pref_van, base_cost, driver_id)
 
                 # Fetch labour markup
@@ -146,7 +158,6 @@ def create_invoice():
         ref = f"INV-{today_str}-{count:03d}"
         
         # 5. Insert Invoice (and New Client if applicable)
-        from utils.db_utils import db_transaction
         with db_transaction() as t_cur:
             # Handle New Client logic inside the transaction
             if not client_id and new_client_name:
@@ -204,7 +215,6 @@ def create_invoice():
     cur.execute("SELECT id, reg_plate, make_model, daily_cost, assigned_driver_id FROM vehicles WHERE company_id = %s", (comp_id,))
     vehicles_data = cur.fetchall()
     vehicles = []
-    from services.pricing_engine import calculate_vehicle_daily_cost
     for r in vehicles_data:
         v_id, reg, make, cost, drv_id = r
         full_cost = calculate_vehicle_daily_cost(cur, v_id, cost, drv_id)
@@ -227,10 +237,10 @@ def create_invoice():
 @finance_bp.route('/api/client/<int:client_id>/jobs')
 def api_client_jobs_for_finance(client_id):
     if 'user_id' not in session: return jsonify([])
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("SELECT id, ref, description FROM jobs WHERE client_id = %s AND company_id = %s ORDER BY created_at DESC", (client_id, session.get('company_id')))
     jobs = [{'id': r[0], 'ref': r[1], 'title': r[2]} for r in cur.fetchall()]
-    pass
     return jsonify(jobs)
 
 # --- 2. HR & STAFF ---
@@ -238,16 +248,17 @@ def api_client_jobs_for_finance(client_id):
 def finance_hr():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
     comp_id = session.get('company_id'); config = get_site_config(comp_id)
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("SELECT id, name, position, dept, pay_rate, pay_model, access_level, email, phone, employment_type, address, tax_id FROM staff WHERE company_id = %s ORDER BY name", (comp_id,))
     cols = [desc[0] for desc in cur.description]; staff = [dict(zip(cols, row)) for row in cur.fetchall()]
-    pass
     return render_template('finance/finance_hr.html', staff=staff, brand_color=config['color'], logo_url=config['logo'])
     
 @finance_bp.route('/finance/hr/delete/<int:id>')
 def delete_staff(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("DELETE FROM staff WHERE id = %s AND company_id = %s", (id, session.get('company_id')))
     conn.commit(); pass
     return redirect(url_for('finance.finance_hr'))
@@ -258,12 +269,12 @@ def finance_fleet():
         return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
 
     if request.method == 'POST':
         action = request.form.get('action')
         
-        from utils.db_utils import db_transaction
         with db_transaction() as t_cur:
             if action == 'add_vehicle':
                 reg = request.form.get('reg_number').upper() 
@@ -399,7 +410,6 @@ def finance_fleet():
             'telematics': telematics_data
         })
 
-    pass
     
     return render_template('finance/finance_fleet.html', 
                            vehicles=vehicles, 
@@ -435,7 +445,6 @@ def delete_vehicle(id):
         flash(f"❌ Could not archive vehicle: {e}", "error")
         
     finally:
-        pass
         
     return redirect(url_for('finance.finance_fleet'))
 
@@ -449,7 +458,8 @@ def finance_materials():
     
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
 
     try:
         cur.execute("CREATE TABLE IF NOT EXISTS suppliers (id SERIAL PRIMARY KEY, company_id INTEGER, name VARCHAR(100));")
@@ -487,7 +497,6 @@ def finance_materials():
         default_markup = 0.0
         markup_missing = True
 
-    pass
     return render_template('finance/finance_materials.html', 
                            materials=materials, 
                            suppliers=suppliers, 
@@ -499,7 +508,6 @@ def finance_materials():
 @finance_bp.route('/finance/suppliers/add', methods=['POST'])
 def add_supplier():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
-    from utils.db_utils import db_transaction
     with db_transaction() as cur:
         cur.execute("INSERT INTO suppliers (company_id, name) VALUES (%s, %s)", (session.get('company_id'), request.form.get('name')))
         flash("✅ Supplier Added")
@@ -509,7 +517,6 @@ def add_supplier():
 def delete_supplier(id):
     if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
     
-    from utils.db_utils import db_transaction
     with db_transaction() as cur:
         cur.execute("UPDATE materials SET supplier_id = NULL WHERE supplier_id = %s", (id,))
         cur.execute("DELETE FROM suppliers WHERE id = %s", (id,))
@@ -524,7 +531,8 @@ def import_materials():
         supplier_id = request.form.get('supplier_id')
         
         if file and file.filename.endswith('.csv'):
-            conn = get_db(); cur = conn.cursor()
+            conn = get_db()
+            cur = conn.cursor()
             try:
                 csv_file = TextIOWrapper(file, encoding='utf-8')
                 csv_reader = csv.reader(csv_file)
@@ -551,13 +559,11 @@ def import_materials():
                 conn.rollback()
                 flash(f"❌ Import Error: {e}")
             finally:
-                pass
                 
     return redirect(url_for('finance.finance_materials'))
 
 @finance_bp.route('/finance/materials/delete/<int:id>')
 def delete_material(id):
-    from utils.db_utils import db_transaction
     with db_transaction() as cur:
         cur.execute("DELETE FROM materials WHERE id=%s", (id,))
     return redirect(url_for('finance.finance_materials'))
@@ -608,13 +614,13 @@ def search_materials_api():
         conn.rollback()
         return jsonify([])
     finally:
-        pass
 
 @finance_bp.route('/finance/analysis')
 def finance_analysis():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
     comp_id = session.get('company_id'); config = get_site_config(comp_id)
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
 
     cur.execute("""
         SELECT j.id, j.ref, c.name, j.status FROM jobs j
@@ -637,10 +643,10 @@ def finance_analysis():
         cur.execute("""
             SELECT COALESCE(SUM(
                 t.total_hours * 
-                CASE 
-                    WHEN s.pay_model = 'Day' THEN (COALESCE(s.pay_rate, 0) / 8.0)
-                    WHEN s.pay_model = 'Year' THEN (COALESCE(s.pay_rate, 0) / (260.0 * 8.0))
-                    ELSE COALESCE(s.pay_rate, 0)
+                CASE
+                    WHEN COALESCE(t.pay_model, s.pay_model) = 'Day' THEN (COALESCE(t.pay_rate, s.pay_rate, 0) / 8.0)
+                    WHEN COALESCE(t.pay_model, s.pay_model) = 'Year' THEN (COALESCE(t.pay_rate, s.pay_rate, 0) / (260.0 * 8.0))
+                    ELSE COALESCE(t.pay_rate, s.pay_rate, 0)
                 END
             ), 0)
             FROM staff_timesheets t JOIN staff s ON t.staff_id=s.id WHERE t.job_id=%s
@@ -652,7 +658,6 @@ def finance_analysis():
         total_rev += revenue; total_cost += actual_cost
         analyzed.append({"ref": ref, "client": client, "status": status, "rev": revenue, "cost": actual_cost, "profit": profit, "margin": margin})
     
-    pass
     total_profit = total_rev - total_cost
     avg_margin = (total_profit / total_rev * 100) if total_rev > 0 else 0
     return render_template('finance/finance_analysis.html', jobs=analyzed, total_rev=total_rev, total_cost=total_cost, total_profit=total_profit, avg_margin=avg_margin, brand_color=config['color'], logo_url=config['logo'])
@@ -676,7 +681,6 @@ def finance_audit_logs():
     
     raw_logs = cur.fetchall()
     audit_logs = [{'action': r[0], 'target': r[1], 'details': r[2], 'time': r[3].strftime('%d/%m/%Y %H:%M'), 'user': r[4]} for r in raw_logs]
-    pass
     
     return render_template('finance/finance_audit_logs.html', logs=audit_logs, brand_color=config['color'], logo_url=config['logo'])
 
@@ -690,7 +694,8 @@ def settings_general():
         return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     encryptor = get_encryptor()
 
     if request.method == 'POST':
@@ -764,7 +769,6 @@ def settings_general():
     sub_domain = comp_row[0] if comp_row else ''
     
     config = get_site_config(comp_id)
-    pass
 
     return render_template('finance/settings_general.html', settings=settings, active_tab='general', sub_domain=sub_domain, brand_color=config['color'], logo_url=config['logo'])
 
@@ -809,14 +813,14 @@ def settings_banking():
         
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
-    pass
     
     return render_template('finance/settings_banking.html', settings=settings, active_tab='banking', brand_color=config['color'], logo_url=config['logo'])
 
 @finance_bp.route('/finance/settings/overheads', methods=['GET', 'POST'])
 def settings_overheads():
     if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
-    comp_id = session.get('company_id'); config = get_site_config(comp_id); conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     if request.method == 'POST':
         act = request.form.get('action')
         if act == 'add_category': cur.execute("INSERT INTO overhead_categories (company_id, name) VALUES (%s, %s)", (comp_id, request.form.get('category_name')))
@@ -832,7 +836,6 @@ def settings_overheads():
     for c in cats:
         cur.execute("SELECT id, name, amount FROM overhead_items WHERE category_id = %s", (c[0],)); items = cur.fetchall()
         ct = sum([float(i[2]) for i in items]); tot += ct; overheads.append(CO(c[0], c[1], items, ct))
-    pass
     return render_template('finance/settings_overheads.html', settings=settings, overheads=overheads, total_overhead=tot, active_tab='overheads', brand_color=config['color'], logo_url=config['logo'])
     
 @finance_bp.route('/finance/setup-templates')
@@ -856,14 +859,14 @@ def setup_invoice_templates():
         conn.rollback()
         return f"❌ Migration Error: {e}"
     finally:
-        pass
 
 @finance_bp.route('/finance/invoice/<int:invoice_id>/email')
 def email_invoice(invoice_id):
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']:
         return redirect(url_for('auth.login'))
         
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     company_id = session.get('company_id')
 
     cur.execute("""
@@ -877,7 +880,7 @@ def email_invoice(invoice_id):
     inv = cur.fetchone()
     
     if not inv:
-        pass; flash("❌ Invoice not found.", "error")
+         flash("❌ Invoice not found.", "error")
         return redirect(url_for('finance.finance_invoices'))
 
     client_email = inv[6]
@@ -887,13 +890,12 @@ def email_invoice(invoice_id):
     settings = {row[0]: row[1] for row in cur.fetchall()}
     
     # Decrypt sensitive fields for email sending
-    from utils.encryption import get_encryptor
     encryptor = get_encryptor()
     raw_pass = settings.get('smtp_password')
     settings['smtp_password'] = encryptor.decrypt(raw_pass) if raw_pass else None
 
     if 'smtp_host' not in settings:
-        pass; flash("⚠️ SMTP Settings missing.", "warning")
+         flash("⚠️ SMTP Settings missing.", "warning")
         return redirect(url_for('finance.finance_invoices'))
 
     cur.execute("SELECT description, quantity, unit_price, total FROM invoice_items WHERE invoice_id = %s", (invoice_id,))
@@ -932,14 +934,12 @@ def email_invoice(invoice_id):
     try:
         pdf_path = generate_pdf('finance/pdf_invoice_template.html', context, filename)
 
-        import base64
         attachment_b64 = None
         if os.path.exists(pdf_path):
             with open(pdf_path, "rb") as pdf_file:
                 attachment_b64 = base64.b64encode(pdf_file.read()).decode('utf-8')
 
         # 6. Send Email (via Celery)
-        from tasks import send_tenant_email_task
 
         subject = f"Invoice {invoice_ref} from {session.get('company_name')}"
         body_html = f"Dear {inv[5]},<br><br>Please find attached invoice {invoice_ref}.<br><br>Total Due: {settings.get('currency_symbol','£')}{total_val:.2f}<br><br>"
@@ -967,14 +967,14 @@ def email_invoice(invoice_id):
     except Exception as e:
         flash(f"❌ Email task failed: {e}", "error")
     
-    pass
     return redirect(url_for('finance.finance_invoices'))
 
 @finance_bp.route('/finance/invoice/<int:invoice_id>/mark-sent')
 def mark_invoice_sent(invoice_id):
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']: return redirect(url_for('auth.login'))
     
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("UPDATE invoices SET status = 'Sent' WHERE id = %s", (invoice_id,))
     conn.commit(); pass
     
@@ -986,7 +986,8 @@ def delete_invoice(invoice_id):
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']:
         return redirect(url_for('auth.login'))
         
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     try:
         cur.execute("DELETE FROM invoice_items WHERE invoice_id = %s", (invoice_id,))
         cur.execute("DELETE FROM invoices WHERE id = %s", (invoice_id,))
@@ -996,7 +997,6 @@ def delete_invoice(invoice_id):
         conn.rollback()
         flash(f"Error deleting invoice: {e}", "error")
     finally:
-        pass
         
     return redirect(url_for('finance.finance_invoices'))
     
@@ -1043,7 +1043,6 @@ def finance_dashboard():
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
     
-    from services.dashboard_service import get_finance_dashboard_data
     data = get_finance_dashboard_data(comp_id)
 
     return render_template('finance/finance_dashboard.html',
@@ -1065,7 +1064,8 @@ def settings_integrations():
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']: return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     encryptor = get_encryptor()
 
     if request.method == 'POST':
@@ -1153,8 +1153,6 @@ def settings_integrations():
     my_code = row[0] if row else None
     
     if not my_code:
-        import secrets
-        import string
         my_code = 'BB-' + ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
         cur.execute("UPDATE companies SET partner_code = %s WHERE id = %s", (my_code, comp_id))
         conn.commit()
@@ -1194,7 +1192,6 @@ def settings_integrations():
         else:
             settings[key] = value
 
-    pass
 
     return render_template('finance/settings_integrations.html',
                            settings=settings, 
@@ -1212,7 +1209,8 @@ def finance_payroll():
     comp_id = session.get('company_id')
     
     # 1. Fetch Config
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     
     # SMART MIGRATION: Ensure HR columns exist if they jumped straight to Payroll
     try:
@@ -1251,7 +1249,6 @@ def finance_payroll():
         end_of_week = start_of_week + timedelta(days=6)         
     
     # 3. FETCH DATA (FIXED: NOW READING FROM staff_attendance)
-    from services.tax_engine import TaxEngine
     cur.execute("""
         SELECT 
             s.id, s.name, s.position, s.employment_type, s.pay_rate, s.pay_model,
@@ -1324,7 +1321,6 @@ def finance_payroll():
         totals['holiday'] += holiday_accrued
         totals['net'] += net
 
-    pass
     
     return render_template('finance/finance_payroll.html', 
                            payroll=payroll,
@@ -1342,12 +1338,12 @@ def export_payroll():
     
     comp_id = session.get('company_id')
     
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
     
     # Decrypt sensitive fields for email sending
-    from utils.encryption import get_encryptor
     encryptor = get_encryptor()
     raw_pass = settings.get('smtp_password')
     settings['smtp_password'] = encryptor.decrypt(raw_pass) if raw_pass else None
@@ -1358,9 +1354,6 @@ def export_payroll():
     start_of_week = today - timedelta(days=today.weekday()) 
     end_of_week = start_of_week + timedelta(days=6)         
     
-    from services.tax_engine import TaxEngine
-    import io
-    import csv
     
     cur.execute("""
         SELECT 
@@ -1449,14 +1442,12 @@ def export_payroll():
                     filename = f"Payslip_{name.replace(' ', '_')}_{today.strftime('%Y%m%d')}.pdf"
                     pdf_path = generate_pdf('finance/pdf_payslip.html', context, filename)
 
-                    import base64
                     attachment_b64 = None
                     if os.path.exists(pdf_path):
                         with open(pdf_path, "rb") as pdf_file:
                             attachment_b64 = base64.b64encode(pdf_file.read()).decode('utf-8')
 
                     # Send Email (via Celery)
-                    from tasks import send_tenant_email_task
 
                     subject = f"Payslip: W/C {start_of_week.strftime('%d/%m/%Y')}"
                     body_html = f"Hi {name},<br><br>Please find attached your payslip for the week commencing {start_of_week.strftime('%d/%m/%Y')}.<br><br>Your net pay of {settings.get('currency_symbol', '£')}{net:.2f} will be transferred shortly.<br><br>Best regards,<br>{session.get('company_name')}"
@@ -1473,7 +1464,6 @@ def export_payroll():
                 except Exception as e:
                     print(f"Failed to queue payslip email for {staff_email}: {e}")
             
-    pass
     
     return Response(
         output.getvalue(),
@@ -1497,7 +1487,8 @@ def settings_import():
                 csv_reader = csv.reader(stream)
                 header = next(csv_reader) # Skip Header
                 
-                conn = get_db(); cur = conn.cursor()
+                conn = get_db()
+                cur = conn.cursor()
                 count = 0
                 
                 for row in csv_reader:
@@ -1533,7 +1524,6 @@ def settings_import():
                             count += 1
                 
                 conn.commit()
-                pass
                 flash(f"✅ Successfully imported {count} records.", "success")
                 
             except Exception as e:
@@ -1542,10 +1532,10 @@ def settings_import():
             flash("❌ Invalid file. Please upload a CSV.", "error")
 
     # Load Settings Context (for Layout)
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
     settings = {row[0]: row[1] for row in cur.fetchall()}
-    pass
 
     return render_template('finance/settings_import.html', settings=settings, active_tab='import')
     
@@ -1555,7 +1545,8 @@ def finance_bookkeeping():
         return redirect(url_for('auth.login'))
 
     comp_id = session.get('company_id')
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     
     # 1. DEFINE INBOX PATH (Server-side disk path)
     inbox_path = os.path.join(current_app.static_folder, 'uploads', f"company_{comp_id}", 'inbox')
@@ -1600,15 +1591,12 @@ def finance_bookkeeping():
                 flash("✅ Assigned to Job Expense.")
 
             elif action == 'scan_materials':
-                from utils.encryption import get_encryptor
-                from services.ai_assistant import extract_receipt_materials
                 
                 # Fetch API key
                 cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'google_ai_key'", (comp_id,))
                 row = cur.fetchone()
                 if not row or not row[0]:
                     flash("❌ You do not have an API set up, please process via the sorting office manually.", "error")
-                    pass
                     return redirect(url_for('finance.finance_bookkeeping'))
                 
                 api_key = get_encryptor().decrypt(row[0])
@@ -1716,7 +1704,6 @@ def finance_bookkeeping():
     jobs = cur.fetchall()
     cur.execute("SELECT id, name FROM overhead_categories WHERE company_id=%s", (comp_id,))
     categories = cur.fetchall()
-    pass
 
     return render_template('finance/bookkeeping_inbox.html', unsorted=unsorted_files, jobs=jobs, categories=categories)
 

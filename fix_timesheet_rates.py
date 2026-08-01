@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def update_tables():
+def migrate_timesheets():
     db_url = os.environ.get("DATABASE_URL")
     if db_url:
         conn = psycopg2.connect(db_url, sslmode='require')
@@ -18,17 +18,14 @@ def update_tables():
         )
     cur = conn.cursor()
     try:
-        cur.execute("ALTER TABLE property_documents ADD COLUMN IF NOT EXISTS visible_to_client BOOLEAN DEFAULT FALSE")
-        cur.execute("ALTER TABLE quote_documents ADD COLUMN IF NOT EXISTS visible_to_client BOOLEAN DEFAULT FALSE")
-        cur.execute("ALTER TABLE job_evidence ADD COLUMN IF NOT EXISTS visible_to_client BOOLEAN DEFAULT FALSE")
-        
-        # Timesheet Migration
+        # Add columns
         cur.execute("ALTER TABLE staff_timesheets ADD COLUMN IF NOT EXISTS pay_rate REAL;")
         cur.execute("ALTER TABLE staff_timesheets ADD COLUMN IF NOT EXISTS pay_model VARCHAR(50);")
         
         cur.execute("ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS pay_rate REAL;")
         cur.execute("ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS pay_model VARCHAR(50);")
 
+        # Update existing timesheets with current staff rates
         cur.execute("""
             UPDATE staff_timesheets t
             SET pay_rate = s.pay_rate, pay_model = s.pay_model
@@ -36,6 +33,7 @@ def update_tables():
             WHERE t.staff_id = s.id AND t.pay_rate IS NULL;
         """)
 
+        # Update existing attendance with current staff rates
         cur.execute("""
             UPDATE staff_attendance a
             SET pay_rate = s.pay_rate, pay_model = s.pay_model
@@ -43,6 +41,7 @@ def update_tables():
             WHERE a.staff_id = s.id AND a.pay_rate IS NULL;
         """)
 
+        # Create trigger function
         cur.execute("""
             CREATE OR REPLACE FUNCTION snapshot_staff_rate()
             RETURNS TRIGGER AS $$
@@ -56,6 +55,7 @@ def update_tables():
             $$ LANGUAGE plpgsql;
         """)
 
+        # Create triggers
         cur.execute("""
             DROP TRIGGER IF EXISTS trg_snapshot_timesheet_rate ON staff_timesheets;
             CREATE TRIGGER trg_snapshot_timesheet_rate
@@ -71,14 +71,14 @@ def update_tables():
             FOR EACH ROW
             EXECUTE FUNCTION snapshot_staff_rate();
         """)
-        
+
         conn.commit()
-        print("Tables and functions updated successfully.")
+        print("Successfully migrated timesheets and attendance rates.")
     except Exception as e:
-        print(f"Error updating tables: {e}")
+        print(f"Error migrating: {e}")
         conn.rollback()
     finally:
         conn.close()
 
 if __name__ == '__main__':
-    update_tables()
+    migrate_timesheets()

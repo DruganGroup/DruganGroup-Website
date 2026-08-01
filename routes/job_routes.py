@@ -108,10 +108,10 @@ def job_files(job_id):
         SELECT 
             COALESCE(SUM(
                 t.total_hours * 
-                CASE 
-                    WHEN s.pay_model = 'Day' THEN (COALESCE(s.pay_rate, 0) / 8.0)
-                    WHEN s.pay_model = 'Year' THEN (COALESCE(s.pay_rate, 0) / (260.0 * 8.0))
-                    ELSE COALESCE(s.pay_rate, 0)
+                CASE
+                    WHEN COALESCE(t.pay_model, s.pay_model) = 'Day' THEN (COALESCE(t.pay_rate, s.pay_rate, 0) / 8.0)
+                    WHEN COALESCE(t.pay_model, s.pay_model) = 'Year' THEN (COALESCE(t.pay_rate, s.pay_rate, 0) / (260.0 * 8.0))
+                    ELSE COALESCE(t.pay_rate, s.pay_rate, 0)
                 END
             ), 0), 
             COUNT(DISTINCT t.date) 
@@ -171,10 +171,10 @@ def job_files(job_id):
     # Fetch Timesheets for file list
     cur.execute("""
         SELECT t.id, s.name, t.total_hours, t.date,
-               (COALESCE(t.total_hours, GREATEST(0, EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - t.clock_in))/3600.0)) * CASE 
-                    WHEN s.pay_model = 'Day' THEN (COALESCE(s.pay_rate, 0) / 8.0)
-                    WHEN s.pay_model = 'Year' THEN (COALESCE(s.pay_rate, 0) / (260.0 * 8.0))
-                    ELSE COALESCE(s.pay_rate, 0)
+               (COALESCE(t.total_hours, GREATEST(0, EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - t.clock_in))/3600.0)) * CASE
+                    WHEN COALESCE(t.pay_model, s.pay_model) = 'Day' THEN (COALESCE(t.pay_rate, s.pay_rate, 0) / 8.0)
+                    WHEN COALESCE(t.pay_model, s.pay_model) = 'Year' THEN (COALESCE(t.pay_rate, s.pay_rate, 0) / (260.0 * 8.0))
+                    ELSE COALESCE(t.pay_rate, s.pay_rate, 0)
                 END) as cost,
                t.clock_in
         FROM staff_timesheets t

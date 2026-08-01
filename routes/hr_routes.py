@@ -319,7 +319,7 @@ def staff_profile(staff_id):
 
     # --- 2. WEEKLY TIMESHEETS (With Job Linking) ---
     cur.execute("""
-        SELECT date, clock_in, clock_out, total_hours 
+        SELECT date, clock_in, clock_out, total_hours, pay_rate, pay_model
         FROM staff_attendance 
         WHERE staff_id = %s 
         ORDER BY date DESC LIMIT 10
@@ -335,7 +335,9 @@ def staff_profile(staff_id):
             c_in = r[1].strftime('%H:%M') if r[1] else '-'
             c_out = r[2].strftime('%H:%M') if r[2] else '-'
             hours = float(r[3] or 0)
-            cost = calculate_wage(hours, staff['pay_rate'], staff['pay_model'])
+            att_rate = r[4] if r[4] is not None else staff['pay_rate']
+            att_model = r[5] if r[5] is not None else staff['pay_model']
+            cost = calculate_wage(hours, att_rate, att_model)
 
             cur.execute("""
                 SELECT j.id, j.ref, t.total_hours 
