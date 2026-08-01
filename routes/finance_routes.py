@@ -109,6 +109,33 @@ def create_invoice():
                 subtotal += line_total
                 items_to_insert.append((d.strip(), qty, price, line_total))
                 
+        # Handle Resources
+        est_days = float(request.form.get('estimated_days') or 1)
+        pref_van = request.form.get('preferred_vehicle_id') or None
+        
+        if pref_van:
+            cur.execute("SELECT daily_cost, assigned_driver_id, reg_plate FROM vehicles WHERE id = %s", (pref_van,))
+            van = cur.fetchone()
+            
+            if van:
+                base_cost = float(van[0]) if van[0] else 0.0
+                driver_id = van[1]
+                reg_plate = van[2]
+
+                from services.pricing_engine import calculate_vehicle_daily_cost
+                daily_total = calculate_vehicle_daily_cost(cur, pref_van, base_cost, driver_id)
+
+                # Fetch labour markup
+                labour_markup_percent = float(settings.get('labour_markup_percent', 0) or 0)
+                labour_multiplier = 1 + (labour_markup_percent / 100.0)
+                
+                daily_charge = daily_total * labour_multiplier
+
+                res_total = daily_charge * est_days
+                if res_total > 0:
+                    subtotal += res_total
+                    items_to_insert.append((f"Resources: {reg_plate} (Driver + Crew)", est_days, daily_charge, res_total))
+
         # 3. Calculate Tax
         tax_rate, tax_amt, final_total = TaxEngine.calculate_invoice_totals(settings, subtotal)
         

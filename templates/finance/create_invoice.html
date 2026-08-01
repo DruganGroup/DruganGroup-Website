@@ -62,7 +62,29 @@
                     <select name="job_id" id="jobSelect" class="form-select shadow-sm mb-3" disabled>
                         <option value="">-- Select Client First --</option>
                     </select>
-                    <small class="text-muted">Linking to a job will attach this invoice to the property history and client portal under that specific job.</small>
+                    <small class="text-muted mb-3 d-block">Linking to a job will attach this invoice to the property history and client portal under that specific job.</small>
+
+                    <hr>
+
+                    <h6 class="fw-bold text-primary"><i class="fas fa-truck me-2"></i>Resources</h6>
+                    
+                    <label class="form-label fw-bold small text-muted">Est. Duration (Days)</label>
+                    <input type="number" step="0.5" name="estimated_days" id="daysInput" class="form-control mb-3" value="1" oninput="calcTotals()" required>
+
+                    <label class="form-label fw-bold small text-muted">Preferred Gang / Van</label>
+                    <select name="preferred_vehicle_id" id="vehicleSelect" class="form-select" onchange="calcTotals()">
+                        <option value="" data-cost="0">-- No Vehicle Cost --</option>
+                        {% for v in vehicles %}
+                            <option value="{{ v.id }}" data-cost="{{ v.cost or 0 }}">
+                                {{ v.reg }} 
+                                {% if v.make %} - {{ v.make }}{% endif %}
+                                {% if v.cost and v.cost > 0 %}
+                                    (+{{ settings.get('currency_symbol', '£') }}{{ "%.2f"|format(v.cost) }}/day)
+                                {% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <div class="small text-muted mt-1" id="resourceCostDisplay">Resource Cost: {{ settings.get('currency_symbol', '£') }}0.00</div>
                 </div>
             </div>
         </div>
@@ -114,7 +136,8 @@
                     </div>
                     
                     <div class="p-3 bg-white text-end border-top">
-                        <div class="small text-muted">Subtotal: <span id="subTotal">0.00</span></div>
+                        <div class="small text-muted">Items Subtotal: <span id="subTotal">0.00</span></div>
+                        <div class="small text-muted">Resources: <span id="resTotal">0.00</span></div>
                         <div class="small text-muted">Tax ({{ (tax_rate * 100)|int }}%): <span id="taxTotal">0.00</span></div>
                         <div class="h5 fw-bold m-0 text-dark mt-2">Total: <span id="grandTotal">0.00</span></div>
                     </div>
@@ -383,8 +406,22 @@
             subTotal += total;
         });
 
-        const tax = subTotal * TAX_RATE;
-        const grand = subTotal + tax;
+        // Resources
+        const days = parseFloat(document.getElementById('daysInput').value) || 0;
+        const vehicleSelect = document.getElementById('vehicleSelect');
+        let dailyCost = 0;
+        if(vehicleSelect.selectedIndex >= 0) {
+            dailyCost = parseFloat(vehicleSelect.options[vehicleSelect.selectedIndex].getAttribute('data-cost')) || 0;
+        }
+        
+        const resTotal = days * (dailyCost * LABOUR_MULTIPLIER);
+        
+        document.getElementById('resourceCostDisplay').innerText = `Resource Cost: ${CURRENCY}${resTotal.toFixed(2)}`;
+        document.getElementById('resTotal').innerText = resTotal.toFixed(2);
+
+        const totalBeforeTax = subTotal + resTotal;
+        const tax = totalBeforeTax * TAX_RATE;
+        const grand = totalBeforeTax + tax;
 
         document.getElementById('subTotal').innerText = subTotal.toFixed(2);
         document.getElementById('taxTotal').innerText = tax.toFixed(2);
