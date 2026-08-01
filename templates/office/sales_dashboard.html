@@ -57,7 +57,7 @@
                     <tbody>
                         {% for i in invoices %}
                         <tr class="sales-row">
-                            <td class="ps-4 fw-bold text-primary">{{ i.ref }}</td>
+                            <td class="ps-4 fw-bold"><a href="/finance/invoice/{{ i.id }}/view" class="text-primary text-decoration-none">{{ i.ref }}</a></td>
                             <td class="client-name">{{ i.client }}</td>
                             <td class="small">{{ i.date }}</td>
                             <td class="status-cell">
@@ -116,7 +116,7 @@
                     <tbody>
                         {% for q in quotes %}
                         <tr class="sales-row">
-                            <td class="ps-4 fw-bold text-primary">{{ q.ref }}</td>
+                            <td class="ps-4 fw-bold"><a href="/office/quote/{{ q.id }}" class="text-primary text-decoration-none">{{ q.ref }}</a></td>
                             <td class="client-name">{{ q.client }}</td>
                             <td class="small">{{ q.date }}</td>
                             <td class="status-cell">

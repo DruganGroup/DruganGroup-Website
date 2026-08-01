@@ -43,9 +43,9 @@
         {% endif %}
 
         {% if quote[8] %}
-        <div class="mb-4 p-2 bg-dark rounded border border-secondary">
-            <label class="small text-muted text-uppercase fw-bold mb-1" style="font-size: 0.65rem;">Scope</label>
-            <p class="small text-light mb-0" style="white-space: pre-wrap; font-size: 0.85rem;">{{ quote[8] }}</p>
+        <div class="mb-4">
+            <label class="small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Scope</label>
+            <div class="fw-bold" style="white-space: pre-wrap; font-size: 0.85rem;">{{ quote[8] }}</div>
         </div>
         {% endif %}
 		
@@ -97,7 +97,7 @@
 
         <div class="list-group list-group-flush mb-4" style="max-height: 200px; overflow-y: auto;">
             {% for d in quote_docs %}
-            <div class="list-group-item bg-dark border-secondary d-flex justify-content-between align-items-center p-2">
+            <div class="list-group-item bg-transparent border-0 d-flex justify-content-between align-items-center p-2 text-light">
                 <div class="text-truncate" style="max-width: 140px;">
                     <span class="badge bg-secondary mb-1" style="font-size: 0.65rem;">{{ d.type }}</span>
                     <br><small class="text-light" style="font-size: 0.7rem;">{{ d.date.strftime('%d/%m/%y') }}</small>
@@ -113,7 +113,7 @@
                 </div>
             </div>
             {% else %}
-            <div class="text-muted small p-2 text-center bg-dark rounded border border-secondary">No documents uploaded.</div>
+            <div class="text-muted small p-2 text-center bg-transparent rounded border-0">No documents uploaded.</div>
             {% endfor %}
         </div>
         
