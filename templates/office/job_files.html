@@ -14,12 +14,42 @@
                 </ol>
             </nav>
 
-            <div class="d-flex align-items-center gap-3 mb-1">
+            <div class="d-flex align-items-center gap-3 mb-1 flex-wrap">
                 <h2 class="fw-bold m-0 text-dark">{{ job.title }}</h2>
-                <span class="badge px-3 py-2 fs-6 fw-bold rounded-2 
-                    {% if job.status == 'Completed' %}bg-success text-white{% elif job.status == 'In Progress' %}bg-primary text-white{% else %}bg-secondary text-white{% endif %}">
-                    {{ job.status }}
-                </span>
+                <div class="dropdown d-inline-block">
+                    <button class="btn btn-sm dropdown-toggle fw-bold px-3 py-1 rounded-pill shadow-sm
+                        {% if job.status == 'Completed' %}btn-success text-white
+                        {% elif job.status == 'In Progress' %}btn-warning text-dark
+                        {% elif job.status == 'Scheduled' %}btn-primary text-white
+                        {% else %}btn-secondary text-white{% endif %}" 
+                        type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-circle me-1" style="font-size: 0.6rem;"></i> {{ job.status }}
+                    </button>
+                    <ul class="dropdown-menu shadow border-0">
+                        <li><h6 class="dropdown-header small text-uppercase">Change Status</h6></li>
+                        <li>
+                            <form action="/office/job/{{ job.id }}/status" method="POST" class="m-0">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="status" value="Scheduled">
+                                <button type="submit" class="dropdown-item fw-bold text-primary"><i class="fas fa-calendar-check me-2"></i>Scheduled</button>
+                            </form>
+                        </li>
+                        <li>
+                            <form action="/office/job/{{ job.id }}/status" method="POST" class="m-0">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="status" value="In Progress">
+                                <button type="submit" class="dropdown-item fw-bold text-warning"><i class="fas fa-tools me-2"></i>In Progress</button>
+                            </form>
+                        </li>
+                        <li>
+                            <form action="/office/job/{{ job.id }}/status" method="POST" class="m-0">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="status" value="Completed">
+                                <button type="submit" class="dropdown-item fw-bold text-success"><i class="fas fa-check-circle me-2"></i>Completed</button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
             </div>
 
             <div class="fs-5 text-secondary mb-2">

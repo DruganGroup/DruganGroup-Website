@@ -58,7 +58,11 @@
                     <tr class="client-row" style="position: relative;">
                         <td class="ps-4">
                             <div class="d-flex align-items-center">
-                                <div class="client-avatar">{{ c[1][0] | upper }}</div>
+                                {% if c[10] %}
+                                    <img src="/static/{{ c[10] }}" class="rounded-circle object-fit-cover shadow-sm me-3" style="width: 45px; height: 45px; border: 2px solid var(--brand-color);" alt="{{ c[1] }}">
+                                {% else %}
+                                    <div class="client-avatar">{{ c[1][0] | upper }}</div>
+                                {% endif %}
                                 <div>
                                     <a href="/client/{{ c[0] }}" class="fw-bold text-dark text-decoration-none stretched-link client-name">
                                         {{ c[1] }}
@@ -115,7 +119,7 @@
                     <h5 class="modal-title fw-bold" id="modalTitle">Add New Client</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form action="/clients/add" method="POST" id="clientForm">
+                <form action="/clients/add" method="POST" id="clientForm" enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="client_id" id="client_id">
                     
@@ -146,6 +150,12 @@
                             <div class="col-12">
                                 <label class="small fw-bold">Billing Address</label>
                                 <textarea name="billing_address" id="c_addr" class="form-control" rows="2"></textarea>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="small fw-bold">Client Photo / Company Logo</label>
+                                <input type="file" name="client_photo" id="c_photo" class="form-control" accept="image/*">
+                                <small class="text-muted" style="font-size: 0.75rem;">Upload a profile picture or logo (PNG, JPG, WebP)</small>
                             </div>
                             
                             <div class="col-12">

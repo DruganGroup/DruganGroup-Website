@@ -5,56 +5,72 @@
 {% block content %}
 <div class="container-fluid p-0">
     
-    <div class="d-flex justify-content-between align-items-start mb-4">
-        <div>
-            <h2 class="fw-bold m-0 text-dark">{{ client.name }}</h2>
-            <div class="text-muted mb-2">
-                <i class="fas fa-envelope me-2"></i>{{ client.email }} 
-                {% if client.phone %}
-                    <span class="mx-2">|</span> <i class="fas fa-phone me-2"></i>{{ client.phone }}
-                {% endif %}
+    <!-- Hero Client Card -->
+    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden bg-white">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    {% if client.photo %}
+                        <img src="/static/{{ client.photo }}" alt="{{ client.name }}" class="rounded-circle object-fit-cover shadow-sm border border-3 border-light" style="width: 75px; height: 75px;">
+                    {% else %}
+                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold fs-2 shadow-sm" style="width: 75px; height: 75px;">
+                            {{ client.name[0] | upper }}
+                        </div>
+                    {% endif %}
+                    <div>
+                        <h2 class="fw-bold m-0 text-dark">{{ client.name }}</h2>
+                        <div class="text-muted small mt-1 d-flex align-items-center gap-3 flex-wrap">
+                            {% if client.email %}
+                            <a href="mailto:{{ client.email }}" class="text-decoration-none text-muted"><i class="fas fa-envelope text-primary me-1"></i>{{ client.email }}</a>
+                            {% endif %}
+                            {% if client.phone %}
+                            <a href="tel:{{ client.phone }}" class="text-decoration-none text-muted"><i class="fas fa-phone text-success me-1"></i>{{ client.phone }}</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-success fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
+                        <i class="fas fa-plus-circle me-2"></i>Add Property
+                    </button>
+                    <button class="btn btn-info text-white fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#massEmailModal">
+                        <i class="fas fa-envelope me-2"></i>Mass Email Tenants
+                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-dark dropdown-toggle fw-bold" type="button" data-bs-toggle="dropdown">
+                            Actions
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                            <li><a class="dropdown-item" href="/office/quote/new?client_id={{ client.id }}"><i class="fas fa-file-invoice text-primary me-2"></i>New Quote</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form action="/client/{{ client.id }}/reset-password" method="POST" class="m-0 p-0" onsubmit="return confirm('Are you sure you want to regenerate the portal password? This will immediately send a new login email to the client.');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="dropdown-item text-primary"><i class="fas fa-key me-2"></i>Reset Portal Password</button>
+                                </form>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="/client/delete/{{ client.id }}" onclick="return confirm('Archive this client?');"><i class="fas fa-trash me-2"></i>Delete Client</a></li>
+                        </ul>
+                    </div>
+                </div>
             </div>
-            
-            <div class="d-flex gap-4 mt-3">
+
+            <div class="d-flex gap-3 mt-3 flex-wrap">
                 {% if client.billing_address %}
-                <div class="small bg-light p-2 rounded border">
+                <div class="small bg-light px-3 py-2 rounded-3 border">
                     <i class="fas fa-file-invoice text-secondary me-2"></i>
-                    <strong>Billing:</strong> {{ client.billing_address }}
+                    <strong>Billing Address:</strong> {{ client.billing_address }}
                 </div>
                 {% endif %}
                 
                 {% if client.notes %}
-                <div class="small bg-warning bg-opacity-10 p-2 rounded border border-warning text-dark">
+                <div class="small bg-warning bg-opacity-10 px-3 py-2 rounded-3 border border-warning text-dark">
                     <i class="fas fa-sticky-note text-warning me-2"></i>
                     <strong>Notes:</strong> {{ client.notes }}
                 </div>
                 {% endif %}
-            </div>
-        </div>
-
-        <div class="d-flex gap-2">
-            <button class="btn btn-success fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
-                <i class="fas fa-plus-circle me-2"></i>Add Property
-            </button>
-            <button class="btn btn-info text-white fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#massEmailModal">
-                <i class="fas fa-envelope me-2"></i>Mass Email Tenants
-            </button>
-            <div class="dropdown">
-                <button class="btn btn-outline-dark dropdown-toggle fw-bold" type="button" data-bs-toggle="dropdown">
-                    Actions
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow">
-                    <li><a class="dropdown-item" href="/office/quote/new?client_id={{ client.id }}">New Quote</a></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <form action="/client/{{ client.id }}/reset-password" method="POST" class="m-0 p-0" onsubmit="return confirm('Are you sure you want to regenerate the portal password? This will immediately send a new login email to the client.');">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="dropdown-item text-primary"><i class="fas fa-key me-2"></i>Reset Portal Password</button>
-                        </form>
-                    </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item text-danger" href="/client/delete/{{ client.id }}" onclick="return confirm('Archive this client?');">Delete Client</a></li>
-                </ul>
             </div>
         </div>
     </div>
@@ -78,45 +94,49 @@
             <div class="row g-4">
                 {% for prop in properties %}
                 <div class="col-lg-6">
-                    <div class="card h-100 shadow-sm border-0 hover-shadow transition">
+                    <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden hover-shadow transition bg-white">
                         
+                        <!-- Property Photo Banner -->
+                        {% if prop.photo %}
+                        <div class="position-relative ratio ratio-21x9 bg-light">
+                            <img src="/static/{{ prop.photo }}" class="w-100 h-100 object-fit-cover" alt="{{ prop.address_line1 }}">
+                            <div class="position-absolute bottom-0 start-0 end-0 p-3 bg-dark bg-opacity-75 text-white d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="fw-bold m-0 text-white">{{ prop.address_line1 }}</h5>
+                                    <span class="small opacity-75"><i class="fas fa-map-marker-alt me-1"></i>{{ prop.postcode }}</span>
+                                </div>
+                                <span class="badge bg-light text-dark font-monospace fs-6">Key: {{ prop.key_code or '---' }}</span>
+                            </div>
+                        </div>
+                        {% else %}
                         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-start border-bottom">
                             <div>
                                 <a href="/office/property/{{ prop.id }}" class="text-decoration-none">
-                                    <h5 class="fw-bold m-0 text-dark">{{ prop.address_line1 }}</h5> 
+                                    <h5 class="fw-bold m-0 text-dark"><i class="fas fa-home text-secondary me-2"></i>{{ prop.address_line1 }}</h5> 
                                 </a>
                                 <span class="text-muted small"><i class="fas fa-map-marker-alt me-1"></i>{{ prop.postcode }}</span>
                             </div>
-                            
-                            <div class="dropdown">
-                                <button class="btn btn-sm btn-light border dropdown-toggle fw-bold" type="button" data-bs-toggle="dropdown">
-                                    Manage
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow">
-                                    <li><h6 class="dropdown-header">{{ _('Actions') }}</h6></li>
-                                    <li><a class="dropdown-item" href="/office/property/{{ prop.id }}"><i class="fas fa-eye me-2 text-secondary"></i>View History</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><h6 class="dropdown-header">Book Compliance</h6></li>
-                                    {% for cert in certificates %}
-                                    <li><a class="dropdown-item" href="/office/job/create?client_id={{ client.id }}&property_id={{ prop.id }}&description={{ cert.name }}"><i class="fas fa-file-contract text-warning me-2"></i>Book {{ cert.name }}</a></li>
-                                    {% endfor %}
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item text-primary fw-bold" href="/office/property/{{ prop.id }}"><i class="fas fa-edit me-2"></i>Edit Property</a></li>
-                                </ul>
-                            </div>
+                            <span class="badge bg-dark font-monospace fs-6">Key: {{ prop.key_code or '---' }}</span>
                         </div>
+                        {% endif %}
 
                         <div class="card-body position-relative">
                             
-                            <div class="d-flex align-items-center mb-3 p-2 rounded bg-light border">
-                                <div class="me-3 text-secondary"><i class="fas fa-user-circle fa-2x"></i></div>
-                                <div class="flex-grow-1">
-                                    <div class="small fw-bold text-uppercase text-muted">Tenant</div>
-                                    <div class="fw-bold text-dark">{{ prop.tenant_name or 'Vacant' }}</div>
+                            <div class="d-flex align-items-center justify-content-between mb-3 p-2 rounded bg-light border">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3 text-secondary"><i class="fas fa-user-circle fa-2x"></i></div>
+                                    <div>
+                                        <div class="small fw-bold text-uppercase text-muted" style="font-size: 0.65rem;">Tenant</div>
+                                        <div class="fw-bold text-dark">{{ prop.tenant_name or 'Vacant' }}</div>
+                                        {% if prop.tenant_phone %}
+                                        <small class="text-muted"><i class="fas fa-phone me-1"></i>{{ prop.tenant_phone }}</small>
+                                        {% endif %}
+                                    </div>
                                 </div>
-                                <div class="text-end">
-                                    <div class="small fw-bold text-uppercase text-muted">Key Safe</div>
-                                    <span class="badge bg-dark fs-6">{{ prop.key_code or '---' }}</span>
+                                <div>
+                                    <a href="/office/property/{{ prop.id }}" class="btn btn-sm btn-outline-primary fw-bold">
+                                        <i class="fas fa-eye me-1"></i> Property Hub
+                                    </a>
                                 </div>
                             </div>
 
@@ -154,8 +174,19 @@
                                 {{ compliance_badge('EPC', prop.epc_expiry) }}
                                 
                             </div>
+
+                            <div class="d-flex justify-content-end gap-2 border-top pt-2">
+                                <a href="/office/property/{{ prop.id }}" class="btn btn-sm btn-light border fw-bold text-dark"><i class="fas fa-history me-1"></i> History</a>
+                                <a href="/office/job/create?client_id={{ client.id }}&property_id={{ prop.id }}" class="btn btn-sm btn-warning fw-bold text-dark"><i class="fas fa-plus me-1"></i> Book Job</a>
+                            </div>
                         </div>
                     </div>
+                </div>
+                {% else %}
+                <div class="col-12 text-center py-5 text-muted bg-white rounded-4 border">
+                    <i class="fas fa-home fa-3x mb-3 text-secondary opacity-50"></i>
+                    <h5 class="fw-bold">No properties registered</h5>
+                    <p class="small text-muted">Click "Add Property" above to record a site or building for this client.</p>
                 </div>
                 {% endfor %}
             </div>
@@ -190,33 +221,40 @@
 
 <div class="modal fade" id="addPropertyModal" tabindex="-1">
     <div class="modal-dialog">
-        <div class="modal-content">
+        <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title fw-bold">Add Property</h5>
+                <h5 class="modal-title fw-bold"><i class="fas fa-home me-2"></i>Add Property</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="/office/client/{{ client.id }}/add-property" method="POST">
+            <form action="/office/client/{{ client.id }}/add-property" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="modal-body">
-                    <div class="mb-2"><input type="text" name="address" class="form-control" placeholder="Address Line 1" required></div>
-                    <div class="mb-3"><input type="text" name="postcode" class="form-control" placeholder="Postcode" required></div>
-                    <div class="row g-2 mb-4">
-                        <div class="col-6"><input type="text" name="tenant_name" class="form-control" placeholder="Tenant Name"></div>
-                        <div class="col-6"><input type="text" name="tenant_phone" class="form-control" placeholder="Tenant Phone"></div>
-                        <div class="col-6 mt-2"><input type="email" name="tenant_email" class="form-control" placeholder="Tenant Email"></div>
-                        <div class="col-6 mt-2"><input type="text" name="key_code" class="form-control" placeholder="Key Safe Code"></div>
+                <div class="modal-body p-4">
+                    <div class="mb-2"><label class="small fw-bold text-muted">Address Line 1</label><input type="text" name="address" class="form-control fw-bold" placeholder="Address Line 1" required></div>
+                    <div class="mb-3"><label class="small fw-bold text-muted">Postcode</label><input type="text" name="postcode" class="form-control" placeholder="Postcode" required></div>
+                    
+                    <div class="mb-3">
+                        <label class="small fw-bold text-muted">House / Apartment Photo</label>
+                        <input type="file" name="property_photo" class="form-control" accept="image/*">
+                        <small class="text-muted" style="font-size: 0.75rem;">Upload a photo of the building, apartment or property facade</small>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6"><label class="small fw-bold text-muted">Tenant Name</label><input type="text" name="tenant_name" class="form-control" placeholder="Tenant Name"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">Tenant Phone</label><input type="text" name="tenant_phone" class="form-control" placeholder="Tenant Phone"></div>
+                        <div class="col-6 mt-2"><label class="small fw-bold text-muted">Tenant Email</label><input type="email" name="tenant_email" class="form-control" placeholder="Tenant Email"></div>
+                        <div class="col-6 mt-2"><label class="small fw-bold text-muted">Key Safe Code</label><input type="text" name="key_code" class="form-control" placeholder="e.g. 1234"></div>
                     </div>
                     
-                    <h6 class="fw-bold text-danger border-top pt-3">Compliance Dates</h6>
+                    <h6 class="fw-bold text-danger border-top pt-3 mb-2"><i class="fas fa-certificate me-1"></i> Compliance Dates</h6>
                     <div class="row g-2">
-                        <div class="col-6"><label class="small fw-bold">Gas</label><input type="date" name="gas_expiry" class="form-control"></div>
-                        <div class="col-6"><label class="small fw-bold">EICR</label><input type="date" name="eicr_expiry" class="form-control"></div>
-                        <div class="col-6"><label class="small fw-bold">PAT</label><input type="date" name="pat_expiry" class="form-control"></div>
-                        <div class="col-6"><label class="small fw-bold">EPC</label><input type="date" name="epc_expiry" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">Gas Safety (CP12)</label><input type="date" name="gas_expiry" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">EICR</label><input type="date" name="eicr_expiry" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">PAT</label><input type="date" name="pat_expiry" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">EPC</label><input type="date" name="epc_expiry" class="form-control"></div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-success fw-bold">Add Property</button>
+                <div class="modal-footer bg-light">
+                    <button type="submit" class="btn btn-success fw-bold px-4">Add Property</button>
                 </div>
             </form>
         </div>

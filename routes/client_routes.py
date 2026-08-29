@@ -1,6 +1,8 @@
-from flask import Blueprint, render_template, session, redirect, url_for, request, flash, jsonify
+from flask import Blueprint, render_template, session, redirect, url_for, request, flash, jsonify, current_app
 from db import get_db, get_site_config
 from datetime import date, datetime
+import os
+from werkzeug.utils import secure_filename
 
 try:
     from services.enforcement import check_limit
@@ -15,6 +17,26 @@ except ImportError:
 
 client_bp = Blueprint('client', __name__)
 
+def save_client_photo(file, comp_id):
+    if not file or not file.filename:
+        return None
+    filename = f"client_{int(datetime.now().timestamp())}_{secure_filename(file.filename)}"
+    folder = os.path.join(current_app.static_folder, 'uploads', f"company_{comp_id}", 'clients')
+    os.makedirs(folder, exist_ok=True)
+    file_path = os.path.join(folder, filename)
+    file.save(file_path)
+    return f"uploads/company_{comp_id}/clients/{filename}"
+
+def save_property_photo(file, comp_id):
+    if not file or not file.filename:
+        return None
+    filename = f"prop_{int(datetime.now().timestamp())}_{secure_filename(file.filename)}"
+    folder = os.path.join(current_app.static_folder, 'uploads', f"company_{comp_id}", 'properties')
+    os.makedirs(folder, exist_ok=True)
+    file_path = os.path.join(folder, filename)
+    file.save(file_path)
+    return f"uploads/company_{comp_id}/properties/{filename}"
+
 # =========================================================
 # 1. CLIENT DASHBOARD & CREATION
 # =========================================================
@@ -28,12 +50,16 @@ def client_dashboard():
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
 
+    # Ensure photo columns exist
+    cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS photo VARCHAR(255);")
+    cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS photo VARCHAR(255);")
+    conn.commit()
+
     cur.execute("""
-        SELECT id, name, email, phone, site_address, status, gate_code, billing_address, notes, portal_access 
+        SELECT id, name, email, phone, site_address, status, gate_code, billing_address, notes, portal_access, photo 
         FROM clients WHERE company_id = %s ORDER BY name ASC
     """, (comp_id,))
     clients = cur.fetchall()
-    pass
     
     return render_template('clients/client_dashboard.html', 
                            clients=clients, 
@@ -56,12 +82,13 @@ def add_client():
     email = request.form.get('email')
     phone = request.form.get('phone')
     
-    # FIX: Get the correct field name from your HTML form
     billing_addr = request.form.get('billing_address')
     portal_access = 1 if request.form.get('portal_access') == 'on' else 0
-
-    # LOGIC: If address is empty, set a placeholder so DB doesn't crash
     safe_addr = billing_addr if billing_addr and billing_addr.strip() else "Address Pending"
+    
+    # Handle Photo upload
+    photo_file = request.files.get('client_photo') or request.files.get('photo')
+    photo_path = save_client_photo(photo_file, comp_id)
     
     from utils.db_utils import db_transaction
     with db_transaction() as cur:
@@ -74,20 +101,19 @@ def add_client():
         temp_pass = None
         
         if portal_access == 1:
-            # Generate secure random password
             alphabet = string.ascii_letters + string.digits
             temp_pass = ''.join(secrets.choice(alphabet) for i in range(10))
             hashed_pass = generate_password_hash(temp_pass)
 
-        # 1. Create Client (using billing_address & password_hash)
+        # 1. Create Client with photo
         cur.execute("""
-            INSERT INTO clients (company_id, name, email, phone, billing_address, status, password_hash, portal_access)
-            VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s)
+            INSERT INTO clients (company_id, name, email, phone, billing_address, status, password_hash, portal_access, photo)
+            VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s, %s)
             RETURNING id
-        """, (comp_id, name, email, phone, safe_addr, hashed_pass, portal_access))
+        """, (comp_id, name, email, phone, safe_addr, hashed_pass, portal_access, photo_path))
         new_id = cur.fetchone()[0]
         
-        # 2. Create First Property (using the same address as the 'Site Address')
+        # 2. Create First Property
         cur.execute("""
             INSERT INTO properties (company_id, client_id, address_line1, postcode, type, status)
             VALUES (%s, %s, %s, '', 'Property', 'Active')
@@ -99,7 +125,6 @@ def add_client():
         
         flash("✅ Client Added")
         
-        # 4. Trigger the background email task if portal access is enabled
         if portal_access == 1 and email and comp_row and comp_row[0]:
             subdomain = comp_row[0]
             company_name = comp_row[1]
@@ -131,21 +156,23 @@ def update_client():
     notes = request.form.get('notes')
     portal_access = 1 if request.form.get('portal_access') == 'on' else 0
 
+    photo_file = request.files.get('client_photo') or request.files.get('photo')
+    new_photo_path = save_client_photo(photo_file, comp_id)
+
     conn = get_db(); cur = conn.cursor()
     try:
-        # Check current portal access to see if it's being toggled ON
-        cur.execute("SELECT portal_access, password_hash FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
+        cur.execute("SELECT portal_access, password_hash, photo FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
         row = cur.fetchone()
         
         needs_password = False
         temp_pass = None
         hashed_pass = None
+        current_photo = row[2] if row else None
+        final_photo = new_photo_path if new_photo_path else current_photo
 
         if row:
             current_access = row[0]
             has_password = bool(row[1])
-            
-            # If they are enabling portal access and it was disabled OR they have no password yet
             if portal_access == 1 and (current_access == 0 or not has_password):
                 needs_password = True
                 
@@ -160,11 +187,10 @@ def update_client():
             
             cur.execute("""
                 UPDATE clients SET 
-                    name=%s, email=%s, phone=%s, status=%s, billing_address=%s, notes=%s, portal_access=%s, password_hash=%s
+                    name=%s, email=%s, phone=%s, status=%s, billing_address=%s, notes=%s, portal_access=%s, password_hash=%s, photo=%s
                 WHERE id=%s AND company_id=%s
-            """, (name, email, phone, status, billing_address, notes, portal_access, hashed_pass, client_id, comp_id))
+            """, (name, email, phone, status, billing_address, notes, portal_access, hashed_pass, final_photo, client_id, comp_id))
             
-            # Fetch Company Details to construct the portal URL
             cur.execute("SELECT COALESCE(sub_domain, subdomain), name FROM companies WHERE id = %s", (comp_id,))
             comp_row = cur.fetchone()
             
@@ -186,9 +212,9 @@ def update_client():
         else:
             cur.execute("""
                 UPDATE clients SET 
-                    name=%s, email=%s, phone=%s, status=%s, billing_address=%s, notes=%s, portal_access=%s
+                    name=%s, email=%s, phone=%s, status=%s, billing_address=%s, notes=%s, portal_access=%s, photo=%s
                 WHERE id=%s AND company_id=%s
-            """, (name, email, phone, status, billing_address, notes, portal_access, client_id, comp_id))
+            """, (name, email, phone, status, billing_address, notes, portal_access, final_photo, client_id, comp_id))
             flash("✅ Client updated successfully.")
 
         conn.commit()
@@ -213,35 +239,38 @@ def view_client(client_id):
     
     conn = get_db(); cur = conn.cursor()
     
-    # ✅ SECURITY FIX: Verify client belongs to user's company
+    # Ensure columns exist
+    cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS photo VARCHAR(255);")
+    cur.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS photo VARCHAR(255);")
+    conn.commit()
+    
+    # Verify client belongs to user's company
     cur.execute("SELECT company_id FROM clients WHERE id = %s", (client_id,))
     client_row = cur.fetchone()
     if not client_row or client_row[0] != comp_id:
-        pass
         return "Unauthorized: Client not found or belongs to different company", 403
     
-    
-    # 1. Fetch Client Details (With Billing & Notes)
+    # 1. Fetch Client Details (With Billing, Notes & Photo)
     cur.execute("""
-        SELECT id, name, email, phone, billing_address, notes 
+        SELECT id, name, email, phone, billing_address, notes, photo 
         FROM clients 
         WHERE id = %s AND company_id = %s
     """, (client_id, comp_id))
     client_row = cur.fetchone()
     
     if not client_row:
-        pass
         return "Client not found", 404
 
     client = {
         'id': client_row[0], 'name': client_row[1], 'email': client_row[2], 
-        'phone': client_row[3], 'billing_address': client_row[4], 'notes': client_row[5]
+        'phone': client_row[3], 'billing_address': client_row[4], 'notes': client_row[5],
+        'photo': client_row[6]
     }
 
-    # 2. Fetch Properties
+    # 2. Fetch Properties (Including Photo)
     cur.execute("""
         SELECT id, address_line1, postcode, city, tenant_name, tenant_phone, 
-               key_code, gas_expiry, eicr_expiry, pat_expiry, epc_expiry
+               key_code, gas_expiry, eicr_expiry, pat_expiry, epc_expiry, photo
         FROM properties 
         WHERE client_id = %s 
         ORDER BY address_line1
@@ -249,7 +278,7 @@ def view_client(client_id):
     
     properties = []
     cols = ['id', 'address_line1', 'postcode', 'city', 'tenant_name', 'tenant_phone', 
-            'key_code', 'gas_expiry', 'eicr_expiry', 'pat_expiry', 'epc_expiry']
+            'key_code', 'gas_expiry', 'eicr_expiry', 'pat_expiry', 'epc_expiry', 'photo']
             
     for row in cur.fetchall():
         properties.append(dict(zip(cols, row)))
@@ -270,8 +299,6 @@ def view_client(client_id):
     
     from utils.certificates import get_certificates_for_country
     certificates = get_certificates_for_country(country_code)
-    
-    pass
     
     return render_template('office/client_details.html', 
                            client=client, 
@@ -298,15 +325,20 @@ def add_property(client_id):
     
     gas = request.form.get('gas_expiry') or None
     eicr = request.form.get('eicr_expiry') or None
+    pat = request.form.get('pat_expiry') or None
+    epc = request.form.get('epc_expiry') or None
+    
+    photo_file = request.files.get('property_photo') or request.files.get('photo')
+    photo_path = save_property_photo(photo_file, comp_id)
     
     conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("""
-            INSERT INTO properties (company_id, client_id, address_line1, postcode, tenant_name, tenant_phone, tenant_email, key_code, gas_expiry, eicr_expiry)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (comp_id, client_id, addr, post, tenant, t_phone, t_email, key, gas, eicr))
+            INSERT INTO properties (company_id, client_id, address_line1, postcode, tenant_name, tenant_phone, tenant_email, key_code, gas_expiry, eicr_expiry, pat_expiry, epc_expiry, photo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (comp_id, client_id, addr, post, tenant, t_phone, t_email, key, gas, eicr, pat, epc, photo_path))
         conn.commit()
-        flash("✅ Property added.")
+        flash("✅ Property added successfully.")
     except Exception as e:
         conn.rollback(); flash(f"Error: {e}", "error")
     finally:
@@ -325,7 +357,7 @@ def view_property(property_id):
         SELECT p.id, p.address_line1, p.postcode, p.city, 
                p.tenant_name, p.tenant_phone, p.key_code,
                p.gas_expiry, p.eicr_expiry, p.pat_expiry, p.epc_expiry,
-               c.id, c.name, c.phone, c.email
+               c.id, c.name, c.phone, c.email, p.photo, p.tenant_email
         FROM properties p
         JOIN clients c ON p.client_id = c.id
         WHERE p.id = %s
@@ -333,13 +365,13 @@ def view_property(property_id):
     row = cur.fetchone()
     
     if not row:
-        pass
         return "Property not found", 404
 
     prop = {
         'id': row[0], 'address': row[1], 'postcode': row[2], 'city': row[3],
         'tenant': row[4], 'tenant_phone': row[5], 'key_code': row[6],
-        'gas': row[7], 'eicr': row[8], 'pat': row[9], 'epc': row[10]
+        'gas': row[7], 'eicr': row[8], 'pat': row[9], 'epc': row[10],
+        'photo': row[15], 'tenant_email': row[16]
     }
     client = {'id': row[11], 'name': row[12], 'phone': row[13], 'email': row[14]}
 
@@ -353,23 +385,20 @@ def view_property(property_id):
     
     jobs = []
     for j in cur.fetchall():
-        # --- THE FIX: Convert Text Date to Date Object ---
         raw_date = j[4]
         date_obj = None
         if raw_date:
             if isinstance(raw_date, str):
                 try:
-                    # Try timestamp format first (e.g. 2025-01-19 14:30:00)
-                    safe_str = raw_date.split('.')[0] # Remove milliseconds if present
+                    safe_str = raw_date.split('.')[0]
                     date_obj = datetime.strptime(safe_str, '%Y-%m-%d %H:%M:%S')
                 except (ValueError, TypeError):
                     try:
-                        # Try simple date format (e.g. 2025-01-19)
                         date_obj = datetime.strptime(raw_date, '%Y-%m-%d')
                     except:
-                        pass # Keep as None if fail
+                        pass
             else:
-                date_obj = raw_date # Already an object
+                date_obj = raw_date
 
         jobs.append({'id': j[0], 'ref': j[1], 'status': j[2], 'desc': j[3], 'date': date_obj})
 
@@ -398,8 +427,6 @@ def view_property(property_id):
     for d in cur.fetchall():
         prop_docs.append({'id': d[0], 'type': d[1], 'path': d[2], 'date': d[3], 'visible': d[4]})
 
-    pass
-    
     return render_template('office/property_details.html', prop=prop, client=client, jobs=jobs, certs=certs, prop_docs=prop_docs, today=date.today())
 
 @client_bp.route('/office/client/<int:client_id>/mass-email', methods=['POST'])
@@ -514,6 +541,7 @@ def delete_property_document(doc_id):
 def update_property():
     if 'user_id' not in session: return redirect(url_for('auth.login'))
     
+    comp_id = session.get('company_id')
     prop_id = request.form.get('property_id')
     client_id = request.form.get('client_id')
     
@@ -529,22 +557,33 @@ def update_property():
     pat = request.form.get('pat_expiry') or None
     epc = request.form.get('epc_expiry') or None
     
+    photo_file = request.files.get('property_photo') or request.files.get('photo')
+    new_photo = save_property_photo(photo_file, comp_id)
+    
     conn = get_db(); cur = conn.cursor()
     try:
-        cur.execute("""
-            UPDATE properties 
-            SET address_line1=%s, postcode=%s, tenant_name=%s, tenant_phone=%s, tenant_email=%s, key_code=%s,
-                gas_expiry=%s, eicr_expiry=%s, pat_expiry=%s, epc_expiry=%s
-            WHERE id=%s
-        """, (addr, post, tenant, t_phone, t_email, key, gas, eicr, pat, epc, prop_id))
+        if new_photo:
+            cur.execute("""
+                UPDATE properties 
+                SET address_line1=%s, postcode=%s, tenant_name=%s, tenant_phone=%s, tenant_email=%s, key_code=%s,
+                    gas_expiry=%s, eicr_expiry=%s, pat_expiry=%s, epc_expiry=%s, photo=%s
+                WHERE id=%s
+            """, (addr, post, tenant, t_phone, t_email, key, gas, eicr, pat, epc, new_photo, prop_id))
+        else:
+            cur.execute("""
+                UPDATE properties 
+                SET address_line1=%s, postcode=%s, tenant_name=%s, tenant_phone=%s, tenant_email=%s, key_code=%s,
+                    gas_expiry=%s, eicr_expiry=%s, pat_expiry=%s, epc_expiry=%s
+                WHERE id=%s
+            """, (addr, post, tenant, t_phone, t_email, key, gas, eicr, pat, epc, prop_id))
         conn.commit()
-        flash("✅ Property updated.")
+        flash("✅ Property updated successfully.")
     except Exception as e:
         conn.rollback(); flash(f"Error: {e}", "error")
     finally:
         pass
         
-    return redirect(url_for('client.view_client', client_id=client_id))
+    return redirect(url_for('client.view_client', client_id=client_id) if client_id else request.referrer)
 
 # =========================================================
 # 4. APIs & UTILITIES

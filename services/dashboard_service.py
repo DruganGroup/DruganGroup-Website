@@ -335,12 +335,12 @@ def get_office_dashboard_data(comp_id, user_date_fmt):
         'total': r[3], 'status': r[4], 'date': format_date(r[5], user_date_fmt)
     } for r in cur.fetchall()]
 
-    # Upcoming Jobs
+    # Upcoming & In Progress Jobs
     cur.execute("""
         SELECT j.id, j.ref, j.site_address, c.name, j.start_date, j.status 
         FROM jobs j 
         LEFT JOIN clients c ON j.client_id = c.id 
-        WHERE j.company_id = %s AND j.status = 'Scheduled' 
+        WHERE j.company_id = %s AND j.status IN ('Scheduled', 'In Progress') 
         ORDER BY j.start_date ASC LIMIT 5
     """, (comp_id,))
     upcoming_jobs = []
@@ -348,7 +348,8 @@ def get_office_dashboard_data(comp_id, user_date_fmt):
         fmt_full, day_num, month_abbr = process_date(r[4], user_date_fmt)
         upcoming_jobs.append({
             'id': r[0], 'ref': r[1], 'address': r[2], 'client_name': r[3],
-            'start_date_fmt': fmt_full, 'day': day_num, 'month': month_abbr
+            'start_date_fmt': fmt_full, 'day': day_num, 'month': month_abbr,
+            'status': r[5]
         })
 
     # Uninvoiced Jobs

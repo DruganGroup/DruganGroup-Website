@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="container-fluid p-0">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1 small">
@@ -13,17 +13,36 @@
                     <li class="breadcrumb-item active">{{ prop.address }}</li>
                 </ol>
             </nav>
-            <h2 class="fw-bold m-0">{{ prop.address }}</h2>
+            <h2 class="fw-bold m-0 text-dark">{{ prop.address }}</h2>
             <div class="text-muted"><i class="fas fa-map-marker-alt me-2"></i>{{ prop.postcode }}</div>
         </div>
         <div class="d-flex gap-2">
             <button class="btn btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#editPropModal">
-                <i class="fas fa-edit me-2"></i>{{ _('Edit') }} </button>
+                <i class="fas fa-edit me-2"></i>{{ _('Edit Property') }}
+            </button>
             <a href="/client/{{ client.id }}" class="btn btn-outline-secondary fw-bold">
-                <i class="fas fa-arrow-left me-2"></i>Back
+                <i class="fas fa-arrow-left me-2"></i>Back to Client
             </a>
         </div>
     </div>
+
+    <!-- Property Photo Banner Card if available -->
+    {% if prop.photo %}
+    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden position-relative">
+        <div class="ratio ratio-21x9 bg-light">
+            <img src="/static/{{ prop.photo }}" class="w-100 h-100 object-fit-cover" alt="{{ prop.address }}">
+        </div>
+        <div class="position-absolute bottom-0 start-0 end-0 p-3 bg-dark bg-opacity-75 text-white d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="fw-bold m-0 text-white">{{ prop.address }}</h4>
+                <small class="opacity-75">{{ prop.postcode }} &bull; {{ client.name }}</small>
+            </div>
+            <button class="btn btn-sm btn-light fw-bold" data-bs-toggle="modal" data-bs-target="#editPropModal">
+                <i class="fas fa-camera me-1"></i> Change Photo
+            </button>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="row g-4">
         <div class="col-lg-4">
@@ -190,33 +209,42 @@
 
 <div class="modal fade" id="editPropModal" tabindex="-1">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <form action="/office/property/update" method="POST">
-			<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="modal-header bg-dark text-white"><h5 class="modal-title fw-bold">Edit Property</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
-                <div class="modal-body">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <form action="/office/property/update" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-home me-2"></i>Edit Property</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
                     <input type="hidden" name="property_id" value="{{ prop.id }}">
                     <input type="hidden" name="client_id" value="{{ client.id }}">
                     
-                    <div class="mb-2"><label class="small fw-bold">{{ _('Address') }}</label><input type="text" name="address" class="form-control" value="{{ prop.address }}" required></div>
-                    <div class="mb-3"><label class="small fw-bold">Postcode</label><input type="text" name="postcode" class="form-control" value="{{ prop.postcode }}" required></div>
+                    <div class="mb-2"><label class="small fw-bold text-muted">{{ _('Address') }}</label><input type="text" name="address" class="form-control fw-bold" value="{{ prop.address }}" required></div>
+                    <div class="mb-3"><label class="small fw-bold text-muted">Postcode</label><input type="text" name="postcode" class="form-control" value="{{ prop.postcode }}" required></div>
                     
+                    <div class="mb-3">
+                        <label class="small fw-bold text-muted">House / Apartment Photo</label>
+                        <input type="file" name="property_photo" class="form-control" accept="image/*">
+                        <small class="text-muted" style="font-size: 0.75rem;">Upload new photo to replace current picture</small>
+                    </div>
+
                     <div class="row g-2 mb-3">
-                        <div class="col-6"><label class="small fw-bold">Tenant Name</label><input type="text" name="tenant_name" class="form-control" value="{{ prop.tenant or '' }}"></div>
-                        <div class="col-6"><label class="small fw-bold">Tenant Phone</label><input type="text" name="tenant_phone" class="form-control" value="{{ prop.tenant_phone or '' }}"></div>
-                        <div class="col-6"><label class="small fw-bold">Tenant Email</label><input type="email" name="tenant_email" class="form-control" value="{{ prop.tenant_email or '' }}"></div>
-                        <div class="col-6"><label class="small fw-bold">Key Code</label><input type="text" name="key_code" class="form-control" value="{{ prop.key_code or '' }}"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">Tenant Name</label><input type="text" name="tenant_name" class="form-control" value="{{ prop.tenant or '' }}"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">Tenant Phone</label><input type="text" name="tenant_phone" class="form-control" value="{{ prop.tenant_phone or '' }}"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">Tenant Email</label><input type="email" name="tenant_email" class="form-control" value="{{ prop.tenant_email or '' }}"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">Key Code</label><input type="text" name="key_code" class="form-control" value="{{ prop.key_code or '' }}"></div>
                     </div>
                     
-                    <h6 class="fw-bold text-danger border-top pt-3">Compliance</h6>
+                    <h6 class="fw-bold text-danger border-top pt-3 mb-2"><i class="fas fa-certificate me-1"></i> Compliance</h6>
                     <div class="row g-2">
-                        <div class="col-6"><label class="small fw-bold">Gas Safety</label><input type="date" name="gas_expiry" class="form-control" value="{{ prop.gas }}"></div>
-                        <div class="col-6"><label class="small fw-bold">EICR</label><input type="date" name="eicr_expiry" class="form-control" value="{{ prop.eicr }}"></div>
-                        <div class="col-6"><label class="small fw-bold">PAT</label><input type="date" name="pat_expiry" class="form-control" value="{{ prop.pat }}"></div>
-                        <div class="col-6"><label class="small fw-bold">EPC</label><input type="date" name="epc_expiry" class="form-control" value="{{ prop.epc }}"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">Gas Safety (CP12)</label><input type="date" name="gas_expiry" class="form-control" value="{{ prop.gas }}"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">EICR</label><input type="date" name="eicr_expiry" class="form-control" value="{{ prop.eicr }}"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">PAT</label><input type="date" name="pat_expiry" class="form-control" value="{{ prop.pat }}"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">EPC</label><input type="date" name="epc_expiry" class="form-control" value="{{ prop.epc }}"></div>
                     </div>
                 </div>
-                <div class="modal-footer"><button type="submit" class="btn btn-primary fw-bold">Save Changes</button></div>
+                <div class="modal-footer bg-light"><button type="submit" class="btn btn-primary fw-bold px-4">Save Changes</button></div>
             </form>
         </div>
     </div>

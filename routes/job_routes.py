@@ -607,3 +607,31 @@ def save_job_action():
         new_job_id = cur.fetchone()[0]
         flash(f"✅ Job {ref} Created Successfully", "success")
         return redirect(f"/office/job/{new_job_id}/files")
+
+@jobs_bp.route('/office/job/<int:job_id>/status', methods=['POST'])
+def update_job_status(job_id):
+    if 'user_id' not in session: return redirect(url_for('auth.login'))
+    comp_id = session.get('company_id')
+    new_status = request.form.get('status')
+    valid_statuses = ['Unscheduled', 'Scheduled', 'In Progress', 'Completed', 'Pending']
+    if new_status in valid_statuses:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("UPDATE jobs SET status = %s WHERE id = %s AND company_id = %s", (new_status, job_id, comp_id))
+        conn.commit()
+        flash(f"✅ Job status updated to {new_status}", "success")
+    return redirect(f"/office/job/{job_id}/files")
+
+@jobs_bp.route('/api/job/<int:job_id>/status', methods=['POST'])
+def api_update_job_status(job_id):
+    if 'user_id' not in session: return jsonify({'error': 'Unauthorized'}), 401
+    comp_id = session.get('company_id')
+    data = request.get_json(silent=True) or request.form
+    new_status = data.get('status')
+    valid_statuses = ['Unscheduled', 'Scheduled', 'In Progress', 'Completed', 'Pending']
+    if new_status in valid_statuses:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("UPDATE jobs SET status = %s WHERE id = %s AND company_id = %s", (new_status, job_id, comp_id))
+        conn.commit()
+        return jsonify({'success': True, 'status': new_status})
+    return jsonify({'error': 'Invalid status'}), 400
+

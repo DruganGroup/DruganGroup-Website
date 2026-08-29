@@ -24,6 +24,7 @@
         </div>
         <div class="bg-white px-3 py-2 rounded-pill shadow-sm small border">
             <span class="me-3"><i class="fas fa-circle text-primary me-1"></i> Scheduled</span>
+            <span class="me-3"><i class="fas fa-circle text-warning me-1"></i> In Progress</span>
             <span class="me-3"><i class="fas fa-circle text-success me-1"></i> Completed</span>
         </div>
     </div>
@@ -185,6 +186,13 @@
             headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listWeek' },
             editable: true, droppable: true,
             events: '/office/calendar/data',
+            
+            eventClick: function(info) {
+                if (info.event.id) {
+                    window.location.href = '/office/job/' + info.event.id + '/files';
+                    info.jsEvent.preventDefault();
+                }
+            },
             
             eventReceive: function(info) {
                 document.getElementById('modalJobId').value = info.event.id;
