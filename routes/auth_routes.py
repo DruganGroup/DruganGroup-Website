@@ -484,13 +484,20 @@ def test_email_connection():
             settings = {
                 'smtp_host': request.form.get('smtp_host', '').strip(),
                 'smtp_port': request.form.get('smtp_port', '').strip(),
-                'smtp_email': request.form.get('smtp_email', '').strip()
+                'smtp_email': request.form.get('smtp_email', '').strip(),
+                'imap_server': request.form.get('imap_server', '').strip(),
+                'imap_port': request.form.get('imap_port', '').strip(),
+                'imap_user': request.form.get('imap_user', '').strip()
             }
             
-            # Encrypt the password before it hits the database
-            raw_pass = request.form.get('smtp_password', '')
-            if raw_pass:
-                settings['smtp_password'] = encryptor.encrypt(raw_pass)
+            # Encrypt the passwords before they hit the database
+            raw_smtp_pass = request.form.get('smtp_password', '')
+            if raw_smtp_pass and raw_smtp_pass.strip() != "" and raw_smtp_pass != "********":
+                settings['smtp_password'] = encryptor.encrypt(raw_smtp_pass.strip())
+
+            raw_imap_pass = request.form.get('imap_password', '')
+            if raw_imap_pass and raw_imap_pass.strip() != "" and raw_imap_pass != "********":
+                settings['imap_password'] = encryptor.encrypt(raw_imap_pass.strip())
 
             # Loop through and update the database records
             for key, val in settings.items():
@@ -509,31 +516,40 @@ def test_email_connection():
         finally:
             pass
 
-    # --- PHASE 2: BUILD THE TEST EMAIL ---
+    # --- PHASE 2: TEST IMAP CONNECTION (IF CONFIGURED) ---
+    imap_status_msg = ""
+    if settings.get('imap_server') and settings.get('imap_user'):
+        from services.imap_engine import test_imap_connection
+        imap_ok, imap_res = test_imap_connection(company_id)
+        if imap_ok:
+            imap_status_msg = " | IMAP connected successfully! 📥"
+        else:
+            imap_status_msg = f" | ⚠️ IMAP Notice: {imap_res}"
+
+    # --- PHASE 3: BUILD THE TEST EMAIL ---
     # Try to send the test to the logged-in user, fallback to the SMTP email itself
-    recipient = session.get('user_email') or settings['smtp_email']
+    recipient = session.get('user_email') or settings.get('smtp_email')
 
-    # Create a nice-looking HTML receipt for the test
-    html_content = """
-    <div style="font-family: sans-serif; text-align: center; padding: 30px; border: 1px solid #eaeaea; border-radius: 8px;">
-        <h2 style="color: #c5a059;">✅ Connection Successful!</h2>
-        <p style="color: #555;">Your workspace is now securely connected to your email server.</p>
-        <p style="color: #555;">Invoices, quotes, and system communications will now be sent directly from your domain in the background.</p>
-    </div>
-    """
+    if settings.get('smtp_host') and recipient:
+        html_content = """
+        <div style="font-family: sans-serif; text-align: center; padding: 30px; border: 1px solid #eaeaea; border-radius: 8px;">
+            <h2 style="color: #c5a059;">✅ Connection Successful!</h2>
+            <p style="color: #555;">Your workspace is now securely connected to your email server.</p>
+            <p style="color: #555;">Invoices, quotes, and client communications will now sync directly with your domain.</p>
+        </div>
+        """
 
-    # --- PHASE 3: THE CELERY HANDOFF ---
-    # Instead of freezing the web page to send the email, we pass the data 
-    # to the background worker using .delay()
-    send_tenant_email_task.delay(
-        company_id=company_id,
-        recipient_email=recipient,
-        subject="Test Connection Successful 🚀",
-        body_html=html_content
-    )
+        send_tenant_email_task.delay(
+            company_id=company_id,
+            recipient_email=recipient,
+            subject="Test Connection Successful 🚀",
+            body_html=html_content
+        )
 
-    # Instantly reload the settings page for the user
-    flash(_("🔄 Keys saved! A test email has been queued to {recipient}. Check your inbox in a moment.").format(recipient=recipient), "success")
+        flash(_("🔄 Settings saved! A test email has been queued to {recipient}{imap_info}.").format(recipient=recipient, imap_info=imap_status_msg), "success")
+    else:
+        flash(_("🔄 Settings saved successfully!{imap_info}").format(imap_info=imap_status_msg), "success")
+    
     return redirect(request.referrer)
 
 def create_pending_account(data):

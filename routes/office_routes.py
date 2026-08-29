@@ -616,34 +616,68 @@ def inbox():
     conn = get_db(); cur = conn.cursor()
     
     try:
-        # Ensure folder column exists
+        # Ensure table and columns exist
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS emails (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER,
+                msg_id VARCHAR(255),
+                sender VARCHAR(255),
+                recipient VARCHAR(255),
+                subject VARCHAR(255),
+                body TEXT,
+                date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                client_id INTEGER,
+                status VARCHAR(50) DEFAULT 'Unread',
+                folder VARCHAR(20) DEFAULT 'Inbox',
+                UNIQUE(company_id, msg_id)
+            )
+        """)
         cur.execute("ALTER TABLE emails ADD COLUMN IF NOT EXISTS folder VARCHAR(20) DEFAULT 'Inbox';")
+        cur.execute("ALTER TABLE emails ADD COLUMN IF NOT EXISTS recipient VARCHAR(255);")
         conn.commit()
         
         cur.execute("""
-            SELECT id, msg_id, sender, subject, body, date, client_id, status 
-            FROM emails 
-            WHERE company_id = %s AND folder = %s 
-            ORDER BY date DESC LIMIT 50
+            SELECT e.id, e.msg_id, e.sender, e.recipient, e.subject, e.body, e.date, e.client_id, e.status, e.folder, c.name as client_name
+            FROM emails e
+            LEFT JOIN clients c ON e.client_id = c.id
+            WHERE e.company_id = %s AND e.folder = %s 
+            ORDER BY e.date DESC LIMIT 100
         """, (comp_id, folder))
         
         emails = []
         for r in cur.fetchall():
             emails.append({
-                'id': r[0], 'msg_id': r[1], 'sender': r[2], 'subject': r[3],
-                'body': r[4], 'date': r[5], 'client_id': r[6], 'status': r[7]
+                'id': r[0], 'msg_id': r[1], 'sender': r[2], 'recipient': r[3], 'subject': r[4],
+                'body': r[5], 'date': r[6], 'client_id': r[7], 'status': r[8], 'folder': r[9],
+                'client_name': r[10]
             })
             
-        # Get counts
+        # Get folder counts
         cur.execute("SELECT COUNT(*) FROM emails WHERE company_id = %s AND folder = 'Inbox'", (comp_id,))
         inbox_count = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM emails WHERE company_id = %s AND folder = 'Sent'", (comp_id,))
+        sent_count = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM emails WHERE company_id = %s AND folder = 'Drafts'", (comp_id,))
+        drafts_count = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM emails WHERE company_id = %s AND folder = 'Trash'", (comp_id,))
+        trash_count = cur.fetchone()[0]
     except Exception as e:
+        print(f"Error in office.inbox: {e}")
         emails = []
-        inbox_count = 0
+        inbox_count = sent_count = drafts_count = trash_count = 0
     finally:
         pass
         
-    return render_template('office/inbox.html', emails=emails, current_folder=folder, inbox_count=inbox_count)
+    return render_template(
+        'office/inbox.html',
+        emails=emails,
+        current_folder=folder,
+        inbox_count=inbox_count,
+        sent_count=sent_count,
+        drafts_count=drafts_count,
+        trash_count=trash_count
+    )
 
 @office_bp.route('/office/api/client_files')
 def api_client_files():
@@ -657,7 +691,7 @@ def api_client_files():
     
     try:
         # Find client_id by email
-        cur.execute("SELECT id FROM clients WHERE email = %s AND company_id = %s", (email, comp_id))
+        cur.execute("SELECT id FROM clients WHERE LOWER(email) = LOWER(%s) AND company_id = %s", (email.strip(), comp_id))
         client_row = cur.fetchone()
         
         if not client_row:
@@ -676,7 +710,6 @@ def api_client_files():
         
         files = []
         for r in cur.fetchall():
-            # Extract filename from path
             path = r[2] or ""
             filename = path.split('/')[-1] if '/' in path else path
             files.append({
@@ -698,11 +731,14 @@ def sync_emails():
     if not check_office_access(): return redirect(url_for('auth.login'))
     comp_id = session.get('company_id')
     from services.imap_engine import fetch_emails
-    fetched = fetch_emails(comp_id)
-    if fetched:
-        flash(f"Successfully synced {len(fetched)} new emails.", "success")
+    result = fetch_emails(comp_id)
+    if result.get('success'):
+        if result.get('count', 0) > 0:
+            flash(f"✅ Successfully synced {result['count']} new email(s) from IMAP.", "success")
+        else:
+            flash("Inbox is up to date (no new unread emails found).", "info")
     else:
-        flash("No new emails found or IMAP not configured.", "info")
+        flash(f"⚠️ {result.get('message', 'IMAP sync failed.')}", "warning")
     return redirect(url_for('office.inbox'))
 
 @office_bp.route('/office/api/email/<int:email_id>/summarize')
@@ -775,12 +811,33 @@ def send_office_email():
     if not check_office_access(): return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
-    to_email = request.form.get('to_email')
-    subject = request.form.get('subject')
-    body = request.form.get('body')
+    to_email = (request.form.get('to_email') or '').strip()
+    subject = (request.form.get('subject') or '').strip()
+    body = (request.form.get('body') or '').strip()
+    action = request.form.get('action', 'send')
     
-    if not to_email or not subject or not body:
-        flash("❌ All fields are required to send an email.", "error")
+    if not to_email:
+        flash("❌ Recipient email address is required.", "error")
+        return redirect(url_for('office.inbox'))
+
+    # If user wants to save as draft
+    if action == 'save_draft':
+        conn = get_db(); cur = conn.cursor()
+        try:
+            import time, uuid
+            msg_id = f"draft-{int(time.time())}-{uuid.uuid4().hex[:8]}"
+            cur.execute("""
+                INSERT INTO emails (company_id, msg_id, sender, recipient, subject, body, date, status, folder)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW(), 'Read', 'Drafts')
+            """, (comp_id, msg_id, "You", to_email, subject or "(No Subject)", body))
+            conn.commit()
+            flash("📝 Draft saved successfully.", "success")
+        except Exception as e:
+            flash(f"Error saving draft: {e}", "error")
+        return redirect(url_for('office.inbox', folder='Drafts'))
+        
+    if not subject or not body:
+        flash("❌ Subject and message body are required to send an email.", "error")
         return redirect(url_for('office.inbox'))
         
     # Check for attachments
@@ -799,7 +856,6 @@ def send_office_email():
         local_file.save(temp_path)
         attachment_path = temp_path
     elif db_file_path:
-        # Convert web path to absolute path
         clean_path = db_file_path.lstrip('/')
         if clean_path.startswith('static/'):
             clean_path = clean_path.replace('static/', '', 1)
@@ -809,33 +865,54 @@ def send_office_email():
     success, msg = send_company_email(comp_id, to_email, subject, body, pdf_path=attachment_path)
     
     if success:
-        # Log to 'Sent' folder
-        conn = get_db(); cur = conn.cursor()
-        try:
-            # Ensure folder column exists
-            cur.execute("ALTER TABLE emails ADD COLUMN IF NOT EXISTS folder VARCHAR(20) DEFAULT 'Inbox';")
-            
-            # Try to find client_id
-            cur.execute("SELECT id FROM clients WHERE email = %s AND company_id = %s", (to_email, comp_id))
-            client_row = cur.fetchone()
-            client_id = client_row[0] if client_row else None
-            
-            from datetime import datetime
-            cur.execute("""
-                INSERT INTO emails (company_id, msg_id, sender, subject, body, date, client_id, status, folder)
-                VALUES (%s, %s, %s, %s, %s, NOW(), %s, 'Read', 'Sent')
-            """, (comp_id, f"sent-{datetime.now().timestamp()}", "You", subject, body, client_id))
-            conn.commit()
-        except Exception as e:
-            print(f"Error logging sent email: {e}")
-        finally:
-            pass
-            
         flash("✅ Email sent successfully!", "success")
     else:
         flash(f"❌ {msg}", "error")
         
     return redirect(url_for('office.inbox'))
+
+@office_bp.route('/office/api/email/<int:email_id>/move', methods=['POST'])
+def api_email_move(email_id):
+    if not check_office_access(): return jsonify({'error': 'Unauthorized'}), 401
+    comp_id = session.get('company_id')
+    data = request.get_json(silent=True) or {}
+    target_folder = data.get('folder', 'Trash')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT folder FROM emails WHERE id = %s AND company_id = %s", (email_id, comp_id))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({'error': 'Email not found'}), 404
+            
+        current_f = row[0]
+        if target_folder == 'delete_permanent' or (current_f == 'Trash' and target_folder == 'Trash'):
+            cur.execute("DELETE FROM emails WHERE id = %s AND company_id = %s", (email_id, comp_id))
+            conn.commit()
+            return jsonify({'success': True, 'action': 'deleted'})
+        else:
+            cur.execute("UPDATE emails SET folder = %s WHERE id = %s AND company_id = %s", (target_folder, email_id, comp_id))
+            conn.commit()
+            return jsonify({'success': True, 'action': 'moved', 'folder': target_folder})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@office_bp.route('/office/api/email/<int:email_id>/status', methods=['POST'])
+def api_email_status(email_id):
+    if not check_office_access(): return jsonify({'error': 'Unauthorized'}), 401
+    comp_id = session.get('company_id')
+    data = request.get_json(silent=True) or {}
+    new_status = data.get('status', 'Read')
+    
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("UPDATE emails SET status = %s WHERE id = %s AND company_id = %s", (new_status, email_id, comp_id))
+        conn.commit()
+        return jsonify({'success': True, 'status': new_status})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
 
 @office_bp.route('/api/document/<string:table_name>/<int:doc_id>/toggle-visibility', methods=['POST'])
 def api_toggle_document_visibility(table_name, doc_id):

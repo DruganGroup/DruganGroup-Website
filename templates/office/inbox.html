@@ -4,16 +4,16 @@
 
 {% block content %}
 <div class="container-fluid p-0">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
             <h2 class="fw-bold m-0"><i class="fas fa-envelope-open-text text-primary me-2"></i> Communications Hub</h2>
-            <p class="text-muted mb-0 small">Manage your client emails and AI interactions</p>
+            <p class="text-muted mb-0 small">Client email inbox and communications (IMAP/SMTP enabled)</p>
         </div>
-        <div>
-            <a href="{{ url_for('office.sync_emails') }}" class="btn btn-outline-dark fw-bold shadow-sm">
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('office.sync_emails') }}" class="btn btn-outline-dark fw-bold shadow-sm" title="Fetch latest emails from IMAP server">
                 <i class="fas fa-sync-alt me-1"></i> Sync IMAP
             </a>
-            <button class="btn btn-primary fw-bold shadow-sm ms-2" data-bs-toggle="modal" data-bs-target="#composeModal">
+            <button class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#composeModal" onclick="openNewCompose()">
                 <i class="fas fa-pen me-1"></i> Compose
             </button>
         </div>
@@ -23,28 +23,31 @@
         <!-- Folders Sidebar -->
         <div class="col-md-3 col-lg-2">
             <div class="list-group shadow-sm border-0 rounded-3">
-                <a href="{{ url_for('office.inbox', folder='Inbox') }}" class="list-group-item list-group-item-action {% if current_folder == 'Inbox' %}active text-primary bg-white border-primary border-start border-4{% else %}text-muted border-0{% endif %} fw-bold py-3" aria-current="true">
+                <a href="{{ url_for('office.inbox', folder='Inbox') }}" class="list-group-item list-group-item-action {% if current_folder == 'Inbox' %}active text-primary bg-white border-primary border-start border-4{% else %}text-muted border-0{% endif %} fw-bold py-3">
                     <i class="fas fa-inbox me-2"></i> Inbox
-                    {% if current_folder == 'Inbox' %}
-                    <span class="badge bg-primary-subtle text-primary rounded-pill float-end">{{ inbox_count }}</span>
-                    {% endif %}
+                    <span class="badge {% if current_folder == 'Inbox' %}bg-primary text-white{% else %}bg-secondary-subtle text-secondary{% endif %} rounded-pill float-end">{{ inbox_count }}</span>
                 </a>
                 <a href="{{ url_for('office.inbox', folder='Sent') }}" class="list-group-item list-group-item-action {% if current_folder == 'Sent' %}active text-primary bg-white border-primary border-start border-4{% else %}text-muted border-0{% endif %} fw-bold py-3">
                     <i class="fas fa-paper-plane me-2"></i> Sent
+                    <span class="badge {% if current_folder == 'Sent' %}bg-primary text-white{% else %}bg-secondary-subtle text-secondary{% endif %} rounded-pill float-end">{{ sent_count }}</span>
                 </a>
                 <a href="{{ url_for('office.inbox', folder='Drafts') }}" class="list-group-item list-group-item-action {% if current_folder == 'Drafts' %}active text-primary bg-white border-primary border-start border-4{% else %}text-muted border-0{% endif %} fw-bold py-3">
                     <i class="fas fa-file-alt me-2"></i> Drafts
+                    <span class="badge {% if current_folder == 'Drafts' %}bg-primary text-white{% else %}bg-secondary-subtle text-secondary{% endif %} rounded-pill float-end">{{ drafts_count }}</span>
                 </a>
                 <a href="{{ url_for('office.inbox', folder='Trash') }}" class="list-group-item list-group-item-action {% if current_folder == 'Trash' %}active text-primary bg-white border-primary border-start border-4{% else %}text-muted border-0{% endif %} fw-bold py-3">
                     <i class="fas fa-trash me-2"></i> Trash
+                    <span class="badge {% if current_folder == 'Trash' %}bg-primary text-white{% else %}bg-secondary-subtle text-secondary{% endif %} rounded-pill float-end">{{ trash_count }}</span>
                 </a>
             </div>
             
             <div class="mt-4 p-3 bg-light rounded-3 border">
-                <h6 class="fw-bold small text-uppercase text-muted mb-3">AI Assistants</h6>
+                <h6 class="fw-bold small text-uppercase text-muted mb-2"><i class="fas fa-robot me-1 text-primary"></i> AI Assistant</h6>
+                <p class="small text-muted mb-3" style="font-size: 0.75rem;">AI summarization and reply auto-drafting are active for this workspace.</p>
                 <div class="d-grid gap-2">
-                    <button class="btn btn-sm btn-outline-success fw-bold text-start"><i class="fas fa-robot me-2"></i> Auto-Sort Emails</button>
-                    <button class="btn btn-sm btn-outline-info fw-bold text-start"><i class="fas fa-magic me-2"></i> Summarize Unread</button>
+                    <a href="{{ url_for('finance.settings_tab', tab='integrations') }}" class="btn btn-sm btn-outline-secondary fw-bold text-start" style="font-size: 0.75rem;">
+                        <i class="fas fa-cog me-1"></i> Email Settings
+                    </a>
                 </div>
             </div>
         </div>
@@ -52,28 +55,43 @@
         <!-- Emails List / View Area -->
         <div class="col-md-9 col-lg-10">
             <div class="card shadow-sm border-0 h-100 rounded-3">
-                <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="m-0 fw-bold">Inbox</h5>
-                    <div class="input-group" style="width: 250px;">
+                <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h5 class="m-0 fw-bold">
+                        {% if current_folder == 'Inbox' %}<i class="fas fa-inbox text-primary me-2"></i>Inbox
+                        {% elif current_folder == 'Sent' %}<i class="fas fa-paper-plane text-success me-2"></i>Sent Messages
+                        {% elif current_folder == 'Drafts' %}<i class="fas fa-file-alt text-warning me-2"></i>Drafts
+                        {% elif current_folder == 'Trash' %}<i class="fas fa-trash text-danger me-2"></i>Trash
+                        {% else %}{{ current_folder }}{% endif %}
+                    </h5>
+                    <div class="input-group" style="width: 280px;">
                         <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
-                        <input type="text" class="form-control bg-light border-start-0" placeholder="Search emails...">
+                        <input type="text" id="emailSearchInput" class="form-control bg-light border-start-0" placeholder="Search emails..." onkeyup="filterEmailList()">
                     </div>
                 </div>
                 
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush" id="emailList">
                         {% for email in emails %}
-                        <div class="list-group-item list-group-item-action p-3 border-bottom email-row position-relative" style="cursor: pointer;" onclick="openEmailModal({{ email.id }})">
+                        <div class="list-group-item list-group-item-action p-3 border-bottom email-row position-relative {% if email.status == 'Unread' %}bg-primary-subtle bg-opacity-25 fw-semibold{% endif %}" 
+                             style="cursor: pointer;" 
+                             onclick="openEmailModal({{ email.id }})"
+                             id="email-item-{{ email.id }}">
                             <div class="row align-items-center">
-                                <div class="col-md-3 col-sm-4 mb-2 mb-md-0 text-truncate">
-                                    <span class="fw-bold text-dark">{{ email.sender }}</span>
+                                <div class="col-md-3 col-sm-4 mb-1 mb-md-0 text-truncate">
+                                    {% if current_folder == 'Sent' or current_folder == 'Drafts' %}
+                                        <span class="text-muted small fw-normal">To:</span> <span class="fw-bold text-dark">{{ email.recipient or 'Unknown' }}</span>
+                                    {% else %}
+                                        <span class="fw-bold text-dark">{{ email.sender }}</span>
+                                    {% endif %}
                                 </div>
-                                <div class="col-md-6 col-sm-8 mb-2 mb-md-0 text-truncate">
-                                    <span class="fw-bold text-dark me-2">{{ email.subject }}</span>
-                                    <span class="text-muted small">{{ email.body[:60] }}...</span>
+                                <div class="col-md-6 col-sm-8 mb-1 mb-md-0 text-truncate">
+                                    <span class="fw-bold text-dark me-2">{{ email.subject or '(No Subject)' }}</span>
+                                    <span class="text-muted small">{{ email.body[:80] if email.body else '' }}...</span>
                                 </div>
                                 <div class="col-md-3 text-md-end text-muted small">
-                                    {% if email.client_id %}
+                                    {% if email.client_name %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle me-2" title="Matched Client"><i class="fas fa-user-check"></i> {{ email.client_name }}</span>
+                                    {% elif email.client_id %}
                                     <span class="badge bg-success-subtle text-success border border-success-subtle me-2"><i class="fas fa-user-check"></i> {{ _('Client') }}</span>
                                     {% endif %}
                                     {{ email.date.strftime('%d %b %H:%M') if email.date else '' }}
@@ -82,17 +100,29 @@
                             
                             <!-- Hidden Data for Modal -->
                             <div id="email-data-{{ email.id }}" class="d-none" 
+                                 data-id="{{ email.id }}"
                                  data-sender="{{ email.sender }}"
-                                 data-subject="{{ email.subject }}"
+                                 data-recipient="{{ email.recipient or '' }}"
+                                 data-subject="{{ email.subject or '' }}"
                                  data-date="{{ email.date.strftime('%d %b %Y %H:%M') if email.date else '' }}"
-                                 data-body="{{ email.body|forceescape }}">
+                                 data-body="{{ email.body|forceescape }}"
+                                 data-folder="{{ email.folder }}"
+                                 data-status="{{ email.status }}">
                             </div>
                         </div>
                         {% else %}
                         <div class="p-5 text-center text-muted">
                             <div class="mb-3"><i class="fas fa-envelope-open fa-4x text-light"></i></div>
-                            <h5 class="fw-bold text-dark">You're all caught up!</h5>
-                            <p>No new emails in your inbox.</p>
+                            <h5 class="fw-bold text-dark">
+                                {% if current_folder == 'Inbox' %}You're all caught up!
+                                {% elif current_folder == 'Sent' %}No sent emails recorded yet.
+                                {% elif current_folder == 'Drafts' %}No saved drafts.
+                                {% elif current_folder == 'Trash' %}Trash is empty.
+                                {% else %}No emails found.{% endif %}
+                            </h5>
+                            <p class="small text-muted">
+                                {% if current_folder == 'Inbox' %}Click "Sync IMAP" above to pull your latest emails.{% endif %}
+                            </p>
                         </div>
                         {% endfor %}
                     </div>
@@ -107,26 +137,27 @@
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header border-bottom-0 pb-0">
-                <h4 class="modal-title fw-bold" id="modalSubject">Subject</h4>
+                <h4 class="modal-title fw-bold text-break" id="modalSubject">Subject</h4>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body pt-3">
-                <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
+                <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom flex-wrap gap-2">
                     <div class="d-flex align-items-center">
                         <div class="bg-secondary text-white rounded-circle d-flex justify-content-center align-items-center fw-bold fs-5 me-3" style="width: 45px; height: 45px;" id="modalAvatar">
                             ?
                         </div>
                         <div>
-                            <div class="fw-bold" id="modalSender">Sender Name</div>
+                            <div class="fw-bold text-dark" id="modalSender">Sender Name</div>
+                            <div class="text-muted small" id="modalRecipient"></div>
                             <div class="text-muted small" id="modalDate">Date</div>
                         </div>
                     </div>
-                    <div>
+                    <div class="d-flex gap-2">
                         <button class="btn btn-sm btn-outline-primary fw-bold" onclick="summarizeEmail()"><i class="fas fa-robot me-1"></i> AI Summary</button>
                     </div>
                 </div>
                 
-                <div id="modalBody" class="text-dark" style="white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6;">
+                <div id="modalBody" class="text-dark p-2" style="white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6; word-break: break-word;">
                     Loading...
                 </div>
                 
@@ -135,15 +166,23 @@
                     <div id="aiSummaryContent" class="small text-dark">Summarizing...</div>
                 </div>
                 
-                <div id="aiDraftBox" class="mt-4 d-none">
-                    <h6 class="fw-bold text-success mb-2"><i class="fas fa-pen-fancy me-1"></i> AI Drafted Reply</h6>
-                    <textarea class="form-control" rows="5" id="aiDraftContent"></textarea>
+                <div id="aiDraftBox" class="mt-4 p-3 bg-success-subtle border border-success-subtle rounded-3 d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold text-success m-0"><i class="fas fa-pen-fancy me-1"></i> AI Drafted Reply</h6>
+                        <button type="button" class="btn btn-sm btn-success fw-bold" onclick="useDraftInReply()"><i class="fas fa-reply me-1"></i> Use In Reply</button>
+                    </div>
+                    <textarea class="form-control bg-white" rows="6" id="aiDraftContent"></textarea>
                 </div>
             </div>
-            <div class="modal-footer border-top-0 pt-0">
-                <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-outline-success fw-bold" onclick="draftReply()"><i class="fas fa-magic me-1"></i> Auto-Draft Reply</button>
-                <button type="button" class="btn btn-dark fw-bold"><i class="fas fa-reply me-1"></i> Reply Manually</button>
+            <div class="modal-footer border-top-0 pt-0 d-flex justify-content-between">
+                <div>
+                    <button type="button" class="btn btn-outline-danger fw-bold" id="modalTrashBtn" onclick="trashCurrentEmail()"><i class="fas fa-trash me-1"></i> Delete</button>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-outline-success fw-bold" onclick="draftReply()"><i class="fas fa-magic me-1"></i> Auto-Draft Reply</button>
+                    <button type="button" class="btn btn-dark fw-bold" onclick="replyCurrentEmail()"><i class="fas fa-reply me-1"></i> Reply Manually</button>
+                </div>
             </div>
         </div>
     </div>
@@ -154,20 +193,23 @@
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header bg-dark text-white border-0">
-                <h5 class="modal-title fw-bold"><i class="fas fa-pen me-2"></i> New Message</h5>
+                <h5 class="modal-title fw-bold" id="composeModalTitle"><i class="fas fa-pen me-2"></i> New Message</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
                 <form id="composeForm" action="{{ url_for('office.send_office_email') }}" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
-                        <input type="email" name="to_email" id="composeToEmail" class="form-control border-0 border-bottom rounded-0 px-0" placeholder="To" required>
+                        <label class="small text-muted fw-bold mb-1">To</label>
+                        <input type="email" name="to_email" id="composeToEmail" class="form-control" placeholder="client@example.com" required>
                     </div>
                     <div class="mb-3">
-                        <input type="text" name="subject" class="form-control border-0 border-bottom rounded-0 px-0 fw-bold" placeholder="Subject" required>
+                        <label class="small text-muted fw-bold mb-1">Subject</label>
+                        <input type="text" name="subject" id="composeSubject" class="form-control fw-bold" placeholder="Subject" required>
                     </div>
                     <div class="mb-3">
-                        <textarea name="body" class="form-control border-0 px-0" rows="10" placeholder="Write your message here..." required></textarea>
+                        <label class="small text-muted fw-bold mb-1">Message</label>
+                        <textarea name="body" id="composeBody" class="form-control" rows="10" placeholder="Write your message here..." required></textarea>
                     </div>
                     
                     <!-- Hidden input for DB files -->
@@ -179,7 +221,7 @@
                         <button type="button" class="btn-close btn-sm float-end" onclick="clearAttachment()"></button>
                     </div>
                     
-                    <div class="modal-footer bg-light border-0 mt-3 px-0 pb-0 d-flex justify-content-between">
+                    <div class="modal-footer bg-light border-0 mt-3 px-0 pb-0 d-flex justify-content-between flex-wrap gap-2">
                         <div class="dropdown">
                             <button class="btn btn-outline-secondary fw-bold dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                 <i class="fas fa-paperclip me-1"></i> Attach
@@ -198,7 +240,14 @@
                                 </li>
                             </ul>
                         </div>
-                        <button type="submit" class="btn btn-primary fw-bold px-4"><i class="fas fa-paper-plane me-2"></i> Send</button>
+                        <div class="d-flex gap-2">
+                            <button type="submit" name="action" value="save_draft" class="btn btn-outline-secondary fw-bold">
+                                <i class="fas fa-save me-1"></i> Save Draft
+                            </button>
+                            <button type="submit" name="action" value="send" class="btn btn-primary fw-bold px-4">
+                                <i class="fas fa-paper-plane me-2"></i> Send
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -214,19 +263,33 @@
 
 <script>
 let currentEmailId = null;
+let currentEmailData = null;
+
+function openNewCompose() {
+    document.getElementById('composeModalTitle').innerHTML = '<i class="fas fa-pen me-2"></i> New Message';
+    document.getElementById('composeToEmail').value = '';
+    document.getElementById('composeSubject').value = '';
+    document.getElementById('composeBody').value = '';
+    clearAttachment();
+}
 
 function openEmailModal(id) {
     currentEmailId = id;
     const dataDiv = document.getElementById('email-data-' + id);
     if (!dataDiv) return;
     
-    const sender = dataDiv.getAttribute('data-sender');
-    const subject = dataDiv.getAttribute('data-subject');
-    const date = dataDiv.getAttribute('data-date');
-    const body = dataDiv.getAttribute('data-body');
+    const sender = dataDiv.getAttribute('data-sender') || '';
+    const recipient = dataDiv.getAttribute('data-recipient') || '';
+    const subject = dataDiv.getAttribute('data-subject') || '';
+    const date = dataDiv.getAttribute('data-date') || '';
+    const body = dataDiv.getAttribute('data-body') || '';
+    const folder = dataDiv.getAttribute('data-folder') || 'Inbox';
     
-    document.getElementById('modalSubject').innerText = subject;
+    currentEmailData = { id, sender, recipient, subject, date, body, folder };
+    
+    document.getElementById('modalSubject').innerText = subject || '(No Subject)';
     document.getElementById('modalSender').innerText = sender;
+    document.getElementById('modalRecipient').innerText = recipient ? `To: ${recipient}` : '';
     document.getElementById('modalDate').innerText = date;
     document.getElementById('modalBody').innerText = body;
     
@@ -238,8 +301,140 @@ function openEmailModal(id) {
     document.getElementById('aiSummaryBox').classList.add('d-none');
     document.getElementById('aiDraftBox').classList.add('d-none');
     
+    // Update delete button text based on folder
+    const trashBtn = document.getElementById('modalTrashBtn');
+    if (folder === 'Trash') {
+        trashBtn.innerHTML = '<i class="fas fa-trash-alt me-1"></i> Delete Permanently';
+        trashBtn.className = 'btn btn-danger fw-bold';
+    } else {
+        trashBtn.innerHTML = '<i class="fas fa-trash me-1"></i> Move to Trash';
+        trashBtn.className = 'btn btn-outline-danger fw-bold';
+    }
+    
+    // Mark as Read in background
+    fetch(`/office/api/email/${id}/status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ status: 'Read' })
+    }).then(() => {
+        const itemEl = document.getElementById(`email-item-${id}`);
+        if (itemEl) {
+            itemEl.classList.remove('bg-primary-subtle', 'bg-opacity-25', 'fw-semibold');
+        }
+    }).catch(e => console.log(e));
+    
     var myModal = new bootstrap.Modal(document.getElementById('viewEmailModal'));
     myModal.show();
+}
+
+function replyCurrentEmail() {
+    if (!currentEmailData) return;
+    
+    const viewModalEl = document.getElementById('viewEmailModal');
+    const viewModal = bootstrap.Modal.getInstance(viewModalEl);
+    if (viewModal) viewModal.hide();
+    
+    let replyTo = currentEmailData.sender;
+    const match = currentEmailData.sender.match(/<(.+?)>/);
+    if (match) replyTo = match[1];
+    
+    if (currentEmailData.folder === 'Sent' && currentEmailData.recipient) {
+        replyTo = currentEmailData.recipient;
+    }
+    
+    let replySubject = currentEmailData.subject;
+    if (!replySubject.toLowerCase().startsWith('re:')) {
+        replySubject = 'Re: ' + replySubject;
+    }
+    
+    const quotedBody = `\n\n\n--- On ${currentEmailData.date}, ${currentEmailData.sender} wrote: ---\n${currentEmailData.body}`;
+    
+    document.getElementById('composeModalTitle').innerHTML = '<i class="fas fa-reply me-2"></i> Reply Message';
+    document.getElementById('composeToEmail').value = replyTo;
+    document.getElementById('composeSubject').value = replySubject;
+    document.getElementById('composeBody').value = quotedBody;
+    clearAttachment();
+    
+    const composeModal = new bootstrap.Modal(document.getElementById('composeModal'));
+    composeModal.show();
+}
+
+function useDraftInReply() {
+    const draftText = document.getElementById('aiDraftContent').value;
+    if (!draftText) return;
+    
+    const viewModalEl = document.getElementById('viewEmailModal');
+    const viewModal = bootstrap.Modal.getInstance(viewModalEl);
+    if (viewModal) viewModal.hide();
+    
+    let replyTo = currentEmailData ? currentEmailData.sender : '';
+    const match = replyTo.match(/<(.+?)>/);
+    if (match) replyTo = match[1];
+    
+    let replySubject = currentEmailData ? currentEmailData.subject : '';
+    if (!replySubject.toLowerCase().startsWith('re:')) {
+        replySubject = 'Re: ' + replySubject;
+    }
+    
+    const quotedBody = currentEmailData ? `\n\n--- On ${currentEmailData.date}, ${currentEmailData.sender} wrote: ---\n${currentEmailData.body}` : '';
+    
+    document.getElementById('composeModalTitle').innerHTML = '<i class="fas fa-magic me-2"></i> Reply Message (AI Drafted)';
+    document.getElementById('composeToEmail').value = replyTo;
+    document.getElementById('composeSubject').value = replySubject;
+    document.getElementById('composeBody').value = draftText + quotedBody;
+    clearAttachment();
+    
+    const composeModal = new bootstrap.Modal(document.getElementById('composeModal'));
+    composeModal.show();
+}
+
+async function trashCurrentEmail() {
+    if (!currentEmailId) return;
+    const isTrashFolder = currentEmailData && currentEmailData.folder === 'Trash';
+    
+    if (isTrashFolder && !confirm('Permanently delete this email? This cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/office/api/email/${currentEmailId}/move`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ folder: isTrashFolder ? 'delete_permanent' : 'Trash' })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const viewModalEl = document.getElementById('viewEmailModal');
+            const viewModal = bootstrap.Modal.getInstance(viewModalEl);
+            if (viewModal) viewModal.hide();
+            
+            window.location.reload();
+        } else {
+            alert('Failed to delete email: ' + (data.error || 'Unknown error'));
+        }
+    } catch(e) {
+        alert('Error: ' + e);
+    }
+}
+
+function filterEmailList() {
+    const query = (document.getElementById('emailSearchInput').value || '').toLowerCase();
+    const rows = document.querySelectorAll('.email-row');
+    
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        if (text.includes(query)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
 }
 
 async function summarizeEmail() {

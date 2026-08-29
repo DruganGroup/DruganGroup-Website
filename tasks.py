@@ -306,6 +306,13 @@ def send_tenant_email_task(company_id, recipient_email, subject, body_html, atta
                 server.login(smtp_email, smtp_password)
                 server.send_message(msg)
 
+        # Record sent email in the tenant's Sent folder
+        try:
+            from email_service import record_sent_email
+            record_sent_email(company_id, recipient_email, subject, body_html, smtp_email)
+        except Exception as log_err:
+            print(f"⚠️ Failed to record sent email in tasks: {log_err}")
+
         return f"SUCCESS: Email sent to {recipient_email} from tenant {smtp_email}"
 
     except Exception as e:
