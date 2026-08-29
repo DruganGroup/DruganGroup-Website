@@ -5,7 +5,7 @@ from datetime import timedelta
 from dotenv import load_dotenv
 load_dotenv()
 # Added 'g' to imports for White Label Logic
-from flask import Flask, render_template, request, session, send_from_directory, abort, redirect, url_for, g
+from flask import Flask, render_template, request, session, send_from_directory, abort, redirect, url_for, g, flash
 from werkzeug.exceptions import HTTPException
 from db import get_db
 from utils.extensions import limiter, csrf

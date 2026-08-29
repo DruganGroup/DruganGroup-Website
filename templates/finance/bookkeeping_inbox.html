@@ -70,7 +70,7 @@
                                 <option value="{{ j[0] }}">{{ j[1] }} - {{ (j[2] or '')[:15] }}...</option>
                                 {% endfor %}
                             </select>
-                            <button type="submit" name="action" value="assign_job" class="btn btn-success"><i class="fas fa-link"></i></button>
+                            <button type="submit" name="action" value="assign_job" class="btn btn-success"><i class="fas fa-link me-1"></i> Link Job</button>
                         </div>
                     </div>
 
@@ -85,12 +85,12 @@
                                 <option value="{{ c[0] }}">{{ c[1] }}</option>
                                 {% endfor %}
                             </select>
-                            <button type="submit" name="action" value="assign_overhead" class="btn btn-primary"><i class="fas fa-file-invoice"></i></button>
+                            <button type="submit" name="action" value="assign_overhead" class="btn btn-primary"><i class="fas fa-file-invoice me-1"></i> Overhead</button>
                         </div>
                     </div>
                     
                     <div class="col-md-1 text-end">
-                        <button type="submit" name="action" value="delete" class="btn btn-outline-danger" title="Delete Permanent"><i class="fas fa-trash"></i></button>
+                        <button type="submit" name="action" value="delete" class="btn btn-outline-danger" title="Delete Permanent"><i class="fas fa-trash me-1"></i> Delete</button>
                     </div>
                 </div>
             </form>

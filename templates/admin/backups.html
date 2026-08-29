@@ -75,11 +75,11 @@
                     </td>
                     <td class="text-end">
                         <a href="{{ url_for('admin.download_backup', filename=backup.filename) }}" class="btn-action me-2" title="Download">
-                            <i class="fas fa-download"></i>
+                            <i class="fas fa-download me-1"></i> Download
                         </a>
 
                         <a href="{{ url_for('admin.delete_backup', filename=backup.filename) }}" class="btn-action delete" title="Delete Archive" onclick="return confirm('Permanently delete this snapshot?');">
-                            <i class="fas fa-trash"></i>
+                            <i class="fas fa-trash me-1"></i> Delete
                         </a>
                     </td>
                 </tr>

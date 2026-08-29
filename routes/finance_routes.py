@@ -557,10 +557,42 @@ def import_materials():
                 flash(f"❌ Import Error: {e}")    
     return redirect(url_for('finance.finance_materials'))
 
-@finance_bp.route('/finance/materials/delete/<int:id>')
+@finance_bp.route('/finance/materials/delete/<int:id>', methods=['GET', 'POST'])
 def delete_material(id):
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
+    comp_id = session.get('company_id')
     with db_transaction() as cur:
-        cur.execute("DELETE FROM materials WHERE id=%s", (id,))
+        cur.execute("DELETE FROM materials WHERE id=%s AND company_id=%s", (id, comp_id))
+        flash("✅ Material deleted.")
+    return redirect(url_for('finance.finance_materials'))
+
+@finance_bp.route('/finance/materials/bulk-delete', methods=['POST'])
+def bulk_delete_materials():
+    if session.get('role') not in ['Admin', 'SuperAdmin']: return "Access Denied"
+    comp_id = session.get('company_id')
+    scope = request.form.get('scope', 'selected')
+    
+    with db_transaction() as cur:
+        if scope == 'all':
+            cur.execute("DELETE FROM materials WHERE company_id = %s", (comp_id,))
+            flash("✅ All materials cleared from library.")
+        elif scope == 'general':
+            cur.execute("DELETE FROM materials WHERE company_id = %s AND (supplier_id IS NULL OR supplier_id = 0)", (comp_id,))
+            flash("✅ All General (unassigned) materials deleted.")
+        elif scope == 'by_supplier':
+            supp_id = request.form.get('supplier_id')
+            if supp_id:
+                cur.execute("DELETE FROM materials WHERE company_id = %s AND supplier_id = %s", (comp_id, supp_id))
+                flash("✅ Supplier materials deleted.")
+        else: # 'selected'
+            selected_ids = request.form.getlist('material_ids')
+            clean_ids = [int(i) for i in selected_ids if i.isdigit()]
+            if clean_ids:
+                cur.execute("DELETE FROM materials WHERE company_id = %s AND id = ANY(%s)", (comp_id, clean_ids))
+                flash(f"✅ Deleted {len(clean_ids)} selected materials.")
+            else:
+                flash("⚠️ No materials were selected for deletion.")
+                
     return redirect(url_for('finance.finance_materials'))
 
 @finance_bp.route('/api/materials/search')

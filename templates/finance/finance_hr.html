@@ -68,11 +68,12 @@
 								data-tax-limit="{{ s.tax_limit }}" data-ni-limit="{{ s.ni_limit }}"
 								data-holiday="{{ s.holiday_entitled }}"
 								data-bank="{{ s.bank_name }}" data-acc="{{ s.account_number }}" data-sort="{{ s.sort_code }}"
-								onclick="fillEditStaff(this)">
-								<i class="fas fa-edit"></i>
+								onclick="fillEditStaff(this)"
+								title="Edit Staff">
+								<i class="fas fa-edit me-1"></i> Edit
 							</button>
-							<a href="/hr/delete/{{ s.id }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure? This will remove the staff member and revoke their login access.');">
-								<i class="fas fa-trash"></i>
+							<a href="/hr/delete/{{ s.id }}" class="btn btn-sm btn-outline-danger" title="Delete Staff" onclick="return confirm('Are you sure? This will remove the staff member and revoke their login access.');">
+								<i class="fas fa-trash me-1"></i> Delete
 							</a>
 						</td>
 					</tr>

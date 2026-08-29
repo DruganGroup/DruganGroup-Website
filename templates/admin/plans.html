@@ -160,7 +160,7 @@
 
                 <div class="btn-action-group d-flex gap-2">
                     <button class="btn btn-outline-light w-50" onclick='editPlan({{ plan | tojson }})'><i class="fas fa-edit me-2"></i> Edit</button>
-                    <a href="{{ url_for('plans.delete_plan', plan_id=plan.id) }}" class="btn btn-outline-danger w-50" onclick="return confirm('Delete?');"><i class="fas fa-trash"></i></a>
+                    <a href="{{ url_for('plans.delete_plan', plan_id=plan.id) }}" class="btn btn-outline-danger w-50" onclick="return confirm('Delete?');"><i class="fas fa-trash me-2"></i> Delete</a>
                 </div>
             </div>
         </div>
@@ -214,7 +214,7 @@
 
                 <div class="btn-action-group d-flex gap-2">
                     <button class="btn btn-outline-light w-50" onclick='editPlan({{ plan | tojson }})'><i class="fas fa-edit me-2"></i> Edit</button>
-                    <a href="{{ url_for('plans.delete_plan', plan_id=plan.id) }}" class="btn btn-outline-danger w-50" onclick="return confirm('Delete?');"><i class="fas fa-trash"></i></a>
+                    <a href="{{ url_for('plans.delete_plan', plan_id=plan.id) }}" class="btn btn-outline-danger w-50" onclick="return confirm('Delete?');"><i class="fas fa-trash me-2"></i> Delete</a>
                 </div>
             </div>
         </div>

@@ -88,14 +88,14 @@
                                         data-client-notes="{{ c[8]|e if c[8] else '' }}"
                                         data-client-portal="{{ c[9] or 0 }}"
                                         onclick="openEditModalFromData(this)">
-                                    <i class="fas fa-edit"></i>
+                                    <i class="fas fa-edit me-1"></i> Edit
                                 </button>
                                 
                                 <a href="/client/delete/{{ c[0] }}" 
                                    class="btn btn-sm btn-outline-danger" 
                                    title="Delete Client"
                                    onclick="return confirm('⚠️ Are you sure?\n\nThis will delete the client AND ALL their properties/jobs.\n\nThis cannot be undone.');">
-                                    <i class="fas fa-trash"></i>
+                                    <i class="fas fa-trash me-1"></i> Delete
                                 </a>
                             </div>
                         </td>
