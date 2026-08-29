@@ -492,6 +492,23 @@ def update_job(job_id):
                     VALUES (%s, %s, %s, %s, %s)
                 """, (inv_id, f"Material: {mat[0]}", qty, sell_price, line_total))
 
+            # 5b. CALCULATE VEHICLE & GANG CHARGE
+            cur.execute("SELECT vehicle_id, engineer_id FROM jobs WHERE id = %s", (job_id,))
+            j_v_row = cur.fetchone()
+            if j_v_row:
+                j_veh, j_eng = j_v_row
+                from services.pricing_engine import get_effective_vehicle_gang_cost
+                _, van_reg_name, daily_gang_cost = get_effective_vehicle_gang_cost(cur, comp_id, vehicle_id=j_veh, engineer_id=j_eng)
+                cur.execute("SELECT COUNT(DISTINCT date) FROM staff_timesheets WHERE job_id = %s", (job_id,))
+                days_cnt = cur.fetchone()[0] or 1
+                if daily_gang_cost > 0:
+                    van_sell_daily = round(daily_gang_cost * (1.0 + labour_markup), 2)
+                    van_tot = round(days_cnt * van_sell_daily, 2)
+                    cur.execute("""
+                        INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (inv_id, f"Vehicle & Equipment ({van_reg_name}) - {days_cnt} day(s)", days_cnt, van_sell_daily, van_tot))
+
             # 6. FINAL TOTALS & TAX
             cur.execute("SELECT SUM(total) FROM invoice_items WHERE invoice_id = %s", (inv_id,))
             subtotal = float(cur.fetchone()[0] or 0.0)

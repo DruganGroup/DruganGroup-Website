@@ -16,8 +16,8 @@
 
             <div class="d-flex align-items-center gap-3 mb-1">
                 <h2 class="fw-bold m-0 text-dark">{{ job.title }}</h2>
-                <span class="badge rounded-pill fs-6 fw-normal 
-                    {% if job.status == 'Completed' %}bg-success{% elif job.status == 'In Progress' %}bg-primary{% else %}bg-secondary{% endif %}">
+                <span class="badge px-3 py-2 fs-6 fw-bold rounded-2 
+                    {% if job.status == 'Completed' %}bg-success text-white{% elif job.status == 'In Progress' %}bg-primary text-white{% else %}bg-secondary text-white{% endif %}">
                     {{ job.status }}
                 </span>
             </div>
@@ -26,43 +26,61 @@
                 {{ job.desc }}
             </div>
 
-            <div class="text-muted small d-flex align-items-center gap-3">
+            <div class="text-muted small d-flex align-items-center gap-3 flex-wrap">
                 <span><i class="fas fa-user-circle me-1"></i> {{ job.client }}</span>
                 <span><i class="fas fa-map-marker-alt me-1"></i> {{ job.address }}</span>
                 <span><i class="fas fa-hashtag me-1"></i> {{ job.ref }}</span>
+                <span><i class="fas fa-truck me-1"></i> {{ van_reg }}</span>
                 {% if job.key_code %}
                 <span class="text-danger fw-bold"><i class="fas fa-key me-1"></i> Access/Key: {{ job.key_code }}</span>
                 {% endif %}
             </div>
         </div>
 
-        <div class="btn-group shadow-sm">
-    {% if quote_id %}
-        <a href="/office/quote/{{ quote_id }}" class="btn btn-outline-dark fw-bold">
-            <i class="fas fa-file-contract me-2"></i>Quote
-        </a>
-        <a href="/office/quote/{{ quote_id }}/convert" class="btn btn-outline-dark fw-bold" onclick="return confirm('Create Invoice?')">
-            <i class="fas fa-file-invoice-dollar me-2"></i>Invoice
-        </a>
-    {% endif %}
-    
-    <a href="/office/job/{{ job.id }}/rams/create" class="btn btn-warning fw-bold text-dark">
-        <i class="fas fa-clipboard-check me-2"></i>RAMS
-    </a>
-    
-    <button type="button" class="btn btn-outline-info dropdown-toggle fw-bold" data-bs-toggle="dropdown" aria-expanded="false">
-        <i class="fas fa-certificate me-1"></i> Certs
-    </button>
-    <ul class="dropdown-menu">
-        {% for cert in certificates %}
-        <li><a class="dropdown-item" href="/office/cert/{{ country_code }}/{{ cert.id }}/create?job_id={{ job.id }}&prop_id={{ job.property_id }}" title="{{ cert.desc }}">{{ cert.name }}</a></li>
-        {% endfor %}
-    </ul>
+        <div class="d-flex gap-2 flex-wrap">
+            {% if existing_invoice %}
+            <a href="/finance/invoice/{{ existing_invoice.id }}/view" class="btn btn-outline-success fw-bold">
+                <i class="fas fa-file-invoice-dollar me-2"></i>Invoice #{{ existing_invoice.ref }}
+            </a>
+            {% else %}
+            <a href="/office/job/{{ job.id }}/generate-invoice" class="btn btn-primary fw-bold" onclick="return confirm('Generate an Invoice using logged timesheets, materials, and vehicle charges?');">
+                <i class="fas fa-file-invoice-dollar me-2"></i>Generate Invoice
+            </a>
+            {% endif %}
 
-    <a href="/office/job/{{ job.id }}/files" class="btn btn-dark fw-bold">
-        <i class="fas fa-sync-alt me-1"></i> {{ _('Refresh') }}
-    </a>
-</div>
+            {% if job.quote_id %}
+            <a href="/office/quote/{{ job.quote_id }}" class="btn btn-outline-dark fw-bold">
+                <i class="fas fa-file-contract me-2"></i>Quote
+            </a>
+            {% endif %}
+
+            <button type="button" class="btn btn-outline-secondary fw-bold" data-bs-toggle="modal" data-bs-target="#editBudgetModal">
+                <i class="fas fa-coins me-2"></i>Set Budget
+            </button>
+
+            <button type="button" class="btn btn-outline-dark fw-bold" data-bs-toggle="modal" data-bs-target="#assignResourcesModal">
+                <i class="fas fa-truck me-2"></i>Assign Gang / Van
+            </button>
+            
+            <a href="/office/job/{{ job.id }}/rams/create" class="btn btn-warning fw-bold text-dark">
+                <i class="fas fa-clipboard-check me-2"></i>RAMS
+            </a>
+            
+            <div class="dropdown d-inline-block">
+                <button type="button" class="btn btn-outline-info dropdown-toggle fw-bold" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-certificate me-1"></i> Certs
+                </button>
+                <ul class="dropdown-menu">
+                    {% for cert in certificates %}
+                    <li><a class="dropdown-item" href="/office/cert/{{ country_code }}/{{ cert.id }}/create?job_id={{ job.id }}&prop_id={{ job.property_id }}" title="{{ cert.desc }}">{{ cert.name }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <a href="/office/job/{{ job.id }}/files" class="btn btn-dark fw-bold">
+                <i class="fas fa-sync-alt me-1"></i> Refresh
+            </a>
+        </div>
     </div>
 
     {% if missing_pay_rate_warning %}
@@ -79,32 +97,39 @@
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm h-100 border-start border-4 border-info">
                 <div class="card-body py-3">
-                    <div class="small text-muted fw-bold text-uppercase">Budget</div>
-                    <div class="fs-4 fw-bold">£{{ "%.2f"|format(quote_total) }}</div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="small text-muted fw-bold text-uppercase">Budget Target</div>
+                        <button class="btn btn-link btn-sm p-0 text-muted" data-bs-toggle="modal" data-bs-target="#editBudgetModal" title="Edit Budget"><i class="fas fa-edit"></i></button>
+                    </div>
+                    <div class="fs-4 fw-bold text-dark">£{{ "%.2f"|format(display_budget) }}</div>
+                    <div class="small text-muted" style="font-size: 0.72rem;">{{ 'Quoted Target' if quote_total > 0 else 'Live Billable (Marked up)' }}</div>
                 </div>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm h-100 border-start border-4 border-success">
                 <div class="card-body py-3">
-                    <div class="small text-muted fw-bold text-uppercase">Billed</div>
+                    <div class="small text-muted fw-bold text-uppercase">Billed to Client</div>
                     <div class="fs-4 fw-bold text-success">£{{ "%.2f"|format(total_billed) }}</div>
+                    <div class="small text-muted" style="font-size: 0.72rem;">From Generated Invoices</div>
                 </div>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm h-100 border-start border-4 border-danger">
                 <div class="card-body py-3">
-                    <div class="small text-muted fw-bold text-uppercase">Costs</div>
+                    <div class="small text-muted fw-bold text-uppercase">Total Incurred Costs</div>
                     <div class="fs-4 fw-bold text-danger">£{{ "%.2f"|format(total_cost) }}</div>
+                    <div class="small text-muted" style="font-size: 0.72rem;">Labour + Van + Materials + Expenses</div>
                 </div>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm h-100 border-start border-4 border-warning">
                 <div class="card-body py-3">
-                    <div class="small text-muted fw-bold text-uppercase">Profit</div>
-                    <div class="fs-4 fw-bold text-dark">£{{ "%.2f"|format(profit) }}</div>
+                    <div class="small text-muted fw-bold text-uppercase">Projected Margin</div>
+                    <div class="fs-4 fw-bold {% if profit >= 0 %}text-success{% else %}text-danger{% endif %}">£{{ "%.2f"|format(profit) }}</div>
+                    <div class="small text-muted" style="font-size: 0.72rem;">{{ 'Target Profit' if display_budget > total_cost else 'Over Cost' }}</div>
                 </div>
             </div>
         </div>
@@ -193,16 +218,16 @@
                                         </div>
                                     {% endif %}
                                     {% if 'Invoice' in f[0] %}
-                                        <a href="#" data-invoice-id="{{ f[5] }}" class="btn btn-xs btn-outline-primary async-download" title="Download PDF">
-                                            <i class="fas fa-download icon-placeholder"></i>
+                                        <a href="#" data-invoice-id="{{ f[5] }}" class="btn btn-sm btn-outline-primary async-download fw-bold" title="Download Invoice PDF">
+                                            <i class="fas fa-file-pdf me-1 icon-placeholder"></i> PDF
                                         </a>
                                     {% elif f[4] and f[4] not in ['No Link', 'Logged', 'Auto-Calc', 'Manual Entry', 'Pending'] and f[0] not in ['Material', 'Timesheet', 'Vehicle'] %}
                                         {% set file_url = f[4] if f[4].startswith('/') else '/' ~ f[4] %}
-                                        <a href="{{ file_url }}" target="_blank" class="btn btn-xs btn-outline-secondary"><i class="fas fa-eye"></i></a>
+                                        <a href="{{ file_url }}" target="_blank" class="btn btn-sm btn-outline-secondary fw-bold"><i class="fas fa-eye me-1"></i> View</a>
                                     {% endif %}
                                     
-                                    {% if 'Invoice' not in f[0] %}
-                                        <a href="/office/job/delete-item/{{ f[5] }}/{{ f[0] }}" onclick="return confirm('Delete?')" class="btn btn-xs btn-outline-danger ms-1"><i class="fas fa-times"></i></a>
+                                    {% if 'Invoice' not in f[0] and f[0] != 'Vehicle' %}
+                                        <a href="/office/job/delete-item/{{ f[5] }}/{{ f[0] }}" onclick="return confirm('Are you sure you want to delete this record?')" class="btn btn-sm btn-outline-danger ms-1 fw-bold"><i class="fas fa-trash-alt me-1"></i> Delete</a>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -220,10 +245,10 @@
             
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white border-bottom-0 pt-3">
-                    <ul class="nav nav-pills nav-fill small fw-bold" id="pills-tab" role="tablist">
-                        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-upload"><i class="fas fa-upload me-1"></i> Upload</button></li>
-                        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-cost"><i class="fas fa-coins me-1"></i> {{ _('Cost') }}</button></li>
-                        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-time"><i class="fas fa-clock me-1"></i> Time</button></li>
+                    <ul class="nav nav-tabs nav-fill small fw-bold" id="pills-tab" role="tablist">
+                        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-upload"><i class="fas fa-upload me-1"></i> Upload File</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-cost"><i class="fas fa-receipt me-1"></i> Add Cost</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-time"><i class="fas fa-clock me-1"></i> Log Time</button></li>
                     </ul>
                 </div>
                 <div class="card-body tab-content bg-light rounded-bottom">
@@ -357,6 +382,79 @@
         </div>
     </div>
 </div>
+    <!-- Edit Budget Modal -->
+    <div class="modal fade" id="editBudgetModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <form action="/office/job/{{ job.id }}/set-budget" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="modal-header border-bottom">
+                        <h5 class="modal-title fw-bold"><i class="fas fa-coins text-warning me-2"></i>Set / Adjust Job Budget Target</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <p class="small text-muted mb-3">Set an agreed fixed price or target billable budget for this job (e.g. CP12 fixed price or callout repair limit).</p>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Budget Amount (£)</label>
+                            <input type="number" step="0.01" name="budget_amount" class="form-control form-control-lg fw-bold" value="{{ '%.2f'|format(display_budget) }}" required>
+                        </div>
+                        <div class="small text-muted bg-light p-3 rounded-3">
+                            <div><strong>Live Auto-Calculated Target:</strong> £{{ "%.2f"|format(live_billable_total) }}</div>
+                            <div class="text-secondary" style="font-size: 0.75rem;">(Includes Materials +{{ material_markup }}% and Labour +{{ labour_markup }}% Markups)</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top p-3 bg-light">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4">Save Budget</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign Gang & Resources Modal -->
+    <div class="modal fade" id="assignResourcesModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <form action="/office/job/{{ job.id }}/assign-resources" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="modal-header border-bottom">
+                        <h5 class="modal-title fw-bold"><i class="fas fa-truck text-dark me-2"></i>Assign Gang & Fleet Vehicle</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Assigned Vehicle / Gang</label>
+                            <select name="vehicle_id" class="form-select">
+                                <option value="">-- No Vehicle Assigned --</option>
+                                {% for v in vehicles %}
+                                <option value="{{ v.id }}" {% if job.vehicle_id == v.id %}selected{% endif %}>
+                                    {{ v.reg }} {% if v.model %}({{ v.model }}){% endif %} - £{{ "%.2f"|format(v.cost) }}/day
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="small text-muted mt-1">Vehicle daily cost includes the assigned driver and crew wage.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Lead Engineer / Staff</label>
+                            <select name="engineer_id" class="form-select">
+                                <option value="">-- Unassigned --</option>
+                                {% for s in staff %}
+                                <option value="{{ s[0] }}" {% if job.engineer_id == s[0] %}selected{% endif %}>{{ s[1] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top p-3 bg-light">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-dark fw-bold px-4">Update Resources</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
 <script>
 document.querySelectorAll('.async-download').forEach(btn => {
     btn.addEventListener('click', function(e) {

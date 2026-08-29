@@ -15,53 +15,120 @@
     </div>
     
     <div class="row mb-4 g-3">
-        <div class="col-md-3">
-            <div class="card p-4 border-0 shadow-sm text-white" style="background: #2c3e50;"> 
+        <div class="col-lg col-md-6">
+            <div class="card p-3 border-0 shadow-sm text-white h-100" style="background: #2c3e50;"> 
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h6 class="opacity-75 text-uppercase fw-bold" style="font-size: 0.75rem;">{{ _('Daily Break-Even') }}</h6>
-                        <h2 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(break_even) }}</h2>
-                        <div class="small opacity-50 mt-1">{{ _('Target to cover costs') }}</div>
+                        <h6 class="opacity-75 text-uppercase fw-bold mb-1" style="font-size: 0.72rem;">{{ _('Daily Break-Even') }}</h6>
+                        <h3 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(break_even) }}</h3>
+                        <div class="small opacity-75 mt-1" style="font-size: 0.75rem;">{{ _('Daily Target') }}</div>
                     </div>
                     <i class="fas fa-crosshairs fa-2x opacity-25"></i>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card p-4 border-0 shadow-sm text-white bg-success bg-gradient">
+        <div class="col-lg col-md-6">
+            <div class="card p-3 border-0 shadow-sm text-white bg-success bg-gradient h-100">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h6 class="opacity-75 text-uppercase fw-bold">{{ _('Total Income') }}</h6>
-                        <h2 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(total_income) }}</h2>
+                        <h6 class="opacity-75 text-uppercase fw-bold mb-1" style="font-size: 0.72rem;">{{ _('Paid Income') }}</h6>
+                        <h3 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(total_income) }}</h3>
+                        <div class="small opacity-75 mt-1" style="font-size: 0.75rem;">Pending: {{ currency_symbol }}{{ "%.2f"|format(pending_income) }}</div>
                     </div>
                     <i class="fas fa-arrow-up fa-2x opacity-50"></i>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card p-4 border-0 shadow-sm text-white bg-danger bg-gradient">
+        <div class="col-lg col-md-6">
+            <div class="card p-3 border-0 shadow-sm text-white bg-info bg-gradient h-100">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h6 class="opacity-75 text-uppercase fw-bold">{{ _('Total Expenses') }}</h6>
-                        <h2 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(total_expense) }}</h2>
+                        <h6 class="opacity-75 text-uppercase fw-bold mb-1" style="font-size: 0.72rem;">{{ _('Staff Wages') }}</h6>
+                        <h3 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(total_wages) }}</h3>
+                        <div class="small opacity-75 mt-1" style="font-size: 0.75rem;">YTD: {{ currency_symbol }}{{ "%.2f"|format(ytd_wages) }}</div>
+                    </div>
+                    <i class="fas fa-users-cog fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg col-md-6">
+            <div class="card p-3 border-0 shadow-sm text-white bg-danger bg-gradient h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="opacity-75 text-uppercase fw-bold mb-1" style="font-size: 0.72rem;">{{ _('Total Expenses') }}</h6>
+                        <h3 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(total_expense) }}</h3>
+                        <div class="small opacity-75 mt-1" style="font-size: 0.75rem;">Wages + Overheads + Jobs</div>
                     </div>
                     <i class="fas fa-arrow-down fa-2x opacity-50"></i>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card p-4 border-0 shadow-sm text-dark bg-warning bg-gradient">
+        <div class="col-lg col-md-6">
+            <div class="card p-3 border-0 shadow-sm text-dark bg-warning bg-gradient h-100">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h6 class="opacity-75 text-uppercase fw-bold">{{ _('Net Profit') }}</h6>
-                        <h2 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(total_balance) }}</h2>
+                        <h6 class="opacity-75 text-uppercase fw-bold mb-1" style="font-size: 0.72rem;">{{ _('Net Profit') }}</h6>
+                        <h3 class="fw-bold mb-0 currency-text">{{ currency_symbol }}{{ "%.2f"|format(total_balance) }}</h3>
+                        <div class="small opacity-75 mt-1 fw-bold" style="font-size: 0.75rem;">Margin: {{ "%.1f"|format(profit_margin) }}%</div>
                     </div>
                     <i class="fas fa-wallet fa-2x opacity-25"></i>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Yearly Financial Performance Breakdown ("Top Per Year Figures") -->
+    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+        <div class="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="fw-bold m-0 text-secondary"><i class="fas fa-calendar-alt text-primary me-2"></i>{{ _('Yearly Financial Performance (Top Per Year Figures)') }}</h5>
+                <small class="text-muted">High-level yearly revenue, payroll wages, overheads, and net profit margin</small>
+            </div>
+            <span class="badge bg-primary-subtle text-primary border px-3 py-2 fw-bold">Live Aggregation</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light small text-uppercase">
+                    <tr>
+                        <th class="ps-3">{{ _('Year') }}</th>
+                        <th class="text-end">{{ _('Invoiced Revenue') }}</th>
+                        <th class="text-end">{{ _('Staff Wages') }}</th>
+                        <th class="text-end">{{ _('Job Costs') }}</th>
+                        <th class="text-end">{{ _('Overheads & Fleet') }}</th>
+                        <th class="text-end">{{ _('Total Expenses') }}</th>
+                        <th class="text-end">{{ _('Net Profit') }}</th>
+                        <th class="text-center pe-3">{{ _('Profit Margin') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for y in yearly_summary %}
+                    <tr>
+                        <td class="ps-3 fw-bold text-dark fs-6">{{ y.year }}</td>
+                        <td class="text-end fw-bold text-success">{{ currency_symbol }}{{ "%.2f"|format(y.revenue) }}</td>
+                        <td class="text-end fw-bold text-info">{{ currency_symbol }}{{ "%.2f"|format(y.wages) }}</td>
+                        <td class="text-end text-muted">{{ currency_symbol }}{{ "%.2f"|format(y.job_costs) }}</td>
+                        <td class="text-end text-muted">{{ currency_symbol }}{{ "%.2f"|format(y.overheads) }}</td>
+                        <td class="text-end fw-bold text-danger">{{ currency_symbol }}{{ "%.2f"|format(y.total_expense) }}</td>
+                        <td class="text-end fw-bold {% if y.net_profit >= 0 %}text-success{% else %}text-danger{% endif %} fs-6">
+                            {{ currency_symbol }}{{ "%.2f"|format(y.net_profit) }}
+                        </td>
+                        <td class="text-center pe-3">
+                            <span class="badge {% if y.profit_margin >= 20 %}bg-success{% elif y.profit_margin >= 0 %}bg-warning text-dark{% else %}bg-danger{% endif %} rounded-pill px-3 py-1">
+                                {{ "%.1f"|format(y.profit_margin) }}%
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">No historical yearly data recorded yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 

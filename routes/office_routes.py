@@ -190,20 +190,28 @@ def create_work_order():
         if row:
             client_id, prop_id, desc, priority = row
             
+            # Cross-reference Pricing Engine to calculate realistic initial budget
+            from services.pricing_engine import calculate_service_request_estimate, get_effective_vehicle_gang_cost
+            est_data = calculate_service_request_estimate(cur, comp_id, desc, prop_id)
+            initial_budget = est_data.get('estimated_price', 0.0)
+            
+            # Find assigned vehicle for this engineer / company
+            veh_id, _, _ = get_effective_vehicle_gang_cost(cur, comp_id, engineer_id=staff_id)
+
             # Generate a JOB reference
             cur.execute("SELECT COUNT(*) FROM jobs WHERE company_id = %s", (comp_id,))
             job_count = cur.fetchone()[0] + 1000
             job_ref = f"JOB-{job_count}"
             
-            # 3. Create the Job
+            # 3. Create the Job with pre-populated budget & assigned gang vehicle
             cur.execute("""
                 INSERT INTO jobs (
                     company_id, client_id, property_id, ref, description, 
-                    status, start_date, engineer_id, service_request_id, created_at
-                ) VALUES (%s, %s, %s, %s, %s, 'Scheduled', %s, %s, %s, NOW())
-            """, (comp_id, client_id, prop_id, job_ref, desc, schedule_date, staff_id, req_id))
+                    status, start_date, engineer_id, vehicle_id, quote_total, estimated_days, service_request_id, created_at
+                ) VALUES (%s, %s, %s, %s, %s, 'Scheduled', %s, %s, %s, %s, 1, %s, NOW())
+            """, (comp_id, client_id, prop_id, job_ref, desc, schedule_date, staff_id, veh_id, initial_budget, req_id))
             
-            flash(f"✅ Job '{job_ref}' successfully scheduled and dispatched!", "success")
+            flash(f"✅ Job '{job_ref}' scheduled with estimated budget £{initial_budget:.2f}!", "success")
         else:
             flash("❌ Original request not found.", "error")
             
@@ -1369,6 +1377,13 @@ def update_sales_record():
                 UPDATE invoices SET status = %s, client_response = %s, needs_followup = %s
                 WHERE id = %s AND company_id = %s
             """, (new_status, client_response, needs_followup, record_id, comp_id))
+            
+            if new_status == 'Paid':
+                user_name = session.get('user_name', session.get('username', 'Office User'))
+                cur.execute("""
+                    INSERT INTO audit_logs (company_id, admin_email, action, target, details, ip_address, created_at)
+                    VALUES (%s, %s, 'INVOICE_PAID', %s, %s, %s, CURRENT_TIMESTAMP)
+                """, (comp_id, user_name, f"Invoice #{record_id}", f"Status set to Paid from Sales Dashboard ({client_response or 'No notes'})", request.remote_addr))
         
         conn.commit()
         flash("✅ Record updated successfully.", "success")

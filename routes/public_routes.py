@@ -334,12 +334,12 @@ def pay_invoice_success(invoice_id):
     cur = conn.cursor()
     
     try:
-        cur.execute("SELECT company_id FROM invoices WHERE id = %s", (invoice_id,))
+        cur.execute("SELECT company_id, reference, total FROM invoices WHERE id = %s", (invoice_id,))
         comp_row = cur.fetchone()
         if not comp_row:
             return "Invoice not found.", 404
             
-        comp_id = comp_row[0]
+        comp_id, ref, total = comp_row[0], comp_row[1], comp_row[2]
         
         # Fetch key
         cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'stripe_secret_key'", (comp_id,))
@@ -351,9 +351,38 @@ def pay_invoice_success(invoice_id):
             
             checkout_session = stripe.checkout.Session.retrieve(session_id)
             if checkout_session.payment_status == 'paid':
-                cur.execute("UPDATE invoices SET status = 'Paid' WHERE id = %s", (invoice_id,))
+                cur.execute("UPDATE invoices SET status = 'Paid' WHERE id = %s AND company_id = %s", (invoice_id, comp_id))
+                
+                cur.execute("""
+                    INSERT INTO audit_logs (company_id, admin_email, action, target, details, ip_address, created_at)
+                    VALUES (%s, 'System (Stripe)', 'INVOICE_PAID', %s, %s, %s, CURRENT_TIMESTAMP)
+                """, (comp_id, f"Invoice #{ref}", f"Online payment completed via Stripe Checkout (£{float(total or 0):.2f})", request.remote_addr))
+                
                 conn.commit()
-                return "<h1>Payment Successful!</h1><p>Thank you. Your invoice has been marked as paid.</p>", 200
+                
+                return f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Payment Successful</title>
+                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+                </head>
+                <body class="bg-light d-flex align-items-center justify-content-center" style="min-height: 100vh;">
+                    <div class="card border-0 shadow-lg p-5 text-center" style="max-width: 500px; border-radius: 20px;">
+                        <div class="text-success mb-3">
+                            <i class="fas fa-check-circle fa-4x"></i>
+                        </div>
+                        <h2 class="fw-bold mb-2">Payment Received!</h2>
+                        <p class="text-muted mb-4">Thank you. Your payment for Invoice <strong>#{ref}</strong> has been processed successfully.</p>
+                        <div class="d-grid gap-2">
+                            <a href="/portal/invoices" class="btn btn-primary fw-bold py-2"><i class="fas fa-arrow-left me-2"></i>Return to Portal</a>
+                            <a href="/finance/invoice/{invoice_id}/download" class="btn btn-outline-secondary py-2" target="_blank"><i class="fas fa-download me-2"></i>Download Receipt</a>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """, 200
                 
         return "Payment verification failed.", 400
         
@@ -364,7 +393,26 @@ def pay_invoice_success(invoice_id):
 
 @public_bp.route('/pay/invoice/<int:invoice_id>/cancel')
 def pay_invoice_cancel(invoice_id):
-    return "<h1>Payment Cancelled</h1><p>You can try again when you are ready.</p>", 200
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Payment Cancelled</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    </head>
+    <body class="bg-light d-flex align-items-center justify-content-center" style="min-height: 100vh;">
+        <div class="card border-0 shadow p-5 text-center" style="max-width: 450px; border-radius: 20px;">
+            <div class="text-warning mb-3">
+                <i class="fas fa-times-circle fa-4x"></i>
+            </div>
+            <h3 class="fw-bold mb-2">Payment Cancelled</h3>
+            <p class="text-muted mb-4">You have cancelled the online payment. You can try again at any time.</p>
+            <a href="/portal/invoices" class="btn btn-dark fw-bold py-2"><i class="fas fa-arrow-left me-2"></i>Back to Invoices</a>
+        </div>
+    </body>
+    </html>
+    """, 200
 
 from utils.extensions import csrf
 
@@ -404,6 +452,12 @@ def tenant_stripe_webhook():
                 verified_session = stripe.checkout.Session.retrieve(session_id)
                 if verified_session.payment_status == 'paid':
                     cur.execute("UPDATE invoices SET status = 'Paid' WHERE id = %s AND company_id = %s", (invoice_id, comp_id))
+                    
+                    cur.execute("""
+                        INSERT INTO audit_logs (company_id, admin_email, action, target, details, created_at)
+                        VALUES (%s, 'Stripe Webhook', 'INVOICE_PAID', %s, %s, CURRENT_TIMESTAMP)
+                    """, (comp_id, f"Invoice #{invoice_id}", f"Stripe Webhook confirmed online payment for session {session_id}"))
+                    
                     conn.commit()
         except Exception as e:
             conn.rollback()

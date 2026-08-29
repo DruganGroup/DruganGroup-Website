@@ -1000,11 +1000,89 @@ def mark_invoice_sent(invoice_id):
     
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("UPDATE invoices SET status = 'Sent' WHERE id = %s", (invoice_id,))
-    conn.commit(); pass
+    cur.execute("UPDATE invoices SET status = 'Sent' WHERE id = %s AND company_id = %s", (invoice_id, session.get('company_id')))
+    conn.commit()
     
     flash("✅ Invoice manually marked as Sent.", "success")
-    return redirect(url_for('finance.finance_invoices'))
+    return redirect(request.referrer or url_for('finance.finance_invoices'))
+
+@finance_bp.route('/finance/invoice/<int:invoice_id>/mark-paid', methods=['GET', 'POST'])
+def mark_invoice_paid(invoice_id):
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']: 
+        return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    user_name = session.get('user_name', session.get('username', 'Admin'))
+    conn = get_db()
+    cur = conn.cursor()
+    
+    cur.execute("SELECT reference, total FROM invoices WHERE id = %s AND company_id = %s", (invoice_id, comp_id))
+    inv = cur.fetchone()
+    if not inv:
+        flash("Invoice not found.", "error")
+        return redirect(url_for('finance.finance_invoices'))
+        
+    ref, total = inv[0], inv[1]
+    payment_method = request.form.get('payment_method', 'Bank Transfer') if request.method == 'POST' else 'Manual Payment'
+    notes = request.form.get('payment_notes', '').strip() if request.method == 'POST' else ''
+    
+    try:
+        cur.execute("UPDATE invoices SET status = 'Paid' WHERE id = %s AND company_id = %s", (invoice_id, comp_id))
+        
+        detail_msg = f"Marked as Paid ({payment_method})"
+        if notes:
+            detail_msg += f" - Note: {notes}"
+            
+        cur.execute("""
+            INSERT INTO audit_logs (company_id, admin_email, action, target, details, ip_address, created_at)
+            VALUES (%s, %s, 'INVOICE_PAID', %s, %s, %s, CURRENT_TIMESTAMP)
+        """, (comp_id, user_name, f"Invoice #{ref}", detail_msg, request.remote_addr))
+        
+        conn.commit()
+        flash(f"✅ Invoice #{ref} marked as Paid ({payment_method}) and added to Finance Dashboard.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error updating invoice: {e}", "error")
+        
+    return redirect(request.referrer or url_for('finance.finance_invoices'))
+
+@finance_bp.route('/finance/invoice/<int:invoice_id>/status/<new_status>')
+def set_invoice_status_finance(invoice_id, new_status):
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']:
+        return redirect(url_for('auth.login'))
+    
+    valid = ['Draft', 'Sent', 'Paid', 'Unpaid', 'Overdue']
+    if new_status not in valid:
+        flash("❌ Invalid Status", "error")
+        return redirect(url_for('finance.finance_invoices'))
+
+    comp_id = session.get('company_id')
+    user_name = session.get('user_name', session.get('username', 'Admin'))
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        cur.execute("UPDATE invoices SET status = %s WHERE id = %s AND company_id = %s", 
+                   (new_status, invoice_id, comp_id))
+        
+        cur.execute("""
+            INSERT INTO audit_logs (company_id, admin_email, action, target, details, ip_address, created_at)
+            VALUES (%s, %s, 'INVOICE_UPDATE', %s, %s, %s, CURRENT_TIMESTAMP)
+        """, (
+            comp_id, 
+            user_name, 
+            f"Invoice #{invoice_id}", 
+            f"Status changed to {new_status} by {user_name}",
+            request.remote_addr
+        ))
+
+        conn.commit()
+        flash(f"✅ Invoice marked as {new_status}")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}", "error")
+        
+    return redirect(request.referrer or url_for('finance.finance_invoices'))
     
 @finance_bp.route('/finance/invoice/<int:invoice_id>/delete')
 def delete_invoice(invoice_id):
@@ -1072,9 +1150,18 @@ def finance_dashboard():
     return render_template('finance/finance_dashboard.html',
                            currency_symbol=data.get('currency_symbol', '£'),
                            total_income=data.get('total_income', 0),
+                           total_invoiced=data.get('total_invoiced', 0),
+                           pending_income=data.get('pending_income', 0),
+                           total_wages=data.get('total_wages', 0),
+                           ytd_wages=data.get('ytd_wages', 0),
+                           fleet_cost=data.get('fleet_cost', 0),
+                           overhead_costs=data.get('overhead_costs', 0),
+                           job_expenses_cost=data.get('job_expenses_cost', 0),
                            total_expense=data.get('total_expense', 0),
                            total_balance=data.get('total_balance', 0),
+                           profit_margin=data.get('profit_margin', 0),
                            break_even=data.get('break_even', 0),
+                           yearly_summary=data.get('yearly_summary', []),
                            transactions=data.get('transactions', []),
                            logs=data.get('logs', []),
                            chart_labels=data.get('chart_labels', []),

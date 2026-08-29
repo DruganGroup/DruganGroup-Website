@@ -15,36 +15,202 @@ def get_finance_dashboard_data(comp_id):
     res = cur.fetchone()
     currency = res[0] if res else '£'
 
-    # 2. Total Income
+    # 2. Total Income (Paid Invoices) & Invoiced Total
+    cur.execute("""
+        SELECT COALESCE(SUM(total), 0) 
+        FROM invoices 
+        WHERE company_id = %s AND status = 'Paid'
+    """, (comp_id,))
+    total_income = float(cur.fetchone()[0] or 0)
+
     cur.execute("""
         SELECT COALESCE(SUM(total), 0) 
         FROM invoices 
         WHERE company_id = %s AND status != 'Void'
     """, (comp_id,))
-    total_income = float(cur.fetchone()[0])
+    total_invoiced = float(cur.fetchone()[0] or 0)
+    pending_income = max(0.0, total_invoiced - total_income)
 
     # 3. Fleet Cost
     cur.execute("SELECT COALESCE(SUM(cost), 0) FROM maintenance_logs WHERE company_id = %s", (comp_id,))
-    fleet_cost = float(cur.fetchone()[0])
+    fleet_cost = float(cur.fetchone()[0] or 0)
     
     # 4. Overhead
     cur.execute("""
         SELECT COALESCE(SUM(amount), 0) 
         FROM overhead_items 
-        JOIN overhead_categories c ON overhead_items.category_id = c.id 
-        WHERE c.company_id = %s
+        WHERE category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)
     """, (comp_id,))
-    monthly_overhead = float(cur.fetchone()[0])
-    
-    total_expense = fleet_cost + monthly_overhead
-    total_balance = total_income - total_expense
-    break_even = (monthly_overhead * 12) / 365 if monthly_overhead > 0 else 0
+    overhead_costs = float(cur.fetchone()[0] or 0)
 
-    # 5. Transactions Feed
+    # 5. Direct Job Costs
+    cur.execute("SELECT COALESCE(SUM(cost), 0) FROM job_expenses WHERE company_id = %s", (comp_id,))
+    job_expenses_cost = float(cur.fetchone()[0] or 0)
+
+    # 6. Staff Wages Calculation (Attendance & Timesheets)
+    cur.execute("""
+        SELECT a.date, a.total_hours, a.staff_id, s.name,
+               COALESCE(a.pay_rate, s.pay_rate, 0) as rate,
+               COALESCE(a.pay_model, s.pay_model, 'Hour') as model
+        FROM staff_attendance a
+        JOIN staff s ON a.staff_id = s.id
+        WHERE s.company_id = %s
+        ORDER BY a.date DESC
+    """, (comp_id,))
+    attendance_rows = cur.fetchall()
+
+    total_wages = 0.0
+    wages_by_year = {}
+    wages_by_year_month = {}
+    today = date.today()
+    current_year = today.year
+    ytd_wages = 0.0
+
+    for r in attendance_rows:
+        att_date = r[0]
+        hours = float(r[1] or 0)
+        rate = float(r[4] or 0)
+        model = r[5] or 'Hour'
+        
+        cost = 0.0
+        if model == 'Hour':
+            cost = hours * rate
+        elif model == 'Day':
+            cost = (rate / 8.0) * hours if hours > 0 else rate
+        elif model == 'Year':
+            cost = (rate / 260.0)
+        
+        cost = round(cost, 2)
+        total_wages += cost
+        
+        if att_date:
+            yr = att_date.year if hasattr(att_date, 'year') else None
+            mo = att_date.month if hasattr(att_date, 'month') else None
+            if yr:
+                wages_by_year[yr] = wages_by_year.get(yr, 0.0) + cost
+                if yr == current_year:
+                    ytd_wages += cost
+                if mo:
+                    wages_by_year_month[(yr, mo)] = wages_by_year_month.get((yr, mo), 0.0) + cost
+
+    total_expense = fleet_cost + overhead_costs + job_expenses_cost + total_wages
+    total_balance = total_income - total_expense
+    profit_margin = ((total_balance / total_income) * 100.0) if total_income > 0 else 0.0
+
+    # Daily Break-Even Target
+    monthly_overhead = overhead_costs / 12.0 if overhead_costs > 0 else 0.0
+    daily_overhead = monthly_overhead / 30.42 if monthly_overhead > 0 else 0.0
+    
+    cur.execute("SELECT COALESCE(SUM(daily_cost), 0) FROM vehicles WHERE company_id = %s AND status='Active'", (comp_id,))
+    daily_fleet = float(cur.fetchone()[0] or 0.0)
+
+    cur.execute("SELECT pay_rate, pay_model FROM staff WHERE company_id = %s AND status='Active'", (comp_id,))
+    daily_staff = 0.0
+    for s in cur.fetchall():
+        s_rate = float(s[0] or 0)
+        s_model = s[1] or 'Hour'
+        if s_model == 'Hour':
+            daily_staff += (s_rate * 8.0)
+        elif s_model == 'Day':
+            daily_staff += s_rate
+        elif s_model == 'Year':
+            daily_staff += (s_rate / 260.0)
+
+    break_even = daily_overhead + daily_fleet + daily_staff
+
+    # 7. Yearly Summary Figures ("Top per year figures")
+    cur.execute("""
+        SELECT EXTRACT(YEAR FROM date)::INTEGER as yr, COALESCE(SUM(total), 0)
+        FROM invoices
+        WHERE company_id = %s AND status = 'Paid' AND date IS NOT NULL
+        GROUP BY yr ORDER BY yr DESC
+    """, (comp_id,))
+    income_by_year = {int(r[0]): float(r[1]) for r in cur.fetchall() if r[0] is not None}
+
+    cur.execute("""
+        SELECT EXTRACT(YEAR FROM date)::INTEGER as yr, COALESCE(SUM(cost), 0)
+        FROM job_expenses
+        WHERE company_id = %s AND date IS NOT NULL
+        GROUP BY yr ORDER BY yr DESC
+    """, (comp_id,))
+    job_costs_by_year = {int(r[0]): float(r[1]) for r in cur.fetchall() if r[0] is not None}
+
+    cur.execute("""
+        SELECT EXTRACT(YEAR FROM date_incurred)::INTEGER as yr, COALESCE(SUM(amount), 0)
+        FROM overhead_items
+        WHERE category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s) AND date_incurred IS NOT NULL
+        GROUP BY yr ORDER BY yr DESC
+    """, (comp_id,))
+    overheads_by_year = {int(r[0]): float(r[1]) for r in cur.fetchall() if r[0] is not None}
+
+    cur.execute("""
+        SELECT EXTRACT(YEAR FROM date)::INTEGER as yr, COALESCE(SUM(cost), 0)
+        FROM maintenance_logs
+        WHERE company_id = %s AND date IS NOT NULL
+        GROUP BY yr ORDER BY yr DESC
+    """, (comp_id,))
+    fleet_by_year = {int(r[0]): float(r[1]) for r in cur.fetchall() if r[0] is not None}
+
+    all_years = set(income_by_year.keys()) | set(job_costs_by_year.keys()) | set(overheads_by_year.keys()) | set(fleet_by_year.keys()) | set(wages_by_year.keys()) | {current_year}
+    yearly_summary = []
+    for y in sorted(all_years, reverse=True):
+        y_rev = income_by_year.get(y, 0.0)
+        y_wages = wages_by_year.get(y, 0.0)
+        y_jobs = job_costs_by_year.get(y, 0.0)
+        y_overheads = overheads_by_year.get(y, 0.0) + fleet_by_year.get(y, 0.0)
+        y_exp = y_wages + y_jobs + y_overheads
+        y_profit = y_rev - y_exp
+        y_margin = (y_profit / y_rev * 100.0) if y_rev > 0 else 0.0
+        yearly_summary.append({
+            'year': y,
+            'revenue': y_rev,
+            'wages': y_wages,
+            'job_costs': y_jobs,
+            'overheads': y_overheads,
+            'total_expense': y_exp,
+            'net_profit': y_profit,
+            'profit_margin': y_margin
+        })
+
+    # 8. Chart Data (Past 6 Months)
+    chart_labels = []
+    chart_income = []
+    chart_expense = []
+    
+    for i in range(5, -1, -1):
+        d = today - timedelta(days=i*30)
+        chart_labels.append(d.strftime("%b %Y"))
+        
+        cur.execute("""
+            SELECT COALESCE(SUM(total), 0) FROM invoices 
+            WHERE company_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s AND status = 'Paid'
+        """, (comp_id, d.month, d.year))
+        m_inc = float(cur.fetchone()[0] or 0)
+        chart_income.append(m_inc)
+        
+        cur.execute("""
+            SELECT COALESCE(SUM(cost), 0) FROM maintenance_logs 
+            WHERE company_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s
+        """, (comp_id, d.month, d.year))
+        m_fleet = float(cur.fetchone()[0] or 0)
+
+        cur.execute("""
+            SELECT COALESCE(SUM(cost), 0) FROM job_expenses 
+            WHERE company_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s
+        """, (comp_id, d.month, d.year))
+        m_job = float(cur.fetchone()[0] or 0)
+        
+        m_wages = wages_by_year_month.get((d.year, d.month), 0.0)
+        m_overhead = (overhead_costs / 12.0) if overhead_costs > 0 else 0.0
+        
+        m_tot_exp = m_fleet + m_job + m_wages + m_overhead
+        chart_expense.append(round(m_tot_exp, 2))
+
+    # 9. Unified Transactions Feed
     query = """
         (
             SELECT 
-                date_created as date, 
+                date as date, 
                 'Income' as type, 
                 'Sales' as category, 
                 ref || ' - ' || COALESCE((SELECT name FROM clients WHERE id = invoices.client_id), 'Unknown Client') as description, 
@@ -78,34 +244,12 @@ def get_finance_dashboard_data(comp_id):
             WHERE category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)
         )
         ORDER BY date DESC 
-        LIMIT 15
+        LIMIT 20
     """
     cur.execute(query, (comp_id, comp_id, comp_id))
     transactions = cur.fetchall()
 
-    # 6. Chart Data (Past 6 Months)
-    chart_labels = []
-    chart_income = []
-    chart_expense = []
-    
-    today = date.today()
-    for i in range(5, -1, -1):
-        d = today - timedelta(days=i*30)
-        chart_labels.append(d.strftime("%B"))
-        
-        cur.execute("""
-            SELECT COALESCE(SUM(total), 0) FROM invoices 
-            WHERE company_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s
-        """, (comp_id, d.month, d.year))
-        chart_income.append(float(cur.fetchone()[0]))
-        
-        cur.execute("""
-            SELECT COALESCE(SUM(cost), 0) FROM maintenance_logs 
-            WHERE company_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s
-        """, (comp_id, d.month, d.year))
-        chart_expense.append(float(cur.fetchone()[0]) + monthly_overhead)
-
-    # 7. Audit Logs
+    # 10. Audit Logs
     cur.execute("""
         SELECT created_at, admin_email, action, details 
         FROM audit_logs 
@@ -117,9 +261,18 @@ def get_finance_dashboard_data(comp_id):
     return {
         'currency_symbol': currency,
         'total_income': total_income,
+        'total_invoiced': total_invoiced,
+        'pending_income': pending_income,
+        'total_wages': total_wages,
+        'ytd_wages': ytd_wages,
+        'fleet_cost': fleet_cost,
+        'overhead_costs': overhead_costs,
+        'job_expenses_cost': job_expenses_cost,
         'total_expense': total_expense,
         'total_balance': total_balance,
+        'profit_margin': profit_margin,
         'break_even': break_even,
+        'yearly_summary': yearly_summary,
         'transactions': transactions,
         'chart_labels': chart_labels,
         'chart_income': chart_income,

@@ -25,121 +25,39 @@ def get_date_fmt_str(company_id):
 # =========================================================
 # 1. FINANCE DASHBOARD (With LIVE Linked Data)
 # =========================================================
+from services.dashboard_service import get_finance_dashboard_data
+
 @transactions_bp.route('/finance-dashboard')
 def finance_dashboard():
-    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']: 
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']: 
         return redirect(url_for('auth.login'))
         
     comp_id = session.get('company_id')
     config = get_site_config(comp_id)
-    conn = get_db()
-    cur = conn.cursor()
+    data = get_finance_dashboard_data(comp_id)
 
-    # --- A. CALCULATE TOTALS (Live from Invoices & Expenses) ---
-    # 1. Total Income (Only PAID Invoices count as cash)
-    cur.execute("SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE company_id = %s AND status = 'Paid'", (comp_id,))
-    income = float(cur.fetchone()[0])
-
-    # 2. Total Expense (Job Expenses + Overheads)
-    cur.execute("SELECT COALESCE(SUM(cost), 0) FROM job_expenses WHERE company_id = %s", (comp_id,))
-    job_costs = float(cur.fetchone()[0])
-    
-    cur.execute("SELECT COALESCE(SUM(amount), 0) FROM overhead_items WHERE category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)", (comp_id,))
-    overhead_costs = float(cur.fetchone()[0])
-    
-    expense = job_costs + overhead_costs
-    balance = income - expense
-
-    # --- B. BREAK-EVEN CALCULATOR ---
-    monthly_overheads = overhead_costs # Simplify for now (Total tracked overheads)
-    daily_overhead = monthly_overheads / 30.42
-
-    cur.execute("SELECT SUM(daily_cost) FROM vehicles WHERE company_id = %s AND status='Active'", (comp_id,))
-    daily_fleet = cur.fetchone()[0] or 0.0
-
-    cur.execute("SELECT pay_rate, pay_model FROM staff WHERE company_id = %s AND status='Active'", (comp_id,))
-    daily_staff = 0.0
-    for s in cur.fetchall():
-        rate = float(s[0] or 0)
-        model = s[1]
-        if model == 'Hour': daily_staff += (rate * 8)
-        elif model == 'Day': daily_staff += rate
-        elif model == 'Year': daily_staff += (rate / 260)
-
-    break_even_target = daily_overhead + float(daily_fleet) + daily_staff
-
-    # --- C. RECENT TRANSACTIONS (THE CLICKABLE FEED) ---
-    # We combine Invoices (Income) and Expenses (Outgoing) into one list
-    # The 'job_id' column allows us to link it. Overheads have NULL job_id.
-    cur.execute("""
-        (
-            SELECT 
-                date_created as date, 
-                'Income' as type, 
-                'Sales' as category, 
-                ref || ' - ' || (SELECT name FROM clients WHERE id = invoices.client_id) as description, 
-                total_amount as amount, 
-                job_id
-            FROM invoices 
-            WHERE company_id = %s AND status = 'Paid'
-        )
-        UNION ALL
-        (
-            SELECT 
-                date, 
-                'Expense' as type, 
-                'Job Cost' as category, 
-                description, 
-                cost as amount, 
-                job_id
-            FROM job_expenses 
-            WHERE company_id = %s
-        )
-        UNION ALL
-        (
-            SELECT 
-                date_incurred as date, 
-                'Expense' as type, 
-                'Overhead' as category, 
-                name as description, 
-                amount, 
-                NULL as job_id
-            FROM overhead_items 
-            WHERE category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)
-        )
-        ORDER BY date DESC 
-        LIMIT 15
-    """, (comp_id, comp_id, comp_id))
-    
-    recent_trans = cur.fetchall()
-
-    # --- D. AUDIT LOGS ---
-    cur.execute("SELECT action, target, details, created_at, admin_email FROM audit_logs WHERE company_id = %s ORDER BY created_at DESC LIMIT 10", (comp_id,))
-    raw_logs = cur.fetchall()
-    audit_logs = [{'action': r[0], 'target': r[1], 'details': r[2], 'time': r[3].strftime('%d/%m %H:%M'), 'user': r[4]} for r in raw_logs]
-
-    # --- E. CHART DATA (Simple Last 6 Months) ---
-    # (Simplified for display purposes - uses the totals calculated above distributed roughly)
-    # Ideally, you'd run a GROUP BY month query here, but let's stick to the list for now.
-    chart_labels = ["Total"]
-    chart_income = [income]
-    chart_expense = [expense]
-
-    pass
-    
-    return render_template('finance/finance_dashboard.html', 
-                           total_income=income, 
-                           total_expense=expense, 
-                           total_balance=balance,
-                           break_even=break_even_target,
-                           logs=audit_logs,
-                           transactions=recent_trans, # <-- Now holds the Job ID
-                           chart_labels=json.dumps(chart_labels),
-                           chart_income=json.dumps(chart_income),
-                           chart_expense=json.dumps(chart_expense),
-                           brand_color=config['color'], 
-                           logo_url=config['logo'],
-                           currency_symbol=config.get('currency_symbol', '£'))
+    return render_template('finance/finance_dashboard.html',
+                           currency_symbol=data.get('currency_symbol', '£'),
+                           total_income=data.get('total_income', 0),
+                           total_invoiced=data.get('total_invoiced', 0),
+                           pending_income=data.get('pending_income', 0),
+                           total_wages=data.get('total_wages', 0),
+                           ytd_wages=data.get('ytd_wages', 0),
+                           fleet_cost=data.get('fleet_cost', 0),
+                           overhead_costs=data.get('overhead_costs', 0),
+                           job_expenses_cost=data.get('job_expenses_cost', 0),
+                           total_expense=data.get('total_expense', 0),
+                           total_balance=data.get('total_balance', 0),
+                           profit_margin=data.get('profit_margin', 0),
+                           break_even=data.get('break_even', 0),
+                           yearly_summary=data.get('yearly_summary', []),
+                           transactions=data.get('transactions', []),
+                           logs=data.get('logs', []),
+                           chart_labels=data.get('chart_labels', []),
+                           chart_income=data.get('chart_income', []),
+                           chart_expense=data.get('chart_expense', []),
+                           brand_color=config['color'],
+                           logo_url=config['logo'])
 
 # =========================================================
 # 2. INVOICE STATUS TOGGLES (Paid/Unpaid)
