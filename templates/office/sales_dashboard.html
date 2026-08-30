@@ -3,14 +3,14 @@
 {% block title %}Sales & Invoicing | Business Better{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h2 class="fw-bold m-0">Sales & Invoicing</h2>
-        <p class="text-muted mb-0">Track quotes, invoices, and client responses</p>
+        <h2 class="fw-bold m-0 text-dark"><i class="fas fa-file-invoice-dollar text-success me-2"></i>Sales, Billing & Invoicing</h2>
+        <p class="text-muted mb-0 small">Track commercial pipeline, client quotes, invoice receivables, and follow-ups.</p>
     </div>
-    <div>
-        <a href="/office/quote/new" class="btn btn-primary fw-bold"><i class="fas fa-plus me-2"></i>New Quote</a>
-        <a href="/finance/invoices" class="btn btn-secondary fw-bold ms-2"><i class="fas fa-file-invoice me-2"></i>Finance Invoices</a>
+    <div class="d-flex gap-2">
+        <a href="/office/quote/new" class="btn btn-primary fw-bold shadow-sm"><i class="fas fa-plus me-1"></i> New Quote</a>
+        <a href="/finance/invoices" class="btn btn-secondary fw-bold shadow-sm ms-2"><i class="fas fa-file-invoice me-1"></i> Finance Invoices</a>
     </div>
 </div>
 

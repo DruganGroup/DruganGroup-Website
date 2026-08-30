@@ -375,47 +375,92 @@ def view_property(property_id):
     }
     client = {'id': row[11], 'name': row[12], 'phone': row[13], 'email': row[14]}
 
-    # 2. Fetch Jobs (With Date Fixing)
+    # 2. Fetch Jobs & Attach Job-Specific Artifacts (Photos, RAMS, Certs, Invoices)
     cur.execute("""
-        SELECT id, ref, status, description, start_date 
-        FROM jobs 
-        WHERE property_id = %s 
-        ORDER BY start_date DESC
+        SELECT j.id, j.ref, j.status, j.description, j.start_date, q.job_title
+        FROM jobs j 
+        LEFT JOIN quotes q ON j.quote_id = q.id
+        WHERE j.property_id = %s 
+        ORDER BY 
+            CASE WHEN j.start_date IS NULL THEN 1 ELSE 0 END,
+            j.start_date DESC,
+            j.created_at DESC
     """, (property_id,))
+    raw_jobs = cur.fetchall()
     
     jobs = []
-    for j in cur.fetchall():
+    for j in raw_jobs:
+        job_id = j[0]
         raw_date = j[4]
         date_obj = None
         if raw_date:
-            if isinstance(raw_date, str):
-                try:
-                    safe_str = raw_date.split('.')[0]
-                    date_obj = datetime.strptime(safe_str, '%Y-%m-%d %H:%M:%S')
-                except (ValueError, TypeError):
-                    try:
-                        date_obj = datetime.strptime(raw_date, '%Y-%m-%d')
-                    except:
-                        pass
-            else:
+            if isinstance(raw_date, (datetime, date)):
                 date_obj = raw_date
+            elif isinstance(raw_date, str):
+                try:
+                    date_obj = datetime.strptime(raw_date[:10], '%Y-%m-%d').date()
+                except:
+                    pass
 
-        jobs.append({'id': j[0], 'ref': j[1], 'status': j[2], 'desc': j[3], 'date': date_obj})
+        title = (j[5] or j[3] or f"Job {j[1]}").strip()
 
-    # 3. Fetch Certificates (Fixed for job_evidence)
-    cur.execute("""
-        SELECT f.id, f.file_type, f.uploaded_at, j.ref, f.filepath
-        FROM job_evidence f
-        JOIN jobs j ON f.job_id = j.id
-        WHERE j.property_id = %s
-        ORDER BY f.uploaded_at DESC
-    """, (property_id,))
-    
-    certs = []
-    for c in cur.fetchall():
-        certs.append({'type': c[1], 'date': c[2], 'job_ref': c[3], 'path': c[4]})
+        # Fetch Evidence/Photos specifically tied to THIS job
+        cur.execute("""
+            SELECT id, filepath, uploaded_at, file_type, visible_to_client 
+            FROM job_evidence 
+            WHERE job_id = %s 
+            ORDER BY uploaded_at DESC
+        """, (job_id,))
+        job_evidence_rows = cur.fetchall()
+        
+        job_photos = []
+        job_certs = []
+        for ev in job_evidence_rows:
+            f_path = ev[1] if ev[1].startswith('/') else '/' + ev[1]
+            f_type = ev[3] or 'Site Photo'
+            if f_type in ['Site Photo', 'Photo', 'Progress Photo', 'Completion Photo']:
+                job_photos.append({'id': ev[0], 'path': f_path, 'type': f_type, 'date': ev[2]})
+            else:
+                job_certs.append({'id': ev[0], 'path': f_path, 'type': f_type, 'date': ev[2]})
 
-    # 4. Fetch Property Documents
+        # Fetch RAMS tied to THIS job
+        cur.execute("""
+            SELECT id, pdf_path, created_at 
+            FROM job_rams 
+            WHERE job_id = %s 
+            ORDER BY created_at DESC LIMIT 1
+        """, (job_id,))
+        rams_row = cur.fetchone()
+        job_rams = None
+        if rams_row and rams_row[1]:
+            job_rams = {'id': rams_row[0], 'path': rams_row[1], 'date': rams_row[2]}
+
+        # Fetch Invoices tied to THIS job
+        cur.execute("""
+            SELECT id, reference, status, total, date 
+            FROM invoices 
+            WHERE job_id = %s AND status != 'Void'
+            LIMIT 1
+        """, (job_id,))
+        inv_row = cur.fetchone()
+        job_invoice = None
+        if inv_row:
+            job_invoice = {'id': inv_row[0], 'ref': inv_row[1], 'status': inv_row[2], 'total': float(inv_row[3] or 0), 'date': inv_row[4]}
+
+        jobs.append({
+            'id': job_id,
+            'ref': j[1],
+            'status': j[2],
+            'desc': j[3] or '',
+            'title': title,
+            'date': date_obj,
+            'photos': job_photos,
+            'certs': job_certs,
+            'rams': job_rams,
+            'invoice': job_invoice
+        })
+
+    # 3. Fetch Permanent Property Documents (Blueprints, Lease, Deeds)
     cur.execute("""
         SELECT id, document_type, filepath, uploaded_at, visible_to_client 
         FROM property_documents 
@@ -427,7 +472,7 @@ def view_property(property_id):
     for d in cur.fetchall():
         prop_docs.append({'id': d[0], 'type': d[1], 'path': d[2], 'date': d[3], 'visible': d[4]})
 
-    return render_template('office/property_details.html', prop=prop, client=client, jobs=jobs, certs=certs, prop_docs=prop_docs, today=date.today())
+    return render_template('office/property_details.html', prop=prop, client=client, jobs=jobs, prop_docs=prop_docs, today=date.today())
 
 @client_bp.route('/office/client/<int:client_id>/mass-email', methods=['POST'])
 def mass_email_tenants(client_id):

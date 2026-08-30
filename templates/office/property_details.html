@@ -1,27 +1,38 @@
 {% extends "office/office_base.html" %}
 
-{% block title %}Property | {{ prop.address }}{% endblock %}
+{% block title %}Property Hub | {{ prop.address }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid p-0">
+    <!-- Header Banner -->
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1 small">
                     <li class="breadcrumb-item"><a href="/office-hub" class="text-decoration-none text-muted">Office</a></li>
                     <li class="breadcrumb-item"><a href="/client/{{ client.id }}" class="text-decoration-none text-muted">{{ client.name }}</a></li>
-                    <li class="breadcrumb-item active">{{ prop.address }}</li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ prop.address }}</li>
                 </ol>
             </nav>
-            <h2 class="fw-bold m-0 text-dark">{{ prop.address }}</h2>
-            <div class="text-muted"><i class="fas fa-map-marker-alt me-2"></i>{{ prop.postcode }}</div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <h2 class="fw-bold m-0 text-dark">{{ prop.address }}</h2>
+                <span class="badge bg-light text-dark border font-monospace">{{ prop.postcode }}</span>
+                {% if client.name %}
+                <a href="/client/{{ client.id }}" class="badge bg-primary-subtle text-primary border border-primary-subtle text-decoration-none">
+                    <i class="fas fa-user-circle me-1"></i> {{ client.name }}
+                </a>
+                {% endif %}
+            </div>
         </div>
-        <div class="d-flex gap-2">
-            <button class="btn btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#editPropModal">
-                <i class="fas fa-edit me-2"></i>{{ _('Edit Property') }}
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="/office/job/create?client_id={{ client.id }}&property_id={{ prop.id }}" class="btn btn-warning fw-bold text-dark shadow-sm">
+                <i class="fas fa-plus me-1"></i> Book Job
+            </a>
+            <button class="btn btn-outline-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#editPropModal">
+                <i class="fas fa-edit me-1"></i> Edit Property
             </button>
-            <a href="/client/{{ client.id }}" class="btn btn-outline-secondary fw-bold">
-                <i class="fas fa-arrow-left me-2"></i>Back to Client
+            <a href="/client/{{ client.id }}" class="btn btn-outline-secondary fw-bold shadow-sm">
+                <i class="fas fa-arrow-left me-1"></i> Client Profile
             </a>
         </div>
     </div>
@@ -32,175 +43,255 @@
         <div class="ratio ratio-21x9 bg-light">
             <img src="/static/{{ prop.photo }}" class="w-100 h-100 object-fit-cover" alt="{{ prop.address }}">
         </div>
-        <div class="position-absolute bottom-0 start-0 end-0 p-3 bg-dark bg-opacity-75 text-white d-flex justify-content-between align-items-center">
+        <div class="position-absolute bottom-0 start-0 end-0 p-3 bg-dark bg-opacity-75 text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
                 <h4 class="fw-bold m-0 text-white">{{ prop.address }}</h4>
                 <small class="opacity-75">{{ prop.postcode }} &bull; {{ client.name }}</small>
             </div>
-            <button class="btn btn-sm btn-light fw-bold" data-bs-toggle="modal" data-bs-target="#editPropModal">
-                <i class="fas fa-camera me-1"></i> Change Photo
-            </button>
+            <div class="d-flex gap-2 align-items-center">
+                {% if prop.key_code %}
+                <span class="badge bg-warning text-dark font-monospace fs-6"><i class="fas fa-key me-1"></i> Key: {{ prop.key_code }}</span>
+                {% endif %}
+                <button class="btn btn-sm btn-light fw-bold" data-bs-toggle="modal" data-bs-target="#editPropModal">
+                    <i class="fas fa-camera me-1"></i> Change Photo
+                </button>
+            </div>
         </div>
     </div>
     {% endif %}
 
+    <!-- Compliance Expiry Metric Cards -->
+    <div class="row g-3 mb-4">
+        {% macro compliance_card(label, icon, date_val) %}
+            {% set status = 'Missing' %}
+            {% set color = 'secondary' %}
+            {% set dstr = 'Not Filed' %}
+            {% set days = None %}
+            
+            {% if date_val %}
+                {% set days = (date_val - today).days %}
+                {% set dstr = date_val.strftime('%d/%m/%Y') %}
+                {% if days < 0 %}
+                    {% set status = 'EXPIRED' %}{% set color = 'danger' %}
+                {% elif days < 30 %}
+                    {% set status = 'Expiring Soon' %}{% set color = 'warning' %}
+                {% else %}
+                    {% set status = 'Valid' %}{% set color = 'success' %}
+                {% endif %}
+            {% endif %}
+
+            <div class="col-6 col-md-3">
+                <div class="card p-3 border-0 shadow-sm rounded-4 bg-white border-start border-4 border-{{ color }} h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="small fw-bold text-muted text-uppercase" style="font-size: 0.7rem;"><i class="{{ icon }} me-1"></i> {{ label }}</span>
+                        <span class="badge bg-{{ color }}-subtle text-{{ color }} border" style="font-size: 0.65rem;">{{ status }}</span>
+                    </div>
+                    <div class="fw-bold text-dark fs-6">{{ dstr }}</div>
+                    {% if days is not none %}
+                        <small class="text-muted" style="font-size: 0.72rem;">
+                            {% if days < 0 %}{{ days|abs }} days overdue{% elif days < 30 %}{{ days }} days remaining{% else %}Up to date{% endif %}
+                        </small>
+                    {% endif %}
+                </div>
+            </div>
+        {% endmacro %}
+
+        {{ compliance_card('Gas Safety (CP12)', 'fas fa-fire', prop.gas) }}
+        {{ compliance_card('Electrical (EICR)', 'fas fa-bolt', prop.eicr) }}
+        {{ compliance_card('PAT Testing', 'fas fa-plug', prop.pat) }}
+        {{ compliance_card('Energy (EPC)', 'fas fa-leaf', prop.epc) }}
+    </div>
+
     <div class="row g-4">
+        <!-- Left Column: Access & Permanent Property Docs -->
         <div class="col-lg-4">
             
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-white fw-bold py-3">Access & Tenant</div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <small class="text-muted fw-bold text-uppercase">Tenant</small>
-                        <div class="fw-bold text-dark">{{ prop.tenant or 'Vacant' }}</div>
+            <!-- Access & Tenant Card -->
+            <div class="card shadow-sm border-0 rounded-4 mb-4 bg-white overflow-hidden">
+                <div class="card-header bg-white fw-bold py-3 border-bottom d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-key text-warning me-2"></i>Access & Tenant</span>
+                    {% if prop.key_code %}
+                    <span class="badge bg-dark text-warning font-monospace fs-6 px-2 py-1">Key: {{ prop.key_code }}</span>
+                    {% endif %}
+                </div>
+                <div class="card-body p-3">
+                    <div class="p-3 bg-light rounded-3 mb-3 border">
+                        <small class="text-muted fw-bold text-uppercase d-block" style="font-size: 0.68rem;">Resident / Tenant</small>
+                        <div class="fw-bold text-dark fs-6 mt-1">{{ prop.tenant or 'Vacant / Owner Occupied' }}</div>
+                        
                         {% if prop.tenant_phone %}
-                            <div class="small"><a href="tel:{{ prop.tenant_phone }}" class="text-decoration-none"><i class="fas fa-phone me-1"></i> {{ prop.tenant_phone }}</a></div>
+                        <div class="small mt-2">
+                            <a href="tel:{{ prop.tenant_phone }}" class="text-decoration-none text-success fw-semibold">
+                                <i class="fas fa-phone me-1"></i> {{ prop.tenant_phone }}
+                            </a>
+                        </div>
+                        {% endif %}
+                        
+                        {% if prop.tenant_email %}
+                        <div class="small mt-1">
+                            <a href="mailto:{{ prop.tenant_email }}" class="text-decoration-none text-muted">
+                                <i class="fas fa-envelope me-1"></i> {{ prop.tenant_email }}
+                            </a>
+                        </div>
                         {% endif %}
                     </div>
-                    <div>
-                        <small class="text-muted fw-bold text-uppercase">Key Safe</small>
-                        <div class="badge bg-dark text-white border font-monospace fs-6">{{ prop.key_code or 'N/A' }}</div>
-                    </div>
-                </div>
-            </div>
 
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-white fw-bold py-3">Compliance Expiry</div>
-                <ul class="list-group list-group-flush">
-                    {% for label, date_val in [('Gas Safety', prop.gas), ('EICR', prop.eicr), ('PAT', prop.pat), ('EPC', prop.epc)] %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span class="small fw-bold">{{ label }}</span>
-                            {% if date_val %}
-                                {% set days = (date_val - today).days %}
-                                <span class="badge {{ 'bg-danger' if days < 0 else ('bg-warning text-dark' if days < 30 else 'bg-success') }}">
-                                    {{ date_val.strftime('%d/%m/%Y') }}
-                                </span>
-                            {% else %}
-                                <span class="badge bg-light text-muted border">Missing</span>
-                            {% endif %}
-                        </li>
-                    {% endfor %}
-                </ul>
-            </div>
-
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-white fw-bold py-3">
-                    <i class="fas fa-certificate me-2 text-warning"></i>Certificates
-                </div>
-                <div class="list-group list-group-flush">
-                    {% for c in certs %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <span class="badge bg-dark me-2">{{ c.type }}</span>
-                            <span class="small text-muted">{{ c.date.strftime('%d/%m/%y') }}</span>
-                        </div>
-                        <a href="/static/{{ c.path }}" target="_blank" class="btn btn-sm btn-outline-dark fw-bold">
-                            <i class="fas fa-file-pdf me-1"></i> View
-                        </a>
+                    {% if prop.key_code %}
+                    <div class="d-flex justify-content-between align-items-center p-2 rounded bg-dark text-warning">
+                        <span class="small font-monospace"><i class="fas fa-shield-alt me-1"></i> Code: <strong>{{ prop.key_code }}</strong></span>
+                        <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2" onclick="navigator.clipboard.writeText('{{ prop.key_code }}'); alert('Key code copied!');">
+                            Copy
+                        </button>
                     </div>
-                    {% else %}
-                    <div class="p-3 text-center text-muted small">No certificates filed yet.</div>
-                    {% endfor %}
+                    {% endif %}
                 </div>
             </div>
             
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-folder-open me-2 text-primary"></i>Property Documents</span>
+            <!-- Permanent Property Documents Hub -->
+            <div class="card shadow-sm border-0 rounded-4 mb-4 bg-white overflow-hidden">
+                <div class="card-header bg-white fw-bold py-3 border-bottom d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-folder-open text-primary me-2"></i>Property Deeds & Blueprints</span>
+                    <span class="badge bg-light text-muted border">{{ prop_docs|length }}</span>
                 </div>
+                
                 <div class="card-body p-3 bg-light border-bottom">
-                    <form action="/office/property/{{ prop.id }}/upload-document" method="POST" enctype="multipart/form-data" class="d-flex gap-2">
+                    <form action="/office/property/{{ prop.id }}/upload-document" method="POST" enctype="multipart/form-data">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <select name="document_type" class="form-select form-select-sm w-auto" required>
-                            <option value="">Select Type...</option>
-                            <option value="Project Plan">Project Plan</option>
-                            <option value="Layout Drawing">Layout Drawing</option>
-                            <option value="Building Rights">Building Rights</option>
-                            <option value="Certificate">Certificate</option>
-                            <option value="Other">Other</option>
-                        </select>
-                        <input type="file" name="document" class="form-control form-control-sm" required>
-                        <div class="form-check d-flex align-items-center mb-0 mt-1 me-2">
-                            <input class="form-check-input mt-0 me-1" type="checkbox" name="visible_to_client" id="visCheck" value="1">
-                            <label class="form-check-label small fw-bold text-nowrap" for="visCheck">Share with Client</label>
+                        <div class="mb-2">
+                            <select name="document_type" class="form-select form-select-sm" required>
+                                <option value="">Select Document Category...</option>
+                                <option value="Project Plan">Floorplan / Blueprint</option>
+                                <option value="Layout Drawing">Layout Drawing</option>
+                                <option value="Building Rights">Building Rights / Deeds</option>
+                                <option value="Lease Agreement">Lease Agreement</option>
+                                <option value="Other">Other Property Document</option>
+                            </select>
                         </div>
-                        <button type="submit" class="btn btn-primary btn-sm fw-bold">Upload</button>
+                        <div class="mb-2">
+                            <input type="file" name="document" class="form-control form-control-sm" required>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="checkbox" name="visible_to_client" id="visCheckProp" value="1">
+                                <label class="form-check-label small fw-bold" for="visCheckProp" style="font-size: 0.75rem;">Client View</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm fw-bold px-3">
+                                <i class="fas fa-upload me-1"></i> Upload
+                            </button>
+                        </div>
                     </form>
                 </div>
+
                 <div class="list-group list-group-flush">
                     {% for d in prop_docs %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <span class="badge bg-secondary me-2">{{ d.type }}</span>
-                            <span class="small text-muted">{{ d.date.strftime('%d/%m/%Y') }}</span>
+                    <div class="list-group-item p-3 d-flex justify-content-between align-items-center">
+                        <div class="text-truncate me-2">
+                            <span class="badge bg-secondary-subtle text-secondary border mb-1" style="font-size: 0.65rem;">{{ d.type }}</span>
+                            <div class="small text-muted" style="font-size: 0.72rem;">{{ d.date.strftime('%d/%m/%Y') }}</div>
                         </div>
-                        <div class="d-flex align-items-center">
-                            <div class="form-check form-switch me-3 mb-0" title="Toggle Client Visibility">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="form-check form-switch mb-0" title="Toggle Client Visibility">
                                 <input class="form-check-input toggle-visibility" type="checkbox" role="switch" 
                                     data-table="property_documents" data-id="{{ d.id }}" 
                                     {% if d.visible %}checked{% endif %}>
-                                <label class="form-check-label small" style="font-size: 0.7rem;">Client View</label>
                             </div>
-                            <a href="/static{{ d.path }}" target="_blank" class="btn btn-sm btn-outline-dark me-1" title="View Document">
-                                <i class="fas fa-eye me-1"></i> View
+                            <a href="/static{{ d.path }}" target="_blank" class="btn btn-sm btn-outline-dark" title="View Document">
+                                <i class="fas fa-eye"></i>
                             </a>
-                            <a href="/office/property/delete-document/{{ d.id }}" class="btn btn-sm btn-outline-danger" title="Delete Document" onclick="return confirm('Delete this document?');">
-                                <i class="fas fa-trash me-1"></i> Delete
+                            <a href="/office/property/delete-document/{{ d.id }}" class="btn btn-sm btn-outline-danger" title="Delete Document" onclick="return confirm('Delete this property document?');">
+                                <i class="fas fa-trash"></i>
                             </a>
                         </div>
                     </div>
                     {% else %}
-                    <div class="p-3 text-center text-muted small">No documents uploaded directly to this property.</div>
+                    <div class="p-4 text-center text-muted small">No permanent property documents uploaded.</div>
                     {% endfor %}
                 </div>
             </div>
         </div>
 
+        <!-- Right Column: Organized Job History with Tied Photos, RAMS, Certs -->
         <div class="col-lg-8">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-history me-2"></i>Job History</span>
-                    <a href="/office/job/create?client_id={{ client.id }}&property_id={{ prop.id }}" class="btn btn-sm btn-primary fw-bold">
+            <div class="card shadow-sm border-0 rounded-4 bg-white overflow-hidden">
+                <div class="card-header bg-white fw-bold py-3 border-bottom d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-history text-primary me-2"></i>Work Orders & Job History</span>
+                    <a href="/office/job/create?client_id={{ client.id }}&property_id={{ prop.id }}" class="btn btn-sm btn-warning fw-bold text-dark rounded-pill shadow-sm">
                         <i class="fas fa-plus me-1"></i> New Job
                     </a>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-light small text-uppercase text-muted">
-                            <tr>
-                                <th class="ps-3">Ref</th>
-                                <th>Description</th>
-                                <th>Date</th>
-                                <th>Status</th>
-                                <th class="text-end pe-3">{{ _('Action') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for job in jobs %}
-                            <tr>
-                                <td class="ps-3 fw-bold"><a href="/office/job/{{ job.id }}/files" class="text-decoration-none">{{ job.ref }}</a></td>
-                                <td>{{ job.desc }}</td>
-                                <td class="text-muted small">{{ job.date.strftime('%d/%m/%Y') if job.date else '-' }}</td>
-                                <td>
-                                    <span class="badge {{ 'bg-success' if job.status == 'Completed' else 'bg-primary' }}">{{ job.status }}</span>
-                                </td>
-                                
-                                <td class="text-end pe-3">
-                                    <div class="btn-group">
-                                        <a href="/office/job/{{ job.id }}/files" class="btn btn-sm btn-outline-secondary" title="View Job Files">
-                                            <i class="fas fa-folder-open me-1"></i> Files
-                                        </a>
-                                        <a href="/office/job/{{ job.id }}/rams/create" class="btn btn-sm btn-warning text-dark fw-bold" title="Generate RAMS">
-                                            <i class="fas fa-clipboard-check me-1"></i> RAMS
+
+                <div class="p-3">
+                    {% for job in jobs %}
+                    <div class="card border mb-3 rounded-4 shadow-sm overflow-hidden bg-white">
+                        <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="badge bg-dark font-monospace fs-6">{{ job.ref }}</span>
+                                <h6 class="fw-bold m-0 text-dark">{{ job.title }}</h6>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge {% if job.status == 'Completed' %}bg-success{% elif job.status == 'In Progress' %}bg-warning text-dark{% else %}bg-primary{% endif %} rounded-pill">
+                                    {{ job.status }}
+                                </span>
+                                <small class="text-muted font-monospace">{{ job.date.strftime('%d/%m/%Y') if job.date else 'Scheduled' }}</small>
+                                <a href="/office/job/{{ job.id }}/files" class="btn btn-sm btn-outline-primary fw-bold ms-2 rounded-pill">
+                                    <i class="fas fa-folder-open me-1"></i> Job Hub
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="card-body p-3">
+                            {% if job.desc and job.desc != job.title %}
+                            <p class="small text-muted mb-3">{{ job.desc }}</p>
+                            {% endif %}
+
+                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                {% if job.rams %}
+                                <a href="/static/{{ job.rams.path }}" target="_blank" class="badge bg-warning-subtle text-dark border border-warning p-2 text-decoration-none d-flex align-items-center gap-1">
+                                    <i class="fas fa-file-contract text-warning"></i> 
+                                    <span>RAMS Safety PDF</span>
+                                </a>
+                                {% endif %}
+
+                                {% for cert in job.certs %}
+                                <a href="{{ cert.path }}" target="_blank" class="badge bg-success-subtle text-success border border-success p-2 text-decoration-none d-flex align-items-center gap-1">
+                                    <i class="fas fa-certificate text-success"></i> 
+                                    <span>{{ cert.type }}</span>
+                                </a>
+                                {% endfor %}
+
+                                {% if job.invoice %}
+                                <a href="/finance/invoice/{{ job.invoice.id }}/view" class="badge bg-info-subtle text-dark border border-info p-2 text-decoration-none d-flex align-items-center gap-1">
+                                    <i class="fas fa-file-invoice-dollar text-primary"></i> 
+                                    <span>Inv #{{ job.invoice.ref }} (£{{ "%.2f"|format(job.invoice.total) }})</span>
+                                </a>
+                                {% endif %}
+                            </div>
+
+                            {% if job.photos %}
+                            <div class="mt-3 pt-2 border-top">
+                                <small class="fw-bold text-muted text-uppercase d-block mb-2" style="font-size: 0.68rem;">
+                                    <i class="fas fa-camera me-1"></i> Photos for this Work Order ({{ job.photos|length }})
+                                </small>
+                                <div class="row g-2">
+                                    {% for p in job.photos %}
+                                    <div class="col-3 col-sm-2">
+                                        <a href="{{ p.path }}" target="_blank" class="d-block position-relative ratio ratio-1x1 border rounded-3 overflow-hidden shadow-sm hover-shadow transition">
+                                            <img src="{{ p.path }}" class="w-100 h-100 object-fit-cover" alt="Job Photo">
                                         </a>
                                     </div>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr><td colspan="5" class="text-center py-4 text-muted">No jobs history found.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="fas fa-history fa-3x mb-2 opacity-25 d-block"></i>
+                        <h6 class="fw-bold">No Job History</h6>
+                        <p class="small text-muted mb-0">Click "New Job" above to schedule maintenance or repair works for this property.</p>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
