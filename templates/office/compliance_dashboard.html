@@ -1,6 +1,7 @@
 {% extends "office/office_base.html" %}
+{% from "components/_macros.html" import date_check %}
 
-{% block title %}Expiring Compliance Certificates{% endblock %}
+{% block title %}Expiring Compliance Certificates | Business Better{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
@@ -15,58 +16,52 @@
     </div>
 </div>
 
-<div class="card shadow-sm border-0">
-    <div class="card-body">
-        <p class="text-muted mb-4">Properties with certificates expiring in the next 30 days or already expired.</p>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>Property</th>
-                        <th>{{ _('Client') }}</th>
-                        <th>Gas (CP12)</th>
-                        <th>Electric (EICR)</th>
-                        <th>Energy (EPC)</th>
-                        <th>PAT</th>
-                        <th>{{ _('Action') }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for p in expiring_props %}
-                    <tr>
-                        <td class="fw-bold">{{ p.address }}</td>
-                        <td>{{ p.client }}</td>
-                        
-                        {% set today = now() if now else None %}
-                        
-                        <td class="{{ 'text-danger fw-bold' if p.gas and p.gas|string < today|string else ('text-warning fw-bold' if p.gas else 'text-muted') }}">
-                            {{ p.gas.strftime('%d/%m/%Y') if p.gas else '-' }}
-                        </td>
-                        <td class="{{ 'text-danger fw-bold' if p.eicr and p.eicr|string < today|string else ('text-warning fw-bold' if p.eicr else 'text-muted') }}">
-                            {{ p.eicr.strftime('%d/%m/%Y') if p.eicr else '-' }}
-                        </td>
-                        <td class="{{ 'text-danger fw-bold' if p.epc and p.epc|string < today|string else ('text-warning fw-bold' if p.epc else 'text-muted') }}">
-                            {{ p.epc.strftime('%d/%m/%Y') if p.epc else '-' }}
-                        </td>
-                        <td class="{{ 'text-danger fw-bold' if p.pat and p.pat|string < today|string else ('text-warning fw-bold' if p.pat else 'text-muted') }}">
-                            {{ p.pat.strftime('%d/%m/%Y') if p.pat else '-' }}
-                        </td>
-                        
-                        <td>
-                            <a href="/office/quote/new?client_id={{ p.client_id }}&property_id={{ p.prop_id }}" class="btn btn-sm btn-outline-primary">Create Quote</a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="7" class="text-center py-4 text-muted">
-                            <i class="fas fa-check-circle fa-2x mb-2 text-success"></i><br>
-                            All compliance certificates are up to date!
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+    <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 fw-bold text-dark"><i class="fas fa-shield-alt text-primary me-2"></i>Property Certificates Status</h6>
+        <span class="badge bg-light text-muted border">{{ expiring_props|length }} Properties Monitored</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light small text-uppercase text-muted">
+                <tr>
+                    <th class="ps-4">Property Address</th>
+                    <th>Client / Landlord</th>
+                    <th>Gas Safety (CP12)</th>
+                    <th>Electrical (EICR)</th>
+                    <th>Energy (EPC)</th>
+                    <th>PAT Testing</th>
+                    <th class="text-end pe-4">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in expiring_props %}
+                <tr>
+                    <td class="ps-4 fw-bold text-dark">{{ p.address }}</td>
+                    <td>{{ p.client or 'Client' }}</td>
+                    
+                    <td>{{ date_check(p.gas, today) }}</td>
+                    <td>{{ date_check(p.eicr, today) }}</td>
+                    <td>{{ date_check(p.epc, today) }}</td>
+                    <td>{{ date_check(p.pat, today) }}</td>
+                    
+                    <td class="text-end pe-4">
+                        <a href="/office/quote/new?client_id={{ p.client_id }}&property_id={{ p.prop_id }}" class="btn btn-sm btn-primary fw-bold">
+                            <i class="fas fa-file-invoice me-1"></i> Quote Renewal
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center py-5 text-muted">
+                        <i class="fas fa-check-circle fa-3x mb-2 text-success opacity-75 d-block"></i>
+                        <h6 class="fw-bold text-success">All Certificates Compliant</h6>
+                        <p class="small text-muted mb-0">No properties currently have expired or due certificates.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}

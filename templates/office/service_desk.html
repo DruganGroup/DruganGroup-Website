@@ -1,5 +1,5 @@
 {% extends "office/office_base.html" %}
-{% from "components/_macros.html" import status_badge %}
+{% from "components/_macros.html" import status_badge, date_check %}
 
 {% block title %}Service Desk & Compliance | Business Better{% endblock %}
 
@@ -146,31 +146,26 @@
             <tbody>
                 {% for p in expiring_props %}
                 <tr>
-                    <td class="ps-4 fw-bold">{{ p.address }}</td>
-                    <td>{{ p.client }}</td>
+                    <td class="ps-4 fw-bold text-dark">{{ p.address }}</td>
+                    <td>{{ p.client or 'Client' }}</td>
                     
-                    <td class="{{ 'text-danger fw-bold' if p.gas and p.gas|string < now().strftime('%Y-%m-%d') else ('text-warning fw-bold' if p.gas else 'text-muted') }}">
-                        {{ p.gas.strftime('%d/%m/%Y') if p.gas else '-' }}
-                    </td>
-                    <td class="{{ 'text-danger fw-bold' if p.eicr and p.eicr|string < now().strftime('%Y-%m-%d') else ('text-warning fw-bold' if p.eicr else 'text-muted') }}">
-                        {{ p.eicr.strftime('%d/%m/%Y') if p.eicr else '-' }}
-                    </td>
-                    <td class="{{ 'text-danger fw-bold' if p.epc and p.epc|string < now().strftime('%Y-%m-%d') else ('text-warning fw-bold' if p.epc else 'text-muted') }}">
-                        {{ p.epc.strftime('%d/%m/%Y') if p.epc else '-' }}
-                    </td>
-                    <td class="{{ 'text-danger fw-bold' if p.pat and p.pat|string < now().strftime('%Y-%m-%d') else ('text-warning fw-bold' if p.pat else 'text-muted') }}">
-                        {{ p.pat.strftime('%d/%m/%Y') if p.pat else '-' }}
-                    </td>
+                    <td>{{ date_check(p.gas, today) }}</td>
+                    <td>{{ date_check(p.eicr, today) }}</td>
+                    <td>{{ date_check(p.epc, today) }}</td>
+                    <td>{{ date_check(p.pat, today) }}</td>
                     
                     <td class="text-end pe-4">
-                        <a href="/office/quote/new?client_id={{ p.client_id }}&property_id={{ p.prop_id }}" class="btn btn-sm btn-outline-primary fw-bold">{{ _('Quote Repair') }}</a>
+                        <a href="/office/quote/new?client_id={{ p.client_id }}&property_id={{ p.prop_id }}" class="btn btn-sm btn-primary fw-bold">
+                            <i class="fas fa-file-invoice me-1"></i> {{ _('Quote Repair') }}
+                        </a>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" class="text-center p-5 text-muted">
-                        <i class="fas fa-check-circle fa-2x mb-2 text-success opacity-50"></i><br>
-                        {{ _('All compliance certificates are up to date!') }}
+                    <td colspan="7" class="text-center py-5 text-muted">
+                        <i class="fas fa-check-circle fa-3x mb-2 text-success opacity-75 d-block"></i>
+                        <h6 class="fw-bold text-success">{{ _('All compliance certificates are up to date!') }}</h6>
+                        <p class="small text-muted mb-0">No certificates currently due or expired.</p>
                     </td>
                 </tr>
                 {% endfor %}
