@@ -14,8 +14,9 @@
 		</div>
 
 		<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-			<table class="table table-hover align-middle mb-0">
-				<thead class="table-light text-uppercase small">
+			<div class="table-responsive" style="-webkit-overflow-scrolling: touch;">
+				<table class="table table-hover align-middle mb-0" style="min-width: 850px;">
+					<thead class="table-light text-uppercase small">
 					<tr>
 						<th class="ps-4">Employee</th>
 						<th>Job Title</th>
@@ -82,6 +83,7 @@
 					{% endfor %}
 				</tbody>
 			</table>
+			</div>
 		</div>
 
 		<div class="modal fade" id="staffModal" tabindex="-1">

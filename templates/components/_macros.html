@@ -29,27 +29,41 @@
 {# Usage: {{ date_check(vehicle.mot_expiry, today) }} #}
 {% macro date_check(target_date, today_date=None) %}
     {% if target_date %}
-        {% set today_val = today_date or today or now_date %}
-        {% if today_val and target_date.__class__.__name__ in ['date', 'datetime'] and today_val.__class__.__name__ in ['date', 'datetime'] %}
-            {% set days = (target_date - today_val).days %}
-        {% else %}
-            {% set days = 999 %}
-        {% endif %}
+        {% set raw_today = today_date or today or now_date %}
+        {% set today_val = raw_today() if raw_today is callable else raw_today %}
+        {% set ns = namespace(days=none) %}
         
-        {% if days < 0 or (target_date|string < (today_val|string if today_val else '9999-99-99')) %}
+        {# Calculate days difference if date/datetime objects #}
+        {% if today_val and target_date.strftime is defined %}
+            {% if target_date.date is defined and today_val.date is defined %}
+                {% set ns.days = (target_date.date() - today_val.date()).days %}
+            {% elif target_date.date is defined %}
+                {% set ns.days = (target_date.date() - today_val).days %}
+            {% elif today_val.date is defined %}
+                {% set ns.days = (target_date - today_val.date()).days %}
+            {% else %}
+                {% set ns.days = (target_date - today_val).days %}
+            {% endif %}
+        {% endif %}
+
+        {% set date_str = target_date.strftime('%d/%m/%Y') if target_date.strftime is defined else target_date %}
+        {% set iso_target = target_date.strftime('%Y-%m-%d') if target_date.strftime is defined else (target_date|string)[:10] %}
+        {% set iso_today = today_val.strftime('%Y-%m-%d') if today_val and today_val.strftime is defined else ((today_val|string)[:10] if today_val else '') %}
+
+        {% if (ns.days is not none and ns.days < 0) or (ns.days is none and iso_today and iso_target < iso_today) %}
             {# ALREADY EXPIRED (RED) #}
             <span class="badge bg-danger text-white fw-bold px-2 py-1 shadow-sm">
-                <i class="fas fa-times-circle me-1"></i> EXPIRED ({{ target_date.strftime('%d/%m/%Y') if target_date.strftime else target_date }})
+                <i class="fas fa-times-circle me-1"></i> EXPIRED ({{ date_str }})
             </span>
-        {% elif days <= 30 %}
+        {% elif (ns.days is not none and ns.days <= 30) %}
             {# EXPIRING SOON WITHIN 30 DAYS (AMBER/YELLOW) #}
             <span class="badge bg-warning text-dark fw-bold px-2 py-1 shadow-sm">
-                <i class="fas fa-exclamation-triangle me-1 text-danger"></i> DUE {{ '(' ~ days ~ 'd):' if days != 999 else ':' }} {{ target_date.strftime('%d/%m/%Y') if target_date.strftime else target_date }}
+                <i class="fas fa-exclamation-triangle me-1 text-danger"></i> DUE ({{ ns.days }}d): {{ date_str }}
             </span>
         {% else %}
             {# SAFE & VALID (GREEN) #}
             <span class="badge bg-success-subtle text-success border border-success px-2 py-1">
-                <i class="fas fa-check-circle me-1"></i> VALID: {{ target_date.strftime('%d/%m/%Y') if target_date.strftime else target_date }}
+                <i class="fas fa-check-circle me-1"></i> VALID: {{ date_str }}
             </span>
         {% endif %}
     {% else %}

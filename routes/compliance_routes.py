@@ -46,7 +46,7 @@ def compliance_dashboard():
     logo = settings.get('logo', '/static/images/logo.png')
     
     pass
-    return render_template('office/compliance_dashboard.html', expiring_props=expiring_props, brand_color=brand_color, logo=logo)
+    return render_template('office/compliance_dashboard.html', expiring_props=expiring_props, brand_color=brand_color, logo=logo, today=date.today())
 
 # --- 1. EICR (ELECTRICAL) SAVE LOGIC ---
 @compliance_bp.route('/compliance/eicr/save', methods=['POST'])

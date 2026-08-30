@@ -173,7 +173,7 @@ def service_desk():
 
     pass
     
-    from datetime import datetime
+    from datetime import datetime, date
     now_func = datetime.now
     
     return render_template('office/service_desk.html', 
@@ -183,6 +183,7 @@ def service_desk():
                            active_partners=active_partners,
                            brand_color=config['color'], 
                            logo=config['logo'],
+                           today=date.today(),
                            now=now_func)
 
 @office_bp.route('/office/create-work-order', methods=['POST'])

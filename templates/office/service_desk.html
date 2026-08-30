@@ -13,35 +13,36 @@
     </div>
     
     <div class="card p-0 shadow-sm border-0 rounded-4 overflow-hidden mb-5">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light text-uppercase small">
-                <tr>
-                    <th class="ps-4">{{ _('Ticket ID') }}</th>
-                    <th>{{ _('Severity') }}</th>
-                    <th>{{ _('Property & Access') }}</th>
-                    <th>{{ _('Issue') }}</th>
-                    <th>{{ _('Contacts (Client & Tenant)') }}</th>
-                    <th>{{ _('Status') }}</th>
-                    <th class="text-end pe-4">{{ _('Action') }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for r in requests %}
-                <tr>
-                    <td class="ps-4 text-muted font-monospace">#{{ r.id }}<br><small>{{ r.date }}</small></td>
-                    <td>{{ status_badge(r.severity) }}</td>
-                    <td>
-                        <div class="fw-bold text-dark">{{ r.property_address }}</div>
-                        {% if r.key_code %}
-                            <span class="badge bg-dark text-warning small mt-1"><i class="fas fa-key me-1"></i>Key Safe: {{ r.key_code }}</span>
-                        {% endif %}
-                    </td>
-                    <td class="small text-muted text-truncate" style="max-width: 200px;">
-                        {{ r.issue_description }}
-                        {% if r.photo_path %}
-                            <br><a href="{{ r.photo_path }}" target="_blank" class="badge bg-secondary text-decoration-none mt-1"><i class="fas fa-image"></i> View Photo</a>
-                        {% endif %}
-                    </td>
+        <div class="table-responsive" style="-webkit-overflow-scrolling: touch;">
+            <table class="table table-hover align-middle mb-0" style="min-width: 850px;">
+                <thead class="table-light text-uppercase small">
+                    <tr>
+                        <th class="ps-4" style="min-width: 120px;">{{ _('Ticket ID') }}</th>
+                        <th style="min-width: 100px;">{{ _('Severity') }}</th>
+                        <th style="min-width: 180px;">{{ _('Property & Access') }}</th>
+                        <th style="min-width: 220px;">{{ _('Issue') }}</th>
+                        <th style="min-width: 180px;">{{ _('Contacts (Client & Tenant)') }}</th>
+                        <th style="min-width: 140px;">{{ _('Status') }}</th>
+                        <th class="text-end pe-4" style="min-width: 140px;">{{ _('Action') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in requests %}
+                    <tr>
+                        <td class="ps-4 text-muted font-monospace">#{{ r.id }}<br><small>{{ r.date }}</small></td>
+                        <td>{{ status_badge(r.severity) }}</td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ r.property_address }}</div>
+                            {% if r.key_code %}
+                                <span class="badge bg-dark text-warning small mt-1"><i class="fas fa-key me-1"></i>Key Safe: {{ r.key_code }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="small text-muted" style="max-width: 260px; word-break: break-word;">
+                            {{ r.issue_description }}
+                            {% if r.photo_path %}
+                                <br><a href="{{ r.photo_path }}" target="_blank" class="badge bg-secondary text-decoration-none mt-1"><i class="fas fa-image"></i> View Photo</a>
+                            {% endif %}
+                        </td>
                     <td>
                         <div>
                             <span class="fw-bold text-dark"><i class="fas fa-user-tie me-1 small text-muted"></i>{{ r.client_name }}</span>
@@ -120,6 +121,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
 
     <!-- COMPLIANCE ALERTS SECTION -->
@@ -131,46 +133,48 @@
     </div>
     
     <div class="card p-0 shadow-sm border-0 rounded-4 overflow-hidden mb-5">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light text-uppercase small">
-                <tr>
-                    <th class="ps-4">{{ _('Property') }}</th>
-                    <th>{{ _('Client') }}</th>
-                    <th>{{ _('Gas (CP12)') }}</th>
-                    <th>{{ _('Electric (EICR)') }}</th>
-                    <th>{{ _('Energy (EPC)') }}</th>
-                    <th>{{ _('PAT') }}</th>
-                    <th class="text-end pe-4">{{ _('Action') }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for p in expiring_props %}
-                <tr>
-                    <td class="ps-4 fw-bold text-dark">{{ p.address }}</td>
-                    <td>{{ p.client or 'Client' }}</td>
-                    
-                    <td>{{ date_check(p.gas, today) }}</td>
-                    <td>{{ date_check(p.eicr, today) }}</td>
-                    <td>{{ date_check(p.epc, today) }}</td>
-                    <td>{{ date_check(p.pat, today) }}</td>
-                    
-                    <td class="text-end pe-4">
-                        <a href="/office/quote/new?client_id={{ p.client_id }}&property_id={{ p.prop_id }}" class="btn btn-sm btn-primary fw-bold">
-                            <i class="fas fa-file-invoice me-1"></i> {{ _('Quote Repair') }}
-                        </a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="7" class="text-center py-5 text-muted">
-                        <i class="fas fa-check-circle fa-3x mb-2 text-success opacity-75 d-block"></i>
-                        <h6 class="fw-bold text-success">{{ _('All compliance certificates are up to date!') }}</h6>
-                        <p class="small text-muted mb-0">No certificates currently due or expired.</p>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="table-responsive" style="-webkit-overflow-scrolling: touch;">
+            <table class="table table-hover align-middle mb-0" style="min-width: 800px;">
+                <thead class="table-light text-uppercase small">
+                    <tr>
+                        <th class="ps-4" style="min-width: 200px;">{{ _('Property') }}</th>
+                        <th style="min-width: 140px;">{{ _('Client') }}</th>
+                        <th style="min-width: 120px;">{{ _('Gas (CP12)') }}</th>
+                        <th style="min-width: 120px;">{{ _('Electric (EICR)') }}</th>
+                        <th style="min-width: 120px;">{{ _('Energy (EPC)') }}</th>
+                        <th style="min-width: 110px;">{{ _('PAT') }}</th>
+                        <th class="text-end pe-4" style="min-width: 130px;">{{ _('Action') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in expiring_props %}
+                    <tr>
+                        <td class="ps-4 fw-bold text-dark">{{ p.address }}</td>
+                        <td>{{ p.client or 'Client' }}</td>
+                        
+                        <td>{{ date_check(p.gas, today) }}</td>
+                        <td>{{ date_check(p.eicr, today) }}</td>
+                        <td>{{ date_check(p.epc, today) }}</td>
+                        <td>{{ date_check(p.pat, today) }}</td>
+                        
+                        <td class="text-end pe-4">
+                            <a href="/office/quote/new?client_id={{ p.client_id }}&property_id={{ p.prop_id }}" class="btn btn-sm btn-primary fw-bold">
+                                <i class="fas fa-file-invoice me-1"></i> {{ _('Quote Repair') }}
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="fas fa-check-circle fa-3x mb-2 text-success opacity-75 d-block"></i>
+                            <h6 class="fw-bold text-success">{{ _('All compliance certificates are up to date!') }}</h6>
+                            <p class="small text-muted mb-0">No certificates currently due or expired.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <!-- DISPATCH MODAL -->

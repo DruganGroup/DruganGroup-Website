@@ -1,7 +1,7 @@
 import os
 import traceback
 import time
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from dotenv import load_dotenv
 load_dotenv()
 # Added 'g' to imports for White Label Logic
@@ -29,6 +29,11 @@ from routes.quote_routes import quote_bp
 
 # 2. CREATE THE APP
 app = Flask(__name__)
+
+# Register Jinja Globals for Dates
+app.jinja_env.globals['today'] = date.today
+app.jinja_env.globals['now_date'] = date.today
+app.jinja_env.globals['now'] = datetime.now
 
 # --- SECURITY: INITIALIZE CSRF PROTECTION ---
 csrf.init_app(app)
@@ -261,6 +266,11 @@ def inject_currency():
         session['currency_symbol'] = symbol
         return dict(currency_symbol=symbol)
     except: return dict(currency_symbol=default_sym)
+
+@app.context_processor
+def inject_dates():
+    return dict(today=date.today(), now_date=date.today(), now=datetime.now())
+
 
 from db import get_site_config
 
