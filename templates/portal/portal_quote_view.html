@@ -3,12 +3,12 @@
 {% block title %}Quote {{ quote.ref }} | {{ company_name }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <a href="/portal/quotes" class="btn btn-outline-secondary btn-sm fw-semibold">
         <i class="fas fa-arrow-left me-2"></i>Back to Quotes
     </a>
-    <div>
-        {% if quote.status in ['Draft', 'Sent'] %}
+    <div class="d-flex gap-2 align-items-center">
+        {% if quote.status in ['Draft', 'Sent', 'Pending'] %}
         <span class="badge bg-warning text-dark fs-6 shadow-sm px-3 py-2 rounded-pill">
             <i class="fas fa-clock me-1"></i> Awaiting Approval
         </span>
@@ -21,22 +21,100 @@
             <i class="fas fa-times-circle me-1"></i> Declined
         </span>
         {% endif %}
+        
+        <a href="/portal/quote/{{ quote.id }}/download" target="_blank" class="btn btn-outline-dark btn-sm fw-bold">
+            <i class="fas fa-file-pdf me-1 text-danger"></i> PDF
+        </a>
     </div>
 </div>
 
+<!-- 4-Stage Lifecycle Stepper -->
+<div class="card card-modern mb-4 overflow-hidden border-0 shadow-sm rounded-4">
+    <div class="card-body p-3 bg-light">
+        <div class="row text-center g-2 small">
+            <div class="col-3">
+                <div class="p-2 rounded bg-success text-white fw-bold shadow-sm">
+                    <i class="fas fa-file-invoice me-1"></i> 1. Quoted
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="p-2 rounded {% if quote.status == 'Accepted' or connected_job or connected_invoice %}bg-success text-white fw-bold shadow-sm{% elif quote.status in ['Sent', 'Pending'] %}bg-warning text-dark fw-bold shadow-sm{% else %}bg-white text-muted border{% endif %}">
+                    {% if quote.status == 'Accepted' or connected_job or connected_invoice %}<i class="fas fa-check me-1"></i>{% endif %} 2. Approved
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="p-2 rounded {% if connected_job and connected_job.status == 'Completed' %}bg-success text-white fw-bold shadow-sm{% elif connected_job %}bg-primary text-white fw-bold shadow-sm{% else %}bg-white text-muted border{% endif %}">
+                    {% if connected_job and connected_job.status == 'Completed' %}<i class="fas fa-check me-1"></i>{% elif connected_job %}<i class="fas fa-tools fa-spin me-1"></i>{% endif %} 3. Work Order
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="p-2 rounded {% if connected_invoice and connected_invoice.status == 'Paid' %}bg-success text-white fw-bold shadow-sm{% elif connected_invoice %}bg-warning text-dark fw-bold shadow-sm{% else %}bg-white text-muted border{% endif %}">
+                    {% if connected_invoice and connected_invoice.status == 'Paid' %}<i class="fas fa-check-double me-1"></i>{% endif %} 4. Invoiced
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Connected Action Banners (Job & Invoice) -->
+{% if connected_job or connected_invoice %}
+<div class="row g-3 mb-4">
+    {% if connected_job %}
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-primary bg-opacity-10 border-start border-4 border-primary h-100">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small fw-bold text-primary text-uppercase"><i class="fas fa-tools me-1"></i> Connected Work Order</span>
+                <span class="badge bg-primary">{{ connected_job.status }}</span>
+            </div>
+            <h6 class="fw-bold text-dark mb-1">{{ connected_job.ref }}: {{ connected_job.desc or quote.title }}</h6>
+            <div class="small text-muted mb-2">Schedule: {{ connected_job.start_date or 'TBC' }}</div>
+            <div>
+                <a href="/portal/job/{{ connected_job.id }}" class="btn btn-sm btn-primary fw-bold">
+                    <i class="fas fa-images me-1"></i> View Live Progress & Site Photos &rarr;
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if connected_invoice %}
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-{{ 'success' if connected_invoice.status == 'Paid' else 'warning' }} bg-opacity-10 border-start border-4 border-{{ 'success' if connected_invoice.status == 'Paid' else 'warning' }} h-100">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small fw-bold text-dark text-uppercase"><i class="fas fa-file-invoice-dollar me-1"></i> Final Invoice</span>
+                <span class="badge bg-{{ 'success' if connected_invoice.status == 'Paid' else 'warning text-dark' }}">{{ connected_invoice.status }}</span>
+            </div>
+            <h6 class="fw-bold text-dark mb-1">Invoice #{{ connected_invoice.ref }} &bull; £{{ "%.2f"|format(connected_invoice.total) }}</h6>
+            <div class="small text-muted mb-2">Due Date: {{ connected_invoice.due_date }}</div>
+            <div class="d-flex gap-2">
+                <a href="/portal/invoice/{{ connected_invoice.id }}" class="btn btn-sm btn-dark fw-bold">
+                    <i class="fas fa-eye me-1"></i> View Invoice
+                </a>
+                {% if connected_invoice.status != 'Paid' %}
+                <a href="/pay/invoice/{{ connected_invoice.id }}" class="btn btn-sm btn-success fw-bold">
+                    <i class="fas fa-credit-card me-1"></i> Pay Online
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
 <div class="row justify-content-center">
-    <div class="col-lg-10">
-        <div class="card border-0 shadow-lg overflow-hidden">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm overflow-hidden rounded-4">
             <div class="card-header border-0 p-4 p-md-5 text-white" style="background-color: {{ brand_color }};">
-                <div class="d-flex justify-content-between align-items-start">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
                     <div>
-                        <h1 class="fw-bold mb-0">QUOTE</h1>
-                        <p class="opacity-75 mb-0">{{ quote.ref }}</p>
+                        <h1 class="fw-bold mb-0 text-white">QUOTE & ESTIMATE</h1>
+                        <p class="opacity-75 mb-0 fs-5 font-monospace">#{{ quote.ref }}</p>
                     </div>
-                    <div class="text-end">
-                        <h5 class="mb-1">Total Value</h5>
-                        <h2 class="fw-bold mb-0">{{ config.currency }}{{ "%.2f"|format(quote.grand_total) }}</h2>
-                        <small class="opacity-75">Issued: {{ quote.date }}</small>
+                    <div class="text-md-end">
+                        <h5 class="mb-1 text-white-50">Estimated Total</h5>
+                        <h2 class="fw-bold mb-0 text-white">{{ config.currency }}{{ "%.2f"|format(quote.grand_total) }}</h2>
+                        <small class="opacity-75 d-block mt-1">Issued: {{ quote.date }}</small>
                     </div>
                 </div>
             </div>
@@ -44,7 +122,7 @@
             <div class="card-body p-4 p-md-5 bg-white">
                 <div class="row mb-5">
                     <div class="col-md-6 mb-4 mb-md-0">
-                        <p class="small text-uppercase text-muted fw-bold mb-2">From</p>
+                        <p class="small text-uppercase text-muted fw-bold mb-2">Issued By</p>
                         {% if logo_url %}
                             <img src="{{ logo_url }}" alt="Logo" style="max-height: 60px;" class="mb-3">
                         {% else %}
@@ -57,25 +135,27 @@
                         </div>
                     </div>
                     <div class="col-md-6 text-md-end">
-                        <p class="small text-uppercase text-muted fw-bold mb-2">For Project</p>
+                        <p class="small text-uppercase text-muted fw-bold mb-2">Project & Scope</p>
                         <h5 class="fw-bold text-dark">{{ quote.title }}</h5>
-                        <div class="text-muted small mb-3">
-                            <i class="fas fa-map-marker-alt me-1"></i> {{ quote.site_address }}
+                        <div class="text-muted small mb-2">
+                            <i class="fas fa-map-marker-alt me-1 text-primary"></i> {{ quote.site_address }}
                         </div>
-                        <p class="small text-muted">{{ quote.desc }}</p>
+                        {% if quote.desc %}
+                        <p class="small text-muted mb-0">{{ quote.desc }}</p>
+                        {% endif %}
                     </div>
                 </div>
 
                 {% if quote_docs %}
                 <div class="mb-5">
-                    <h5 class="fw-bold text-dark mb-3"><i class="fas fa-folder-open me-2" style="color: {{ brand_color }};"></i>Project Documents</h5>
+                    <h5 class="fw-bold text-dark mb-3"><i class="fas fa-folder-open me-2" style="color: {{ brand_color }};"></i>Project Plans & Drawings</h5>
                     <div class="row g-2">
                         {% for d in quote_docs %}
                         <div class="col-sm-6 col-md-4">
-                            <div class="border rounded p-2 d-flex justify-content-between align-items-center bg-light">
+                            <div class="border rounded-3 p-2 d-flex justify-content-between align-items-center bg-light">
                                 <div class="text-truncate">
                                     <span class="badge bg-secondary mb-1" style="font-size: 0.65rem;">{{ d.type }}</span>
-                                    <div class="small fw-bold">{{ d.date }}</div>
+                                    <div class="small fw-bold text-dark">{{ d.date }}</div>
                                 </div>
                                 <a href="/static{{ d.path }}" target="_blank" class="btn btn-sm btn-outline-dark px-2 py-1" title="Download Document">
                                     <i class="fas fa-download me-1"></i> Download
@@ -88,24 +168,24 @@
                 {% endif %}
 
                 <div class="table-responsive mb-4">
-                    <table class="table table-borderless">
-                        <thead style="border-bottom: 2px solid #eee;">
+                    <table class="table align-middle">
+                        <thead class="table-light">
                             <tr class="text-uppercase small text-muted">
-                                <th class="ps-0 py-3">Description</th>
-                                <th class="text-end py-3">Qty</th>
-                                <th class="text-end py-3">Unit Price</th>
-                                <th class="text-end py-3 pe-0">Total</th>
+                                <th class="py-3">Description</th>
+                                <th class="text-center py-3" style="width: 100px;">Qty</th>
+                                <th class="text-end py-3" style="width: 150px;">Unit Price</th>
+                                <th class="text-end py-3" style="width: 150px;">Total</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in items %}
-                            <tr style="border-bottom: 1px solid #f8f9fa;">
-                                <td class="ps-0 py-3">
+                            <tr>
+                                <td class="py-3">
                                     <div class="fw-bold text-dark">{{ item[0] }}</div>
                                 </td>
-                                <td class="text-end py-3">{{ item[1] }}</td>
+                                <td class="text-center py-3">{{ item[1] }}</td>
                                 <td class="text-end py-3">{{ config.currency }}{{ "%.2f"|format(item[2]) }}</td>
-                                <td class="text-end py-3 pe-0 fw-bold">{{ config.currency }}{{ "%.2f"|format(item[3]) }}</td>
+                                <td class="text-end py-3 fw-bold">{{ config.currency }}{{ "%.2f"|format(item[3]) }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -135,41 +215,41 @@
                     </div>
                 </div>
 
-                {% if quote.status in ['Draft', 'Sent'] %}
+                {% if quote.status in ['Draft', 'Sent', 'Pending'] %}
                 <div class="mt-5 pt-4 border-top text-center">
-                    <p class="mb-3 text-muted">Please review the quote and select an option below.</p>
-                    <div class="d-flex justify-content-center gap-3">
+                    <p class="mb-3 text-muted">Please review the specifications and quote total. You can approve or decline below.</p>
+                    <div class="d-flex justify-content-center gap-3 flex-wrap">
                         <a href="/portal/quote/{{ quote.id }}/accept" 
-                           class="btn btn-lg px-5 shadow-sm text-white fw-bold" 
+                           class="btn btn-lg px-5 shadow text-white fw-bold" 
                            style="background-color: #28a745; border-radius: 50px;">
-                            <i class="fas fa-check-circle me-2"></i> Accept Quote
+                            <i class="fas fa-check-circle me-2"></i> Accept Quote & Authorize Work
                         </a>
                         <button type="button" 
-                           class="btn btn-lg px-5 shadow-sm text-white fw-bold" 
+                           class="btn btn-lg px-4 shadow text-white fw-bold" 
                            style="background-color: #dc3545; border-radius: 50px;"
                            data-bs-toggle="modal" data-bs-target="#declineModal">
-                            <i class="fas fa-times-circle me-2"></i> Decline Quote
+                            <i class="fas fa-times-circle me-2"></i> Decline
                         </button>
                     </div>
                 </div>
 
                 <!-- Decline Modal -->
                 <div class="modal fade" id="declineModal" tabindex="-1">
-                    <div class="modal-dialog">
-                        <div class="modal-content text-start">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content text-start border-0 shadow-lg rounded-4">
                             <div class="modal-header border-0 pb-0">
-                                <h5 class="modal-title fw-bold text-danger">Decline Quote</h5>
+                                <h5 class="modal-title fw-bold text-danger"><i class="fas fa-times-circle me-2"></i>Decline Quote</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <form action="/portal/quote/{{ quote.id }}/decline" method="POST">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <div class="modal-body">
-                                    <p class="small text-muted mb-3">Could you briefly let us know why you are declining this quote? This helps us improve our services.</p>
-                                    <textarea name="decline_reason" class="form-control" rows="3" placeholder="E.g., Too expensive, went with another company, no longer needed..." required></textarea>
+                                <div class="modal-body p-4">
+                                    <p class="small text-muted mb-3">Please let us know why you are declining this estimate so we can adjust our specifications or provide an alternative.</p>
+                                    <textarea name="decline_reason" class="form-control shadow-sm" rows="3" placeholder="E.g., Price adjustment needed, change of scope, timing..." required></textarea>
                                 </div>
-                                <div class="modal-footer border-0 pt-0">
+                                <div class="modal-footer border-0 pt-0 bg-light rounded-bottom-4">
                                     <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">Cancel</button>
-                                    <button type="submit" class="btn btn-danger fw-bold">Submit & Decline</button>
+                                    <button type="submit" class="btn btn-danger fw-bold px-4">Submit & Decline</button>
                                 </div>
                             </form>
                         </div>
@@ -177,13 +257,13 @@
                 </div>
                 {% elif quote.status == 'Accepted' %}
                 <div class="mt-5 pt-4 border-top text-center">
-                    <div class="alert alert-success d-inline-block px-5 py-3 rounded-pill">
-                        <i class="fas fa-check-circle me-2"></i> You have accepted this quote.
+                    <div class="alert alert-success d-inline-block px-5 py-3 rounded-pill shadow-sm border-0">
+                        <i class="fas fa-check-circle me-2"></i> You have accepted this quote. Work order has been generated.
                     </div>
                 </div>
                 {% elif quote.status == 'Declined' %}
                 <div class="mt-5 pt-4 border-top text-center">
-                    <div class="alert alert-danger d-inline-block px-5 py-3 rounded-pill">
+                    <div class="alert alert-danger d-inline-block px-5 py-3 rounded-pill shadow-sm border-0">
                         <i class="fas fa-times-circle me-2"></i> You have declined this quote.
                     </div>
                 </div>

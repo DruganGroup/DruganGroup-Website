@@ -232,7 +232,7 @@ def portal_job_view(job_id):
     
     # 1. Fetch Job Details
     cur.execute("""
-        SELECT j.id, j.ref, j.status, j.description, j.start_date, j.end_date, p.address_line1, p.postcode
+        SELECT j.id, j.ref, j.status, j.description, j.start_date, j.end_date, p.address_line1, p.postcode, j.quote_id
         FROM jobs j LEFT JOIN properties p ON j.property_id = p.id WHERE j.id=%s AND j.client_id=%s
     """, (job_id, client_id))
     job_row = cur.fetchone()
@@ -243,7 +243,34 @@ def portal_job_view(job_id):
     job[4] = format_date_by_country(job[4], comp_id)
     job[5] = format_date_by_country(job[5], comp_id)
 
-    # 2. UPDATED: Fetch ALL Site Photos + File Type (Required for Gallery Badge)
+    # 2. Fetch Connected Quote (if any)
+    connected_quote = None
+    if job[8]:
+        cur.execute("SELECT id, reference, status, total, date, job_title FROM quotes WHERE id = %s AND client_id = %s", (job[8], client_id))
+        q_row = cur.fetchone()
+        if q_row:
+            connected_quote = {
+                'id': q_row[0], 'ref': q_row[1], 'status': q_row[2],
+                'total': float(q_row[3] or 0), 'date': format_date_by_country(q_row[4], comp_id),
+                'title': q_row[5] or f"Quote {q_row[1]}"
+            }
+
+    # 3. Fetch Connected Invoice (if any)
+    cur.execute("""
+        SELECT id, reference, status, total, date, due_date
+        FROM invoices WHERE job_id = %s AND client_id = %s AND status != 'Void'
+        ORDER BY id DESC LIMIT 1
+    """, (job_id, client_id))
+    inv_row = cur.fetchone()
+    connected_invoice = None
+    if inv_row:
+        connected_invoice = {
+            'id': inv_row[0], 'ref': inv_row[1], 'status': inv_row[2],
+            'total': float(inv_row[3] or 0), 'date': format_date_by_country(inv_row[4], comp_id),
+            'due_date': format_date_by_country(inv_row[5], comp_id)
+        }
+
+    # 4. Fetch ALL Site Photos + Evidence Files
     cur.execute("""
         SELECT filepath, uploaded_at, file_type 
         FROM job_evidence 
@@ -267,17 +294,59 @@ def portal_job_view(job_id):
             job_docs.append(item)
         else:
             photos.append(item)
-        
-    pass
+
+    # 5. Fetch Site Diary & Communication Timeline
+    cur.execute("""
+        SELECT id, staff_name, entry_text, created_at
+        FROM site_diary 
+        WHERE job_id = %s
+        ORDER BY created_at ASC
+    """, (job_id,))
+    diary_rows = cur.fetchall()
+    timeline_logs = []
+    for d in diary_rows:
+        timeline_logs.append({
+            'id': d[0],
+            'author': d[1] or 'Site Team',
+            'message': d[2],
+            'date': format_date_by_country(d[3], comp_id) if d[3] else '',
+            'time': d[3].strftime('%H:%M') if (d[3] and hasattr(d[3], 'strftime')) else ''
+        })
     
     return render_template('portal/portal_job_view.html', 
                            job=job, 
                            photos=photos, 
                            job_docs=job_docs,
+                           connected_quote=connected_quote,
+                           connected_invoice=connected_invoice,
+                           timeline_logs=timeline_logs,
                            company_name=config.get('name'), 
                            company_email=config.get('email'),
                            logo_url=config.get('logo'), 
                            brand_color=config.get('color'))
+
+@portal_bp.route('/portal/job/<int:job_id>/add-message', methods=['POST'])
+def portal_job_add_message(job_id):
+    if not check_portal_access(): return redirect(get_login_url())
+    client_id = session['portal_client_id']
+    client_name = session.get('portal_client_name', 'Client')
+    comp_id = session['portal_company_id']
+    
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id FROM jobs WHERE id=%s AND client_id=%s AND company_id=%s", (job_id, client_id, comp_id))
+    if not cur.fetchone():
+        return "Unauthorized", 403
+        
+    msg = request.form.get('message', '').strip()
+    if msg:
+        cur.execute(
+            "INSERT INTO site_diary (job_id, staff_name, entry_text) VALUES (%s, %s, %s)",
+            (job_id, f"Client ({client_name})", msg)
+        )
+        conn.commit()
+        flash("Your message was posted to the site team & office timeline.", "success")
+        
+    return redirect(f"/portal/job/{job_id}")
 
 # --- 5. PROPERTY DETAIL (SMART COMPLIANCE) ---
 @portal_bp.route('/portal/property/<int:property_id>')
@@ -479,23 +548,35 @@ def portal_invoices():
     conn = get_db(); cur = conn.cursor()
     
     cur.execute("""
-        SELECT id, reference, date, due_date, total, status 
-        FROM invoices 
-        WHERE client_id = %s AND status != 'Archived'
-        ORDER BY date DESC
+        SELECT i.id, i.reference, i.date, i.due_date, i.total, i.status,
+               COALESCE(q.job_title, j.description, 'Invoice') as title,
+               q.id as quote_id, q.reference as quote_ref,
+               j.id as job_id, j.ref as job_ref
+        FROM invoices i 
+        LEFT JOIN jobs j ON i.job_id = j.id
+        LEFT JOIN quotes q ON i.quote_id = q.id
+        WHERE i.client_id = %s AND i.status != 'Archived'
+        ORDER BY i.date DESC
     """, (client_id,))
     
     invoices_raw = cur.fetchall()
     invoices = []
     
     for r in invoices_raw:
-        inv = list(r)
-        inv[2] = format_date_by_country(inv[2], comp_id) # Format the date
-        inv[3] = format_date_by_country(inv[3], comp_id) # Format due date
-        invoices.append(inv)
+        invoices.append({
+            'id': r[0],
+            'ref': r[1],
+            'date': format_date_by_country(r[2], comp_id),
+            'due_date': format_date_by_country(r[3], comp_id),
+            'total': float(r[4] or 0),
+            'status': r[5],
+            'title': r[6],
+            'quote_id': r[7],
+            'quote_ref': r[8],
+            'job_id': r[9],
+            'job_ref': r[10]
+        })
         
-    pass
-    
     return render_template('portal/portal_invoices.html',
                            client_name=session.get('portal_client_name'),
                            company_name=config.get('name'), 
@@ -532,7 +613,9 @@ def portal_view_invoice(invoice_id):
                COALESCE(q.job_title, j.description, 'Invoice') as job_title,
                COALESCE(q.job_description, j.description, '') as job_desc,
                COALESCE(p.address_line1, ''), COALESCE(p.postcode, ''),
-               i.subtotal, i.tax
+               i.subtotal, i.tax,
+               i.job_id, j.ref as job_ref, j.status as job_status,
+               i.quote_id, q.reference as quote_ref, q.status as quote_status
         FROM invoices i
         LEFT JOIN jobs j ON i.job_id = j.id
         LEFT JOIN quotes q ON i.quote_id = q.id
@@ -594,6 +677,14 @@ def portal_view_invoice(invoice_id):
 
     site_addr = f"{inv_row[8]}, {inv_row[9]}" if inv_row[8] else ""
 
+    connected_job = None
+    if inv_row[12]:
+        connected_job = {'id': inv_row[12], 'ref': inv_row[13], 'status': inv_row[14]}
+        
+    connected_quote = None
+    if inv_row[15]:
+        connected_quote = {'id': inv_row[15], 'ref': inv_row[16], 'status': inv_row[17]}
+
     invoice = {
         'id': inv_row[0],
         'ref': inv_row[1],
@@ -616,7 +707,9 @@ def portal_view_invoice(invoice_id):
                            brand_color=config['color'],
                            config=config,
                            invoice=invoice,
-                           items=items)
+                           items=items,
+                           connected_job=connected_job,
+                           connected_quote=connected_quote)
 
 @portal_bp.route('/portal/invoice/<int:invoice_id>/download')
 def portal_download_invoice(invoice_id):
@@ -638,24 +731,37 @@ def portal_quotes():
     
     conn = get_db(); cur = conn.cursor()
     
-    # Fetch quotes for this client
+    # Fetch quotes for this client with connected job / invoice status
     cur.execute("""
-        SELECT id, reference, date, total, status 
-        FROM quotes 
-        WHERE client_id = %s AND status != 'Archived'
-        ORDER BY date DESC
+        SELECT q.id, q.reference, q.date, q.total, q.status, q.job_title,
+               j.id as job_id, j.status as job_status, j.ref as job_ref,
+               i.id as invoice_id, i.status as invoice_status, i.reference as invoice_ref
+        FROM quotes q 
+        LEFT JOIN jobs j ON j.quote_id = q.id
+        LEFT JOIN invoices i ON (i.quote_id = q.id OR (i.job_id IS NOT NULL AND i.job_id = j.id))
+        WHERE q.client_id = %s AND q.status != 'Archived'
+        ORDER BY q.date DESC
     """, (client_id,))
     
     quotes_raw = cur.fetchall()
     quotes = []
     
     for r in quotes_raw:
-        q = list(r)
-        q[2] = format_date_by_country(q[2], comp_id) # Format the date
-        quotes.append(q)
+        quotes.append({
+            'id': r[0],
+            'ref': r[1],
+            'date': format_date_by_country(r[2], comp_id),
+            'total': float(r[3] or 0),
+            'status': r[4],
+            'title': r[5] or f"Quote {r[1]}",
+            'job_id': r[6],
+            'job_status': r[7],
+            'job_ref': r[8],
+            'invoice_id': r[9],
+            'invoice_status': r[10],
+            'invoice_ref': r[11]
+        })
         
-    pass
-    
     return render_template('portal/portal_quotes.html',
                            client_name=session.get('portal_client_name'),
                            company_name=config.get('name'), 
@@ -742,6 +848,44 @@ def portal_view_quote(quote_id):
     """, (quote_id, comp_id))
     quote_docs = [{'type': r[0], 'path': r[1], 'date': format_date_by_country(r[2], comp_id)} for r in cur.fetchall()]
 
+    # 5. FETCH CONNECTED JOB (if converted/accepted)
+    cur.execute("""
+        SELECT id, ref, status, start_date, end_date, description
+        FROM jobs 
+        WHERE quote_id = %s AND client_id = %s
+        ORDER BY id DESC LIMIT 1
+    """, (quote_id, client_id))
+    job_match = cur.fetchone()
+    connected_job = None
+    if job_match:
+        connected_job = {
+            'id': job_match[0],
+            'ref': job_match[1],
+            'status': job_match[2],
+            'start_date': format_date_by_country(job_match[3], comp_id),
+            'end_date': format_date_by_country(job_match[4], comp_id),
+            'desc': job_match[5]
+        }
+
+    # 6. FETCH CONNECTED INVOICE (if generated)
+    cur.execute("""
+        SELECT id, reference, status, total, date, due_date
+        FROM invoices 
+        WHERE (quote_id = %s OR (job_id IS NOT NULL AND job_id = %s)) AND client_id = %s AND status != 'Void'
+        ORDER BY id DESC LIMIT 1
+    """, (quote_id, connected_job['id'] if connected_job else -1, client_id))
+    inv_match = cur.fetchone()
+    connected_invoice = None
+    if inv_match:
+        connected_invoice = {
+            'id': inv_match[0],
+            'ref': inv_match[1],
+            'status': inv_match[2],
+            'total': float(inv_match[3] or 0),
+            'date': format_date_by_country(inv_match[4], comp_id),
+            'due_date': format_date_by_country(inv_match[5], comp_id)
+        }
+
     # Package Data
     quote = {
         'id': quote_row[0],
@@ -766,7 +910,9 @@ def portal_view_quote(quote_id):
                            config=config,
                            quote=quote,
                            items=items,
-                           quote_docs=quote_docs)
+                           quote_docs=quote_docs,
+                           connected_job=connected_job,
+                           connected_invoice=connected_invoice)
 
 @portal_bp.route('/portal/quote/<int:quote_id>/accept')
 def portal_accept_quote(quote_id):

@@ -1,50 +1,87 @@
 {% extends "portal/portal_base.html" %}
 
-{% block title %}My Quotes | {{ company_name }}{% endblock %}
+{% block title %}My Quotes & Estimates | {{ company_name }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h2 class="fw-bold m-0 text-dark" style="letter-spacing: -0.02em;">Quotes & Estimates</h2>
-        <p class="text-muted mb-0 small">Review and approve project estimates and pricing.</p>
+        <h2 class="fw-bold m-0 text-dark" style="letter-spacing: -0.02em;"><i class="fas fa-file-signature text-warning me-2"></i>Quotes & Estimates</h2>
+        <p class="text-muted mb-0 small">Review scopes of work, approve estimates, and track active project orders.</p>
     </div>
 </div>
 
-<div class="card card-modern overflow-hidden">
+<div class="card card-modern overflow-hidden border-0 shadow-sm rounded-4">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="bg-light small text-uppercase text-muted">
                 <tr>
                     <th class="ps-4">Reference</th>
+                    <th>Project / Scope</th>
                     <th>Date</th>
                     <th>Total Value</th>
-                    <th>Status</th>
+                    <th>Approval Status</th>
+                    <th>Connected Progress</th>
                     <th class="text-end pe-4">Action</th>
                 </tr>
             </thead>
             <tbody>
                 {% for q in quotes %}
                 <tr>
-                    <td class="ps-4 fw-bold text-dark font-monospace">{{ q[1] }}</td>
-                    <td class="small text-muted">{{ q[2] }}</td>
-                    <td class="fw-bold text-dark">£{{ "%.2f"|format(q[3]) }}</td>
+                    <td class="ps-4 fw-bold font-monospace">
+                        <a href="/portal/quote/{{ q.id }}" class="text-dark text-decoration-none fw-bold">
+                            {{ q.ref }}
+                        </a>
+                    </td>
                     <td>
-                        {% if q[4] == 'Draft' %}<span class="badge bg-secondary px-2 py-1">Draft</span>
-                        {% elif q[4] == 'Sent' %}<span class="badge bg-warning text-dark px-2 py-1"><i class="fas fa-clock me-1"></i>Awaiting Approval</span>
-                        {% elif q[4] == 'Accepted' %}<span class="badge bg-success px-2 py-1"><i class="fas fa-check me-1"></i>Accepted</span>
-                        {% elif q[4] == 'Declined' %}<span class="badge bg-danger px-2 py-1"><i class="fas fa-times me-1"></i>Declined</span>
-                        {% else %}<span class="badge bg-light text-dark border px-2 py-1">{{ q[4] }}</span>{% endif %}
+                        <a href="/portal/quote/{{ q.id }}" class="text-decoration-none text-dark fw-bold d-block">
+                            {{ q.title }}
+                        </a>
+                    </td>
+                    <td class="small text-muted">{{ q.date }}</td>
+                    <td class="fw-bold text-dark fs-6">£{{ "%.2f"|format(q.total) }}</td>
+                    <td>
+                        {% if q.status == 'Draft' %}<span class="badge bg-secondary px-2 py-1">Draft</span>
+                        {% elif q.status in ['Sent', 'Pending'] %}<span class="badge bg-warning text-dark px-2 py-1"><i class="fas fa-clock me-1"></i>Awaiting Approval</span>
+                        {% elif q.status == 'Accepted' %}<span class="badge bg-success px-2 py-1"><i class="fas fa-check me-1"></i>Accepted</span>
+                        {% elif q.status == 'Declined' %}<span class="badge bg-danger px-2 py-1"><i class="fas fa-times me-1"></i>Declined</span>
+                        {% else %}<span class="badge bg-light text-dark border px-2 py-1">{{ q.status }}</span>{% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex flex-column gap-1">
+                            {% if q.job_id %}
+                                <div>
+                                    <a href="/portal/job/{{ q.job_id }}" class="badge bg-primary-subtle text-primary border border-primary-subtle text-decoration-none" title="View Active Work Order">
+                                        <i class="fas fa-tools me-1"></i> Job: {{ q.job_status or 'Active' }}
+                                    </a>
+                                </div>
+                            {% endif %}
+                            {% if q.invoice_id %}
+                                <div>
+                                    <a href="/portal/invoice/{{ q.invoice_id }}" class="badge bg-{{ 'success' if q.invoice_status == 'Paid' else 'warning text-dark' }}-subtle text-{{ 'success' if q.invoice_status == 'Paid' else 'warning text-dark' }} border text-decoration-none" title="View Invoice">
+                                        <i class="fas fa-file-invoice-dollar me-1"></i> Invoice: {{ q.invoice_status or 'Issued' }}
+                                    </a>
+                                </div>
+                            {% endif %}
+                            {% if not q.job_id and not q.invoice_id %}
+                                <span class="small text-muted">-</span>
+                            {% endif %}
+                        </div>
                     </td>
                     <td class="text-end pe-4">
-                        <a href="/portal/quote/{{ q[0] }}" class="btn btn-sm btn-outline-primary fw-bold">
-                            <i class="fas fa-eye me-1"></i> View Quote
-                        </a>
+                        <div class="btn-group">
+                            <a href="/portal/quote/{{ q.id }}" class="btn btn-sm btn-outline-primary fw-bold">
+                                <i class="fas fa-eye me-1"></i> View
+                            </a>
+                            <a href="/portal/quote/{{ q.id }}/download" target="_blank" class="btn btn-sm btn-outline-secondary fw-bold" title="Download PDF">
+                                <i class="fas fa-file-pdf me-1 text-danger"></i> PDF
+                            </a>
+                        </div>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" class="text-center py-5 text-muted">
-                        <i class="fas fa-file-signature fa-3x mb-2 opacity-25"></i>
+                    <td colspan="7" class="text-center py-5 text-muted">
+                        <i class="fas fa-file-signature fa-3x mb-2 opacity-25 d-block"></i>
                         <p class="mb-0 small">No active estimates or quotes found.</p>
                     </td>
                 </tr>
