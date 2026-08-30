@@ -69,30 +69,11 @@
     </div>
     
     {% if active_job %}
-    <a href="/site/job/{{ active_job.id }}" class="btn btn-warning text-dark w-100 fw-bold rounded-pill shadow-sm d-flex align-items-center justify-content-between px-3 py-2">
+    <a href="/site/job/{{ active_job.id }}" class="btn btn-warning text-dark w-100 fw-bold rounded-pill shadow-sm d-flex align-items-center justify-content-between px-3 py-2 mt-2">
         <span class="d-flex align-items-center gap-2"><i class="fas fa-stopwatch fa-spin text-danger"></i> On: {{ active_job.name }}</span>
         <i class="fas fa-arrow-right"></i>
     </a>
     {% endif %}
-</div>
-<!-- QUICK ACTION TILES -->
-<div class="row g-2 mb-4">
-    <div class="col-6">
-        <a href="/site/van-check" class="quick-tile">
-            <div class="quick-tile-icon bg-primary bg-opacity-10 text-primary">
-                <i class="fas fa-truck-pickup"></i>
-            </div>
-            <span class="fw-bold small">Van Check</span>
-        </a>
-    </div>
-    <div class="col-6">
-        <a href="/site/log-fuel" class="quick-tile">
-            <div class="quick-tile-icon bg-warning bg-opacity-10 text-warning">
-                <i class="fas fa-gas-pump"></i>
-            </div>
-            <span class="fw-bold small">Log Fuel</span>
-        </a>
-    </div>
 </div>
 
 <!-- JOB SCHEDULE STREAM -->

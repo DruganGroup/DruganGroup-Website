@@ -160,10 +160,7 @@
                     <td class="text-end pe-4">
                         <div class="btn-group">
                             <a href="/portal/quote/{{ q.id }}" class="btn btn-sm btn-{{ 'warning text-dark fw-bold' if q.status in ['Sent', 'Pending'] else 'outline-primary fw-bold' }}">
-                                <i class="fas fa-{{ 'check-circle' if q.status in ['Sent', 'Pending'] else 'eye' }} me-1"></i> {{ 'Review' if q.status in ['Sent', 'Pending'] else 'View' }}
-                            </a>
-                            <a href="/portal/quote/{{ q.id }}/download" target="_blank" class="btn btn-sm btn-outline-secondary fw-bold" title="Download PDF">
-                                <i class="fas fa-file-pdf text-danger"></i>
+                                <i class="fas fa-{{ 'check-circle' if q.status in ['Sent', 'Pending'] else 'eye' }} me-1"></i> {{ 'Review & Approve' if q.status in ['Sent', 'Pending'] else 'View Quote' }}
                             </a>
                         </div>
                     </td>
