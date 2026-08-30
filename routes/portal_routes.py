@@ -86,8 +86,9 @@ def portal_home():
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
 
-    cur.execute("SELECT name FROM clients WHERE id=%s", (client_id,))
-    client_name = cur.fetchone()[0]
+    cur.execute("SELECT name, email, phone FROM clients WHERE id=%s", (client_id,))
+    client_row = cur.fetchone()
+    client_name = client_row[0] if client_row else 'Client'
 
     # Active Jobs
     cur.execute("""
@@ -103,38 +104,79 @@ def portal_home():
         job[3] = format_date_by_country(job[3], comp_id)
         active_jobs.append(job)
 
-    # UPDATED: Fetch ONLY 'Active' Properties
+    # UPDATED: Fetch ONLY 'Active' Properties with rich compliance & counts
     cur.execute("""
         SELECT p.id, p.address_line1, p.postcode, p.type,
-            (SELECT COUNT(*) FROM service_requests sr WHERE sr.property_id = p.id AND sr.status != 'Pending' AND sr.status != 'Completed'),
-            p.gas_expiry, p.eicr_expiry, p.pat_expiry, p.epc_expiry
+            (SELECT COUNT(*) FROM service_requests sr WHERE sr.property_id = p.id AND sr.status NOT IN ('Completed', 'Resolved', 'Cancelled', 'Finished')),
+            p.gas_expiry, p.eicr_expiry, p.pat_expiry, p.epc_expiry,
+            p.tenant_name, p.tenant_phone
         FROM properties p 
         WHERE p.client_id=%s AND p.status = 'Active'
+        ORDER BY p.id DESC
     """, (client_id,))
     
     raw_props = cur.fetchall()
     properties = []
+    compliant_props_count = 0
+    expiring_props_count = 0
+    expired_props_count = 0
+
     for p in raw_props:
         prop = list(p)
-        # Check compliance for the badge
-        checks = [get_compliance_status(prop[5]), get_compliance_status(prop[6]), get_compliance_status(prop[7]), get_compliance_status(prop[8])]
+        # Check compliance for each individual cert
+        gas_check = get_compliance_status(prop[5])
+        eicr_check = get_compliance_status(prop[6])
+        pat_check = get_compliance_status(prop[7])
+        epc_check = get_compliance_status(prop[8])
+
+        checks = [gas_check, eicr_check, pat_check, epc_check]
+        valid_checks = [c for c in checks if c is not None]
         
         # Calculate Badge Status
         overall_status = 'Good'
-        # Filter out None values first
-        valid_checks = [c for c in checks if c is not None]
-        
-        if any(c['status'] == 'Expired' for c in valid_checks): overall_status = 'Expired'
-        elif any(c['status'] == 'Expiring' for c in valid_checks): overall_status = 'Warning'
+        if any(c['status'] == 'Expired' for c in valid_checks):
+            overall_status = 'Expired'
+            expired_props_count += 1
+        elif any(c['status'] == 'Expiring' for c in valid_checks):
+            overall_status = 'Warning'
+            expiring_props_count += 1
+        else:
+            compliant_props_count += 1
         
         prop.append(overall_status)
+        # Append structured checks for the UI
+        prop.append({
+            'gas': gas_check,
+            'eicr': eicr_check,
+            'pat': pat_check,
+            'epc': epc_check
+        })
         properties.append(prop)
 
+    # Quotes Count
     cur.execute("SELECT COUNT(*) FROM quotes WHERE client_id=%s AND status IN ('Draft','Sent')", (client_id,))
-    open_quotes = cur.fetchone()[0]
+    open_quotes = cur.fetchone()[0] or 0
 
+    # Invoices KPI (Unpaid count & balance)
     cur.execute("""
-        SELECT sr.id, p.address_line1, sr.issue_description, sr.status, sr.created_at
+        SELECT COUNT(*), COALESCE(SUM(grand_total), 0) 
+        FROM invoices 
+        WHERE client_id=%s AND status NOT IN ('Paid', 'Cancelled', 'Draft')
+    """, (client_id,))
+    inv_stat = cur.fetchone()
+    unpaid_invoices_count = inv_stat[0] or 0
+    unpaid_invoices_total = float(inv_stat[1] or 0)
+
+    # Open Requests Count
+    cur.execute("""
+        SELECT COUNT(*) FROM service_requests 
+        WHERE client_id=%s AND status NOT IN ('Completed', 'Resolved', 'Cancelled', 'Finished')
+    """, (client_id,))
+    open_requests_count = cur.fetchone()[0] or 0
+
+    # Recent Requests
+    cur.execute("""
+        SELECT sr.id, p.address_line1, sr.issue_description, sr.status, sr.created_at, sr.priority
         FROM service_requests sr JOIN properties p ON sr.property_id=p.id
         WHERE sr.client_id=%s ORDER BY sr.created_at DESC LIMIT 5
     """, (client_id,))
@@ -144,11 +186,29 @@ def portal_home():
         req[4] = format_date_by_country(req[4], comp_id)
         recent_requests.append(req)
 
-    pass
-    return render_template('portal/portal_home.html', company_name=config.get('name'), 
-                         client_name=client_name, properties=properties, active_jobs=active_jobs,
-                         open_quotes_count=open_quotes, recent_requests=recent_requests,
-                         brand_color=config.get('color'), logo_url=config.get('logo'))
+    kpi = {
+        'total_properties': len(properties),
+        'active_jobs': len(active_jobs),
+        'open_quotes': open_quotes,
+        'unpaid_invoices_count': unpaid_invoices_count,
+        'unpaid_invoices_total': unpaid_invoices_total,
+        'open_requests_count': open_requests_count,
+        'compliant_props': compliant_props_count,
+        'expiring_props': expiring_props_count,
+        'expired_props': expired_props_count
+    }
+
+    return render_template('portal/portal_home.html', 
+                           company_name=config.get('name'), 
+                           client_name=client_name, 
+                           properties=properties, 
+                           active_jobs=active_jobs,
+                           open_quotes_count=open_quotes, 
+                           recent_requests=recent_requests,
+                           kpi=kpi,
+                           currency=config.get('currency', '£'),
+                           brand_color=config.get('color', '#0d6efd'), 
+                           logo_url=config.get('logo'))
 
 # --- 4. VIEW JOB ---
 @portal_bp.route('/portal/job/<int:job_id>')
@@ -303,6 +363,9 @@ def portal_request_submit():
     
     prop_id = request.form.get('property_id')
     desc = request.form.get('description')
+    severity = request.form.get('severity') or request.form.get('priority') or 'Medium'
+    if severity not in ['Low', 'Medium', 'High', 'Emergency']:
+        severity = 'Medium'
     
     conn = get_db(); cur = conn.cursor()
     
@@ -330,8 +393,8 @@ def portal_request_submit():
     try:
         cur.execute("""
             INSERT INTO service_requests (company_id, client_id, property_id, issue_description, priority, status, photo_path)
-            VALUES (%s, %s, %s, %s, 'High', 'Pending', %s)
-        """, (comp_id, client_id, prop_id, desc, photo_path))
+            VALUES (%s, %s, %s, %s, %s, 'Pending', %s)
+        """, (comp_id, client_id, prop_id, desc, severity, photo_path))
         conn.commit()
         from flask import flash
         flash("✅ Issue reported successfully. The office has been notified.", "success")
@@ -343,54 +406,7 @@ def portal_request_submit():
 
     return redirect(f'/portal/property/{prop_id}')
 
-# --- 6. ARCHIVE PROPERTY (WAS DELETE) ---
-@portal_bp.route('/portal/property/mass-email', methods=['POST'])
-def portal_mass_email_tenants():
-    if not check_portal_access(): return redirect(get_login_url())
-    
-    comp_id = session.get('portal_company_id')
-    client_id = session.get('portal_client_id')
-    
-    subject = request.form.get('subject')
-    message = request.form.get('message')
-    
-    conn = get_db(); cur = conn.cursor()
-    try:
-        # Get all properties for this client that have a tenant email
-        cur.execute("""
-            SELECT tenant_email 
-            FROM properties 
-            WHERE client_id = %s AND company_id = %s AND tenant_email IS NOT NULL AND tenant_email != ''
-        """, (client_id, comp_id))
-        
-        emails = [row[0] for row in cur.fetchall()]
-        
-        if not emails:
-            flash("No tenant emails found in your properties.", "warning")
-            return redirect(url_for('portal.portal_home'))
-            
-        from tasks import send_tenant_email_task
-        
-        sent_count = 0
-        for email in emails:
-            # Send Email (via Celery)
-            send_tenant_email_task.delay(
-                company_id=comp_id,
-                recipient_email=email,
-                subject=subject,
-                body_html=f"<p>{message}</p>"
-            )
-            sent_count += 1
-            
-        flash(f"✅ Mass email queued for {sent_count} tenants.", "success")
-    except Exception as e:
-        flash(f"Error: {e}", "error")
-    finally:
-        pass
-        
-    return redirect(url_for('portal.portal_home'))
-
-# --- 6. ARCHIVE PROPERTY (WAS DELETE) ---
+# --- 7. ADD PROPERTY ---
 @portal_bp.route('/portal/property/add', methods=['POST'])
 def portal_add_property():
     if not check_portal_access(): return redirect(get_login_url())

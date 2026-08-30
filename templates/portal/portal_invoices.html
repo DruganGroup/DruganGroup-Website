@@ -3,22 +3,22 @@
 {% block title %}My Invoices | {{ company_name }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h2 class="fw-bold m-0">Your Invoices</h2>
-        <p class="text-muted mb-0">Review your payment history and outstanding balances.</p>
+        <h2 class="fw-bold m-0 text-dark" style="letter-spacing: -0.02em;">Invoices & Billing</h2>
+        <p class="text-muted mb-0 small">Review your payment history, receipts, and settle outstanding balances.</p>
     </div>
 </div>
 
-<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+<div class="card card-modern overflow-hidden">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="bg-light small text-uppercase text-muted">
                 <tr>
-                    <th class="ps-4">{{ _('Reference') }}</th>
-                    <th>Date</th>
+                    <th class="ps-4">Reference</th>
+                    <th>Issue Date</th>
                     <th>Due Date</th>
-                    <th>Amount</th>
+                    <th>Amount Due</th>
                     <th>Status</th>
                     <th class="text-end pe-4">Actions</th>
                 </tr>
@@ -26,31 +26,31 @@
             <tbody>
                 {% for inv in invoices %}
                 <tr>
-                    <td class="ps-4 fw-bold">
-                        <a href="/portal/invoice/{{ inv[0] }}" class="text-brand fw-bold text-decoration-none hover-underline">
+                    <td class="ps-4 fw-bold font-monospace">
+                        <a href="/portal/invoice/{{ inv[0] }}" class="text-dark fw-bold text-decoration-none">
                             {{ inv[1] }}
                         </a>
                     </td>
-                    <td>{{ inv[2] }}</td>
-                    <td>{{ inv[3] }}</td>
-                    <td class="fw-bold">£{{ "%.2f"|format(inv[4]) }}</td>
+                    <td class="small text-muted">{{ inv[2] }}</td>
+                    <td class="small text-muted">{{ inv[3] }}</td>
+                    <td class="fw-bold text-dark">£{{ "%.2f"|format(inv[4]) }}</td>
                     <td>
-                        {% if inv[5] == 'Paid' %}<span class="badge bg-success"><i class="fas fa-check me-1"></i>Paid</span>
-                        {% elif inv[5] == 'Overdue' %}<span class="badge bg-danger">Overdue</span>
-                        {% elif inv[5] == 'Draft' %}<span class="badge bg-secondary">Draft</span>
-                        {% else %}<span class="badge bg-warning text-dark">{{ inv[5] }}</span>{% endif %}
+                        {% if inv[5] == 'Paid' %}<span class="badge bg-success px-2 py-1"><i class="fas fa-check me-1"></i>Paid</span>
+                        {% elif inv[5] == 'Overdue' %}<span class="badge bg-danger px-2 py-1"><i class="fas fa-exclamation-triangle me-1"></i>Overdue</span>
+                        {% elif inv[5] == 'Draft' %}<span class="badge bg-secondary px-2 py-1">Draft</span>
+                        {% else %}<span class="badge bg-warning text-dark px-2 py-1"><i class="fas fa-clock me-1"></i>{{ inv[5] }}</span>{% endif %}
                     </td>
                     <td class="text-end pe-4">
                         <div class="btn-group">
                             {% if inv[5] != 'Paid' %}
                             <a href="/pay/invoice/{{ inv[0] }}" class="btn btn-sm btn-success fw-bold">
-                                <i class="fas fa-credit-card me-1"></i> Pay
+                                <i class="fas fa-credit-card me-1"></i> Pay Now
                             </a>
                             {% endif %}
                             <a href="/portal/invoice/{{ inv[0] }}" class="btn btn-sm btn-outline-primary fw-bold" title="View Invoice">
-                                <i class="fas fa-eye me-1"></i> View
+                                <i class="fas fa-eye me-1"></i> View Invoice
                             </a>
-                            <a href="/portal/invoice/{{ inv[0] }}/download" target="_blank" class="btn btn-sm btn-outline-secondary" title="Download PDF">
+                            <a href="/portal/invoice/{{ inv[0] }}/download" target="_blank" class="btn btn-sm btn-outline-secondary fw-bold" title="Download PDF">
                                 <i class="fas fa-file-pdf me-1 text-danger"></i> PDF
                             </a>
                         </div>
@@ -59,8 +59,8 @@
                 {% else %}
                 <tr>
                     <td colspan="6" class="text-center py-5 text-muted">
-                        <i class="fas fa-file-invoice-dollar fa-2x mb-3 opacity-25"></i>
-                        <p>No invoices found.</p>
+                        <i class="fas fa-file-invoice-dollar fa-3x mb-2 opacity-25"></i>
+                        <p class="mb-0 small">No invoices recorded under your account.</p>
                     </td>
                 </tr>
                 {% endfor %}

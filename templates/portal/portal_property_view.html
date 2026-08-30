@@ -1,43 +1,48 @@
 {% extends "portal/portal_base.html" %}
 
-{% block title %}Property | {{ company_name }}{% endblock %}
+{% block title %}{{ prop[1] }} | {{ company_name }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h2 class="fw-bold m-0">{{ prop[1] }}</h2>
-        <p class="text-muted mb-0">{{ prop[2] }}</p>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-light text-dark border small fw-semibold">{{ prop[3] or 'Residential' }}</span>
+            <span class="text-muted small font-monospace">Property #{{ prop[0] }}</span>
+        </div>
+        <h2 class="fw-bold m-0 text-dark" style="letter-spacing: -0.02em;">{{ prop[1] }}</h2>
+        <p class="text-muted mb-0 small"><i class="fas fa-map-marker-alt me-1 text-danger opacity-75"></i>{{ prop[2] }}</p>
     </div>
     <div class="d-flex gap-2">
         <form action="/portal/property/archive/{{ prop[0] }}" method="POST" onsubmit="return confirm('Archive this property? It will be hidden from your dashboard but history is kept.');">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <button class="btn btn-outline-secondary btn-sm fw-bold">
-			<button class="btn btn-outline-secondary btn-sm fw-bold">
-                <i class="fas fa-archive me-1"></i> Archive
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-danger btn-sm fw-semibold">
+                <i class="fas fa-archive me-1"></i> Archive Property
             </button>
         </form>
-        <a href="/portal/home" class="btn btn-outline-secondary btn-sm fw-bold">
-            <i class="fas fa-arrow-left me-1"></i> Back
+        <a href="/portal/home" class="btn btn-outline-secondary btn-sm fw-semibold">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
         </a>
     </div>
 </div>
 
+<!-- COMPLIANCE ROW -->
 {% if compliance %}
 <div class="row g-3 mb-4">
     {% for type, data in compliance.items() %}
     <div class="col-6 col-md-3">
-        <div class="card h-100 border-0 shadow-sm border-start border-4 border-{{ data.class }}">
-            <div class="card-body py-3">
-                <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">{{ type }}</small>
-                <div class="d-flex justify-content-between align-items-end mt-1">
-                    <h6 class="fw-bold m-0">{{ data.date }}</h6>
-                    {% if data.download_url %}
-                        <a href="/{{ data.download_url }}" target="_blank" class="badge bg-{{ data.class }} text-white text-decoration-none" title="Download Certificate">
-                            <i class="fas fa-download me-1"></i> {{ data.label }}
-                        </a>
-                    {% else %}
-                        <span class="badge bg-{{ data.class }} text-white" style="font-size: 0.65rem;">{{ data.label }}</span>
-                    {% endif %}
+        <div class="card card-modern h-100 p-3 border-start border-4 border-{{ data.class }}">
+            <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.68rem; letter-spacing: 0.05em;">{{ type }}</small>
+            <div class="d-flex justify-content-between align-items-end mt-2">
+                <div>
+                    <h6 class="fw-bold m-0 text-dark">{{ data.date }}</h6>
                 </div>
+                {% if data.download_url %}
+                    <a href="/{{ data.download_url }}" target="_blank" class="badge bg-{{ data.class }} text-white text-decoration-none shadow-sm" title="Download Certificate">
+                        <i class="fas fa-download me-1"></i> {{ data.label }}
+                    </a>
+                {% else %}
+                    <span class="badge bg-{{ data.class }}-subtle text-{{ data.class }} border border-{{ data.class }}" style="font-size: 0.68rem;">{{ data.label }}</span>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -47,40 +52,55 @@
 
 <div class="row g-4">
     <div class="col-lg-4">
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-white fw-bold py-3">
-                <i class="fas fa-home me-2 text-brand"></i>Property Details
+        <!-- PROPERTY DETAILS -->
+        <div class="card card-modern mb-4">
+            <div class="card-header bg-white fw-bold py-3 border-0">
+                <i class="fas fa-home me-2 text-primary"></i>Property & Access Details
             </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.7rem;">Tenant Name</small>
-                    <span class="fw-bold">{{ prop[4] or 'N/A' }}</span>
+            <div class="card-body pt-0">
+                <div class="p-3 bg-light rounded-3 mb-3">
+                    <div class="mb-2">
+                        <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.68rem;">Tenant Name</small>
+                        <span class="fw-bold text-dark">{{ prop[4] or 'No tenant recorded' }}</span>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.68rem;">Tenant Phone</small>
+                        {% if prop[5] %}
+                            <a href="tel:{{ prop[5] }}" class="fw-semibold text-decoration-none text-primary"><i class="fas fa-phone-alt me-1 small"></i>{{ prop[5] }}</a>
+                        {% else %}
+                            <span class="text-muted small">N/A</span>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.7rem;">Tenant Phone</small>
-                    <span class="fw-bold">{{ prop[5] or 'N/A' }}</span>
-                </div>
-                <div>
-                    <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.7rem;">Access Code</small>
-                    <span class="font-monospace bg-light px-2 rounded border">{{ prop[6] or 'Not Set' }}</span>
+
+                <div class="p-3 bg-light rounded-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.68rem;">Key Safe / Access Code</small>
+                        <span class="font-monospace fw-bold text-danger fs-6" id="accessCodeDisplay">{{ prop[6] or 'Not Set' }}</span>
+                    </div>
+                    {% if prop[6] %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="copyAccessCode('{{ prop[6] }}')" id="copyBtn">
+                        <i class="fas fa-copy me-1"></i> <span id="copyBtnText">Copy</span>
+                    </button>
+                    {% endif %}
                 </div>
             </div>
         </div>
 
         {% if prop_docs %}
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-white fw-bold py-3">
-                <i class="fas fa-folder-open me-2 text-brand"></i>Property Documents
+        <div class="card card-modern mb-4">
+            <div class="card-header bg-white fw-bold py-3 border-0">
+                <i class="fas fa-folder-open me-2 text-primary"></i>Property Documents
             </div>
-            <div class="list-group list-group-flush">
+            <div class="list-group list-group-flush px-3 pb-3">
                 {% for d in prop_docs %}
-                <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-3 border-0 bg-light rounded-3 mb-2">
                     <div>
-                        <div class="fw-bold text-dark">{{ d.type }}</div>
-                        <small class="text-muted">{{ d.date }}</small>
+                        <div class="fw-semibold text-dark small">{{ d.type }}</div>
+                        <small class="text-muted" style="font-size: 0.7rem;">{{ d.date }}</small>
                     </div>
-                    <a href="/static{{ d.path }}" target="_blank" class="btn btn-sm btn-outline-dark" title="Download Document">
-                        <i class="fas fa-download me-1"></i> Download
+                    <a href="/static{{ d.path }}" target="_blank" class="btn btn-sm btn-outline-dark py-1 px-2" title="Download Document">
+                        <i class="fas fa-download"></i>
                     </a>
                 </div>
                 {% endfor %}
@@ -88,73 +108,83 @@
         </div>
         {% endif %}
 
-        <div class="card shadow-sm border-0">
-             <div class="card-header bg-danger text-white fw-bold py-3">
-                <i class="fas fa-exclamation-triangle me-2"></i>Report an Issue
+        <!-- REPORT AN ISSUE -->
+        <div class="card card-modern border-0">
+             <div class="card-header bg-danger text-white fw-bold py-3 rounded-top-4">
+                <i class="fas fa-exclamation-triangle me-2"></i>Report a Maintenance Issue
             </div>
-            <div class="card-body">
+            <div class="card-body p-4">
                 <form action="/portal/request/submit" method="POST" enctype="multipart/form-data">
 				    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="property_id" value="{{ prop[0] }}">
                     <div class="mb-3">
                         <label class="small fw-bold mb-1">Issue Description</label>
-                        <textarea name="description" class="form-control" rows="3" placeholder="Describe the fault..." required></textarea>
+                        <textarea name="description" class="form-control" rows="3" placeholder="Describe the problem in detail (e.g. Boiler leak, broken lock)..." required></textarea>
                     </div>
                     <div class="mb-3">
-                        <label class="small fw-bold mb-1">Upload Photo (Optional)</label>
-                        <input type="file" name="photo" class="form-control" accept="image/*">
+                        <label class="small fw-bold mb-1">Attach Photo</label>
+                        <input type="file" name="photo" class="form-control" accept="image/*" id="photoInput" onchange="previewPhoto(event)">
+                        <div id="photoPreviewContainer" class="mt-2 text-center d-none">
+                            <img id="photoPreview" class="rounded shadow-sm" style="max-height: 120px; object-fit: cover;">
+                        </div>
                     </div>
                     <div class="mb-3">
-                        <label class="small fw-bold mb-1">Urgency</label>
+                        <label class="small fw-bold mb-1">Urgency Level</label>
                         <select name="severity" class="form-select">
-                            <option value="Low">Low - Minor Repair</option>
-                            <option value="Medium">Medium - Standard</option>
-                            <option value="High">High - Urgent</option>
+                            <option value="Low">Low - Minor Repair (Convenience)</option>
+                            <option value="Medium" selected>Medium - Standard Issue (Normal scheduling)</option>
+                            <option value="High">High - Urgent / Critical Repair</option>
                         </select>
                     </div>
-                    <button class="btn btn-danger w-100 fw-bold">Submit Request</button>
+                    <button type="submit" class="btn btn-danger w-100 fw-bold py-2 shadow-sm">
+                        <i class="fas fa-paper-plane me-2"></i>Submit Issue Report
+                    </button>
                 </form>
             </div>
         </div>
     </div>
 
     <div class="col-lg-8">
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-white fw-bold py-3">
-                <i class="fas fa-history me-2 text-brand"></i>Job History
+        <!-- JOB HISTORY -->
+        <div class="card card-modern">
+            <div class="card-header bg-white fw-bold py-3 border-0 d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-history me-2 text-primary"></i>Service & Job History</span>
+                <span class="badge bg-light text-muted border">{{ job_history|length }} Records</span>
             </div>
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="bg-light small text-uppercase text-muted">
                         <tr>
                             <th class="ps-4">Date</th>
-                            <th>{{ _('Reference') }}</th>
+                            <th>Reference & Details</th>
                             <th>Status</th>
-                            <th class="text-end pe-4">{{ _('Action') }}</th>
+                            <th class="text-end pe-4">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for job in job_history %}
                         <tr>
-                            <td class="ps-4 fw-bold">{{ job[4] }}</td>
+                            <td class="ps-4 fw-bold font-monospace text-dark">{{ job[4] }}</td>
                             <td>
                                 <div class="fw-bold text-dark">{{ job[1] }}</div>
-                                <small class="text-muted">{{ job[3] }}</small>
+                                <small class="text-muted text-truncate d-block" style="max-width: 250px;">{{ job[3] }}</small>
                             </td>
                             <td>
-                                {% if job[2] == 'Completed' %} <span class="badge bg-success">Completed</span>
-                                {% elif job[2] == 'In Progress' %} <span class="badge bg-primary">Active</span>
-                                {% else %} <span class="badge bg-secondary">{{ job[2] }}</span> {% endif %}
+                                {% if job[2] == 'Completed' %} <span class="badge bg-success px-2 py-1"><i class="fas fa-check me-1"></i>Completed</span>
+                                {% elif job[2] == 'In Progress' %} <span class="badge bg-primary px-2 py-1"><i class="fas fa-tools me-1"></i>Active</span>
+                                {% else %} <span class="badge bg-secondary px-2 py-1">{{ job[2] }}</span> {% endif %}
                             </td>
                             <td class="text-end pe-4">
-                                <a href="/portal/job/{{ job[0] }}" class="btn btn-sm btn-outline-secondary">{{ _('View') }}</a>
+                                <a href="/portal/job/{{ job[0] }}" class="btn btn-sm btn-outline-primary fw-bold">
+                                    <i class="fas fa-eye me-1"></i> View Job
+                                </a>
                             </td>
                         </tr>
                         {% else %}
                         <tr>
                             <td colspan="4" class="text-center py-5 text-muted">
-                                <i class="fas fa-clipboard-check fa-2x mb-3 opacity-25"></i>
-                                <p class="mb-0">No history found.</p>
+                                <i class="fas fa-clipboard-check fa-3x mb-3 opacity-25"></i>
+                                <p class="mb-0 small">No service history recorded for this property.</p>
                             </td>
                         </tr>
                         {% endfor %}
@@ -164,4 +194,37 @@
         </div>
     </div>
 </div>
+
+<script>
+    function copyAccessCode(code) {
+        navigator.clipboard.writeText(code).then(() => {
+            const btn = document.getElementById('copyBtn');
+            const text = document.getElementById('copyBtnText');
+            if (btn && text) {
+                text.innerText = 'Copied!';
+                btn.classList.remove('btn-outline-secondary');
+                btn.classList.add('btn-success', 'text-white');
+                setTimeout(() => {
+                    text.innerText = 'Copy';
+                    btn.classList.remove('btn-success', 'text-white');
+                    btn.classList.add('btn-outline-secondary');
+                }, 2000);
+            }
+        });
+    }
+
+    function previewPhoto(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('photoPreview');
+                const container = document.getElementById('photoPreviewContainer');
+                preview.src = e.target.result;
+                container.classList.remove('d-none');
+            }
+            reader.readAsDataURL(file);
+        }
+    }
+</script>
 {% endblock %}

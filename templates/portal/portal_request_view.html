@@ -1,30 +1,34 @@
 {% extends "portal/portal_base.html" %}
 
-{% block title %}Request #{{ req[0] }} | {{ company_name }}{% endblock %}
+{% block title %}Ticket #{{ req[0] }} | {{ company_name }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h2 class="fw-bold m-0">Request #{{ req[0] }}</h2>
-        <div class="mt-2">
-            {% if req[2] in ['Completed', 'Finished', 'Resolved'] %}
-                <span class="badge bg-success fs-6 px-3 py-2 shadow-sm"><i class="fas fa-check-circle me-1"></i> Finished & Resolved</span>
-            {% elif req[2] == 'In Progress' %}
-                <span class="badge bg-primary fs-6 px-3 py-2 shadow-sm"><i class="fas fa-tools me-1"></i> In Progress (Engineer Active)</span>
-            {% elif req[2] == 'Scheduled' %}
-                <span class="badge bg-info text-dark fs-6 px-3 py-2 shadow-sm"><i class="fas fa-calendar-check me-1"></i> Scheduled</span>
-            {% else %}
-                <span class="badge bg-warning text-dark fs-6 px-3 py-2 shadow-sm"><i class="fas fa-clock me-1"></i> Awaiting Office Review</span>
-            {% endif %}
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-secondary small">Maintenance Request</span>
+            <span class="text-muted small font-monospace">Ticket #{{ req[0] }}</span>
         </div>
+        <h2 class="fw-bold m-0 text-dark" style="letter-spacing: -0.02em;">Request #{{ req[0] }}</h2>
     </div>
-    <a href="/portal/home" class="btn btn-outline-secondary btn-sm">
-        <i class="fas fa-arrow-left me-2"></i>Back
-    </a>
+    <div class="d-flex gap-2 align-items-center">
+        {% if req[2] in ['Completed', 'Finished', 'Resolved'] %}
+            <span class="badge bg-success fs-6 px-3 py-2 shadow-sm rounded-pill"><i class="fas fa-check-circle me-1"></i> Finished & Resolved</span>
+        {% elif req[2] == 'In Progress' %}
+            <span class="badge bg-primary fs-6 px-3 py-2 shadow-sm rounded-pill"><i class="fas fa-tools fa-spin me-1"></i> In Progress (Engineer Active)</span>
+        {% elif req[2] == 'Scheduled' %}
+            <span class="badge bg-info text-dark fs-6 px-3 py-2 shadow-sm rounded-pill"><i class="fas fa-calendar-check me-1"></i> Scheduled</span>
+        {% else %}
+            <span class="badge bg-warning text-dark fs-6 px-3 py-2 shadow-sm rounded-pill"><i class="fas fa-clock me-1"></i> Awaiting Office Review</span>
+        {% endif %}
+        <a href="/portal/home" class="btn btn-outline-secondary btn-sm fw-semibold">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
 </div>
 
 <!-- Progress Stepper Tracker -->
-<div class="card shadow-sm border-0 mb-4 rounded-4 overflow-hidden">
+<div class="card card-modern mb-4 overflow-hidden">
     <div class="card-body p-3 bg-light">
         <div class="row text-center g-2 small">
             <div class="col-3">
@@ -53,35 +57,36 @@
 
 <div class="row g-4">
     <div class="col-lg-8">
-        
-        <div class="card shadow-sm border-0 mb-4">
+        <!-- TICKET DETAILS -->
+        <div class="card card-modern mb-4">
             <div class="card-body p-4">
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <small class="text-muted d-block">Property</small>
-                        <h6 class="fw-bold">{{ req[5] }} <span class="text-muted small fw-normal">({{ req[6] }})</span></h6>
+                        <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.68rem;">Property</small>
+                        <h6 class="fw-bold text-dark m-0">{{ req[5] }}</h6>
+                        <small class="text-muted font-monospace"><i class="fas fa-map-marker-alt me-1 text-danger opacity-75"></i>{{ req[6] }}</small>
                     </div>
                     <div class="col-md-6 text-md-end">
-                        <small class="text-muted d-block">Date Reported</small>
-                        <h6 class="fw-bold">{{ req[3].strftime('%d %b %Y') }}</h6>
+                        <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.68rem;">Reported On</small>
+                        <h6 class="fw-bold text-dark m-0 font-monospace">{{ req[3].strftime('%d %b %Y %H:%M') }}</h6>
                     </div>
                     
                     {% if scheduled_job %}
                     <div class="col-12 border-top pt-3 mt-3">
-                        <div class="p-3 bg-white rounded border border-info border-start border-4">
+                        <div class="p-3 bg-light rounded-3 border border-primary border-start border-4">
                             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <div>
-                                    <small class="text-uppercase fw-bold text-info"><i class="fas fa-calendar-alt me-1"></i> Assigned Work Order</small>
-                                    <h6 class="fw-bold m-0 text-dark">Job {{ scheduled_job[1] }}</h6>
-                                    <small class="text-muted">Engineer: <strong>{{ scheduled_job[4] or 'Assigned Team' }}</strong></small>
+                                    <small class="text-uppercase fw-bold text-primary" style="font-size: 0.68rem;"><i class="fas fa-calendar-alt me-1"></i> Assigned Work Order</small>
+                                    <h6 class="fw-bold m-0 text-dark">Job Ref: {{ scheduled_job[1] }}</h6>
+                                    <small class="text-muted">Assigned Team: <strong>{{ scheduled_job[4] or 'Engineering Team' }}</strong></small>
                                 </div>
                                 <div class="text-end">
-                                    <span class="badge {% if scheduled_job[2] == 'Completed' %}bg-success{% elif scheduled_job[2] == 'In Progress' %}bg-primary{% else %}bg-info text-dark{% endif %}">
+                                    <span class="badge {% if scheduled_job[2] == 'Completed' %}bg-success{% elif scheduled_job[2] == 'In Progress' %}bg-primary{% else %}bg-info text-dark{% endif %} px-2 py-1">
                                         {{ scheduled_job[2] }}
                                     </span>
                                     {% if scheduled_job[0] %}
                                     <div class="mt-1">
-                                        <a href="/portal/job/{{ scheduled_job[0] }}" class="small fw-bold text-decoration-none">
+                                        <a href="/portal/job/{{ scheduled_job[0] }}" class="btn btn-sm btn-outline-primary fw-bold py-1 px-2 mt-1">
                                             <i class="fas fa-eye me-1"></i> View Live Job & Photos &rarr;
                                         </a>
                                     </div>
@@ -92,90 +97,119 @@
                     </div>
                     {% endif %}
 
-                    <div class="col-12 bg-light p-3 rounded mt-3">
-                        <small class="text-muted d-block mb-1">Issue Description</small>
-                        <p class="m-0 text-dark">{{ req[1] }}</p>
+                    <div class="col-12 bg-light p-3 rounded-3 mt-3">
+                        <small class="text-muted d-block text-uppercase fw-bold mb-1" style="font-size: 0.68rem;">Issue Description</small>
+                        <p class="m-0 text-dark" style="white-space: pre-wrap;">{{ req[1] }}</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="card shadow-sm border-0 mb-4">
+        <!-- ACTIVITY TIMELINE -->
+        <div class="card card-modern mb-4">
             <div class="card-header bg-white py-3 border-0">
-                <h6 class="m-0 fw-bold"><i class="fas fa-history me-2 text-brand"></i>Activity Timeline</h6>
+                <h6 class="m-0 fw-bold"><i class="fas fa-history me-2 text-primary"></i>Live Ticket Updates</h6>
             </div>
             <div class="card-body p-0">
                 <ul class="list-group list-group-flush">
-                    <li class="list-group-item p-4 border-start border-4 border-light">
+                    <li class="list-group-item p-3 border-start border-4 border-light">
                         <div class="d-flex justify-content-between">
                             <div>
-                                <small class="text-uppercase fw-bold text-muted" style="font-size: 0.7rem;">Request Created</small>
-                                <p class="mb-0 mt-1">Issue reported via Client Portal.</p>
+                                <small class="text-uppercase fw-bold text-muted" style="font-size: 0.68rem;">Ticket Created</small>
+                                <p class="mb-0 mt-1 small text-dark">Issue reported via Client Portal.</p>
                             </div>
-                            <small class="text-muted">{{ req[3].strftime('%d %b %H:%M') }}</small>
+                            <small class="text-muted font-monospace">{{ req[3].strftime('%d %b %H:%M') }}</small>
                         </div>
                     </li>
 
                     {% if updates %}
                         {% for update in updates %}
-                        <li class="list-group-item p-4 border-start border-4 border-info">
+                        <li class="list-group-item p-3 border-start border-4 border-info bg-light-subtle">
                             <div class="d-flex justify-content-between">
                                 <div>
-                                    <small class="text-uppercase fw-bold text-primary" style="font-size: 0.7rem;">
+                                    <small class="text-uppercase fw-bold text-primary" style="font-size: 0.68rem;">
                                         <i class="fas fa-headset me-1"></i> Update from {{ update[1] or 'Office' }}
                                     </small>
-                                    <p class="mb-0 mt-1">{{ update[0] }}</p>
+                                    <p class="mb-0 mt-1 small text-dark">{{ update[0] }}</p>
                                 </div>
-                                <small class="text-muted">{{ update[2].strftime('%d %b %H:%M') }}</small>
+                                <small class="text-muted font-monospace">{{ update[2].strftime('%d %b %H:%M') }}</small>
                             </div>
                         </li>
                         {% endfor %}
                     {% else %}
-                        <li class="list-group-item p-4 text-center text-muted fst-italic">
-                            No office updates yet. We are reviewing your request.
+                        <li class="list-group-item p-3 text-center text-muted fst-italic small">
+                            No additional updates yet. Our office team is currently reviewing your ticket.
                         </li>
                     {% endif %}
                 </ul>
             </div>
         </div>
         {% if completion %}
-        <div class="card shadow-sm border-0 border-top border-5 border-success">
-            <div class="card-header bg-success text-white">
-                <h5 class="m-0"><i class="fas fa-check-circle me-2"></i>Job Completion Report</h5>
+        <div class="card card-modern border-0 border-top border-4 border-success mb-4">
+            <div class="card-header bg-success text-white py-3">
+                <h6 class="m-0 fw-bold"><i class="fas fa-check-circle me-2"></i>Job Completion Report</h6>
             </div>
             <div class="card-body p-4">
-                <div class="row mb-4">
+                <div class="row mb-3">
                     <div class="col-md-6">
-                        <small class="text-muted">Completed By</small>
-                        <h5 class="fw-bold">{{ completion[3] or 'Senior Engineer' }}</h5>
+                        <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.68rem;">Completed By</small>
+                        <h6 class="fw-bold text-dark">{{ completion[3] or 'Senior Engineer' }}</h6>
                     </div>
                     <div class="col-md-6 text-md-end">
-                        <small class="text-muted">Date Finished</small>
-                        <h5 class="fw-bold">{{ completion[1].strftime('%d %b %Y') if completion[1] else 'Recently' }}</h5>
+                        <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.68rem;">Date Resolved</small>
+                        <h6 class="fw-bold text-dark font-monospace">{{ completion[1].strftime('%d %b %Y') if completion[1] else 'Recently' }}</h6>
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <h6 class="fw-bold">Engineer's Notes</h6>
-                    <p>{{ completion[0] or 'Job completed successfully as requested.' }}</p>
+                <div class="mb-3">
+                    <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.68rem;">Engineer's Notes</small>
+                    <p class="mb-0 text-dark small bg-light p-3 rounded-3">{{ completion[0] or 'Work completed successfully.' }}</p>
                 </div>
 
                 {% if completion[2] %}
-                <h6 class="fw-bold mb-3">Proof of Work (Photos)</h6>
-                <div class="d-flex gap-3 overflow-auto pb-3">
+                <small class="text-muted d-block text-uppercase fw-bold mb-2" style="font-size: 0.68rem;">Proof of Work Photos</small>
+                <div class="d-flex gap-3 overflow-auto pb-2">
                     {% set photo_url = completion[2] if completion[2].startswith('/') else '/' ~ completion[2] %}
                     <a href="{{ photo_url }}" target="_blank">
-                        <img src="{{ photo_url }}" class="rounded shadow-sm" style="height: 150px; object-fit: cover;" alt="Job Photo">
+                        <img src="{{ photo_url }}" class="rounded-3 shadow-sm border" style="height: 120px; width: 160px; object-fit: cover;" alt="Job Photo">
                     </a>
                 </div>
                 {% endif %}
             </div>
         </div>
         {% elif req[2] in ['Completed', 'Finished', 'Resolved'] %}
-        <div class="alert alert-success shadow-sm">
-            <i class="fas fa-check me-2"></i> This issue has been marked as finished and resolved.
+        <div class="alert alert-success shadow-sm rounded-3 border-0">
+            <i class="fas fa-check-circle me-2"></i> This issue has been marked as finished and resolved.
         </div>
         {% endif %}
+    </div>
+
+    <!-- SIDEBAR COLUMN -->
+    <div class="col-lg-4">
+        <div class="card card-modern p-4 mb-4" style="background: linear-gradient(145deg, #0f172a, #1e293b); color: white;">
+            <span class="small text-uppercase fw-bold text-warning d-block mb-2" style="letter-spacing: 0.05em;"><i class="fas fa-info-circle me-1"></i>Ticket Summary</span>
+            <div class="mb-3 pb-3 border-bottom border-white border-opacity-10">
+                <small class="text-white-50 d-block">Urgency Level</small>
+                <span class="badge {% if req[4] == 'High' %}bg-danger{% elif req[4] == 'Low' %}bg-success{% else %}bg-warning text-dark{% endif %} px-2 py-1 mt-1">
+                    {{ req[4] or 'Standard' }} Urgency
+                </span>
+            </div>
+            
+            <div class="mb-3 pb-3 border-bottom border-white border-opacity-10">
+                <small class="text-white-50 d-block">Property Address</small>
+                <span class="fw-bold small">{{ req[5] }}</span>
+                {% if req[7] %}
+                <a href="/portal/property/{{ req[7] }}" class="d-block small text-warning mt-1 text-decoration-none">View Property Hub &rarr;</a>
+                {% endif %}
+            </div>
+
+            <div class="mt-2">
+                <small class="text-white-50 d-block mb-2">Need an urgent update?</small>
+                <a href="mailto:{{ company_email or 'support@businessbetter.co.uk' }}" class="btn btn-light btn-sm w-100 fw-bold">
+                    <i class="fas fa-envelope me-1"></i> Contact Desk
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

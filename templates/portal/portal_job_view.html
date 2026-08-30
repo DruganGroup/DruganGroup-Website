@@ -3,45 +3,46 @@
 {% block title %}Job {{ job[1] }} | {{ company_name }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h2 class="fw-bold m-0">{{ job[3] or 'Job Details' }}</h2>
-        <p class="text-muted mb-0">Reference: {{ job[1] }}</p>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-secondary small">Work Order</span>
+            <span class="text-muted small font-monospace">Ref: {{ job[1] }}</span>
+        </div>
+        <h2 class="fw-bold m-0 text-dark" style="letter-spacing: -0.02em;">{{ job[3] or 'Job Overview' }}</h2>
     </div>
-    <a href="/portal/home" class="btn btn-outline-secondary btn-sm">
-        <i class="fas fa-arrow-left me-2"></i>Back
-    </a>
+    <div class="d-flex gap-2 align-items-center">
+        {% if job[2] == 'Completed' %}<span class="badge bg-success fs-6 px-3 py-2 shadow-sm rounded-pill"><i class="fas fa-check-circle me-1"></i> Completed</span>
+        {% elif job[2] == 'In Progress' %}<span class="badge bg-primary fs-6 px-3 py-2 shadow-sm rounded-pill"><i class="fas fa-tools fa-spin me-1"></i> Active Now</span>
+        {% else %}<span class="badge bg-secondary fs-6 px-3 py-2 shadow-sm rounded-pill">{{ job[2] }}</span>{% endif %}
+        
+        <a href="/portal/home" class="btn btn-outline-secondary btn-sm fw-semibold">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
 </div>
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <div class="card shadow-sm border-0 mb-4">
+        <div class="card card-modern mb-4">
             <div class="card-body p-4">
                 <div class="row g-4">
                     <div class="col-md-6">
-                        <small class="text-muted text-uppercase fw-bold">Status</small>
-                        <div class="mt-1">
-                            {% if job[2] == 'Completed' %}<span class="badge bg-success fs-6">Completed</span>
-                            {% elif job[2] == 'In Progress' %}<span class="badge bg-primary fs-6">Active Now</span>
-                            {% else %}<span class="badge bg-secondary fs-6">{{ job[2] }}</span>{% endif %}
-                        </div>
+                        <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.68rem;">Site Location</small>
+                        <div class="fw-bold text-dark mt-1">{{ job[6] }}</div>
+                        <div class="small text-muted font-monospace"><i class="fas fa-map-marker-alt me-1 text-danger opacity-75"></i>{{ job[7] }}</div>
                     </div>
                     <div class="col-md-6">
-                        <small class="text-muted text-uppercase fw-bold">Location</small>
-                        <div class="fw-bold mt-1">{{ job[6] }}</div>
-                        <div class="small text-muted">{{ job[7] }}</div>
-                    </div>
-                    <div class="col-md-6">
-                        <small class="text-muted text-uppercase fw-bold">Start Date</small>
-                        <div class="fw-bold mt-1">
+                        <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.68rem;">Scheduled Start</small>
+                        <div class="fw-bold text-dark mt-1 font-monospace">
                             {{ job[4] or 'TBC' }}
                         </div>
                     </div>
                     {% if job[5] %}
                     <div class="col-md-6">
-                        <small class="text-muted text-uppercase fw-bold">Completion Date</small>
-                        <div class="fw-bold mt-1 text-success">
-                            {{ job[5] }}
+                        <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.68rem;">Completed On</small>
+                        <div class="fw-bold text-success mt-1 font-monospace">
+                            <i class="fas fa-check me-1"></i>{{ job[5] }}
                         </div>
                     </div>
                     {% endif %}
@@ -50,20 +51,20 @@
         </div>
 
         {% if job_docs %}
-        <div class="card shadow-sm border-0 mt-4">
+        <div class="card card-modern mb-4">
             <div class="card-header bg-white py-3 border-0">
-                <h5 class="m-0 fw-bold"><i class="fas fa-folder-open me-2 text-brand"></i>Project Documents</h5>
+                <h6 class="m-0 fw-bold"><i class="fas fa-folder-open me-2 text-primary"></i>Project & Compliance Documents</h6>
             </div>
-            <div class="list-group list-group-flush">
+            <div class="list-group list-group-flush px-3 pb-3">
                 {% for doc in job_docs %}
                 {% set doc_url = doc.path if doc.path.startswith('/') else '/' ~ doc.path %}
-                <div class="list-group-item py-3 d-flex justify-content-between align-items-center bg-light">
+                <div class="list-group-item py-2 px-3 d-flex justify-content-between align-items-center bg-light rounded-3 mb-2 border-0">
                     <div>
-                        <span class="badge bg-secondary mb-1">{{ doc.type }}</span>
-                        <div class="small fw-bold text-muted">{{ doc.date }}</div>
+                        <span class="badge bg-secondary mb-1" style="font-size: 0.65rem;">{{ doc.type }}</span>
+                        <div class="small fw-semibold text-dark">{{ doc.date }}</div>
                     </div>
-                    <a href="{{ doc_url }}" target="_blank" class="btn btn-sm btn-outline-dark">
-                        <i class="fas fa-download me-1"></i> View
+                    <a href="{{ doc_url }}" target="_blank" class="btn btn-sm btn-outline-dark py-1 px-3">
+                        <i class="fas fa-download me-1"></i> Download
                     </a>
                 </div>
                 {% endfor %}
@@ -71,34 +72,34 @@
         </div>
         {% endif %}
 
-        <div class="card shadow-sm border-0 mt-4">
+        <div class="card card-modern">
             <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-                <h5 class="m-0 fw-bold"><i class="fas fa-camera me-2 text-brand"></i>Site Gallery & Progress Photos</h5>
-                <span class="badge bg-light text-dark border">{{ photos|length }} Photos</span>
+                <h6 class="m-0 fw-bold"><i class="fas fa-camera me-2 text-primary"></i>Site Gallery & Progress Evidence</h6>
+                <span class="badge bg-light text-muted border">{{ photos|length }} Photos</span>
             </div>
             <div class="card-body p-4">
                 {% if photos %}
                     <div class="row g-3">
                         {% for p in photos %}
                         {% set photo_url = p.path if p.path.startswith('/') else '/' ~ p.path %}
-                        <div class="col-6 col-md-4 col-lg-3">
-                            <div class="position-relative border rounded overflow-hidden shadow-sm group-hover-zoom" style="height: 180px;">
+                        <div class="col-6 col-md-4">
+                            <div class="position-relative border rounded-3 overflow-hidden shadow-sm" style="height: 180px;">
                                 <a href="{{ photo_url }}" target="_blank">
                                     <img src="{{ photo_url }}" 
-                                         class="w-100 h-100 object-fit-cover transition-transform" 
+                                         class="w-100 h-100 object-fit-cover" 
                                          style="transition: transform 0.3s ease; object-fit: cover;" 
                                          alt="Site Photo"
-                                         onmouseover="this.style.transform='scale(1.05)'"
+                                         onmouseover="this.style.transform='scale(1.04)'"
                                          onmouseout="this.style.transform='scale(1)'"
-                                         onerror="this.onerror=null;this.src='https://placehold.co/400x300?text=No+Image';">
+                                         onerror="this.onerror=null;this.src='https://placehold.co/400x300?text=Site+Photo';">
                                 </a>
                                 
                                 <div class="position-absolute bottom-0 start-0 w-100 p-2" 
-                                     style="background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);">
-                                    <small class="text-white d-block text-truncate">
+                                     style="background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);">
+                                    <small class="text-white d-block text-truncate" style="font-size: 0.7rem;">
                                         <i class="fas fa-calendar-alt me-1 opacity-75"></i> {{ p.date }}
                                     </small>
-                                    <span class="badge bg-white text-dark mt-1" style="font-size: 0.6rem; opacity: 0.9;">
+                                    <span class="badge bg-white text-dark mt-1" style="font-size: 0.6rem; opacity: 0.95;">
                                         {{ p.type or 'Site Photo' }}
                                     </span>
                                 </div>
@@ -107,10 +108,10 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="text-center py-5 text-muted bg-light rounded border border-dashed">
-                        <i class="fas fa-images fa-3x mb-3 opacity-25"></i>
-                        <p class="mb-0">No photos have been uploaded for this job yet.</p>
-                        <small>Photos will appear here as our engineers upload them.</small>
+                    <div class="text-center py-5 text-muted bg-light rounded-3 border border-dashed">
+                        <i class="fas fa-images fa-3x mb-2 opacity-25"></i>
+                        <p class="mb-0 small">No progress photos uploaded yet for this work order.</p>
+                        <small class="text-muted" style="font-size: 0.72rem;">Photos will appear here in real-time as uploaded by the field team.</small>
                     </div>
                 {% endif %}
             </div>
@@ -118,10 +119,13 @@
     </div>
 
     <div class="col-lg-4">
-        <div class="card shadow-sm border-0 bg-brand text-white p-4" style="background-color: var(--brand-color);">
-            <h5 class="fw-bold mb-3">Need Help?</h5>
-            <p class="small opacity-75 mb-4">If you have questions about this ongoing work, please contact our office directly.</p>
-            <a href="mailto:{{ company_email or 'support@businessbetter.co.uk' }}" class="btn btn-light fw-bold w-100">Contact Office</a>
+        <div class="card card-modern p-4 text-white mb-4" style="background: linear-gradient(145deg, #0f172a, #1e293b);">
+            <span class="small text-uppercase fw-bold text-warning d-block mb-2" style="letter-spacing: 0.05em;"><i class="fas fa-headset me-1"></i>Support Desk</span>
+            <h5 class="fw-bold mb-2">Have a Question?</h5>
+            <p class="small text-white-50 mb-4">If you need details regarding engineer scheduling or project scope, reach out to our office.</p>
+            <a href="mailto:{{ company_email or 'support@businessbetter.co.uk' }}" class="btn btn-light fw-bold w-100">
+                <i class="fas fa-envelope me-2"></i>Email Office
+            </a>
         </div>
     </div>
 </div>

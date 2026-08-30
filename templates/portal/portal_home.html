@@ -1,71 +1,164 @@
 {% extends "portal/portal_base.html" %}
 
-{% block title %}My Dashboard | {{ company_name }}{% endblock %}
+{% block title %}Client Dashboard | {{ company_name }}{% endblock %}
 
 {% block content %}
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <div>
-            <h2 class="fw-bold m-0">My Dashboard</h2>
-            <p class="text-muted mb-0">Welcome back, {{ client_name }}</p>
+            <h2 class="fw-bold m-0" style="letter-spacing: -0.02em;">Client Dashboard</h2>
+            <p class="text-muted mb-0 small">Welcome back, <strong>{{ client_name }}</strong>. Here is your portfolio overview.</p>
         </div>
-        <div>
-            <button class="btn btn-brand shadow-sm me-2" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
+        <div class="d-flex gap-2">
+            <button class="btn btn-brand shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
                 <i class="fas fa-plus me-2"></i>Add Property
             </button>
-            <button class="btn btn-info text-white shadow-sm" data-bs-toggle="modal" data-bs-target="#massEmailModal">
-                <i class="fas fa-envelope me-2"></i>Mass Email Tenants
-            </button>
+            <a href="mailto:{{ company_email or 'support@businessbetter.co.uk' }}" class="btn btn-outline-secondary shadow-sm px-3">
+                <i class="fas fa-headset me-2"></i>Help Desk
+            </a>
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white py-3 border-0">
-            <h5 class="m-0 fw-bold text-dark"><i class="fas fa-calendar-alt me-2 text-brand"></i>Upcoming & Active Work</h5>
+    <!-- 4 KPI METRIC CARDS -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="metric-stat-card h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">Properties</span>
+                        <h3 class="fw-bold mb-1 text-dark">{{ kpi.total_properties }}</h3>
+                        <div class="small">
+                            {% if kpi.expired_props > 0 %}
+                                <span class="text-danger fw-bold"><i class="fas fa-exclamation-triangle me-1"></i>{{ kpi.expired_props }} Alert</span>
+                            {% elif kpi.expiring_props > 0 %}
+                                <span class="text-warning fw-bold"><i class="fas fa-clock me-1"></i>{{ kpi.expiring_props }} Expiring</span>
+                            {% else %}
+                                <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i>Compliant</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="metric-icon-wrap bg-primary-subtle text-primary">
+                        <i class="fas fa-building"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-lg-3">
+            <div class="metric-stat-card h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">Ongoing Work</span>
+                        <h3 class="fw-bold mb-1 text-dark">{{ kpi.active_jobs }}</h3>
+                        <div class="small text-muted">
+                            {% if kpi.active_jobs > 0 %}
+                                <span class="pulse-dot me-1"></span><span class="text-primary fw-semibold">Live in progress</span>
+                            {% else %}
+                                <span>No active jobs</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="metric-icon-wrap bg-info-subtle text-info">
+                        <i class="fas fa-tools"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-lg-3">
+            <div class="metric-stat-card h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">Pending Review</span>
+                        <h3 class="fw-bold mb-1 text-dark">{{ kpi.open_quotes }}</h3>
+                        <div class="small">
+                            {% if kpi.open_quotes > 0 %}
+                                <a href="/portal/quotes" class="text-warning text-decoration-none fw-bold">Review Quotes &rarr;</a>
+                            {% else %}
+                                <span class="text-muted">All quotes approved</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="metric-icon-wrap bg-warning-subtle text-warning">
+                        <i class="fas fa-file-signature"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-lg-3">
+            <div class="metric-stat-card h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">Balance Due</span>
+                        <h3 class="fw-bold mb-1 text-dark">{{ currency }}{{ "%.2f"|format(kpi.unpaid_invoices_total) }}</h3>
+                        <div class="small">
+                            {% if kpi.unpaid_invoices_count > 0 %}
+                                <a href="/portal/invoices" class="text-danger text-decoration-none fw-bold">{{ kpi.unpaid_invoices_count }} Unpaid &rarr;</a>
+                            {% else %}
+                                <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i>Settled</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="metric-icon-wrap bg-success-subtle text-success">
+                        <i class="fas fa-receipt"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card card-modern mb-4">
+        <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 fw-bold text-dark"><i class="fas fa-calendar-check me-2 text-primary"></i>Upcoming & Active Work Orders</h6>
+            <span class="badge bg-light text-muted border">{{ active_jobs|length }} Jobs</span>
         </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light small text-uppercase text-muted">
                     <tr>
                         <th class="ps-4">Date</th>
-                        <th>{{ _('Reference') }}</th>
-                        <th>Description</th>
+                        <th>Reference</th>
+                        <th>Description & Location</th>
                         <th>Status</th>
-                        <th class="text-end pe-4">{{ _('Action') }}</th>
+                        <th class="text-end pe-4">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for job in active_jobs %}
                     <tr>
-                        <td class="ps-4 fw-bold text-dark">
+                        <td class="ps-4 fw-bold text-dark font-monospace">
                             {% if job[3] %}
                                 {{ job[3] }}
                             {% else %}
                                 <span class="text-muted fst-italic">Pending Date</span>
                             {% endif %}
                         </td>
-                        <td class="small text-muted">{{ job[1] }}</td>
+                        <td class="small fw-semibold text-secondary">{{ job[1] }}</td>
                         <td>
-                            <div class="fw-bold">{{ job[2] }}</div>
-                            <div class="small text-muted"><i class="fas fa-map-marker-alt me-1"></i>{{ job[5] }}</div>
+                            <div class="fw-bold text-dark">{{ job[2] }}</div>
+                            <div class="small text-muted"><i class="fas fa-map-marker-alt me-1 text-danger opacity-75"></i>{{ job[5] }}</div>
                         </td>
                         <td>
                             {% if job[4] == 'In Progress' %}
-                                <span class="badge bg-primary">Active Now</span>
+                                <span class="badge bg-primary px-2 py-1"><i class="fas fa-tools fa-spin me-1"></i>Active Now</span>
                             {% elif job[4] == 'Scheduled' %}
-                                <span class="badge bg-info text-dark">Scheduled</span>
+                                <span class="badge bg-info text-dark px-2 py-1"><i class="fas fa-calendar-alt me-1"></i>Scheduled</span>
                             {% else %}
-                                <span class="badge bg-secondary">{{ job[4] }}</span>
+                                <span class="badge bg-secondary px-2 py-1">{{ job[4] }}</span>
                             {% endif %}
                         </td>
                         <td class="text-end pe-4">
-                            <a href="/portal/job/{{ job[0] }}" class="btn btn-sm btn-outline-primary fw-bold">View Job</a>
+                            <a href="/portal/job/{{ job[0] }}" class="btn btn-sm btn-outline-primary fw-bold">
+                                <i class="fas fa-eye me-1"></i> View Job
+                            </a>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="text-center py-5 text-muted">
-                            <i class="fas fa-calendar-check fa-3x mb-3 opacity-25"></i>
-                            <p class="mb-0">No active or scheduled jobs at the moment.</p>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            <i class="fas fa-calendar-check fa-2x mb-2 opacity-25"></i>
+                            <p class="mb-0 small">No active or scheduled work orders currently.</p>
                         </td>
                     </tr>
                     {% endfor %}
@@ -76,9 +169,10 @@
 
     <div class="row g-4 mb-4">
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white py-3 border-0">
-                    <h5 class="m-0 fw-bold"><i class="fas fa-clipboard-list me-2 text-brand"></i>Recent Requests</h5>
+            <div class="card card-modern h-100">
+                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 fw-bold"><i class="fas fa-clipboard-list me-2 text-primary"></i>Recent Maintenance Tickets</h6>
+                    <small class="text-muted">Last 5 requests</small>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
@@ -87,29 +181,39 @@
                                 <th class="ps-4">Date</th>
                                 <th>Property</th>
                                 <th>Issue</th>
+                                <th>Urgency</th>
                                 <th class="text-end pe-4">Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for r in recent_requests %}
                             <tr style="cursor: pointer;" onclick="window.location.href='/portal/request/{{ r[0] }}';">
-                                <td class="ps-4 small text-muted">{{ r[4] }}</td>
-                                <td class="fw-bold">{{ r[1] }}</td>
-                                <td class="text-muted small text-truncate" style="max-width: 150px;">{{ r[2] }}</td>
+                                <td class="ps-4 small text-muted font-monospace">{{ r[4] }}</td>
+                                <td class="fw-bold text-dark">{{ r[1] }}</td>
+                                <td class="text-muted small text-truncate" style="max-width: 180px;">{{ r[2] }}</td>
+                                <td>
+                                    {% if r[5] == 'High' or r[5] == 'Emergency' %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger small">High</span>
+                                    {% elif r[5] == 'Low' %}
+                                        <span class="badge bg-success-subtle text-success border border-success small">Low</span>
+                                    {% else %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning small">Medium</span>
+                                    {% endif %}
+                                </td>
                                 <td class="text-end pe-4">
                                     {% if r[3] in ['Completed', 'Finished', 'Resolved'] %}
-                                        <span class="badge bg-success"><i class="fas fa-check me-1"></i> Finished</span>
+                                        <span class="badge bg-success px-2"><i class="fas fa-check me-1"></i> Finished</span>
                                     {% elif r[3] == 'In Progress' %}
-                                        <span class="badge bg-primary"><i class="fas fa-tools me-1"></i> In Progress</span>
+                                        <span class="badge bg-primary px-2"><i class="fas fa-tools me-1"></i> In Progress</span>
                                     {% elif r[3] == 'Scheduled' %}
-                                        <span class="badge bg-info text-dark"><i class="fas fa-calendar-check me-1"></i> Scheduled</span>
+                                        <span class="badge bg-info text-dark px-2"><i class="fas fa-calendar-check me-1"></i> Scheduled</span>
                                     {% else %}
-                                        <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i> Pending</span>
+                                        <span class="badge bg-warning text-dark px-2"><i class="fas fa-clock me-1"></i> Pending</span>
                                     {% endif %}
                                 </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="4" class="text-center py-4 text-muted">No recent issues reported.</td></tr>
+                            <tr><td colspan="5" class="text-center py-4 text-muted small">No maintenance issues reported yet.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -118,36 +222,89 @@
         </div>
 
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm h-100 text-white" style="background: linear-gradient(135deg, var(--brand-color), #333);">
-                <div class="card-body p-4 d-flex flex-column justify-content-center">
-                    <h5 class="fw-bold mb-4">Action Required</h5>
-                    
+            <div class="card card-modern h-100 p-4 d-flex flex-column justify-content-between" style="background: linear-gradient(145deg, #0f172a, #1e293b); color: white;">
+                <div>
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span><i class="fas fa-file-contract me-2"></i> Pending Quotes</span>
-                        <span class="badge bg-white text-dark fs-6">{{ open_quotes_count }}</span>
+                        <span class="small text-uppercase fw-bold text-warning" style="letter-spacing: 0.05em;"><i class="fas fa-bolt me-1"></i>Quick Hub</span>
+                        <span class="badge bg-white bg-opacity-10 text-white">{{ properties|length }} Properties</span>
                     </div>
-                    {% if open_quotes_count > 0 %}
-                    <a href="/portal/quotes" class="btn btn-light fw-bold w-100 mt-2">Review Quotes</a>
-                    {% else %}
-                    <p class="small opacity-75 mt-2 mb-0">You are all caught up!</p>
-                    {% endif %}
+                    <h5 class="fw-bold mb-2">Portfolio Actions</h5>
+                    <p class="small text-white-50 mb-4">Quickly approve quotes or settle your invoices online.</p>
+
+                    <div class="p-3 rounded-3 bg-white bg-opacity-10 mb-3 border border-white border-opacity-10">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small fw-semibold">Pending Quotes</span>
+                            <span class="badge bg-warning text-dark font-monospace">{{ open_quotes_count }}</span>
+                        </div>
+                        {% if open_quotes_count > 0 %}
+                            <a href="/portal/quotes" class="btn btn-sm btn-light w-100 fw-bold mt-2">Review & Approve Quotes</a>
+                        {% else %}
+                            <small class="text-white-50 d-block mt-1"><i class="fas fa-check-circle text-success me-1"></i>All quotes up to date</small>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="pt-3 border-top border-white border-opacity-10">
+                    <a href="/portal/invoices" class="btn btn-outline-light btn-sm w-100 fw-semibold">
+                        <i class="fas fa-file-invoice-dollar me-1"></i> View All Invoices
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <h5 class="fw-bold mb-3">My Properties</h5>
-    <div class="row g-4">
+    <!-- MY PROPERTIES SECTION -->
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h5 class="fw-bold m-0"><i class="fas fa-home me-2 text-primary"></i>My Properties ({{ properties|length }})</h5>
+        <div style="max-width: 320px; width: 100%;">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" id="propertySearch" class="form-control border-start-0" placeholder="Filter by address or postcode..." onkeyup="filterProperties()">
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3" id="propertiesGrid">
         {% for p in properties %}
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100 p-3 hover-shadow transition">
-                <div class="d-flex justify-content-between mb-2">
-                    <span class="badge bg-light text-dark border">{{ p[3] or 'Property' }}</span>
-                    <small class="text-muted">ID: {{ p[0] }}</small>
+        <div class="col-md-6 col-lg-4 property-card-item" data-address="{{ p[1]|lower }} {{ p[2]|lower }}">
+            <div class="card card-modern h-100 p-3 card-modern-hover">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge bg-light text-dark border small fw-semibold">{{ p[3] or 'Residential' }}</span>
+                    <small class="text-muted font-monospace">#{{ p[0] }}</small>
                 </div>
-                <h6 class="fw-bold mb-1">{{ p[1] }}</h6>
-                <p class="small text-muted mb-3">{{ p[2] }}</p>
                 
+                <h6 class="fw-bold text-dark mb-1 text-truncate">{{ p[1] }}</h6>
+                <p class="small text-muted mb-3 font-monospace"><i class="fas fa-map-marker-alt me-1 text-danger opacity-75"></i>{{ p[2] }}</p>
+                
+                <!-- Compliance Pill Indicators -->
+                <div class="d-flex gap-1 mb-3 flex-wrap">
+                    {% set comp_info = p[12] if p|length > 12 else {} %}
+                    
+                    {% if comp_info.gas %}
+                        <span class="badge bg-{{ comp_info.gas.class }}-subtle text-{{ comp_info.gas.class }} border border-{{ comp_info.gas.class }} small" title="Gas Safe: {{ comp_info.gas.label }}">
+                            <i class="fas fa-fire me-1"></i>Gas
+                        </span>
+                    {% endif %}
+                    
+                    {% if comp_info.eicr %}
+                        <span class="badge bg-{{ comp_info.eicr.class }}-subtle text-{{ comp_info.eicr.class }} border border-{{ comp_info.eicr.class }} small" title="EICR: {{ comp_info.eicr.label }}">
+                            <i class="fas fa-bolt me-1"></i>EICR
+                        </span>
+                    {% endif %}
+                    
+                    {% if comp_info.epc %}
+                        <span class="badge bg-{{ comp_info.epc.class }}-subtle text-{{ comp_info.epc.class }} border border-{{ comp_info.epc.class }} small" title="EPC: {{ comp_info.epc.label }}">
+                            <i class="fas fa-leaf me-1"></i>EPC
+                        </span>
+                    {% endif %}
+
+                    {% if comp_info.pat %}
+                        <span class="badge bg-{{ comp_info.pat.class }}-subtle text-{{ comp_info.pat.class }} border border-{{ comp_info.pat.class }} small" title="PAT Test: {{ comp_info.pat.label }}">
+                            <i class="fas fa-plug me-1"></i>PAT
+                        </span>
+                    {% endif %}
+                </div>
+
                 <div class="mt-auto border-top pt-2 d-flex justify-content-between align-items-center">
                     <a href="/portal/property/{{ p[0] }}" class="text-decoration-none">
                         {% if p[4] > 0 %}
@@ -156,35 +313,46 @@
                             <small class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> No Issues</small>
                         {% endif %}
                     </a>
-                    <a href="/portal/property/{{ p[0] }}" class="btn btn-sm btn-link text-decoration-none p-0">Details</a>
+                    <a href="/portal/property/{{ p[0] }}" class="btn btn-sm btn-outline-secondary fw-bold">
+                        <i class="fas fa-home me-1"></i> View Property
+                    </a>
                 </div>
             </div>
         </div>
         {% endfor %}
     </div>
 
+        {% else %}
+        <div class="col-12 text-center py-5 text-muted">
+            <i class="fas fa-building fa-3x mb-3 opacity-25"></i>
+            <p class="mb-0">No properties registered under your account.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- ADD PROPERTY MODAL -->
     <div class="modal fade" id="addPropertyModal" tabindex="-1">
         <div class="modal-dialog modal-lg"> 
-            <div class="modal-content">
-                <div class="modal-header bg-light">
-                    <h5 class="modal-title fw-bold"><i class="fas fa-home me-2 text-brand"></i>Add New Property</h5>
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header bg-light py-3 border-0">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-plus-circle me-2 text-primary"></i>Add New Property</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                  <form action="/portal/property/add" method="POST">
-  				<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <div class="modal-body p-4">
+                <form action="/portal/property/add" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="modal-body p-4">
                         <h6 class="text-uppercase text-muted small fw-bold mb-3">Location Details</h6>
                         <div class="row g-3 mb-4">
                             <div class="col-md-8">
-                                <label class="form-label">Address Line 1</label>
-                                <input type="text" name="address" class="form-control" required placeholder="e.g. 10 Downing Street">
+                                <label class="form-label small fw-bold">Address Line 1</label>
+                                <input type="text" name="address" class="form-control" required placeholder="e.g. 32 High Street">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Postcode</label>
-                                <input type="text" name="postcode" class="form-control" required placeholder="SW1A 2AA">
+                                <label class="form-label small fw-bold">Postcode</label>
+                                <input type="text" name="postcode" class="form-control" required placeholder="e.g. PL26 8NU">
                             </div>
                             <div class="col-md-12">
-                                <label class="form-label">Property Type</label>
+                                <label class="form-label small fw-bold">Property Type</label>
                                 <select name="type" class="form-select">
                                     <option value="Residential">Residential</option>
                                     <option value="Commercial">Commercial</option>
@@ -193,60 +361,47 @@
                                 </select>
                             </div>
                         </div>
-                        <h6 class="text-uppercase text-muted small fw-bold mb-3">Access & Tenant Info</h6>
+
+                        <h6 class="text-uppercase text-muted small fw-bold mb-3">Access & Tenant Information</h6>
                         <div class="row g-3">
                             <div class="col-md-4">
-                                <label class="form-label">Tenant Name</label>
-                                <input type="text" name="tenant_name" class="form-control">
+                                <label class="form-label small fw-bold">Tenant Name</label>
+                                <input type="text" name="tenant_name" class="form-control" placeholder="Optional">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Tenant Phone</label>
-                                <input type="text" name="tenant_phone" class="form-control">
+                                <label class="form-label small fw-bold">Tenant Phone</label>
+                                <input type="text" name="tenant_phone" class="form-control" placeholder="Optional">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Tenant Email</label>
-                                <input type="email" name="tenant_email" class="form-control">
+                                <label class="form-label small fw-bold">Tenant Email</label>
+                                <input type="email" name="tenant_email" class="form-control" placeholder="Optional">
                             </div>
                             <div class="col-md-12">
-                                <label class="form-label text-danger fw-bold">Access Code</label>
-                                <input type="text" name="key_code" class="form-control" placeholder="Key safe code...">
+                                <label class="form-label small fw-bold text-danger">Key Safe / Access Code</label>
+                                <input type="text" name="key_code" class="form-control" placeholder="e.g. C1234X">
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer bg-light">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
-                        <button type="submit" class="btn btn-brand px-4">Save Property</button>
+                    <div class="modal-footer bg-light py-3 border-0">
+                        <button type="button" class="btn btn-outline-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-brand px-4">
+                            <i class="fas fa-save me-2"></i>Save Property
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-    <div class="modal fade" id="massEmailModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-info text-white">
-                    <h5 class="modal-title fw-bold"><i class="fas fa-envelope me-2"></i>Mass Email Tenants</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <form action="/portal/property/mass-email" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="modal-body">
-                        <p class="text-muted small">This will send an email to all your tenants provided they have an email address saved in their property details.</p>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Subject</label>
-                            <input type="text" name="subject" class="form-control" required placeholder="Important Notice">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Message</label>
-                            <textarea name="message" class="form-control" rows="5" required placeholder="Type your message here..."></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
-                        <button type="submit" class="btn btn-info text-white fw-bold">Send Mass Email</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+
+    <!-- LIVE SEARCH JAVASCRIPT -->
+    <script>
+        function filterProperties() {
+            const input = document.getElementById('propertySearch').value.toLowerCase();
+            const items = document.querySelectorAll('.property-card-item');
+            items.forEach(item => {
+                const text = item.getAttribute('data-address') || '';
+                item.style.display = text.includes(input) ? '' : 'none';
+            });
+        }
+    </script>
 {% endblock %}
