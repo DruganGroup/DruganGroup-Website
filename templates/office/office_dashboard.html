@@ -19,29 +19,66 @@
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card p-3 border-0 shadow-sm text-center h-100 bg-white border-bottom border-primary border-4">
-                <h6 class="text-muted text-uppercase small fw-bold">{{ _('New Requests') }}</h6>
-                <h2 class="fw-bold text-dark m-0">{{ leads_count }}</h2>
+        <!-- 1. New Requests -->
+        <div class="col-6 col-lg-3">
+            <div class="card p-3 border-0 shadow-sm h-100 bg-white rounded-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">{{ _('New Requests') }}</span>
+                        <h2 class="fw-bold text-dark m-0">{{ leads_count }}</h2>
+                        <span class="small text-primary"><i class="fas fa-inbox me-1"></i>Incoming</span>
+                    </div>
+                    <div class="rounded-3 p-2 bg-primary bg-opacity-10 text-primary">
+                        <i class="fas fa-bell fs-5"></i>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card p-3 border-0 shadow-sm text-center h-100 bg-white border-bottom border-warning border-4">
-                <h6 class="text-muted text-uppercase small fw-bold">{{ _('Pending Quotes') }}</h6>
-                <h2 class="fw-bold text-dark m-0">{{ pending_quotes }}</h2>
-                <div class="small text-muted">Value: £{{ "%.0f"|format(pipeline['Sent']['value']) }}</div>
+        <!-- 2. Pending Quotes -->
+        <div class="col-6 col-lg-3">
+            <div class="card p-3 border-0 shadow-sm h-100 bg-white rounded-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">{{ _('Pending Quotes') }}</span>
+                        <h2 class="fw-bold text-dark m-0">{{ pending_quotes }}</h2>
+                        <span class="small text-muted">Value: £{{ "%.0f"|format(pipeline['Sent']['value']) }}</span>
+                    </div>
+                    <div class="rounded-3 p-2 bg-warning bg-opacity-10 text-warning">
+                        <i class="fas fa-file-signature fs-5"></i>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card p-3 border-0 shadow-sm text-center h-100 bg-white border-bottom border-success border-4">
-                <h6 class="text-muted text-uppercase small fw-bold">{{ _('Active Jobs') }}</h6>
-                <h2 class="fw-bold text-dark m-0">{{ active_jobs }}</h2>
+        <!-- 3. Active Jobs -->
+        <div class="col-6 col-lg-3">
+            <div class="card p-3 border-0 shadow-sm h-100 bg-white rounded-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">{{ _('Active Jobs') }}</span>
+                        <h2 class="fw-bold text-dark m-0">{{ active_jobs }}</h2>
+                        <span class="small text-success fw-bold"><i class="fas fa-tools me-1"></i>In Progress</span>
+                    </div>
+                    <div class="rounded-3 p-2 bg-success bg-opacity-10 text-success">
+                        <i class="fas fa-hammer fs-5"></i>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card p-3 border-0 shadow-sm text-center h-100 bg-white border-bottom border-danger border-4">
-                <h6 class="text-muted text-uppercase small fw-bold">{{ _('Unpaid Invoices') }}</h6>
-                <h2 class="fw-bold text-danger m-0">{{ unpaid_inv }}</h2>
+        <!-- 4. Unpaid Invoices -->
+        <div class="col-6 col-lg-3">
+            <div class="card p-3 border-0 shadow-sm h-100 bg-white rounded-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">{{ _('Unpaid Invoices') }}</span>
+                        <h2 class="fw-bold {{ 'text-danger' if unpaid_inv > 0 else 'text-dark' }} m-0">{{ unpaid_inv }}</h2>
+                        <span class="small {{ 'text-danger fw-bold' if unpaid_inv > 0 else 'text-muted' }}">
+                            {{ 'Requires settlement' if unpaid_inv > 0 else 'All settled' }}
+                        </span>
+                    </div>
+                    <div class="rounded-3 p-2 bg-danger bg-opacity-10 text-danger">
+                        <i class="fas fa-file-invoice-dollar fs-5"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

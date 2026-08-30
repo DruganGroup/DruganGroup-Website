@@ -13,78 +13,34 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
     <style>
-        :root { --brand-color: {{ brand_color or '#0d6efd' }}; }
-        
-        body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
-        
-        /* SIDEBAR STYLING */
-        .sidebar { 
-            height: 100vh; 
-            background-color: var(--brand-color); 
-            color: white; 
-            position: fixed; 
-            width: 260px; 
-            padding-top: 0; 
-            z-index: 1000;
-            box-shadow: 4px 0 15px rgba(0,0,0,0.1);
-            overflow-y: auto; 
-            display: flex;
-            flex-direction: column;
+        :root {
+            --brand-color: {{ brand_color or '#0d6efd' }};
+            --brand-bg: #f8fafc;
+            --brand-border: #e2e8f0;
+            --brand-text: #0f172a;
         }
-        
-        /* LOGO CONTAINER STYLING (Matches Finance App) */
-        .sidebar-brand {
-            background: rgba(0,0,0,0.1);
-            padding: 25px 15px;
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        
-        .sidebar-logo-img {
-            max-width: 100%;      
-            max-height: 80px;     /* Prevents massive logos */
-            width: auto;
-            height: auto;
-            object-fit: contain;  
-            display: block;
-            margin: 0 auto 10px auto;
-            background: #fff;     
-            padding: 5px;
-            border-radius: 6px;
-        }
-
-        /* Custom Scrollbar */
-        .sidebar::-webkit-scrollbar { width: 6px; }
-        .sidebar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
-        .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
-        
-        .sidebar a { 
-            padding: 12px 25px; 
-            text-decoration: none; 
-            font-size: 15px; 
-            color: rgba(255,255,255,0.9); 
-            display: block; 
-            transition: 0.2s;
-            border-left: 4px solid transparent;
-        }
-        .sidebar a:hover { background-color: rgba(255,255,255,0.1); color: white; }
-        .sidebar a.active { 
-            background-color: rgba(255,255,255,0.2); 
-            color: white; 
-            border-left-color: #ffc107; 
-            font-weight: 600;
-        }
-        
-        .content { margin-left: 260px; padding: 40px; }
-        .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        
-        /* Card Hover Effects */
-        .card-hover { transition: transform 0.2s; }
-        .card-hover:hover { transform: translateY(-5px); }
-        
-        @media (max-width: 768px) {
-            .sidebar { width: 100%; height: auto; position: relative; }
-            .content { margin-left: 0; }
+        body { background-color: var(--brand-bg); font-family: 'Inter', sans-serif; color: var(--brand-text); margin: 0; min-height: 100vh; }
+        .office-sidebar { height: 100vh; background-color: var(--brand-color); color: white; position: fixed; width: 270px; padding: 20px 16px; z-index: 1040; box-shadow: 4px 0 24px rgba(0,0,0,0.08); overflow-y: auto; display: flex; flex-direction: column; }
+        .sidebar-brand { background: rgba(0,0,0,0.12); padding: 16px 12px; text-align: center; margin-bottom: 14px; border-radius: 14px; }
+        .sidebar-logo-img { max-width: 100%; max-height: 70px; width: auto; height: auto; object-fit: contain; display: block; margin: 0 auto 8px auto; background: #fff; padding: 5px; border-radius: 6px; }
+        .user-profile-chip { padding: 10px 12px; background: rgba(0,0,0,0.12); border-radius: 12px; display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.15); }
+        .user-avatar-badge { width: 36px; height: 36px; background: rgba(255,255,255,0.25); color: #ffffff; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; flex-shrink: 0; overflow: hidden; }
+        .user-avatar-badge img { width: 100%; height: 100%; object-fit: cover; }
+        .nav-section-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.7); font-weight: 700; padding: 8px 12px 4px 12px; }
+        .office-sidebar::-webkit-scrollbar { width: 4px; }
+        .office-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 4px; }
+        .office-sidebar .nav-link-custom { padding: 10px 14px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: space-between; border-radius: 10px; transition: all 0.2s ease; font-weight: 500; margin-bottom: 3px; border-left: 4px solid transparent; }
+        .office-sidebar .nav-link-custom:hover { background-color: rgba(255,255,255,0.15); color: #ffffff; transform: translateX(2px); }
+        .office-sidebar .nav-link-custom.active { background: rgba(255,255,255,0.22); color: #ffffff; font-weight: 600; border-left-color: #ffc107; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .office-main { margin-left: 270px; padding: 24px 32px 60px 32px; min-height: 100vh; }
+        .office-topbar { background: #ffffff; border: 1px solid var(--brand-border); border-radius: 14px; padding: 10px 18px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+        .pulse-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; display: inline-block; box-shadow: 0 0 0 0 rgba(16,185,129,0.7); animation: pulse-green 2s infinite; }
+        @keyframes pulse-green { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16,185,129,0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16,185,129,0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
+        .mobile-header { display: none; }
+        @media (max-width: 991px) {
+            .office-sidebar { display: none; }
+            .office-main { margin-left: 0; padding: 16px 14px 85px 14px; }
+            .mobile-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background-color: var(--brand-color); color: white; position: sticky; top: 0; z-index: 1030; box-shadow: 0 2px 10px rgba(0,0,0,0.15); }
         }
     </style>
     {% block head %}{% endblock %}
@@ -92,81 +48,213 @@
 </head>
 <body>
 
-    <div class="sidebar">
-        <div class="sidebar-brand">
-            <img src="{{ logo_url or '/static/images/logo.png' }}" alt="Logo" class="sidebar-logo-img">
-            
-            <div class="small text-white-50 text-uppercase fw-bold" style="letter-spacing: 1px; font-size: 0.75rem;">Office Hub</div>
-            
-            <div class="badge bg-warning text-dark mt-2 shadow-sm">
-                <i class="fas fa-building me-1"></i> {{ session.get('company_name', 'My Company') }}
-            </div>
+    <!-- MOBILE TOP HEADER (PHONES & TABLETS) -->
+    <div class="mobile-header">
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-sm btn-outline-light rounded-pill px-2 py-1" type="button" data-bs-toggle="offcanvas" data-bs-target="#officeMobileDrawer">
+                <i class="fas fa-bars"></i>
+            </button>
+            {% if logo_url %}
+                <img src="{{ logo_url }}" alt="Logo" style="max-height: 28px; background: white; padding: 2px 6px; border-radius: 6px;">
+            {% else %}
+                <span class="fw-bold fs-6">{{ session.get('company_name') or 'Office Hub' }}</span>
+            {% endif %}
         </div>
-
-        <a href="/office-hub" class="{% if request.path == '/office-hub' %}active{% endif %}">
-            <i class="fas fa-home me-3"></i> {{ _('Dashboard') }}
-        </a>
-
-        <a href="/office/service-desk" class="{% if 'service-desk' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
-            <div><i class="fas fa-headset me-3"></i> Desk & Compliance</div>
-            <span id="sidebarTicketsBadge" class="badge bg-danger rounded-pill shadow-sm" style="{% if not pending_tickets_count or pending_tickets_count == 0 %}display:none;{% endif %}">
-                {{ pending_tickets_count or 0 }}
-            </span>
-        </a>
-           
-        <a href="/office/calendar" class="{% if 'calendar' in request.path %}active{% endif %}">
-            <i class="fas fa-calendar-alt me-3"></i> Master Calendar
-        </a>
-        <a href="/office/inbox" class="{% if 'inbox' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
-            <div><i class="fas fa-envelope-open-text me-3"></i> Communications</div>
-            <span id="sidebarEmailsBadge" class="badge bg-warning text-dark rounded-pill shadow-sm" style="{% if not unread_emails_count or unread_emails_count == 0 %}display:none;{% endif %}">
-                {{ unread_emails_count or 0 }}
-            </span>
-        </a>
-        <a href="/clients" class="{% if 'client' in request.path %}active{% endif %}">
-            <i class="fas fa-address-book me-3"></i> {{ _('Clients') }}
-        </a>
-        <a href="/office/sales" class="{% if 'sales' in request.path %}active{% endif %}">
-            <i class="fas fa-file-invoice-dollar me-3"></i> Sales & Invoicing
-        </a>
-        <a href="/office/fleet" class="{% if 'fleet' in request.path %}active{% endif %}">
-            <i class="fas fa-truck me-3"></i> Fleet Manager
-        </a>
-		<a href="/office/live-ops" class="{% if 'live-ops' in request.path %}active{% endif %}">
-    <i class="fas fa-satellite-dish me-3"></i> Live Operations
-</a>
-        
-        <div class="mt-auto mb-4">
-            <div class="mx-4 border-top border-white border-opacity-25 pt-4"></div>
-            <a href="/finance-dashboard">
-                <i class="fas fa-chart-line me-3"></i> Finance App
+        <div class="d-flex align-items-center gap-2">
+            <a href="/launcher" class="btn btn-sm btn-outline-light rounded-pill px-2 py-1" title="Launcher">
+                <i class="fas fa-th-large"></i>
             </a>
-            <a href="/launcher" class="text-warning">
-                <i class="fas fa-arrow-left me-3"></i> Main Launcher
-            </a>
-            <a href="/logout" class="text-danger">
-                <i class="fas fa-sign-out-alt me-3"></i> Logout
+            <a href="/logout" class="btn btn-sm btn-danger rounded-pill px-2 py-1" title="Sign Out">
+                <i class="fas fa-sign-out-alt"></i>
             </a>
         </div>
     </div>
 
-    <div class="content">
+    <!-- DESKTOP SIDEBAR -->
+    <aside class="office-sidebar">
+        <div class="sidebar-brand">
+            {% if logo_url %}
+                <img src="{{ logo_url }}" alt="Logo" class="sidebar-logo-img">
+            {% endif %}
+            <h6 class="fw-bold m-0 text-white text-truncate">{{ session.get('company_name') or 'Office Hub' }}</h6>
+            <span class="badge bg-white bg-opacity-20 text-white small px-2 py-1 mt-1">Management Suite</span>
+        </div>
+
+        <div class="user-profile-chip">
+            <div class="user-avatar-badge">
+                {% if current_user_photo %}
+                    <img src="{{ current_user_photo if current_user_photo.startswith(('/static/', 'http')) else ('/static/' ~ current_user_photo.lstrip('/')) }}" alt="Avatar">
+                {% else %}
+                    {{ (current_staff_name or session.get('user_name') or 'U')[0] }}
+                {% endif %}
+            </div>
+            <div class="text-truncate">
+                <strong class="d-block small text-white text-truncate">{{ current_staff_name or session.get('user_name') or 'Administrator' }}</strong>
+                <span class="text-white-50" style="font-size: 0.7rem;">{{ session.get('role') or 'Office' }}</span>
+            </div>
+        </div>
+
+        <!-- OPERATIONS SECTION -->
+        <div class="nav-section-label">Operations</div>
+
+        <a href="/office-hub" class="nav-link-custom {% if request.path == '/office-hub' %}active{% endif %}">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-tachometer-alt" style="width: 18px; text-align: center;"></i>
+                <span>Mission Control</span>
+            </div>
+        </a>
+
+        <a href="/office/calendar" class="nav-link-custom {% if 'calendar' in request.path %}active{% endif %}">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-calendar-alt" style="width: 18px; text-align: center;"></i>
+                <span>Master Schedule</span>
+            </div>
+        </a>
+
+        <a href="/office/service-desk" class="nav-link-custom {% if 'service-desk' in request.path %}active{% endif %}">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-headset" style="width: 18px; text-align: center;"></i>
+                <span>Service Desk</span>
+            </div>
+            <span id="sidebarTicketsBadge" class="badge bg-danger rounded-pill" style="{% if not pending_tickets_count or pending_tickets_count == 0 %}display:none;{% endif %}">
+                {{ pending_tickets_count or 0 }}
+            </span>
+        </a>
+
+        <a href="/office/inbox" class="nav-link-custom {% if 'inbox' in request.path %}active{% endif %}">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-comments" style="width: 18px; text-align: center;"></i>
+                <span>Communications</span>
+            </div>
+            <span id="sidebarEmailsBadge" class="badge bg-warning text-dark rounded-pill" style="{% if not unread_emails_count or unread_emails_count == 0 %}display:none;{% endif %}">
+                {{ unread_emails_count or 0 }}
+            </span>
+        </a>
+
+        <a href="/office/live-ops" class="nav-link-custom {% if 'live-ops' in request.path %}active{% endif %}">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-satellite-dish" style="width: 18px; text-align: center;"></i>
+                <span>Live Operations</span>
+            </div>
+        </a>
+        <!-- CRM & ASSETS SECTION -->
+        <div class="nav-section-label mt-3">CRM & Fleet</div>
+
+        <a href="/clients" class="nav-link-custom {% if 'client' in request.path %}active{% endif %}">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-address-book" style="width: 18px; text-align: center;"></i>
+                <span>Clients & Portfolios</span>
+            </div>
+        </a>
+
+        <a href="/office/sales" class="nav-link-custom {% if 'sales' in request.path %}active{% endif %}">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-file-invoice-dollar" style="width: 18px; text-align: center;"></i>
+                <span>Sales & Invoicing</span>
+            </div>
+        </a>
+
+        <a href="/office/fleet" class="nav-link-custom {% if 'fleet' in request.path %}active{% endif %}">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-truck" style="width: 18px; text-align: center;"></i>
+                <span>Fleet Manager</span>
+            </div>
+        </a>
+
+        <!-- MODULES & SWITCHER -->
+        <div class="mt-auto pt-3 border-top border-white border-opacity-10">
+            <div class="nav-section-label">Switch Apps</div>
+            
+            <a href="/finance-dashboard" class="nav-link-custom">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-chart-line" style="width: 18px; text-align: center;"></i>
+                    <span>Finance Hub</span>
+                </div>
+            </a>
+            
+            <a href="/site-hub" class="nav-link-custom" style="color: #38bdf8;">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-hard-hat" style="width: 18px; text-align: center;"></i>
+                    <span>Site Companion</span>
+                </div>
+            </a>
+
+            <a href="/launcher" class="nav-link-custom" style="color: #f59e0b;">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-rocket" style="width: 18px; text-align: center;"></i>
+                    <span>Main Launcher</span>
+                </div>
+            </a>
+
+            <a href="/logout" class="nav-link-custom text-danger mt-1">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-sign-out-alt" style="width: 18px; text-align: center;"></i>
+                    <span>Sign Out</span>
+                </div>
+            </a>
+        </div>
+    </aside>
+
+    <!-- MOBILE OFFCANVAS DRAWER -->
+    <div class="offcanvas offcanvas-start border-0 text-white" tabindex="-1" id="officeMobileDrawer" style="background-color: var(--brand-color); width: 280px;">
+        <div class="offcanvas-header border-bottom border-white border-opacity-10 py-3">
+            <h6 class="offcanvas-title fw-bold text-white">{{ session.get('company_name') or 'Office Hub' }}</h6>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body p-3 d-flex flex-column">
+            <div class="nav-section-label">Operations</div>
+            <a href="/office-hub" class="nav-link-custom py-2 text-white text-decoration-none d-flex align-items-center gap-2"><i class="fas fa-tachometer-alt"></i> Mission Control</a>
+            <a href="/office/calendar" class="nav-link-custom py-2 text-white text-decoration-none d-flex align-items-center gap-2"><i class="fas fa-calendar-alt"></i> Master Schedule</a>
+            <a href="/office/service-desk" class="nav-link-custom py-2 text-white text-decoration-none d-flex align-items-center gap-2"><i class="fas fa-headset"></i> Service Desk</a>
+            <a href="/office/inbox" class="nav-link-custom py-2 text-white text-decoration-none d-flex align-items-center gap-2"><i class="fas fa-comments"></i> Communications</a>
+            <a href="/office/live-ops" class="nav-link-custom py-2 text-white text-decoration-none d-flex align-items-center gap-2"><i class="fas fa-satellite-dish"></i> Live Operations</a>
+            
+            <div class="nav-section-label mt-3">CRM & Fleet</div>
+            <a href="/clients" class="nav-link-custom py-2 text-white text-decoration-none d-flex align-items-center gap-2"><i class="fas fa-address-book"></i> Clients & Portfolios</a>
+            <a href="/office/sales" class="nav-link-custom py-2 text-white text-decoration-none d-flex align-items-center gap-2"><i class="fas fa-file-invoice-dollar"></i> Sales & Invoicing</a>
+            <a href="/office/fleet" class="nav-link-custom py-2 text-white text-decoration-none d-flex align-items-center gap-2"><i class="fas fa-truck"></i> Fleet Manager</a>
+
+            <div class="mt-auto pt-3 border-top border-white border-opacity-10">
+                <a href="/finance-dashboard" class="nav-link-custom py-2 text-white text-decoration-none d-flex align-items-center gap-2"><i class="fas fa-chart-line"></i> Finance Hub</a>
+                <a href="/site-hub" class="nav-link-custom py-2 text-info text-decoration-none d-flex align-items-center gap-2"><i class="fas fa-hard-hat"></i> Site Companion</a>
+                <a href="/launcher" class="nav-link-custom py-2 text-warning text-decoration-none d-flex align-items-center gap-2"><i class="fas fa-rocket"></i> Launcher</a>
+                <a href="/logout" class="nav-link-custom py-2 text-danger text-decoration-none d-flex align-items-center gap-2"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <main class="office-main">
+        <!-- TOPBAR BANNER -->
+        <div class="office-topbar d-none d-lg-flex">
+            <div class="d-flex align-items-center gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="pulse-dot"></span>
+                    <span class="small fw-semibold text-muted">Operations Live</span>
+                </div>
+                <span class="text-muted opacity-25">|</span>
+                <span class="small text-muted">{{ session.get('company_name') or 'Business Suite' }}</span>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span class="small text-muted">Logged in as: <strong class="text-dark">{{ current_staff_name or session.get('user_name') }}</strong></span>
+            </div>
+        </div>
+
         {% with messages = get_flashed_messages() %}
             {% if messages %}
-                <div class="alert alert-info shadow-sm mb-4 border-0 border-start border-4 border-info">
+                <div class="alert alert-info shadow-sm mb-4 border-0 border-start border-4 border-info rounded-3">
                     {{ messages[0] }}
                 </div>
             {% endif %}
         {% endwith %}
 
         {% block content %}{% endblock %}
-    </div>
+    </main>
 
     {% include "components/quick_add.html" ignore missing %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Auto-sync sidebar alert badges every 30 seconds
         function updateSidebarAlerts() {
             fetch('/office/api/sidebar-alerts')
                 .then(res => res.json())
