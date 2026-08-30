@@ -62,19 +62,21 @@ def job_files(job_id):
     
     from services.pricing_engine import get_company_markups, get_effective_vehicle_gang_cost, calculate_service_request_estimate
 
-    # 1. Get Job Details (Fetching Vehicle and Staff assignments)
+    # 1. Get Job Details (Fetching Vehicle, Property, and Staff assignments)
     cur.execute("""
         SELECT 
             j.ref, j.description, j.site_address, j.status, 
             j.quote_id, COALESCE(j.quote_total, 0),
             c.name, c.email, c.phone, q.job_title,
-            v.daily_cost, v.reg_plate, j.property_id, p.key_code,
-            j.vehicle_id, j.engineer_id, c.id
+            v.daily_cost, v.reg_plate, j.property_id, 
+            COALESCE(p.key_code, ''),
+            j.vehicle_id, j.engineer_id, c.id,
+            p.address_line1, p.postcode, p.tenant_name, p.tenant_phone, c.billing_address
         FROM jobs j 
         LEFT JOIN clients c ON j.client_id = c.id
         LEFT JOIN quotes q ON j.quote_id = q.id
         LEFT JOIN vehicles v ON j.vehicle_id = v.id
-        LEFT JOIN properties p ON j.property_id = p.id
+        LEFT JOIN properties p ON (j.property_id = p.id OR (j.property_id IS NULL AND q.property_id = p.id))
         WHERE j.id = %s AND j.company_id = %s
     """, (job_id, comp_id))
     
@@ -94,11 +96,17 @@ def job_files(job_id):
     if desc_val == title_val:
         desc_val = ''
 
+    # Address Resolution (Site address -> Property address with postcode -> Billing address)
+    p_addr = (job_row[17] or '').strip()
+    p_post = (job_row[18] or '').strip()
+    prop_address = f"{p_addr}, {p_post}" if (p_addr and p_post) else (p_addr or p_post or '')
+    resolved_address = job_row[2] or prop_address or job_row[21] or 'No Address Logged'
+
     job = {
         'id': job_id,
         'ref': job_row[0],
         'desc': desc_val,
-        'address': job_row[2] or '',
+        'address': resolved_address,
         'status': job_row[3] or 'Scheduled',
         'client': job_row[6] or 'Unassigned Client',
         'email': job_row[7] or '',
@@ -106,6 +114,8 @@ def job_files(job_id):
         'title': title_val,
         'property_id': job_row[12] or '',
         'key_code': job_row[13] or '',
+        'tenant_name': job_row[19] or '',
+        'tenant_phone': job_row[20] or '',
         'quote_id': job_row[4],
         'vehicle_id': assigned_veh_id,
         'engineer_id': assigned_eng_id,

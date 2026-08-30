@@ -58,19 +58,34 @@
             </div>
             {% endif %}
 
-            <div class="text-muted small d-flex align-items-center gap-3 flex-wrap">
-                {% if job.client and job.client != 'None' %}
-                <span><i class="fas fa-user-circle me-1"></i> {% if job.client_id %}<a href="/client/{{ job.client_id }}" class="text-decoration-none text-muted fw-semibold">{{ job.client }}</a>{% else %}{{ job.client }}{% endif %}</span>
-                {% endif %}
+            <div class="text-muted small d-flex align-items-center gap-3 flex-wrap mt-2">
                 {% if job.address and job.address != 'None' %}
-                <span><i class="fas fa-map-marker-alt me-1"></i> {% if job.property_id %}<a href="/office/property/{{ job.property_id }}" class="text-decoration-none text-muted">{{ job.address }}</a>{% else %}{{ job.address }}{% endif %}</span>
+                <span class="bg-light px-2 py-1 rounded-3 border">
+                    <i class="fas fa-map-marker-alt me-1 text-danger"></i> 
+                    {% if job.property_id %}<a href="/office/property/{{ job.property_id }}" class="text-decoration-none text-dark fw-bold">{{ job.address }}</a>{% else %}<strong class="text-dark">{{ job.address }}</strong>{% endif %}
+                </span>
                 {% endif %}
-                <span><i class="fas fa-hashtag me-1"></i> <strong class="text-dark">{{ job.ref }}</strong></span>
+                {% if job.client and job.client != 'None' %}
+                <span class="bg-light px-2 py-1 rounded-3 border">
+                    <i class="fas fa-user-circle me-1 text-primary"></i> 
+                    {% if job.client_id %}<a href="/client/{{ job.client_id }}" class="text-decoration-none text-dark fw-bold">{{ job.client }}</a>{% else %}<strong class="text-dark">{{ job.client }}</strong>{% endif %}
+                </span>
+                {% endif %}
+                <span class="bg-light px-2 py-1 rounded-3 border">
+                    <i class="fas fa-hashtag me-1 text-secondary"></i> <strong class="text-dark">{{ job.ref }}</strong>
+                </span>
                 {% if van_reg and van_reg != 'None' and van_reg != 'No Van Assigned' %}
-                <span><i class="fas fa-truck me-1"></i> {{ van_reg }}</span>
+                <span class="bg-light px-2 py-1 rounded-3 border">
+                    <i class="fas fa-truck me-1 text-secondary"></i> <span class="fw-semibold text-dark">{{ van_reg }}</span>
+                </span>
                 {% endif %}
                 {% if job.key_code and job.key_code != 'None' %}
-                <span class="badge bg-dark text-warning"><i class="fas fa-key me-1"></i> Access/Key: {{ job.key_code }}</span>
+                <span class="badge bg-dark text-warning font-monospace fs-6 px-2 py-1"><i class="fas fa-key me-1"></i> Key: {{ job.key_code }}</span>
+                {% endif %}
+                {% if job.tenant_name %}
+                <span class="bg-light px-2 py-1 rounded-3 border">
+                    <i class="fas fa-user me-1 text-info"></i> Tenant: <strong class="text-dark">{{ job.tenant_name }}</strong>{% if job.tenant_phone %} (<a href="tel:{{ job.tenant_phone }}" class="text-decoration-none text-muted">{{ job.tenant_phone }}</a>){% endif %}
+                </span>
                 {% endif %}
             </div>
         </div>
