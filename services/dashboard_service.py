@@ -356,8 +356,12 @@ def get_office_dashboard_data(comp_id, user_date_fmt):
         FROM jobs j 
         LEFT JOIN clients c ON j.client_id = c.id 
         LEFT JOIN quotes q ON j.quote_id = q.id
-        WHERE j.company_id = %s AND j.status IN ('Scheduled', 'In Progress') 
-        ORDER BY j.start_date ASC LIMIT 8
+        WHERE j.company_id = %s AND j.status IN ('Scheduled', 'In Progress', 'Accepted', 'Pending')
+        ORDER BY 
+            CASE WHEN j.start_date IS NULL THEN 1 ELSE 0 END,
+            j.start_date ASC,
+            j.created_at DESC
+        LIMIT 8
     """, (comp_id,))
     upcoming_jobs = []
     for r in cur.fetchall():

@@ -1,86 +1,122 @@
 {% extends "office/office_base.html" %}
 
-{% block title %}Schedule | Business Better{% endblock %}
+{% block title %}Master Schedule | Business Better{% endblock %}
 
 {% block head %}
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
     <style>
-        .fc-toolbar-title { font-size: 1.5rem !important; font-weight: bold; }
-        .fc-button-primary { background-color: var(--brand-color) !important; border: none !important; }
-        .fc-day-today { background-color: rgba(var(--brand-rgb), 0.05) !important; }
-        #calendar { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .fc-event-main { cursor: move; }
-        .job-card { cursor: grab; border-left: 4px solid var(--brand-color); }
-        .job-card:active { cursor: grabbing; }
-        .job-list-container { max-height: 80vh; overflow-y: auto; padding-right: 5px; }
+        .fc-toolbar-title { font-size: 1.4rem !important; font-weight: 800; color: #1e293b; }
+        .fc-button-primary { background-color: var(--brand-color) !important; border: none !important; font-weight: 600 !important; border-radius: 8px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.08) !important; }
+        .fc-button-primary:hover { filter: brightness(0.92) !important; }
+        .fc-button-active { background-color: #0f172a !important; }
+        .fc-day-today { background-color: rgba(13, 110, 253, 0.04) !important; }
+        .fc-daygrid-day-number { font-weight: 700; color: #475569; font-size: 0.85rem; padding: 6px !important; }
+        .fc-col-header-cell { background-color: #f8fafc; padding: 8px 0 !important; font-size: 0.8rem; text-transform: uppercase; color: #64748b; }
+        
+        #calendar { background: white; padding: 22px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; }
+        .fc-event { border-radius: 8px !important; border: none !important; padding: 3px 6px !important; font-size: 0.82rem !important; box-shadow: 0 2px 4px rgba(0,0,0,0.08); transition: transform 0.15s ease; cursor: pointer; }
+        .fc-event:hover { transform: scale(1.02); filter: brightness(0.95); }
+        .fc-event-main { cursor: pointer; }
+        
+        .job-card { cursor: grab; border-left: 4px solid var(--brand-color); transition: all 0.2s ease; }
+        .job-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08) !important; }
+        .job-card:active { cursor: grabbing; transform: scale(0.98); }
+        .job-list-container { max-height: calc(85vh - 120px); overflow-y: auto; padding-right: 4px; }
+        .job-list-container::-webkit-scrollbar { width: 5px; }
+        .job-list-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
 {% endblock %}
 
 {% block content %}
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
-            <h2 class="fw-bold m-0">Master Schedule</h2>
-            <p class="text-muted mb-0">Drag jobs to assign dates. Gangs auto-fill based on Van selection.</p>
+            <h2 class="fw-bold m-0 text-dark"><i class="fas fa-calendar-alt text-primary me-2"></i>Master Schedule</h2>
+            <p class="text-muted mb-0 small">Drag unscheduled jobs to assign dates. Gangs and vehicles auto-assign.</p>
         </div>
-        <div class="bg-white px-3 py-2 rounded-pill shadow-sm small border">
-            <span class="me-3"><i class="fas fa-circle text-primary me-1"></i> Scheduled</span>
-            <span class="me-3"><i class="fas fa-circle text-warning me-1"></i> In Progress</span>
-            <span class="me-3"><i class="fas fa-circle text-success me-1"></i> Completed</span>
+        <div class="bg-white px-3 py-2 rounded-4 shadow-sm small border d-flex align-items-center gap-3">
+            <span><i class="fas fa-circle text-primary me-1"></i> Scheduled</span>
+            <span><i class="fas fa-circle text-warning me-1"></i> In Progress</span>
+            <span><i class="fas fa-circle text-success me-1"></i> Completed</span>
         </div>
     </div>
 
     <div class="row g-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white fw-bold border-bottom py-3">
-                    <i class="fas fa-clipboard-list me-2 text-secondary"></i> Unscheduled
+        <!-- Sidebar: Unscheduled Jobs -->
+        <div class="col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white overflow-hidden">
+                <div class="card-header bg-white fw-bold border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-clipboard-list text-secondary me-2"></i>Unscheduled</span>
+                    <span class="badge bg-primary-subtle text-primary rounded-pill font-monospace">{{ unscheduled_jobs|length }}</span>
                 </div>
+                
+                <!-- Quick Filter Input -->
+                <div class="p-2 border-bottom bg-light">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" id="unscheduledSearch" class="form-control border-start-0" placeholder="Filter jobs..." onkeyup="filterUnscheduled()">
+                    </div>
+                </div>
+
                 <div class="card-body bg-light p-3">
                     <div id="external-events" class="job-list-container">
                         {% for job in unscheduled_jobs %}
-                        <div class="card mb-2 border-0 shadow-sm job-card fc-event" 
+                        <div class="card mb-2 border-0 shadow-sm job-card fc-event bg-white rounded-3 unscheduled-item" 
 								data-id="{{ job.id }}" 
-								data-title="{{ job.client }}" 
+								data-title="{{ job.ref }} - {{ job.title }}" 
 								data-color="#0d6efd"
 								data-pre-vehicle="{{ job.pre_vehicle_id or '' }}"
 								data-duration="{{ job.duration_iso }}">
 							 <div class="card-body p-3">
-                                <strong class="text-dark small">{{ job.ref }}</strong>
-                                <div class="fw-bold text-primary mt-1">{{ job.client }}</div>
-                                <div class="small text-muted text-truncate">{{ job.desc }}</div>
-                                <div class="small text-muted mt-2">
-                                    <i class="fas fa-map-marker-alt me-1"></i> {{ job.postcode }}
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <strong class="text-dark small font-monospace badge bg-dark-subtle text-dark border">{{ job.ref }}</strong>
+                                    <span class="badge bg-light text-muted border font-monospace" style="font-size: 0.68rem;">{{ job.days }} Day{% if job.days > 1 %}s{% endif %}</span>
+                                </div>
+                                <div class="fw-bold text-dark text-truncate mt-1" style="font-size: 0.88rem;">{{ job.title }}</div>
+                                <div class="small text-muted text-truncate">{{ job.client }}</div>
+                                <div class="small text-muted mt-2 d-flex justify-content-between align-items-center" style="font-size: 0.75rem;">
+                                    <span><i class="fas fa-map-marker-alt me-1 text-danger opacity-75"></i> {{ job.postcode }}</span>
+                                    <i class="fas fa-grip-vertical text-muted opacity-50"></i>
                                 </div>
                             </div>
                         </div>
                         {% else %}
-                        <div class="text-center text-muted py-4"><p class="small mb-0">No unscheduled jobs.</p></div>
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-check-circle fa-2x mb-2 text-success opacity-50 d-block"></i>
+                            <p class="small mb-0">All jobs are scheduled!</p>
+                        </div>
                         {% endfor %}
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-9">
+        <div class="col-lg-9">
             <div id='calendar'></div>
         </div>
     </div>
 
+    <!-- Crew & Vehicle Assignment Modal -->
     <div class="modal fade" id="assignModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fw-bold"><i class="fas fa-users-cog me-2"></i>Assign Crew & Van</h5>
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header bg-dark text-white border-0 py-3">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-users-cog me-2 text-warning"></i>Assign Crew & Van</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <p class="text-muted mb-3">Assigning job for <span id="modalDateDisplay" class="fw-bold text-dark"></span></p>
+                    <div class="d-flex align-items-center gap-2 mb-3 p-3 bg-light rounded-3 border">
+                        <i class="fas fa-calendar-day text-primary fa-lg"></i>
+                        <div>
+                            <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.68rem;">Target Date</small>
+                            <span id="modalDateDisplay" class="fw-bold text-dark fs-6"></span>
+                        </div>
+                    </div>
                     
                     <input type="hidden" id="modalJobId">
                     <input type="hidden" id="modalDate">
 
                     <div class="mb-3">
-                        <label class="fw-bold small text-muted">Vehicle</label>
+                        <label class="fw-bold small text-muted text-uppercase">Vehicle / Fleet Gang</label>
                         <select class="form-select shadow-sm fw-bold" id="modalVehicle" onchange="autoFillGang()">
                             <option value="">-- Choose Van --</option>
                             {% for v in fleet %}
@@ -91,15 +127,15 @@
                                 </option>
                             {% endfor %}
                         </select>
-                        <div class="form-text small text-success" id="gang-msg" style="display:none;">
+                        <div class="form-text small text-success mt-1" id="gang-msg" style="display:none;">
                             <i class="fas fa-magic me-1"></i> Gang auto-selected from Fleet settings.
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="fw-bold small text-muted">Lead Engineer (Driver)</label>
+                        <label class="fw-bold small text-muted text-uppercase">Lead Engineer (Driver)</label>
                         <select class="form-select shadow-sm" id="modalLead">
-                            <option value="">-- Select Driver --</option>
+                            <option value="">-- Select Lead Driver --</option>
                             {% for s in staff %}
                                 <option value="{{ s.id }}">{{ s.name }} ({{ s.role }})</option>
                             {% endfor %}
@@ -107,20 +143,20 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="fw-bold small text-muted">Crew Members (Multi-Select)</label>
-                        <select class="form-select shadow-sm" id="modalCrew" multiple style="height: 120px;">
+                        <label class="fw-bold small text-muted text-uppercase">Crew Members (Multi-Select)</label>
+                        <select class="form-select shadow-sm" id="modalCrew" multiple style="height: 110px;">
                             {% for s in staff %}
                                 <option value="{{ s.id }}">{{ s.name }}</option>
                             {% endfor %}
                         </select>
-                        <div class="form-text small">Hold Ctrl/Cmd to adjust selection manually.</div>
+                        <div class="form-text small text-muted">Hold Ctrl / Cmd to select multiple crew members.</div>
                     </div>
 
                 </div>
-                <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
-                    <button type="button" class="btn btn-success w-100 fw-bold" onclick="confirmAssignment()">
-                        <i class="fas fa-check-circle me-2"></i> Confirm Schedule
+                <div class="modal-footer bg-light border-0 py-3">
+                    <button type="button" class="btn btn-outline-secondary fw-bold" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success fw-bold px-4 shadow-sm" onclick="confirmAssignment()">
+                        <i class="fas fa-check-circle me-1"></i> Confirm & Schedule
                     </button>
                 </div>
             </div>
@@ -130,11 +166,18 @@
 
 {% block scripts %}
 <script>
-    // 1. GET CSRF TOKEN (The Key to Fix Error 400)
     var csrfToken = "{{ csrf_token() if csrf_token is defined else '' }}";
-
     var calendar; 
     var assignModal;
+
+    function filterUnscheduled() {
+        var query = (document.getElementById('unscheduledSearch').value || '').toLowerCase();
+        var items = document.querySelectorAll('.unscheduled-item');
+        items.forEach(function(item) {
+            var text = item.innerText.toLowerCase();
+            item.style.display = text.includes(query) ? '' : 'none';
+        });
+    }
 
     function autoFillGang() {
         var vehicleSelect = document.getElementById('modalVehicle');
@@ -143,10 +186,8 @@
         var driverId = selectedOption.getAttribute('data-driver');
         var crewData = selectedOption.getAttribute('data-crew');
         
-        // Check if driverId is valid (Not 0, Not 'None', Not Empty)
         if (driverId && driverId != '0' && driverId != 'None') {
             document.getElementById('modalLead').value = driverId;
-            
             var crewIds = JSON.parse(crewData || '[]');
             var crewSelect = document.getElementById('modalCrew');
             
@@ -155,7 +196,6 @@
             }
             document.getElementById('gang-msg').style.display = 'block';
         } else {
-            // Reset if no driver assigned to van
             document.getElementById('modalLead').value = "";
             document.getElementById('gang-msg').style.display = 'none';
         }
@@ -181,10 +221,17 @@
         });
 
         calendar = new Calendar(calendarEl, {
-            locale: 'en-gb', firstDay: 1, slotMinTime: '06:00:00',
+            locale: 'en-gb', 
+            firstDay: 1, 
+            slotMinTime: '06:00:00',
             initialView: 'dayGridMonth',
-            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listWeek' },
-            editable: true, droppable: true,
+            headerToolbar: { 
+                left: 'prev,next today', 
+                center: 'title', 
+                right: 'dayGridMonth,timeGridWeek,listWeek' 
+            },
+            editable: true, 
+            droppable: true,
             events: '/office/calendar/data',
             
             eventClick: function(info) {
@@ -195,9 +242,12 @@
             },
             
             eventReceive: function(info) {
+                var rawDate = info.event.startStr;
+                var cleanDate = rawDate.length >= 10 ? rawDate.substring(0, 10) : rawDate;
+
                 document.getElementById('modalJobId').value = info.event.id;
-                document.getElementById('modalDate').value = info.event.startStr;
-                document.getElementById('modalDateDisplay').innerText = info.event.startStr;
+                document.getElementById('modalDate').value = cleanDate;
+                document.getElementById('modalDateDisplay').innerText = cleanDate;
                 
                 var preVehicle = info.event.extendedProps.preVehicle;
                 if (preVehicle && preVehicle !== 'None') {
@@ -214,14 +264,23 @@
             },
 
             eventDrop: function(info) {
-                // ADDED CSRF TOKEN HERE TOO
+                var rawDate = info.event.startStr;
+                var cleanDate = rawDate.length >= 10 ? rawDate.substring(0, 10) : rawDate;
+
                 fetch('/office/calendar/reschedule-job', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken  // <--- KEY FIX
+                        'X-CSRFToken': csrfToken
                     },
-                    body: JSON.stringify({ job_id: info.event.id, date: info.event.startStr })
+                    body: JSON.stringify({ job_id: info.event.id, date: cleanDate })
+                }).then(function(res) {
+                    if (!res.ok) {
+                        alert("Error updating schedule.");
+                        info.revert();
+                    }
+                }).catch(function() {
+                    info.revert();
                 });
             }
         });
@@ -235,16 +294,16 @@
         var leadId = document.getElementById('modalLead').value;
         
         var crewSelect = document.getElementById('modalCrew');
-        var crewIds = Array.from(crewSelect.selectedOptions).map(option => option.value);
+        var crewIds = Array.from(crewSelect.selectedOptions).map(function(opt) { return opt.value; });
 
-        if(!vehicleId) { alert("Please select a vehicle!"); return; }
-        if(!leadId) { alert("Please select a Lead Engineer!"); return; }
+        if (!vehicleId) { alert("Please select a vehicle!"); return; }
+        if (!leadId) { alert("Please select a Lead Engineer!"); return; }
 
         fetch('/office/calendar/schedule-job', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken  // <--- KEY FIX
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({ 
                 job_id: jobId, 
@@ -254,22 +313,48 @@
                 crew_ids: crewIds
             })
         })
-        .then(response => {
-            // Handle valid JSON or HTML errors (like 400/500 pages)
+        .then(function(response) {
             if (!response.ok) { throw new Error("Server Error: " + response.status); }
             return response.json();
         })
-        .then(data => {
-            if(data.status === 'success') {
+        .then(function(data) {
+            if (data.status === 'success') {
                 assignModal.hide();
                 calendar.refetchEvents(); 
                 var card = document.querySelector(`.job-card[data-id="${jobId}"]`);
-                if(card) card.remove();
+                if (card) card.remove();
+            } else if (data.status === 'conflict') {
+                if (confirm(data.message + "\n\nDo you want to force schedule anyway?")) {
+                    fetch('/office/calendar/schedule-job', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({ 
+                            job_id: jobId, 
+                            date: date, 
+                            vehicle_id: vehicleId,
+                            lead_id: leadId,
+                            crew_ids: crewIds,
+                            force: true
+                        })
+                    }).then(function(r) { return r.json(); }).then(function(res) {
+                        if (res.status === 'success') {
+                            assignModal.hide();
+                            calendar.refetchEvents();
+                            var card = document.querySelector(`.job-card[data-id="${jobId}"]`);
+                            if (card) card.remove();
+                        } else {
+                            alert('Error: ' + res.message);
+                        }
+                    });
+                }
             } else {
                 alert('Error: ' + data.message);
             }
         })
-        .catch(error => {
+        .catch(function(error) {
             console.error('Error:', error);
             alert("Failed to schedule. Check console for details.");
         });

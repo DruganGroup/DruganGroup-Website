@@ -467,27 +467,35 @@ def office_calendar():
 
     # 3. FETCH UNSCHEDULED JOBS
     cur.execute("""
-        SELECT j.id, j.ref, c.name, j.description, p.postcode, j.vehicle_id, j.estimated_days
+        SELECT j.id, j.ref, c.name, COALESCE(q.job_title, j.description, 'Job') as title, 
+               COALESCE(p.postcode, p.address_line1, j.site_address, 'No Address') as location, 
+               j.vehicle_id, j.estimated_days, j.description
         FROM jobs j
         JOIN clients c ON j.client_id = c.id
+        LEFT JOIN quotes q ON j.quote_id = q.id
         LEFT JOIN properties p ON j.property_id = p.id
         WHERE j.company_id = %s 
-          AND (j.start_date IS NULL OR j.status = 'Pending')
+          AND (j.start_date IS NULL OR j.status IN ('Pending', 'Accepted'))
+          AND j.status NOT IN ('Completed', 'Cancelled')
         ORDER BY j.created_at DESC
     """, (comp_id,))
     
     unscheduled = []
     for j in cur.fetchall():
         days = j[6] if j[6] and j[6] > 0 else 1
+        title = j[3] or f"Job {j[1]}"
+        desc_preview = j[7] or ""
+        if desc_preview == title: desc_preview = ""
         unscheduled.append({
             'id': j[0],
             'ref': j[1],
             'client': j[2],
-            'desc': (j[3] or "")[:50] + "...", 
+            'title': title,
+            'desc': (desc_preview[:60] + "...") if len(desc_preview) > 60 else desc_preview, 
             'postcode': j[4] or "No Address",
             'pre_vehicle_id': j[5],
             'days': days,
-            'duration_iso': f"P{days}D"
+            'duration_iso': f"P{int(round(days))}D" if days >= 1 else "PT4H"
         })
 
     pass
@@ -554,6 +562,7 @@ def schedule_job():
         if not job_id or not date_str:
             return jsonify({'status': 'error', 'message': 'Missing Data'}), 400
 
+        clean_date = date_str[:10] if date_str else None
         conn = get_db(); cur = conn.cursor()
         
         # Conflict Checking Logic
@@ -561,8 +570,8 @@ def schedule_job():
             # Check if this job has estimated_days
             cur.execute("SELECT estimated_days FROM jobs WHERE id = %s", (job_id,))
             j_row = cur.fetchone()
-            j_days = int(j_row[0] or 1)
-            new_start = datetime.strptime(date_str, '%Y-%m-%d').date()
+            j_days = int(j_row[0] or 1) if j_row else 1
+            new_start = datetime.strptime(clean_date, '%Y-%m-%d').date()
             new_end = new_start + timedelta(days=j_days - 1)
             
             # Check Vehicle Conflicts
@@ -575,10 +584,9 @@ def schedule_job():
                 for r in cur.fetchall():
                     ex_start = r[2]
                     if isinstance(ex_start, datetime): ex_start = ex_start.date()
-                    elif isinstance(ex_start, str): ex_start = datetime.strptime(ex_start, '%Y-%m-%d').date()
+                    elif isinstance(ex_start, str): ex_start = datetime.strptime(ex_start[:10], '%Y-%m-%d').date()
                     ex_end = ex_start + timedelta(days=int(r[3] or 1) - 1)
                     if (new_start <= ex_end) and (ex_start <= new_end):
-                        pass
                         return jsonify({'status': 'conflict', 'message': f'Vehicle is already assigned to {r[1]} on these dates.'})
 
             # Check Engineer Conflicts
@@ -591,10 +599,9 @@ def schedule_job():
                 for r in cur.fetchall():
                     ex_start = r[2]
                     if isinstance(ex_start, datetime): ex_start = ex_start.date()
-                    elif isinstance(ex_start, str): ex_start = datetime.strptime(ex_start, '%Y-%m-%d').date()
+                    elif isinstance(ex_start, str): ex_start = datetime.strptime(ex_start[:10], '%Y-%m-%d').date()
                     ex_end = ex_start + timedelta(days=int(r[3] or 1) - 1)
                     if (new_start <= ex_end) and (ex_start <= new_end):
-                        pass
                         return jsonify({'status': 'conflict', 'message': f'Engineer is already assigned to {r[1]} on these dates.'})
 
                 # Check Leave Conflicts
@@ -605,11 +612,10 @@ def schedule_job():
                 """, (comp_id, lead_id))
                 for r in cur.fetchall():
                     l_start = r[0]
-                    if isinstance(l_start, str): l_start = datetime.strptime(l_start, '%Y-%m-%d').date()
+                    if isinstance(l_start, str): l_start = datetime.strptime(l_start[:10], '%Y-%m-%d').date()
                     l_end = r[1]
-                    if isinstance(l_end, str): l_end = datetime.strptime(l_end, '%Y-%m-%d').date()
+                    if isinstance(l_end, str): l_end = datetime.strptime(l_end[:10], '%Y-%m-%d').date()
                     if (new_start <= l_end) and (l_start <= new_end):
-                        pass
                         return jsonify({'status': 'conflict', 'message': f'Engineer is on leave ({r[2]}) during these dates.'})
         
         # 1. Update Job
@@ -617,17 +623,14 @@ def schedule_job():
             UPDATE jobs 
             SET start_date = %s, vehicle_id = %s, engineer_id = %s, status = 'Scheduled'
             WHERE id = %s AND company_id = %s
-        """, (date_str, vehicle_id, lead_id, job_id, comp_id))
-
-        # 2. Update Job Crew (Optional: If you track crew per job)
-        # Assuming you just need the job updated for now.
+        """, (clean_date, vehicle_id or None, lead_id or None, job_id, comp_id))
         
         conn.commit()
-        pass
-        
         return jsonify({'status': 'success'})
 
     except Exception as e:
+        print(f"ERROR in schedule_job: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
         print(f"ERROR in schedule_job: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
@@ -1050,47 +1053,69 @@ def calendar_data():
     conn = get_db(); cur = conn.cursor()
     
     # Fetch Scheduled Jobs
-    # We fetch estimated_days to make the bar stretch across multiple days
     cur.execute("""
-        SELECT j.id, j.ref, c.name, j.start_date, j.estimated_days, v.reg_plate, j.status
+        SELECT j.id, j.ref, c.name, j.start_date, j.estimated_days, v.reg_plate, j.status,
+               COALESCE(q.job_title, j.description, 'Job') as title,
+               COALESCE(p.address_line1, j.site_address, '') as location,
+               s.name as engineer_name
         FROM jobs j
         JOIN clients c ON j.client_id = c.id
+        LEFT JOIN quotes q ON j.quote_id = q.id
+        LEFT JOIN properties p ON j.property_id = p.id
         LEFT JOIN vehicles v ON j.vehicle_id = v.id
+        LEFT JOIN staff s ON j.engineer_id = s.id
         WHERE j.company_id = %s 
-          AND j.status IN ('Scheduled', 'In Progress', 'Completed')
+          AND j.status IN ('Scheduled', 'In Progress', 'Completed', 'Accepted')
           AND j.start_date IS NOT NULL
     """, (comp_id,))
     
     events = []
     for row in cur.fetchall():
-        # Logic to handle Multi-Day Jobs
-        start_date = row[3] # '2026-01-23'
-        days = row[4] if row[4] and row[4] > 0 else 1
+        start_date_val = row[3]
+        if not start_date_val: continue
         
-        # Calculate End Date for FullCalendar (Start + Days)
+        if isinstance(start_date_val, (datetime, date)):
+            start_str = start_date_val.strftime('%Y-%m-%d')
+            dt_start = start_date_val if isinstance(start_date_val, date) else start_date_val.date()
+        else:
+            start_str = str(start_date_val)[:10]
+            try:
+                dt_start = datetime.strptime(start_str, '%Y-%m-%d').date()
+            except:
+                dt_start = date.today()
+
+        days = float(row[4] or 1)
+        int_days = max(int(round(days)), 1)
+        
         try:
-            dt_start = datetime.strptime(start_date, '%Y-%m-%d')
-            dt_end = dt_start + timedelta(days=int(days))
+            dt_end = dt_start + timedelta(days=int_days)
             end_date = dt_end.strftime('%Y-%m-%d')
         except:
-            end_date = start_date # Fallback if date is invalid
+            end_date = start_str
 
         # Color Coding
         color = '#0d6efd' # Blue (Scheduled)
-        if row[6] == 'In Progress': color = '#ffc107' # Orange
-        if row[6] == 'Completed': color = '#198754' # Green
+        if row[6] == 'In Progress': color = '#ffc107' # Warning Orange
+        elif row[6] == 'Completed': color = '#198754' # Green
+
+        title_display = f"{row[1]} - {row[7]} ({row[2]})"
 
         events.append({
             'id': row[0],
-            'title': f"{row[1]} - {row[2]} ({row[5] or 'No Van'})",
-            'start': start_date,
+            'title': title_display,
+            'client': row[2],
+            'ref': row[1],
+            'van': row[5] or 'No Van',
+            'engineer': row[9] or 'Unassigned',
+            'location': row[8],
+            'status': row[6],
+            'start': start_str,
             'end': end_date,
             'color': color,
             'allDay': True,
-            'url': f"/office/job/{row[0]}/files" # Click to open job
+            'url': f"/office/job/{row[0]}/files"
         })
         
-    pass
     return jsonify(events)
 
 # C. HANDLE DRAG-TO-MOVE (Reschedule logic)
@@ -1101,17 +1126,16 @@ def reschedule_job_drag():
     data = request.get_json()
     job_id = data.get('job_id')
     new_date = data.get('date') # '2026-01-25'
+    clean_date = new_date[:10] if new_date else None
     
     conn = get_db(); cur = conn.cursor()
     try:
-        cur.execute("UPDATE jobs SET start_date = %s WHERE id = %s AND company_id = %s", 
-                   (new_date, job_id, session.get('company_id')))
+        cur.execute("UPDATE jobs SET start_date = %s, status = 'Scheduled' WHERE id = %s AND company_id = %s", 
+                   (clean_date, job_id, session.get('company_id')))
         conn.commit()
         return jsonify({'status': 'success'})
-    except:
-        return jsonify({'status': 'error'})
-    finally:
-        pass
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
 
     # =========================================================
 # FLEET MANAGEMENT (Office Side)
