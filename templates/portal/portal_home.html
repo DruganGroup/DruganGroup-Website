@@ -298,26 +298,26 @@
                         {% set comp_info = p[13] if p|length > 13 else (p[12] if p|length > 12 else {}) %}
                         
                         {% if comp_info.gas %}
-                            <span class="badge bg-{{ comp_info.gas.class }}-subtle text-{{ comp_info.gas.class }} border border-{{ comp_info.gas.class }} small" title="Gas Safe: {{ comp_info.gas.label }}">
-                                <i class="fas fa-fire me-1"></i>Gas
+                            <span class="badge bg-{{ comp_info.gas.class }}-subtle text-{{ comp_info.gas.class }} border border-{{ comp_info.gas.class }} small" title="{{ compliance_labels.gas.full }}: {{ comp_info.gas.label }}">
+                                <i class="{{ compliance_labels.gas.icon }} me-1"></i>{{ compliance_labels.gas.short }}
                             </span>
                         {% endif %}
                         
                         {% if comp_info.eicr %}
-                            <span class="badge bg-{{ comp_info.eicr.class }}-subtle text-{{ comp_info.eicr.class }} border border-{{ comp_info.eicr.class }} small" title="EICR: {{ comp_info.eicr.label }}">
-                                <i class="fas fa-bolt me-1"></i>EICR
+                            <span class="badge bg-{{ comp_info.eicr.class }}-subtle text-{{ comp_info.eicr.class }} border border-{{ comp_info.eicr.class }} small" title="{{ compliance_labels.eicr.full }}: {{ comp_info.eicr.label }}">
+                                <i class="{{ compliance_labels.eicr.icon }} me-1"></i>{{ compliance_labels.eicr.short }}
                             </span>
                         {% endif %}
                         
                         {% if comp_info.epc %}
-                            <span class="badge bg-{{ comp_info.epc.class }}-subtle text-{{ comp_info.epc.class }} border border-{{ comp_info.epc.class }} small" title="EPC: {{ comp_info.epc.label }}">
-                                <i class="fas fa-leaf me-1"></i>EPC
+                            <span class="badge bg-{{ comp_info.epc.class }}-subtle text-{{ comp_info.epc.class }} border border-{{ comp_info.epc.class }} small" title="{{ compliance_labels.epc.full }}: {{ comp_info.epc.label }}">
+                                <i class="{{ compliance_labels.epc.icon }} me-1"></i>{{ compliance_labels.epc.short }}
                             </span>
                         {% endif %}
 
                         {% if comp_info.pat %}
-                            <span class="badge bg-{{ comp_info.pat.class }}-subtle text-{{ comp_info.pat.class }} border border-{{ comp_info.pat.class }} small" title="PAT Test: {{ comp_info.pat.label }}">
-                                <i class="fas fa-plug me-1"></i>PAT
+                            <span class="badge bg-{{ comp_info.pat.class }}-subtle text-{{ comp_info.pat.class }} border border-{{ comp_info.pat.class }} small" title="{{ compliance_labels.pat.full }}: {{ comp_info.pat.label }}">
+                                <i class="{{ compliance_labels.pat.icon }} me-1"></i>{{ compliance_labels.pat.short }}
                             </span>
                         {% endif %}
                     </div>

@@ -106,26 +106,26 @@
         </div>
 
         <!-- OPERATIONS SECTION -->
-        <div class="nav-section-label">Operations</div>
+        <div class="nav-section-label">{{ _('Operations') }}</div>
 
         <a href="/office-hub" class="nav-link-custom {% if request.path == '/office-hub' %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-tachometer-alt" style="width: 18px; text-align: center;"></i>
-                <span>Mission Control</span>
+                <span>{{ _('Mission Control') }}</span>
             </div>
         </a>
 
         <a href="/office/calendar" class="nav-link-custom {% if 'calendar' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-calendar-alt" style="width: 18px; text-align: center;"></i>
-                <span>Master Schedule</span>
+                <span>{{ _('Master Schedule') }}</span>
             </div>
         </a>
 
         <a href="/office/service-desk" class="nav-link-custom {% if 'service-desk' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-headset" style="width: 18px; text-align: center;"></i>
-                <span>Service Desk</span>
+                <span>{{ _('Service Desk') }}</span>
             </div>
             <span id="sidebarTicketsBadge" class="badge bg-danger rounded-pill" style="{% if not pending_tickets_count or pending_tickets_count == 0 %}display:none;{% endif %}">
                 {{ pending_tickets_count or 0 }}
@@ -135,7 +135,7 @@
         <a href="/office/inbox" class="nav-link-custom {% if 'inbox' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-comments" style="width: 18px; text-align: center;"></i>
-                <span>Communications</span>
+                <span>{{ _('Communications') }}</span>
             </div>
             <span id="sidebarEmailsBadge" class="badge bg-warning text-dark rounded-pill" style="{% if not unread_emails_count or unread_emails_count == 0 %}display:none;{% endif %}">
                 {{ unread_emails_count or 0 }}
@@ -145,62 +145,62 @@
         <a href="/office/live-ops" class="nav-link-custom {% if 'live-ops' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-satellite-dish" style="width: 18px; text-align: center;"></i>
-                <span>Live Operations</span>
+                <span>{{ _('Live Operations') }}</span>
             </div>
         </a>
         <!-- CRM & ASSETS SECTION -->
-        <div class="nav-section-label mt-3">CRM & Fleet</div>
+        <div class="nav-section-label mt-3">{{ _('CRM & Fleet') }}</div>
 
         <a href="/clients" class="nav-link-custom {% if 'client' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-address-book" style="width: 18px; text-align: center;"></i>
-                <span>Clients & Portfolios</span>
+                <span>{{ _('Clients & Portfolios') }}</span>
             </div>
         </a>
 
         <a href="/office/sales" class="nav-link-custom {% if 'sales' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-file-invoice-dollar" style="width: 18px; text-align: center;"></i>
-                <span>Sales & Invoicing</span>
+                <span>{{ _('Sales & Invoicing') }}</span>
             </div>
         </a>
 
         <a href="/office/fleet" class="nav-link-custom {% if 'fleet' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-truck" style="width: 18px; text-align: center;"></i>
-                <span>Fleet Manager</span>
+                <span>{{ _('Fleet Manager') }}</span>
             </div>
         </a>
 
         <!-- MODULES & SWITCHER -->
         <div class="mt-auto pt-3 border-top border-white border-opacity-10">
-            <div class="nav-section-label">Switch Apps</div>
+            <div class="nav-section-label">{{ _('Switch Apps') }}</div>
             
             <a href="/finance-dashboard" class="nav-link-custom">
                 <div class="d-flex align-items-center gap-2">
                     <i class="fas fa-chart-line" style="width: 18px; text-align: center;"></i>
-                    <span>Finance Hub</span>
+                    <span>{{ _('Finance Hub') }}</span>
                 </div>
             </a>
             
             <a href="/site-hub" class="nav-link-custom" style="color: #38bdf8;">
                 <div class="d-flex align-items-center gap-2">
                     <i class="fas fa-hard-hat" style="width: 18px; text-align: center;"></i>
-                    <span>Site Companion</span>
+                    <span>{{ _('Site Companion') }}</span>
                 </div>
             </a>
 
             <a href="/launcher" class="nav-link-custom" style="color: #f59e0b;">
                 <div class="d-flex align-items-center gap-2">
                     <i class="fas fa-rocket" style="width: 18px; text-align: center;"></i>
-                    <span>Main Launcher</span>
+                    <span>{{ _('Main Launcher') }}</span>
                 </div>
             </a>
 
             <a href="/logout" class="nav-link-custom text-danger mt-1">
                 <div class="d-flex align-items-center gap-2">
                     <i class="fas fa-sign-out-alt" style="width: 18px; text-align: center;"></i>
-                    <span>Sign Out</span>
+                    <span>{{ _('Sign Out') }}</span>
                 </div>
             </a>
         </div>

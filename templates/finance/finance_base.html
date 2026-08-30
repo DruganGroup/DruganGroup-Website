@@ -216,7 +216,7 @@
         </div>
 
         <!-- LEDGERS & REPORTING SECTION -->
-        <div class="nav-section-label">Ledgers & Reporting</div>
+        <div class="nav-section-label">{{ _('Ledgers & Reporting') }}</div>
 
         <a href="/finance-dashboard" class="nav-link-custom {% if request.path == '/finance-dashboard' %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
@@ -228,74 +228,74 @@
         <a href="/finance/invoices" class="nav-link-custom {% if 'invoices' in request.path or 'invoice' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-file-invoice-dollar" style="width: 18px; text-align: center;"></i>
-                <span>Sales Ledger</span>
+                <span>{{ _('Sales Ledger') }}</span>
             </div>
         </a>
 
         <a href="/finance/bookkeeping" class="nav-link-custom {% if 'bookkeeping' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-inbox" style="width: 18px; text-align: center;"></i>
-                <span>Sorting Office</span>
+                <span>{{ _('Sorting Office') }}</span>
             </div>
         </a>
 
         <a href="/finance/analysis" class="nav-link-custom {% if 'analysis' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-chart-line" style="width: 18px; text-align: center;"></i>
-                <span>Profit Analysis</span>
+                <span>{{ _('Profit Analysis') }}</span>
             </div>
         </a>
 
         <!-- COST CONTROL SECTION -->
-        <div class="nav-section-label mt-3">Cost Control</div>
+        <div class="nav-section-label mt-3">{{ _('Cost Control') }}</div>
 
         <a href="/finance/fleet" class="nav-link-custom {% if 'fleet' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-truck" style="width: 18px; text-align: center;"></i>
-                <span>Fleet Costs</span>
+                <span>{{ _('Fleet Costs') }}</span>
             </div>
         </a>
 
         <a href="/finance/materials" class="nav-link-custom {% if 'materials' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-cubes" style="width: 18px; text-align: center;"></i>
-                <span>Material Library</span>
+                <span>{{ _('Material Library') }}</span>
             </div>
         </a>
 
         <!-- HUMAN RESOURCES & PAYROLL SECTION -->
-        <div class="nav-section-label mt-3">HR & Payroll</div>
+        <div class="nav-section-label mt-3">{{ _('HR & Payroll') }}</div>
 
         <a href="/finance/hr" class="nav-link-custom {% if 'finance/hr' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-users" style="width: 18px; text-align: center;"></i>
-                <span>Staff Manager</span>
+                <span>{{ _('Staff Manager') }}</span>
             </div>
         </a>
 
         <a href="/hr/timesheets" class="nav-link-custom {% if 'timesheets' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-clock" style="width: 18px; text-align: center;"></i>
-                <span>Timesheets</span>
+                <span>{{ _('Timesheets') }}</span>
             </div>
         </a>
 
         <a href="/hr/leave" class="nav-link-custom {% if 'leave' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-calendar-times" style="width: 18px; text-align: center;"></i>
-                <span>Holiday & Leave</span>
+                <span>{{ _('Holiday & Leave') }}</span>
             </div>
         </a>
 
         <a href="/finance/payroll" class="nav-link-custom {% if 'payroll' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-money-bill-wave" style="width: 18px; text-align: center;"></i>
-                <span>Run Payroll</span>
+                <span>{{ _('Run Payroll') }}</span>
             </div>
         </a>
 
         <!-- SYSTEM SECTION -->
-        <div class="nav-section-label mt-3">System</div>
+        <div class="nav-section-label mt-3">{{ _('System') }}</div>
 
         <a href="/finance/settings/general" class="nav-link-custom {% if 'settings' in request.path %}active{% endif %}">
             <div class="d-flex align-items-center gap-2">
@@ -306,33 +306,33 @@
 
         <!-- SWITCH APPS -->
         <div class="mt-auto pt-3 border-top border-white border-opacity-10">
-            <div class="nav-section-label">Switch Apps</div>
+            <div class="nav-section-label">{{ _('Switch Apps') }}</div>
             
             <a href="/office-hub" class="nav-link-custom">
                 <div class="d-flex align-items-center gap-2">
                     <i class="fas fa-tachometer-alt" style="width: 18px; text-align: center;"></i>
-                    <span>Mission Control</span>
+                    <span>{{ _('Mission Control') }}</span>
                 </div>
             </a>
             
             <a href="/site-hub" class="nav-link-custom" style="color: #38bdf8;">
                 <div class="d-flex align-items-center gap-2">
                     <i class="fas fa-hard-hat" style="width: 18px; text-align: center;"></i>
-                    <span>Site Companion</span>
+                    <span>{{ _('Site Companion') }}</span>
                 </div>
             </a>
 
             <a href="/launcher" class="nav-link-custom" style="color: #f59e0b;">
                 <div class="d-flex align-items-center gap-2">
                     <i class="fas fa-rocket" style="width: 18px; text-align: center;"></i>
-                    <span>Main Launcher</span>
+                    <span>{{ _('Main Launcher') }}</span>
                 </div>
             </a>
 
             <a href="/logout" class="nav-link-custom text-danger mt-1">
                 <div class="d-flex align-items-center gap-2">
                     <i class="fas fa-sign-out-alt" style="width: 18px; text-align: center;"></i>
-                    <span>Sign Out</span>
+                    <span>{{ _('Sign Out') }}</span>
                 </div>
             </a>
         </div>

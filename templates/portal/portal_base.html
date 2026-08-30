@@ -127,7 +127,7 @@
             </div>
         </div>
 
-        <div class="nav-section-label">Navigation</div>
+        <div class="nav-section-label">{{ _('Navigation') }}</div>
         
         <a href="/portal/home" class="nav-link-custom {% if request.endpoint == 'portal.portal_home' %}active{% endif %}">
             <i class="fas fa-home me-2" style="width: 18px; text-align: center;"></i> {{ _('Dashboard') }}
@@ -142,10 +142,10 @@
             <i class="fas fa-file-invoice-dollar me-2" style="width: 18px; text-align: center;"></i> {{ _('Invoices') }}
         </a>
         <a href="/portal/settings" class="nav-link-custom {% if 'setting' in request.endpoint %}active{% endif %}">
-            <i class="fas fa-user-cog me-2" style="width: 18px; text-align: center;"></i> Account Settings
+            <i class="fas fa-user-cog me-2" style="width: 18px; text-align: center;"></i> {{ _('Settings') }}
         </a>
         
-        <div class="nav-section-label mt-3">Help & Support</div>
+        <div class="nav-section-label mt-3">{{ _('Help & Support') }}</div>
         
         {% if company_phone %}
         <a href="tel:{{ company_phone }}" class="nav-link-custom" style="color: #38bdf8;">
@@ -154,13 +154,13 @@
         {% endif %}
         {% if company_email %}
         <a href="mailto:{{ company_email }}" class="nav-link-custom" style="color: #f59e0b;">
-            <i class="fas fa-headset me-2" style="width: 18px; text-align: center;"></i> Contact Office
+            <i class="fas fa-headset me-2" style="width: 18px; text-align: center;"></i> {{ _('Contact Office') }}
         </a>
         {% endif %}
 
         <div class="mt-auto pt-3 border-top border-white border-opacity-10">
             <a href="/logout" class="nav-link-custom text-danger">
-                <i class="fas fa-sign-out-alt me-2" style="width: 18px; text-align: center;"></i> Sign Out
+                <i class="fas fa-sign-out-alt me-2" style="width: 18px; text-align: center;"></i> {{ _('Sign Out') }}
             </a>
         </div>
     </aside>

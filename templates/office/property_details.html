@@ -96,10 +96,10 @@
             </div>
         {% endmacro %}
 
-        {{ compliance_card('Gas Safety (CP12)', 'fas fa-fire', prop.gas) }}
-        {{ compliance_card('Electrical (EICR)', 'fas fa-bolt', prop.eicr) }}
-        {{ compliance_card('PAT Testing', 'fas fa-plug', prop.pat) }}
-        {{ compliance_card('Energy (EPC)', 'fas fa-leaf', prop.epc) }}
+        {{ compliance_card(compliance_labels.gas.full, compliance_labels.gas.icon, prop.gas) }}
+        {{ compliance_card(compliance_labels.eicr.full, compliance_labels.eicr.icon, prop.eicr) }}
+        {{ compliance_card(compliance_labels.pat.full, compliance_labels.pat.icon, prop.pat) }}
+        {{ compliance_card(compliance_labels.epc.full, compliance_labels.epc.icon, prop.epc) }}
     </div>
 
     <div class="row g-4">
@@ -329,10 +329,10 @@
                     
                     <h6 class="fw-bold text-danger border-top pt-3 mb-2"><i class="fas fa-certificate me-1"></i> Compliance</h6>
                     <div class="row g-2">
-                        <div class="col-6"><label class="small fw-bold text-muted">Gas Safety (CP12)</label><input type="date" name="gas_expiry" class="form-control" value="{{ prop.gas }}"></div>
-                        <div class="col-6"><label class="small fw-bold text-muted">EICR</label><input type="date" name="eicr_expiry" class="form-control" value="{{ prop.eicr }}"></div>
-                        <div class="col-6"><label class="small fw-bold text-muted">PAT</label><input type="date" name="pat_expiry" class="form-control" value="{{ prop.pat }}"></div>
-                        <div class="col-6"><label class="small fw-bold text-muted">EPC</label><input type="date" name="epc_expiry" class="form-control" value="{{ prop.epc }}"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">{{ compliance_labels.gas.full }}</label><input type="date" name="gas_expiry" class="form-control" value="{{ prop.gas }}"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">{{ compliance_labels.eicr.full }}</label><input type="date" name="eicr_expiry" class="form-control" value="{{ prop.eicr }}"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">{{ compliance_labels.pat.full }}</label><input type="date" name="pat_expiry" class="form-control" value="{{ prop.pat }}"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">{{ compliance_labels.epc.full }}</label><input type="date" name="epc_expiry" class="form-control" value="{{ prop.epc }}"></div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light"><button type="submit" class="btn btn-primary fw-bold px-4">Save Changes</button></div>

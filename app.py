@@ -271,6 +271,26 @@ def inject_currency():
 def inject_dates():
     return dict(today=date.today(), now_date=date.today(), now=datetime.now())
 
+from utils.certificates import get_country_compliance_labels, normalize_country_code
+
+@app.context_processor
+def inject_compliance():
+    comp_id = session.get('company_id') or session.get('portal_company_id')
+    country = 'UK'
+    if comp_id:
+        try:
+            conn = get_db()
+            if conn:
+                cur = conn.cursor()
+                cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'country_code'", (comp_id,))
+                row = cur.fetchone()
+                if row and row[0]:
+                    country = row[0]
+        except Exception:
+            pass
+    labels = get_country_compliance_labels(country)
+    return dict(compliance_labels=labels, country_code=normalize_country_code(country))
+
 
 from db import get_site_config
 

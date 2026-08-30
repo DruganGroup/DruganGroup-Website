@@ -4,6 +4,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from services.enforcement import check_limit
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, date
+from utils.certificates import get_country_compliance_labels, normalize_country_code
 
 portal_bp = Blueprint('portal', __name__)
 
@@ -365,27 +366,24 @@ def property_detail(property_id):
     prop_row = cur.fetchone()
     if not prop_row: pass; return redirect('/portal/home')
 
-    # Build Smart Compliance Dictionary (Only include checks that have dates)
+    cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'country_code'", (comp_id,))
+    cc_row = cur.fetchone()
+    country_code = cc_row[0] if cc_row and cc_row[0] else 'UK'
+    labels = get_country_compliance_labels(country_code)
+
+    # Build Smart Compliance Dictionary with Country Specific Legal Test Names
     compliance_raw = {
-        'Gas Safety': prop_row[7],
-        'EICR': prop_row[8],
-        'PAT Test': prop_row[9],
-        'EPC': prop_row[10]
-    }
-    
-    compliance_raw = {
-        'Gas Safety': prop_row[7],
-        'EICR': prop_row[8],
-        'PAT Test': prop_row[9],
-        'EPC': prop_row[10]
+        labels['gas']['full']: prop_row[7],
+        labels['eicr']['full']: prop_row[8],
+        labels['pat']['full']: prop_row[9],
+        labels['epc']['full']: prop_row[10]
     }
     
     cert_map = {
-        'Gas Safety': ['CP12', 'Gas Safe', 'Landlord Cert'],
-        'EICR': ['EICR', 'Electrical', 'Electrical Installation'],
-        'EPC': ['EPC', 'Energy Performance'],
-        'Legionella Risk': ['Legionella', 'Legionella Risk', 'LRA'],
-        'PAT Test': ['PAT Test', 'Portable Appliance Testing']
+        labels['gas']['full']: ['CP12', 'Gas Safe', 'Landlord Cert', 'gas_cert', 'qualigaz', 'gas_dvgw', 'rgii_gas', 'gas_nz', 'epa_energy', 'Civil Defense Gas Safety'],
+        labels['eicr']['full']: ['EICR', 'Electrical', 'Electrical Installation', 'cie_elec', 'consuel', 'dguv_v3', 'safe_elec', 'esc_elec', 'ccew', 'esa_defect', 'nfpa70e', 'dewa_elec'],
+        labels['epc']['full']: ['EPC', 'Energy Performance', 'DPE', 'GEG', 'BER', 'NZGBC', 'NatH', 'ENG', 'EPA Energy Audit'],
+        labels['pat']['full']: ['PAT Test', 'Portable Appliance Testing', 'ITP', 'SEC', 'VDE', 'OSHA', 'CSA', 'TAG', 'Civil Defense Life Safety']
     }
 
     compliance = {}

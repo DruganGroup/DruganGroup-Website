@@ -257,6 +257,230 @@ TRANSLATIONS = {
     'Materials': {
         'es': 'Materiales', 'fr': 'Matériaux', 'de': 'Materialien',
         'ar': 'مواد', 'zh': '材料', 'hi': 'सामग्री', 'pt': 'Materiais'
+    },
+    'Overview': {
+        'es': 'Resumen', 'fr': 'Aperçu', 'de': 'Übersicht',
+        'ar': 'نظرة عامة', 'zh': '概述', 'hi': 'अवलोकन', 'pt': 'Visão Geral'
+    },
+    'Sales Ledger': {
+        'es': 'Libro de Ventas', 'fr': 'Grand Livre des Ventes', 'de': 'Verkaufsbuch',
+        'ar': 'دفتر المبيعات', 'zh': '销售分类帐', 'hi': 'बिक्री बही', 'pt': 'Livro de Vendas'
+    },
+    'Sorting Office': {
+        'es': 'Oficina de Clasificación', 'fr': 'Bureau de Tri', 'de': 'Sortierbüro',
+        'ar': 'مكتب الفرز', 'zh': '分拣室', 'hi': 'सॉर्टिंग कार्यालय', 'pt': 'Classificação de Recibos'
+    },
+    'Profit Analysis': {
+        'es': 'Análisis de Beneficios', 'fr': 'Analyse des Bénéfices', 'de': 'Gewinnanalyse',
+        'ar': 'تحليل الأرباح', 'zh': '利润分析', 'hi': 'लाभ विश्लेषण', 'pt': 'Análise de Lucro'
+    },
+    'Fleet Costs': {
+        'es': 'Costos de Flota', 'fr': 'Coûts de la Flotte', 'de': 'Flottenkosten',
+        'ar': 'تكاليف الأسطول', 'zh': '车队成本', 'hi': 'फ्लीट लागत', 'pt': 'Custos da Frota'
+    },
+    'Material Library': {
+        'es': 'Biblioteca de Materiales', 'fr': 'Bibliothèque de Matériaux', 'de': 'Materialbibliothek',
+        'ar': 'مكتبة المواد', 'zh': '材料库', 'hi': 'सामग्री लाइब्रेरी', 'pt': 'Biblioteca de Materiais'
+    },
+    'Staff Manager': {
+        'es': 'Gestor de Personal', 'fr': 'Gestionnaire du Personnel', 'de': 'Personalmanager',
+        'ar': 'مدير الموظفين', 'zh': '员工管理', 'hi': 'कर्मचारी प्रबंधक', 'pt': 'Gestor de Pessoal'
+    },
+    'Timesheets': {
+        'es': 'Hojas de Horas', 'fr': 'Feuilles de Temps', 'de': 'Stundenzettel',
+        'ar': 'سجلات الدوام', 'zh': '工时单', 'hi': 'समय पत्रक', 'pt': 'Folhas de Ponto'
+    },
+    'Holiday & Leave': {
+        'es': 'Vacaciones y Permisos', 'fr': 'Congés et Absences', 'de': 'Urlaub & Abwesenheit',
+        'ar': 'الإجازات والعطلات', 'zh': '假期与休假', 'hi': 'छुट्टी और अवकाश', 'pt': 'Férias e Licenças'
+    },
+    'Run Payroll': {
+        'es': 'Ejecutar Nómina', 'fr': 'Lancer la Paie', 'de': 'Gehaltsabrechnung',
+        'ar': 'تشغيل الرواتب', 'zh': '运行工资单', 'hi': 'पेरोल चलाएं', 'pt': 'Processar Folha'
+    },
+    'Daily Break-Even': {
+        'es': 'Punto de Equilibrio Diario', 'fr': 'Seuil de Rentabilité Quotidien', 'de': 'Täglicher Break-Even',
+        'ar': 'نقطة التعادل اليومية', 'zh': '每日收支平衡', 'hi': 'दैनिक ब्रेक-ईवन', 'pt': 'Ponto de Equilíbrio Diário'
+    },
+    'Daily Target': {
+        'es': 'Objetivo Diario', 'fr': 'Objectif Quotidien', 'de': 'Tagesziel',
+        'ar': 'الهدف اليومي', 'zh': '每日目标', 'hi': 'दैनिक लक्ष्य', 'pt': 'Meta Diária'
+    },
+    'Paid Income': {
+        'es': 'Ingresos Cobrados', 'fr': 'Revenus Encaissés', 'de': 'Bezahlte Einnahmen',
+        'ar': 'الدخل المدفوع', 'zh': '已付收入', 'hi': 'भुगतान की गई आय', 'pt': 'Renda Recebida'
+    },
+    'Staff Wages': {
+        'es': 'Salarios del Personal', 'fr': 'Salaires du Personnel', 'de': 'Personallöhne',
+        'ar': 'أجور الموظفين', 'zh': '员工工资', 'hi': 'कर्मचारी वेतन', 'pt': 'Salários da Equipe'
+    },
+    'Financial Overview': {
+        'es': 'Resumen Financiero', 'fr': 'Aperçu Financier', 'de': 'Finanzübersicht',
+        'ar': 'نظرة عامة مالية', 'zh': '财务概览', 'hi': 'वित्तीय अवलोकन', 'pt': 'Visão Financeira'
+    },
+    'Cash Flow Trends': {
+        'es': 'Tendencias de Flujo de Caja', 'fr': 'Flux de Trésorerie', 'de': 'Cashflow-Trends',
+        'ar': 'اتجاهات التدفق النقدي', 'zh': '现金流趋势', 'hi': 'कैश फ्लो रुझान', 'pt': 'Fluxo de Caixa'
+    },
+    'Recent Transactions': {
+        'es': 'Transacciones Recientes', 'fr': 'Transactions Récentes', 'de': 'Letzte Transaktionen',
+        'ar': 'المعاملات الأخيرة', 'zh': '最近交易', 'hi': 'हाल के लेनदेन', 'pt': 'Transações Recentes'
+    },
+    'System Audit Log': {
+        'es': 'Registro de Auditoría', 'fr': "Journal d'Audit", 'de': 'System-Audit-Protokoll',
+        'ar': 'سجل تدقيق النظام', 'zh': '系统审计日志', 'hi': 'ऑडिट लॉग', 'pt': 'Registro de Auditoria'
+    },
+    'Audit Logs': {
+        'es': 'Registros de Auditoría', 'fr': "Journaux d'Audit", 'de': 'Audit-Protokolle',
+        'ar': 'سجلات التدقيق', 'zh': '审计日志', 'hi': 'ऑडिट लॉग', 'pt': 'Logs de Auditoria'
+    },
+    'Export CSV': {
+        'es': 'Exportar CSV', 'fr': 'Exporter CSV', 'de': 'CSV exportieren',
+        'ar': 'تصدير CSV', 'zh': '导出CSV', 'hi': 'CSV निर्यात करें', 'pt': 'Exportar CSV'
+    },
+    'Refresh Data': {
+        'es': 'Actualizar Datos', 'fr': 'Actualiser', 'de': 'Aktualisieren',
+        'ar': 'تحديث البيانات', 'zh': '刷新数据', 'hi': 'डेटा रीफ्रेश करें', 'pt': 'Atualizar Dados'
+    },
+    'Year': {
+        'es': 'Año', 'fr': 'Année', 'de': 'Jahr',
+        'ar': 'سنة', 'zh': '年份', 'hi': 'वर्ष', 'pt': 'Ano'
+    },
+    'Profit Margin': {
+        'es': 'Margen de Beneficio', 'fr': 'Marge Bénéficiaire', 'de': 'Gewinnspanne',
+        'ar': 'هامش الربح', 'zh': '利润率', 'hi': 'लाभ मार्जिन', 'pt': 'Margem de Lucro'
+    },
+    'Filter': {
+        'es': 'Filtrar', 'fr': 'Filtrer', 'de': 'Filtern',
+        'ar': 'تصفية', 'zh': '筛选', 'hi': 'फ़िल्टर', 'pt': 'Filtrar'
+    },
+    'Mission Control': {
+        'es': 'Control de Misión', 'fr': 'Centre de Contrôle', 'de': 'Leitstelle',
+        'ar': 'مركز التحكم', 'zh': '控制中心', 'hi': 'नियंत्रण केंद्र', 'pt': 'Controle de Missão'
+    },
+    'Master Schedule': {
+        'es': 'Horario Maestro', 'fr': 'Planning Principal', 'de': 'Hauptzeitplan',
+        'ar': 'الجدول الرئيسي', 'zh': '总日程表', 'hi': 'मुख्य अनुसूची', 'pt': 'Cronograma Principal'
+    },
+    'Service Desk': {
+        'es': 'Mesa de Ayuda', 'fr': 'Centre de Service', 'de': 'Service Desk',
+        'ar': 'مكتب الخدمة', 'zh': '服务台', 'hi': 'सेवा डेस्क', 'pt': 'Central de Atendimento'
+    },
+    'Communications': {
+        'es': 'Comunicaciones', 'fr': 'Communications', 'de': 'Kommunikation',
+        'ar': 'الاتصالات', 'zh': '通讯', 'hi': 'संचार', 'pt': 'Comunicações'
+    },
+    'Live Operations': {
+        'es': 'Operaciones en Vivo', 'fr': 'Opérations en Direct', 'de': 'Live-Betrieb',
+        'ar': 'العمليات المباشرة', 'zh': '实时运营', 'hi': 'लाइव संचालन', 'pt': 'Operações ao Vivo'
+    },
+    'Clients & Portfolios': {
+        'es': 'Clientes y Carteras', 'fr': 'Clients et Portefeuilles', 'de': 'Kunden & Portfolios',
+        'ar': 'العملاء والمحافظ', 'zh': '客户与投资组合', 'hi': 'ग्राहक और पोर्टफोलियो', 'pt': 'Clientes e Portfólios'
+    },
+    'Sales & Invoicing': {
+        'es': 'Ventas y Facturación', 'fr': 'Ventes et Facturation', 'de': 'Verkauf & Rechnungsstellung',
+        'ar': 'المبيعات والفوترة', 'zh': '销售与开票', 'hi': 'बिक्री और चालान', 'pt': 'Vendas e Faturamento'
+    },
+    'Fleet Manager': {
+        'es': 'Gestor de Flota', 'fr': 'Gestionnaire de Flotte', 'de': 'Flottenmanager',
+        'ar': 'مدير الأسطول', 'zh': '车队经理', 'hi': 'फ्लीट प्रबंधक', 'pt': 'Gerente de Frota'
+    },
+    'New Job': {
+        'es': 'Nuevo Trabajo', 'fr': 'Nouveau Travail', 'de': 'Neuer Auftrag',
+        'ar': 'عمل جديد', 'zh': '新工作', 'hi': 'नया काम', 'pt': 'Novo Trabalho'
+    },
+    'New Quote': {
+        'es': 'Nueva Cotización', 'fr': 'Nouveau Devis', 'de': 'Neues Angebot',
+        'ar': 'عرض سعر جديد', 'zh': '新报价', 'hi': 'नया कोट', 'pt': 'Novo Orçamento'
+    },
+    'New Invoice': {
+        'es': 'Nueva Factura', 'fr': 'Nouvelle Facture', 'de': 'Neue Rechnung',
+        'ar': 'فاتورة جديدة', 'zh': '新发票', 'hi': 'नया बिल', 'pt': 'Nova Fatura'
+    },
+    'Add Property': {
+        'es': 'Añadir Propiedad', 'fr': 'Ajouter Propriété', 'de': 'Objekt hinzufügen',
+        'ar': 'إضافة عقار', 'zh': '添加物业', 'hi': 'संपत्ति जोड़ें', 'pt': 'Adicionar Imóvel'
+    },
+    'Property': {
+        'es': 'Propiedad', 'fr': 'Propriété', 'de': 'Objekt',
+        'ar': 'عقار', 'zh': '物业', 'hi': 'संपत्ति', 'pt': 'Imóvel'
+    },
+    'Properties': {
+        'es': 'Propiedades', 'fr': 'Propriétés', 'de': 'Objekte',
+        'ar': 'العقارات', 'zh': '物业', 'hi': 'संपत्तियां', 'pt': 'Imóveis'
+    },
+    'Tenant': {
+        'es': 'Inquilino', 'fr': 'Locataire', 'de': 'Mieter',
+        'ar': 'المستأجر', 'zh': '租客', 'hi': 'किरायेदार', 'pt': 'Inquilino'
+    },
+    'Key Safe': {
+        'es': 'Caja de Llaves', 'fr': 'Boîte à Clés', 'de': 'Schlüsselsafe',
+        'ar': 'خزنة المفاتيح', 'zh': '钥匙盒', 'hi': 'कुंजी सुरक्षित', 'pt': 'Cofre de Chaves'
+    },
+    'Scheduled': {
+        'es': 'Programado', 'fr': 'Programmé', 'de': 'Geplant',
+        'ar': 'مجدول', 'zh': '已安排', 'hi': 'निर्धारित', 'pt': 'Agendado'
+    },
+    'In Progress': {
+        'es': 'En Progreso', 'fr': 'En Cours', 'de': 'In Bearbeitung',
+        'ar': 'قيد التنفيذ', 'zh': '进行中', 'hi': 'प्रगति में है', 'pt': 'Em Progresso'
+    },
+    'Completed': {
+        'es': 'Completado', 'fr': 'Terminé', 'de': 'Abgeschlossen',
+        'ar': 'مكتمل', 'zh': '已完成', 'hi': 'पुरा हुआ', 'pt': 'Concluído'
+    },
+    'Paid': {
+        'es': 'Pagado', 'fr': 'Payé', 'de': 'Bezahlt',
+        'ar': 'مدفوع', 'zh': '已付款', 'hi': 'भुगतान किया', 'pt': 'Pago'
+    },
+    'Unpaid': {
+        'es': 'No Pagado', 'fr': 'Non Payé', 'de': 'Unbezahlt',
+        'ar': 'غير مدفوع', 'zh': '未付款', 'hi': 'अदत्त', 'pt': 'Não Pago'
+    },
+    'Overdue': {
+        'es': 'Vencido', 'fr': 'En Retard', 'de': 'Überfällig',
+        'ar': 'متأخر', 'zh': '逾期', 'hi': 'अतिदेय', 'pt': 'Atrasado'
+    },
+    'Accepted': {
+        'es': 'Aceptado', 'fr': 'Accepté', 'de': 'Akzeptiert',
+        'ar': 'مقبول', 'zh': '已接受', 'hi': 'स्वीकृत', 'pt': 'Aceito'
+    },
+    'Declined': {
+        'es': 'Rechazado', 'fr': 'Refusé', 'de': 'Abgelehnt',
+        'ar': 'مرفوض', 'zh': '已拒绝', 'hi': 'अस्वीकृत', 'pt': 'Recusado'
+    },
+    'Draft': {
+        'es': 'Borrador', 'fr': 'Brouillon', 'de': 'Entwurf',
+        'ar': 'مسودة', 'zh': '草稿', 'hi': 'प्रारूप', 'pt': 'Rascunho'
+    },
+    'Sent': {
+        'es': 'Enviado', 'fr': 'Envoyé', 'de': 'Gesendet',
+        'ar': 'تم الإرسال', 'zh': '已发送', 'hi': 'भेजा गया', 'pt': 'Enviado'
+    },
+    'Compliance Alerts': {
+        'es': 'Alertas de Cumplimiento', 'fr': 'Alertes de Conformité', 'de': 'Compliance-Warnungen',
+        'ar': 'تنبيهات الامتثال', 'zh': '合规警告', 'hi': 'अनुपालन अलर्ट', 'pt': 'Alertas de Conformidade'
+    },
+    'Review & Approve': {
+        'es': 'Revisar y Aprobar', 'fr': 'Examiner et Approuver', 'de': 'Prüfen & Genehmigen',
+        'ar': 'مراجعة وموافقة', 'zh': '审查并批准', 'hi': 'समीक्षा करें और स्वीकृत करें', 'pt': 'Revisar e Aprovar'
+    },
+    'Pay Online': {
+        'es': 'Pagar en Línea', 'fr': 'Payer en Ligne', 'de': 'Online bezahlen',
+        'ar': 'الدفع عبر الإنترنت', 'zh': '在线付款', 'hi': 'ऑनलाइन भुगतान करें', 'pt': 'Pagar Online'
+    },
+    'Download PDF': {
+        'es': 'Descargar PDF', 'fr': 'Télécharger PDF', 'de': 'PDF herunterladen',
+        'ar': 'تحميل PDF', 'zh': '下载PDF', 'hi': 'पीडीएफ डाउनलोड करें', 'pt': 'Baixar PDF'
+    },
+    'Email Client': {
+        'es': 'Enviar Correo al Cliente', 'fr': 'Envoyer un Email au Client', 'de': 'Kunden per E-Mail anschreiben',
+        'ar': 'إرسال بريد للعميل', 'zh': '给客户发邮件', 'hi': 'ग्राहक को ईमेल करें', 'pt': 'Enviar Email ao Cliente'
+    },
+    'Sign Out': {
+        'es': 'Cerrar Sesión', 'fr': 'Déconnexion', 'de': 'Abmelden',
+        'ar': 'تسجيل الخروج', 'zh': '退出', 'hi': 'साइन आउट', 'pt': 'Sair'
     }
 }
 
