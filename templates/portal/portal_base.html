@@ -93,7 +93,7 @@
         <div class="client-profile-chip">
             {% if client_photo or session.get('portal_client_photo') %}
                 {% set c_img = client_photo or session.get('portal_client_photo') %}
-                <img src="{% if c_img.startswith('/') %}{{ c_img }}{% else %}/static/{{ c_img }}{% endif %}" alt="Avatar" class="rounded-3 shadow-sm border border-light" style="width: 40px; height: 40px; object-fit: cover; flex-shrink: 0;" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\'client-avatar-badge\'>{{ client_name[0] if client_name else \'C\' }}</div>';">
+                <img src="{% if c_img.startswith('/') %}{{ c_img }}{% else %}/static/{{ c_img }}{% endif %}" alt="Avatar" class="rounded-3 shadow-sm border border-light" style="width: 40px; height: 40px; object-fit: cover; flex-shrink: 0;" onerror="this.style.display='none';">
             {% else %}
                 <div class="client-avatar-badge">
                     {{ client_name[0] if client_name else 'C' }}
