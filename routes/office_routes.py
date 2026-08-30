@@ -56,7 +56,7 @@ def service_desk():
             conn.rollback()
 
     # 1. FETCH SERVICE REQUESTS (TICKETS)
-    # Modified to show if it's from a partner
+    # Modified to show if it's from a partner, with tenant & client contact details
     cur.execute("""
         SELECT sr.id, sr.priority, 
                COALESCE(p.address_line1, sr.partner_address_snapshot), 
@@ -64,7 +64,11 @@ def service_desk():
                COALESCE(c.name, 'Partner Network Job'), 
                sr.status, sr.photo_path, sr.created_at,
                sr.partner_company_id,
-               sr.parent_request_id
+               sr.parent_request_id,
+               c.phone,
+               p.tenant_name,
+               p.tenant_phone,
+               p.key_code
         FROM service_requests sr
         LEFT JOIN properties p ON sr.property_id = p.id
         LEFT JOIN clients c ON sr.client_id = c.id
@@ -78,7 +82,11 @@ def service_desk():
         requests.append({
             'id': r[0], 'severity': r[1], 'property_address': r[2],
             'issue_description': r[3], 'client_name': r[4], 'status': r[5],
-            'photo_path': r[6], 'date': r[7].strftime('%d/%m/%Y %H:%M') if r[7] else ''
+            'photo_path': r[6], 'date': r[7].strftime('%d/%m/%Y %H:%M') if r[7] else '',
+            'client_phone': r[10] or '',
+            'tenant_name': r[11] or '',
+            'tenant_phone': r[12] or '',
+            'key_code': r[13] or ''
         })
 
     # 2. FETCH COMPLIANCE ALERTS

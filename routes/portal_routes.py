@@ -62,7 +62,13 @@ def portal_auth():
     password = request.form.get('password')
     conn = get_db(); cur = conn.cursor()
     try:
-        cur.execute("SELECT id, name, password_hash, portal_access FROM clients WHERE email=%s AND company_id=%s", (email, company_id))
+        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS photo VARCHAR(255);")
+        conn.commit()
+    except:
+        conn.rollback()
+
+    try:
+        cur.execute("SELECT id, name, password_hash, portal_access, photo FROM clients WHERE email=%s AND company_id=%s", (email, company_id))
         user = cur.fetchone()
         if user and user[2] and check_password_hash(user[2], password):
             if not user[3]:
@@ -72,6 +78,7 @@ def portal_auth():
             session['portal_client_id'] = int(user[0])
             session['portal_company_id'] = int(company_id)
             session['portal_client_name'] = user[1]
+            session['portal_client_photo'] = user[4] if user[4] else None
             return redirect(url_for('portal.portal_home'))
         else:
             flash("❌ Invalid credentials."); return redirect(url_for('portal.portal_login', company_id=company_id))
@@ -86,9 +93,11 @@ def portal_home():
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
 
-    cur.execute("SELECT name, email, phone FROM clients WHERE id=%s", (client_id,))
+    cur.execute("SELECT name, email, phone, photo FROM clients WHERE id=%s", (client_id,))
     client_row = cur.fetchone()
     client_name = client_row[0] if client_row else 'Client'
+    if client_row and client_row[3]:
+        session['portal_client_photo'] = client_row[3]
 
     # Active Jobs
     cur.execute("""
@@ -159,7 +168,7 @@ def portal_home():
 
     # Invoices KPI (Unpaid count & balance)
     cur.execute("""
-        SELECT COUNT(*), COALESCE(SUM(grand_total), 0) 
+        SELECT COUNT(*), COALESCE(SUM(total), 0) 
         FROM invoices 
         WHERE client_id=%s AND status NOT IN ('Paid', 'Cancelled', 'Draft')
     """, (client_id,))
@@ -207,8 +216,9 @@ def portal_home():
                            recent_requests=recent_requests,
                            kpi=kpi,
                            currency=config.get('currency', '£'),
-                           brand_color=config.get('color', '#0d6efd'), 
-                           logo_url=config.get('logo'))
+                           brand_color=config.get('color', '#333333'), 
+                           logo_url=config.get('logo'),
+                           client_photo=session.get('portal_client_photo'))
 
 # --- 4. VIEW JOB ---
 @portal_bp.route('/portal/job/<int:job_id>')
@@ -901,12 +911,20 @@ def portal_view_request(request_id):
     except Exception:
         pass # Table might not exist yet, fail gracefully
 
+    comp_id = session.get('portal_company_id', 1)
+    config = get_site_config(comp_id)
+
     return render_template('portal/portal_request_view.html', 
                            req=req, 
                            completion=completion, 
                            scheduled_job=scheduled_job,
                            updates=updates,
-                           company_name=session.get('portal_client_name', 'Client Portal'))
+                           company_name=config.get('name'),
+                           company_email=config.get('email'),
+                           logo_url=config.get('logo'),
+                           brand_color=config.get('color', '#333333'),
+                           client_name=session.get('portal_client_name', 'Client'),
+                           client_photo=session.get('portal_client_photo'))
 
 @portal_bp.route('/portal/settings', methods=['GET', 'POST'])
 def portal_settings():
@@ -916,14 +934,47 @@ def portal_settings():
     comp_id = session['portal_company_id']
     config = get_site_config(comp_id)
     conn = get_db(); cur = conn.cursor()
+
+    try:
+        cur.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS photo VARCHAR(255);")
+        conn.commit()
+    except:
+        conn.rollback()
     
     if request.method == 'POST':
         name = request.form.get('name')
         phone = request.form.get('phone')
         password = request.form.get('password')
+
+        # Handle Logo/Photo Upload
+        photo_path = None
+        if 'photo' in request.files:
+            f = request.files['photo']
+            if f and f.filename != '':
+                from werkzeug.utils import secure_filename
+                import os
+                from flask import current_app
+                save_dir = os.path.join(current_app.static_folder, 'uploads', f"company_{comp_id}", 'clients')
+                os.makedirs(save_dir, exist_ok=True)
+                from datetime import datetime
+                fn = secure_filename(f"client_{client_id}_{int(datetime.now().timestamp())}_{f.filename}")
+                f.save(os.path.join(save_dir, fn))
+                photo_path = f"uploads/company_{comp_id}/clients/{fn}"
+                session['portal_client_photo'] = photo_path
         
         try:
-            if password:
+            if photo_path and password:
+                hashed_pass = generate_password_hash(password)
+                cur.execute("""
+                    UPDATE clients SET name = %s, phone = %s, password_hash = %s, photo = %s 
+                    WHERE id = %s AND company_id = %s
+                """, (name, phone, hashed_pass, photo_path, client_id, comp_id))
+            elif photo_path:
+                cur.execute("""
+                    UPDATE clients SET name = %s, phone = %s, photo = %s 
+                    WHERE id = %s AND company_id = %s
+                """, (name, phone, photo_path, client_id, comp_id))
+            elif password:
                 hashed_pass = generate_password_hash(password)
                 cur.execute("""
                     UPDATE clients SET name = %s, phone = %s, password_hash = %s 
@@ -937,26 +988,29 @@ def portal_settings():
                 
             conn.commit()
             session['portal_client_name'] = name
-            flash("✅ Account settings updated successfully.", "success")
+            flash("✅ Account settings and logo updated successfully.", "success")
         except Exception as e:
             conn.rollback()
             flash(f"Error updating settings: {e}", "error")
             
         return redirect(url_for('portal.portal_settings'))
         
-    cur.execute("SELECT name, email, phone FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
+    cur.execute("SELECT name, email, phone, photo FROM clients WHERE id = %s AND company_id = %s", (client_id, comp_id))
     client_row = cur.fetchone()
-    pass
     
     client_data = {
         'name': client_row[0],
         'email': client_row[1],
-        'phone': client_row[2] or ''
+        'phone': client_row[2] or '',
+        'photo': client_row[3] if client_row and client_row[3] else None
     }
+    if client_data['photo']:
+        session['portal_client_photo'] = client_data['photo']
     
     return render_template('portal/portal_settings.html',
                            client=client_data,
                            client_name=session.get('portal_client_name'),
                            company_name=config.get('name'), 
                            logo_url=config.get('logo'),
-                           brand_color=config.get('color'))
+                           brand_color=config.get('color', '#333333'),
+                           client_photo=session.get('portal_client_photo'))

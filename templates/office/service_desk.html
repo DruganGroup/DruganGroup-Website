@@ -18,9 +18,9 @@
                 <tr>
                     <th class="ps-4">{{ _('Ticket ID') }}</th>
                     <th>{{ _('Severity') }}</th>
-                    <th>{{ _('Property') }}</th>
+                    <th>{{ _('Property & Access') }}</th>
                     <th>{{ _('Issue') }}</th>
-                    <th>{{ _('Client') }}</th>
+                    <th>{{ _('Contacts (Client & Tenant)') }}</th>
                     <th>{{ _('Status') }}</th>
                     <th class="text-end pe-4">{{ _('Action') }}</th>
                 </tr>
@@ -28,21 +28,41 @@
             <tbody>
                 {% for r in requests %}
                 <tr>
-                    <td class="ps-4 text-muted">#{{ r.id }}<br><small>{{ r.date }}</small></td>
+                    <td class="ps-4 text-muted font-monospace">#{{ r.id }}<br><small>{{ r.date }}</small></td>
                     <td>{{ status_badge(r.severity) }}</td>
-                    <td class="fw-bold">{{ r.property_address }}</td>
+                    <td>
+                        <div class="fw-bold text-dark">{{ r.property_address }}</div>
+                        {% if r.key_code %}
+                            <span class="badge bg-dark text-warning small mt-1"><i class="fas fa-key me-1"></i>Key Safe: {{ r.key_code }}</span>
+                        {% endif %}
+                    </td>
                     <td class="small text-muted text-truncate" style="max-width: 200px;">
                         {{ r.issue_description }}
                         {% if r.photo_path %}
                             <br><a href="{{ r.photo_path }}" target="_blank" class="badge bg-secondary text-decoration-none mt-1"><i class="fas fa-image"></i> View Photo</a>
                         {% endif %}
                     </td>
-                    <td>{{ r.client_name }}</td>
+                    <td>
+                        <div>
+                            <span class="fw-bold text-dark"><i class="fas fa-user-tie me-1 small text-muted"></i>{{ r.client_name }}</span>
+                            {% if r.client_phone %}
+                                <div class="small"><a href="tel:{{ r.client_phone }}" class="text-decoration-none text-muted"><i class="fas fa-phone me-1 small"></i>{{ r.client_phone }}</a></div>
+                            {% endif %}
+                        </div>
+                        {% if r.tenant_name or r.tenant_phone %}
+                        <div class="mt-1 pt-1 border-top small">
+                            <span class="text-primary fw-semibold"><i class="fas fa-user me-1 small"></i>Tenant: {{ r.tenant_name or 'Resident' }}</span>
+                            {% if r.tenant_phone %}
+                                <div><a href="tel:{{ r.tenant_phone }}" class="text-decoration-none text-success fw-bold"><i class="fas fa-phone me-1 small"></i>{{ r.tenant_phone }}</a></div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </td>
                     <td>{{ status_badge(r.status) }}</td>
                     <td class="text-end pe-4">
                         <div class="btn-group">
                             <button class="btn btn-sm btn-primary fw-bold" 
-                                onclick="openDispatchModal('{{ r.id }}', '{{ r.property_address|escape }}', '{{ r.issue_description|escape }}')">
+                                onclick="openDispatchModal('{{ r.id }}', '{{ r.property_address|escape }}', '{{ r.issue_description|escape }}', '{{ r.client_name|escape }}', '{{ r.client_phone|escape }}', '{{ r.tenant_name|escape }}', '{{ r.tenant_phone|escape }}', '{{ r.key_code|escape }}')">
                                 <i class="fas fa-hard-hat me-1"></i> Dispatch
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-primary fw-bold dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
@@ -135,6 +155,30 @@
                             <label class="small fw-bold text-muted text-uppercase">Location</label>
                             <input type="text" class="form-control-plaintext fw-bold" id="modalAddress" readonly>
                         </div>
+
+                        <!-- Client & Tenant Contact Info Box -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded-3 border small">
+                                    <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.65rem;">Client (Landlord)</small>
+                                    <span class="fw-bold" id="modalClientName">-</span>
+                                    <div class="text-muted" id="modalClientPhone">-</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded-3 border small">
+                                    <small class="text-primary text-uppercase fw-bold d-block" style="font-size: 0.65rem;">Tenant (On-Site)</small>
+                                    <span class="fw-bold" id="modalTenantName">-</span>
+                                    <div class="text-success fw-semibold" id="modalTenantPhone">-</div>
+                                </div>
+                            </div>
+                            <div class="col-12" id="modalKeyWrap">
+                                <div class="p-2 bg-dark text-warning rounded-3 small">
+                                    <i class="fas fa-key me-1"></i> Key Safe Access: <span class="fw-bold font-monospace" id="modalKeyCode">-</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label class="small fw-bold text-muted text-uppercase">Issue Details</label>
                             <div id="modalIssue" class="p-3 bg-light rounded-3 border small"></div>
@@ -210,10 +254,25 @@
         myModal.show();
     }
 
-    function openDispatchModal(id, address, issue) {
+    function openDispatchModal(id, address, issue, clientName, clientPhone, tenantName, tenantPhone, keyCode) {
         document.getElementById('modalRequestID').value = id;
         document.getElementById('modalAddress').value = address;
         document.getElementById('modalIssue').innerText = issue;
+        
+        document.getElementById('modalClientName').innerText = clientName || 'N/A';
+        document.getElementById('modalClientPhone').innerText = clientPhone || 'No Phone';
+        document.getElementById('modalTenantName').innerText = tenantName || 'No Tenant Set';
+        document.getElementById('modalTenantPhone').innerText = tenantPhone || 'No Phone';
+        
+        const keyWrap = document.getElementById('modalKeyWrap');
+        const keyText = document.getElementById('modalKeyCode');
+        if (keyCode) {
+            keyText.innerText = keyCode;
+            keyWrap.style.display = 'block';
+        } else {
+            keyWrap.style.display = 'none';
+        }
+        
         var myModal = new bootstrap.Modal(document.getElementById('dispatchModal'));
         myModal.show();
     }

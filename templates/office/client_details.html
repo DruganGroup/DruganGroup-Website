@@ -11,7 +11,8 @@
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
                 <div class="d-flex align-items-center gap-3">
                     {% if client.photo %}
-                        <img src="/static/{{ client.photo }}" alt="{{ client.name }}" class="rounded-circle object-fit-cover shadow-sm border border-3 border-light" style="width: 75px; height: 75px;">
+                        {% set c_img = client.photo %}
+                        <img src="{% if c_img.startswith('/') %}{{ c_img }}{% elif c_img.startswith('http') %}{{ c_img }}{% else %}/static/{{ c_img }}{% endif %}" alt="{{ client.name }}" class="rounded-circle object-fit-cover shadow-sm border border-3 border-light" style="width: 75px; height: 75px;">
                     {% else %}
                         <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold fs-2 shadow-sm" style="width: 75px; height: 75px;">
                             {{ client.name[0] | upper }}

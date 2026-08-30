@@ -59,7 +59,8 @@
                         <td class="ps-4">
                             <div class="d-flex align-items-center">
                                 {% if c[10] %}
-                                    <img src="/static/{{ c[10] }}" class="rounded-circle object-fit-cover shadow-sm me-3" style="width: 45px; height: 45px; border: 2px solid var(--brand-color);" alt="{{ c[1] }}">
+                                    {% set c_img = c[10] %}
+                                    <img src="{% if c_img.startswith('/') %}{{ c_img }}{% elif c_img.startswith('http') %}{{ c_img }}{% else %}/static/{{ c_img }}{% endif %}" class="rounded-circle object-fit-cover shadow-sm me-3" style="width: 45px; height: 45px; border: 2px solid var(--brand-color);" alt="{{ c[1] }}">
                                 {% else %}
                                     <div class="client-avatar">{{ c[1][0] | upper }}</div>
                                 {% endif %}

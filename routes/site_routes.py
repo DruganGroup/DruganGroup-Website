@@ -302,7 +302,8 @@ def job_details(job_id):
                COALESCE(p.address_line1, j.site_address, 'No Address Logged') as address,
                p.postcode, 
                j.description, p.key_code,
-               j.property_id
+               j.property_id,
+               p.tenant_name, p.tenant_phone, p.tenant_email, c.email
         FROM jobs j
         LEFT JOIN clients c ON j.client_id = c.id
         LEFT JOIN properties p ON j.property_id = p.id
@@ -315,10 +316,15 @@ def job_details(job_id):
     # Safe Dict
     job = {
         'id': row[0], 'ref': row[1], 'status': row[2],
-        'client_name': row[3] or "Unknown", 'client_phone': row[4] or "No Phone",
+        'client_name': row[3] or "Unknown", 'client_phone': row[4] or "",
         'address': f"{row[5]}, {row[6]}" if row[6] else row[5], 
         'description': row[7] or "No Description", 'gate_code': row[8],
-        'property_id': row[9]
+        'key_code': row[8],
+        'property_id': row[9],
+        'tenant_name': row[10] or "",
+        'tenant_phone': row[11] or "",
+        'tenant_email': row[12] or "",
+        'client_email': row[13] or ""
     }
 
     # Check Clock Status

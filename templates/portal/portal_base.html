@@ -15,7 +15,7 @@
     
     <style>
         :root {
-            --brand-color: {{ brand_color or '#0d6efd' }};
+            --brand-color: {{ brand_color or '#333333' }};
             --brand-bg: #f8fafc;
             --brand-border: #e2e8f0;
             --brand-text: #0f172a;
@@ -91,9 +91,14 @@
         </div>
 
         <div class="client-profile-chip">
-            <div class="client-avatar-badge">
-                {{ client_name[0] if client_name else 'C' }}
-            </div>
+            {% if client_photo or session.get('portal_client_photo') %}
+                {% set c_img = client_photo or session.get('portal_client_photo') %}
+                <img src="{% if c_img.startswith('/') %}{{ c_img }}{% else %}/static/{{ c_img }}{% endif %}" alt="Avatar" class="rounded-3 shadow-sm border border-light" style="width: 40px; height: 40px; object-fit: cover; flex-shrink: 0;" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\'client-avatar-badge\'>{{ client_name[0] if client_name else \'C\' }}</div>';">
+            {% else %}
+                <div class="client-avatar-badge">
+                    {{ client_name[0] if client_name else 'C' }}
+                </div>
+            {% endif %}
             <div class="overflow-hidden">
                 <div class="text-white fw-bold text-truncate" style="font-size: 14px;">{{ client_name }}</div>
                 <div class="text-white-50 small" style="font-size: 11px;"><i class="fas fa-shield-alt text-success me-1"></i>Client Account</div>

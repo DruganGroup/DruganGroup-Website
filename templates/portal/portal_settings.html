@@ -20,8 +20,28 @@
                 <h6 class="m-0 fw-bold text-dark">Profile & Security Information</h6>
             </div>
             <div class="card-body p-4">
-                <form action="/portal/settings" method="POST">
+                <form action="/portal/settings" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <!-- LOGO / PHOTO SECTION -->
+                    <div class="d-flex align-items-center gap-3 mb-4 p-3 bg-light rounded-3">
+                        <div class="position-relative">
+                            {% if client.photo %}
+                                {% set c_img = client.photo %}
+                                <img src="{% if c_img.startswith('/') %}{{ c_img }}{% else %}/static/{{ c_img }}{% endif %}" id="profileImgPreview" class="rounded-3 shadow-sm border" style="width: 70px; height: 70px; object-fit: cover;">
+                            {% else %}
+                                <div id="avatarFallback" class="bg-dark text-white rounded-3 d-flex align-items-center justify-content-center fw-bold fs-3 shadow-sm" style="width: 70px; height: 70px;">
+                                    {{ client.name[0] | upper if client.name else 'C' }}
+                                </div>
+                                <img id="profileImgPreview" class="rounded-3 shadow-sm border d-none" style="width: 70px; height: 70px; object-fit: cover;">
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow-1">
+                            <label class="form-label small fw-bold mb-1">Company Logo / Profile Photo</label>
+                            <input type="file" name="photo" class="form-control form-control-sm" accept="image/*" onchange="previewClientPhoto(event)">
+                            <small class="text-muted" style="font-size: 0.72rem;">Shown across your portal and inside the office client ledger.</small>
+                        </div>
+                    </div>
                     
                     <h6 class="text-uppercase text-muted small fw-bold mb-3" style="font-size: 0.72rem; letter-spacing: 0.05em;">Contact Information</h6>
                     <div class="row g-3 mb-4">
@@ -80,6 +100,21 @@
             input.type = 'password';
             icon.classList.remove('fa-eye-slash');
             icon.classList.add('fa-eye');
+        }
+    }
+
+    function previewClientPhoto(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('profileImgPreview');
+                const fallback = document.getElementById('avatarFallback');
+                img.src = e.target.result;
+                img.classList.remove('d-none');
+                if (fallback) fallback.classList.add('d-none');
+            }
+            reader.readAsDataURL(file);
         }
     }
 </script>

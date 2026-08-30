@@ -68,17 +68,53 @@
             </div>
         </div>
 
-        <div class="card shadow-sm border-0 mb-3">
+        <!-- TENANT / ON-SITE CONTACT -->
+        <div class="card shadow-sm border-0 mb-3 border-start border-4 border-primary">
             <div class="card-body">
-                <h6 class="text-muted fw-bold text-uppercase small">Client Contact</h6>
-                <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <h6 class="text-primary fw-bold text-uppercase small m-0"><i class="fas fa-user me-1"></i> Tenant / On-Site Resident</h6>
+                    <span class="badge bg-primary-subtle text-primary border border-primary small">Primary Contact</span>
+                </div>
+                
+                {% if job.tenant_name or job.tenant_phone %}
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <div>
+                        <div class="fw-bold fs-5 text-dark">{{ job.tenant_name or 'Resident' }}</div>
+                        {% if job.tenant_phone %}
+                            <div class="text-muted"><i class="fas fa-phone me-1 small text-success"></i>{{ job.tenant_phone }}</div>
+                        {% endif %}
+                        {% if job.tenant_email %}
+                            <div class="text-muted small"><i class="fas fa-envelope me-1 small"></i>{{ job.tenant_email }}</div>
+                        {% endif %}
+                    </div>
+                    {% if job.tenant_phone %}
+                    <a href="tel:{{ job.tenant_phone }}" class="btn btn-success fw-bold shadow-sm px-3 py-2" title="Call Tenant">
+                        <i class="fas fa-phone me-1"></i> Call Tenant
+                    </a>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="text-muted small mt-2 fst-italic">
+                    <i class="fas fa-info-circle me-1"></i> No tenant recorded / Property may be vacant.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- CLIENT / LANDLORD CONTACT -->
+        <div class="card shadow-sm border-0 mb-3 border-start border-4 border-secondary">
+            <div class="card-body">
+                <h6 class="text-muted fw-bold text-uppercase small mb-1"><i class="fas fa-user-tie me-1"></i> Client / Landlord (Account Owner)</h6>
+                <div class="d-flex justify-content-between align-items-center mt-2">
                     <div>
                         <div class="fw-bold fs-5">{{ job.client_name }}</div>
-                        <div class="text-muted">{{ job.client_phone }}</div>
+                        {% if job.client_phone %}
+                            <div class="text-muted"><i class="fas fa-phone me-1 small text-success"></i>{{ job.client_phone }}</div>
+                        {% endif %}
                     </div>
                     {% if job.client_phone %}
-                    <a href="tel:{{ job.client_phone }}" class="btn btn-success fw-bold shadow-sm px-3 py-2" title="Call Client">
-                        <i class="fas fa-phone me-1"></i> Call Client
+                    <a href="tel:{{ job.client_phone }}" class="btn btn-outline-secondary fw-bold shadow-sm px-3 py-2" title="Call Client">
+                        <i class="fas fa-phone me-1"></i> Call Landlord
                     </a>
                     {% endif %}
                 </div>
