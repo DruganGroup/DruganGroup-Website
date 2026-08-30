@@ -270,40 +270,28 @@ def inject_branding():
     default_color = '#c5a059' # Gold
     default_logo = '/static/images/logo.png' # Business Better Logo
     
-    # 1. IF LOGGED IN
-    if 'company_id' in session:
-        if 'brand_color' in session and 'logo_url' in session and session.get('company_name'):
-            return dict(
-                brand_color=session['brand_color'], 
-                logo=session['logo_url'],
-                logo_url=session['logo_url'],
-                company_name=session['company_name']
-            )
-
+    # 1. IF LOGGED IN (Office/Admin OR Client Portal)
+    comp_id = session.get('company_id') or session.get('portal_company_id')
+    if comp_id:
         try:
-            config = get_site_config(session['company_id'])
-            
-            # Ensure session company_name is set
-            if not session.get('company_name'):
-                conn = get_db()
-                if conn:
-                    cur = conn.cursor()
-                    cur.execute("SELECT name FROM companies WHERE id = %s", (session['company_id'],))
-                    comp = cur.fetchone()
-                    if comp: session['company_name'] = comp[0]
-                    pass
-                    
+            config = get_site_config(comp_id)
             color = config.get('color') or default_color
             logo = config.get('logo') or default_logo
+            name = config.get('name') or session.get('company_name') or 'My Company'
+            email = config.get('email') or ''
 
-            session['brand_color'] = color
-            session['logo_url'] = logo
+            # Keep session in sync
+            if 'company_id' in session:
+                session['company_name'] = name
+                session['brand_color'] = color
+                session['logo_url'] = logo
 
             return dict(
                 brand_color=color, 
                 logo=logo,
                 logo_url=logo,
-                company_name=session.get('company_name') or 'My Company'
+                company_name=name,
+                company_email=email
             )
         except:
             pass
@@ -316,13 +304,14 @@ def inject_branding():
                 brand_color=config.get('color') or default_color,
                 logo=config.get('logo') or default_logo,
                 logo_url=config.get('logo') or default_logo,
-                company_name=g.tenant_name # Pass name for "Login to [Company]" text
+                company_name=g.tenant_name, # Pass name for "Login to [Company]" text
+                company_email=config.get('email') or ''
             )
         except:
             pass
 
     # 3. FALLBACK (Main Marketing Site)
-    return dict(brand_color=default_color, logo=default_logo, logo_url=default_logo)
+    return dict(brand_color=default_color, logo=default_logo, logo_url=default_logo, company_name='Business Better', company_email='')
 
 @app.context_processor
 def inject_sidebar_alerts():

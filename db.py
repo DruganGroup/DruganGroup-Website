@@ -75,8 +75,10 @@ def close_db_connection(e=None):
 def get_site_config(comp_id):
     # Default Config
     default_config = {
-        "color": "#27AE60", 
-        "logo": "/static/images/logo.png"
+        "color": "#c5a059", 
+        "logo": "/static/images/logo.png",
+        "name": "Our Company",
+        "email": ""
     }
 
     if not comp_id:
@@ -92,11 +94,19 @@ def get_site_config(comp_id):
         rows = cur.fetchall()
         settings_dict = {row[0]: row[1] for row in rows}
         
-        # This keeps the "logo" fix we added earlier
+        company_name = settings_dict.get('company_name')
+        if not company_name:
+            cur.execute("SELECT name FROM companies WHERE id = %s", (comp_id,))
+            c_row = cur.fetchone()
+            if c_row and c_row[0]:
+                company_name = c_row[0]
+            else:
+                company_name = 'Our Company'
+
         return {
-            "color": settings_dict.get('brand_color', '#27AE60'),
+            "color": settings_dict.get('brand_color') or "#c5a059",
             "logo": settings_dict.get('logo', '/static/images/logo.png'),
-            "name": settings_dict.get('company_name', 'Our Company'),
+            "name": company_name,
             "email": settings_dict.get('company_email', '')
         }
     except Exception as e:
