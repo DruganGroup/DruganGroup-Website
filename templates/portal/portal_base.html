@@ -91,9 +91,9 @@
             <span class="badge bg-secondary opacity-75 small ms-1">Client Portal</span>
         </div>
         <div class="d-flex align-items-center gap-2">
-            <a href="/portal/settings" class="btn btn-sm btn-outline-light rounded-pill px-3 py-1">
-                <i class="fas fa-user me-1"></i> {{ client_name.split(' ')[0] if client_name else 'Account' }}
-            </a>
+            <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 py-1 fw-bold" data-bs-toggle="modal" data-bs-target="#contactCompanyModal">
+                <i class="fas fa-headset me-1"></i> Contact
+            </button>
             <a href="/logout" class="btn btn-sm btn-danger rounded-pill px-2 py-1" title="Sign Out">
                 <i class="fas fa-sign-out-alt"></i>
             </a>
@@ -243,6 +243,71 @@
             <span>Settings</span>
         </a>
     </nav>
+
+    <!-- CONTACT COMPANY MODAL (MOBILE & QUICK ACCESS) -->
+    <div class="modal fade" id="contactCompanyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header text-white border-0 py-3" style="background-color: var(--brand-color);">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-headset fs-5"></i>
+                        <h5 class="modal-title fw-bold m-0 text-white">Contact {{ company_name }}</h5>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="small text-muted mb-3">Need assistance with your work orders, quotes, or billing? Reach out directly to our office team.</p>
+                    
+                    <div class="d-flex flex-column gap-2">
+                        {% if company_phone %}
+                        <a href="tel:{{ company_phone }}" class="btn btn-light border p-3 rounded-3 d-flex align-items-center justify-content-between text-decoration-none">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                    <i class="fas fa-phone-alt"></i>
+                                </div>
+                                <div class="text-start">
+                                    <span class="d-block small text-muted">Phone Number</span>
+                                    <strong class="text-dark">{{ company_phone }}</strong>
+                                </div>
+                            </div>
+                            <span class="badge bg-primary px-3 py-2 rounded-pill">Call Now</span>
+                        </a>
+                        {% endif %}
+
+                        {% if company_email %}
+                        <a href="mailto:{{ company_email }}" class="btn btn-light border p-3 rounded-3 d-flex align-items-center justify-content-between text-decoration-none">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-warning bg-opacity-10 text-warning rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                    <i class="fas fa-envelope"></i>
+                                </div>
+                                <div class="text-start">
+                                    <span class="d-block small text-muted">Email Support</span>
+                                    <strong class="text-dark text-break">{{ company_email }}</strong>
+                                </div>
+                            </div>
+                            <span class="badge bg-dark px-3 py-2 rounded-pill">Send Email</span>
+                        </a>
+                        {% endif %}
+
+                        {% if company_website %}
+                        <a href="{% if company_website.startswith(('http://', 'https://')) %}{{ company_website }}{% else %}https://{{ company_website }}{% endif %}" target="_blank" rel="noopener noreferrer" class="btn btn-light border p-3 rounded-3 d-flex align-items-center justify-content-between text-decoration-none">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-info bg-opacity-10 text-info rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                    <i class="fas fa-globe"></i>
+                                </div>
+                                <div class="text-start">
+                                    <span class="d-block small text-muted">Official Website</span>
+                                    <strong class="text-dark">{{ company_website | replace('https://', '') | replace('http://', '') | replace('www.', '') | trim('/') }}</strong>
+                                </div>
+                            </div>
+                            <i class="fas fa-external-link-alt text-muted"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

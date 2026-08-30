@@ -3,15 +3,105 @@
 {% block title %}My Quotes & Estimates | {{ company_name }}{% endblock %}
 
 {% block content %}
+<!-- SUMMARY KPI METRIC CALCULATIONS -->
+{% set ns = namespace(total_value=0.0, count_pending=0, count_accepted=0, count_declined=0) %}
+{% for q in quotes %}
+    {% set ns.total_value = ns.total_value + (q.total|float) %}
+    {% if q.status in ['Sent', 'Pending'] %}
+        {% set ns.count_pending = ns.count_pending + 1 %}
+    {% elif q.status == 'Accepted' %}
+        {% set ns.count_accepted = ns.count_accepted + 1 %}
+    {% elif q.status == 'Declined' %}
+        {% set ns.count_declined = ns.count_declined + 1 %}
+    {% endif %}
+{% endfor %}
+
+<!-- PAGE HEADER -->
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h2 class="fw-bold m-0 text-dark" style="letter-spacing: -0.02em;"><i class="fas fa-file-signature text-warning me-2"></i>Quotes & Estimates</h2>
-        <p class="text-muted mb-0 small">Review scopes of work, approve estimates, and track active project orders.</p>
+        <h2 class="fw-bold m-0 text-dark" style="letter-spacing: -0.02em;">Quotes & Estimates</h2>
+        <p class="text-muted mb-0 small">Review proposed scopes of work, approve estimates, and track active project orders.</p>
+    </div>
+    {% if ns.count_pending > 0 %}
+    <div class="badge bg-warning bg-opacity-10 text-dark border border-warning px-3 py-2 rounded-pill fw-bold">
+        <i class="fas fa-clock me-1 text-warning"></i> {{ ns.count_pending }} Awaiting Your Approval
+    </div>
+    {% endif %}
+</div>
+
+<!-- 4 TOP KPI METRIC CARDS -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="metric-stat-card h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">Total Quotes</span>
+                    <h3 class="fw-bold mb-1 text-dark">{{ quotes|length }}</h3>
+                    <span class="small text-muted">All-time estimates</span>
+                </div>
+                <div class="metric-icon-wrap" style="background: rgba(30, 41, 59, 0.08); color: var(--brand-color);">
+                    <i class="fas fa-file-signature"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="metric-stat-card h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">Awaiting Review</span>
+                    <h3 class="fw-bold mb-1 {{ 'text-warning' if ns.count_pending > 0 else 'text-muted' }}">{{ ns.count_pending }}</h3>
+                    <span class="small {{ 'text-warning fw-bold' if ns.count_pending > 0 else 'text-muted' }}">
+                        {{ 'Requires approval' if ns.count_pending > 0 else 'None pending' }}
+                    </span>
+                </div>
+                <div class="metric-icon-wrap bg-warning-subtle text-warning">
+                    <i class="fas fa-clock"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="metric-stat-card h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">Accepted & Active</span>
+                    <h3 class="fw-bold mb-1 text-success">{{ ns.count_accepted }}</h3>
+                    <span class="small text-success fw-bold"><i class="fas fa-check-circle me-1"></i>Approved work</span>
+                </div>
+                <div class="metric-icon-wrap bg-success-subtle text-success">
+                    <i class="fas fa-check-double"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="metric-stat-card h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">Pipeline Value</span>
+                    <h3 class="fw-bold mb-1 text-dark">{{ currency_symbol or '£' }}{{ "%.2f"|format(ns.total_value) }}</h3>
+                    <span class="small text-muted">Total project portfolio</span>
+                </div>
+                <div class="metric-icon-wrap bg-primary-subtle text-primary">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <div class="card card-modern overflow-hidden border-0 shadow-sm rounded-4">
-    <div class="table-responsive">
+    <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 fw-bold text-dark"><i class="fas fa-file-contract me-2" style="color: var(--brand-color);"></i>Project Estimates</h6>
+        <span class="badge bg-light text-muted border">{{ quotes|length }} Quotes</span>
+    </div>
+
+    <!-- DESKTOP TABLE -->
+    <div class="table-responsive d-none d-md-block">
         <table class="table table-hover align-middle mb-0">
             <thead class="bg-light small text-uppercase text-muted">
                 <tr>
@@ -27,8 +117,8 @@
             <tbody>
                 {% for q in quotes %}
                 <tr>
-                    <td class="ps-4 fw-bold font-monospace">
-                        <a href="/portal/quote/{{ q.id }}" class="text-dark text-decoration-none fw-bold">
+                    <td class="ps-4 font-monospace fw-bold">
+                        <a href="/portal/quote/{{ q.id }}" class="text-dark text-decoration-none">
                             {{ q.ref }}
                         </a>
                     </td>
@@ -38,7 +128,7 @@
                         </a>
                     </td>
                     <td class="small text-muted">{{ q.date }}</td>
-                    <td class="fw-bold text-dark fs-6">£{{ "%.2f"|format(q.total) }}</td>
+                    <td class="fw-bold text-dark fs-6">{{ currency_symbol or '£' }}{{ "%.2f"|format(q.total) }}</td>
                     <td>
                         {% if q.status == 'Draft' %}<span class="badge bg-secondary px-2 py-1">Draft</span>
                         {% elif q.status in ['Sent', 'Pending'] %}<span class="badge bg-warning text-dark px-2 py-1"><i class="fas fa-clock me-1"></i>Awaiting Approval</span>
@@ -69,11 +159,11 @@
                     </td>
                     <td class="text-end pe-4">
                         <div class="btn-group">
-                            <a href="/portal/quote/{{ q.id }}" class="btn btn-sm btn-outline-primary fw-bold">
-                                <i class="fas fa-eye me-1"></i> View
+                            <a href="/portal/quote/{{ q.id }}" class="btn btn-sm btn-{{ 'warning text-dark fw-bold' if q.status in ['Sent', 'Pending'] else 'outline-primary fw-bold' }}">
+                                <i class="fas fa-{{ 'check-circle' if q.status in ['Sent', 'Pending'] else 'eye' }} me-1"></i> {{ 'Review' if q.status in ['Sent', 'Pending'] else 'View' }}
                             </a>
                             <a href="/portal/quote/{{ q.id }}/download" target="_blank" class="btn btn-sm btn-outline-secondary fw-bold" title="Download PDF">
-                                <i class="fas fa-file-pdf me-1 text-danger"></i> PDF
+                                <i class="fas fa-file-pdf text-danger"></i>
                             </a>
                         </div>
                     </td>
@@ -88,6 +178,49 @@
                 {% endfor %}
             </tbody>
         </table>
+    <!-- MOBILE CARDS LIST -->
+    <div class="d-md-none p-3 pt-0">
+        {% for q in quotes %}
+        <div class="card card-modern p-3 mb-2 border">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <span class="badge bg-light text-dark font-monospace border mb-1">{{ q.ref }}</span>
+                    <h6 class="fw-bold m-0 text-dark">{{ q.title }}</h6>
+                </div>
+                <div>
+                    {% if q.status in ['Sent', 'Pending'] %}<span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Awaiting</span>
+                    {% elif q.status == 'Accepted' %}<span class="badge bg-success"><i class="fas fa-check me-1"></i>Accepted</span>
+                    {% elif q.status == 'Declined' %}<span class="badge bg-danger">Declined</span>
+                    {% else %}<span class="badge bg-secondary">{{ q.status }}</span>{% endif %}
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center py-2 border-top border-bottom small my-2">
+                <span class="text-muted">Issued: {{ q.date }}</span>
+                <span class="fw-bold fs-6 text-dark">{{ currency_symbol or '£' }}{{ "%.2f"|format(q.total) }}</span>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center gap-2 pt-1">
+                <div class="d-flex gap-1">
+                    {% if q.job_id %}
+                        <a href="/portal/job/{{ q.job_id }}" class="badge bg-primary-subtle text-primary border text-decoration-none">
+                            <i class="fas fa-tools me-1"></i> Job
+                        </a>
+                    {% endif %}
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/portal/quote/{{ q.id }}" class="btn btn-sm btn-{{ 'warning text-dark fw-bold' if q.status in ['Sent', 'Pending'] else 'outline-primary fw-bold' }} px-3">
+                        <i class="fas fa-{{ 'check-circle' if q.status in ['Sent', 'Pending'] else 'eye' }} me-1"></i> {{ 'Review & Approve' if q.status in ['Sent', 'Pending'] else 'View' }}
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-file-signature fa-3x mb-2 opacity-25 d-block"></i>
+            <p class="mb-0 small">No active estimates or quotes found.</p>
+        </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}

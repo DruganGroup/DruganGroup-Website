@@ -3,20 +3,114 @@
 {% block title %}My Invoices & Billing | {{ company_name }}{% endblock %}
 
 {% block content %}
+<!-- SUMMARY KPI METRIC CALCULATIONS -->
+{% set ns = namespace(total_invoiced=0.0, total_paid=0.0, total_due=0.0, count_due=0, count_overdue=0) %}
+{% for inv in invoices %}
+    {% set ns.total_invoiced = ns.total_invoiced + (inv.total|float) %}
+    {% if inv.status == 'Paid' %}
+        {% set ns.total_paid = ns.total_paid + (inv.total|float) %}
+    {% else %}
+        {% set ns.total_due = ns.total_due + (inv.total|float) %}
+        {% set ns.count_due = ns.count_due + 1 %}
+        {% if inv.status == 'Overdue' %}
+            {% set ns.count_overdue = ns.count_overdue + 1 %}
+        {% endif %}
+    {% endif %}
+{% endfor %}
+
+<!-- PAGE HEADER -->
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h2 class="fw-bold m-0 text-dark" style="letter-spacing: -0.02em;"><i class="fas fa-file-invoice-dollar text-success me-2"></i>Invoices & Billing</h2>
-        <p class="text-muted mb-0 small">Review payment history, itemized receipts, and settle outstanding balances online.</p>
+        <h2 class="fw-bold m-0 text-dark" style="letter-spacing: -0.02em;">Invoices & Billing</h2>
+        <p class="text-muted mb-0 small">Review itemized statements, track payment receipts, and settle outstanding balances securely online.</p>
+    </div>
+    {% if ns.total_due > 0 %}
+    <div class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3 py-2 rounded-pill fw-bold">
+        <i class="fas fa-exclamation-circle me-1"></i> {{ ns.count_due }} Payment(s) Pending
+    </div>
+    {% endif %}
+</div>
+
+<!-- 4 TOP KPI METRIC CARDS -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="metric-stat-card h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">Total Invoiced</span>
+                    <h3 class="fw-bold mb-1 text-dark">{{ currency_symbol or '£' }}{{ "%.2f"|format(ns.total_invoiced) }}</h3>
+                    <span class="small text-muted">{{ invoices|length }} statement(s)</span>
+                </div>
+                <div class="metric-icon-wrap" style="background: rgba(30, 41, 59, 0.08); color: var(--brand-color);">
+                    <i class="fas fa-receipt"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="metric-stat-card h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">Paid & Settled</span>
+                    <h3 class="fw-bold mb-1 text-success">{{ currency_symbol or '£' }}{{ "%.2f"|format(ns.total_paid) }}</h3>
+                    <span class="small text-success fw-bold"><i class="fas fa-check-circle me-1"></i>Completed</span>
+                </div>
+                <div class="metric-icon-wrap bg-success-subtle text-success">
+                    <i class="fas fa-check-double"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="metric-stat-card h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">Balance Due</span>
+                    <h3 class="fw-bold mb-1 {{ 'text-danger' if ns.total_due > 0 else 'text-muted' }}">{{ currency_symbol or '£' }}{{ "%.2f"|format(ns.total_due) }}</h3>
+                    <span class="small {{ 'text-danger fw-bold' if ns.total_due > 0 else 'text-muted' }}">
+                        {{ ns.count_due ~ ' unpaid' if ns.total_due > 0 else 'All settled' }}
+                    </span>
+                </div>
+                <div class="metric-icon-wrap bg-warning-subtle text-warning">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="metric-stat-card h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">Overdue Status</span>
+                    <h3 class="fw-bold mb-1 {{ 'text-danger' if ns.count_overdue > 0 else 'text-dark' }}">{{ ns.count_overdue }}</h3>
+                    <span class="small {{ 'text-danger fw-bold' if ns.count_overdue > 0 else 'text-success' }}">
+                        {{ 'Requires action' if ns.count_overdue > 0 else 'No overdue bills' }}
+                    </span>
+                </div>
+                <div class="metric-icon-wrap {{ 'bg-danger-subtle text-danger' if ns.count_overdue > 0 else 'bg-light text-muted' }}">
+                    <i class="fas fa-calendar-times"></i>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <div class="card card-modern overflow-hidden border-0 shadow-sm rounded-4">
-    <div class="table-responsive">
+    <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 fw-bold text-dark"><i class="fas fa-list-alt me-2" style="color: var(--brand-color);"></i>Billing Statements</h6>
+        <span class="badge bg-light text-muted border">{{ invoices|length }} Invoices</span>
+    </div>
+
+    <!-- DESKTOP TABLE -->
+    <div class="table-responsive d-none d-md-block">
         <table class="table table-hover align-middle mb-0">
             <thead class="bg-light small text-uppercase text-muted">
                 <tr>
                     <th class="ps-4">Reference</th>
-                    <th>Description / Project</th>
+                    <th>Project / Scope</th>
                     <th>Issue Date</th>
                     <th>Due Date</th>
                     <th>Amount</th>
@@ -28,7 +122,7 @@
             <tbody>
                 {% for inv in invoices %}
                 <tr>
-                    <td class="ps-4 fw-bold font-monospace">
+                    <td class="ps-4 font-monospace fw-bold">
                         <a href="/portal/invoice/{{ inv.id }}" class="text-dark fw-bold text-decoration-none">
                             {{ inv.ref }}
                         </a>
@@ -40,12 +134,12 @@
                     </td>
                     <td class="small text-muted">{{ inv.date }}</td>
                     <td class="small text-muted">{{ inv.due_date }}</td>
-                    <td class="fw-bold text-dark fs-6">£{{ "%.2f"|format(inv.total) }}</td>
+                    <td class="fw-bold text-dark fs-6">{{ currency_symbol or '£' }}{{ "%.2f"|format(inv.total) }}</td>
                     <td>
                         {% if inv.status == 'Paid' %}<span class="badge bg-success px-2 py-1"><i class="fas fa-check me-1"></i>Paid</span>
                         {% elif inv.status == 'Overdue' %}<span class="badge bg-danger px-2 py-1"><i class="fas fa-exclamation-triangle me-1"></i>Overdue</span>
                         {% elif inv.status == 'Draft' %}<span class="badge bg-secondary px-2 py-1">Draft</span>
-                        {% else %}<span class="badge bg-warning text-dark px-2 py-1"><i class="fas fa-clock me-1"></i>{{ inv.status }}</span>{% endif %}
+                        {% else %}<span class="badge bg-warning text-dark px-2 py-1"><i class="fas fa-clock me-1"></i>Payment Due</span>{% endif %}
                     </td>
                     <td>
                         <div class="d-flex flex-column gap-1">
@@ -72,14 +166,14 @@
                         <div class="btn-group">
                             {% if inv.status != 'Paid' %}
                             <a href="/pay/invoice/{{ inv.id }}" class="btn btn-sm btn-success fw-bold">
-                                <i class="fas fa-credit-card me-1"></i> Pay Now
+                                <i class="fas fa-credit-card me-1"></i> Pay
                             </a>
                             {% endif %}
-                            <a href="/portal/invoice/{{ inv.id }}" class="btn btn-sm btn-outline-primary fw-bold" title="View Invoice">
+                            <a href="/portal/invoice/{{ inv.id }}" class="btn btn-sm btn-outline-primary fw-bold" title="View Details">
                                 <i class="fas fa-eye me-1"></i> View
                             </a>
                             <a href="/portal/invoice/{{ inv.id }}/download" target="_blank" class="btn btn-sm btn-outline-secondary fw-bold" title="Download PDF">
-                                <i class="fas fa-file-pdf me-1 text-danger"></i> PDF
+                                <i class="fas fa-file-pdf text-danger"></i>
                             </a>
                         </div>
                     </td>
@@ -94,6 +188,53 @@
                 {% endfor %}
             </tbody>
         </table>
+    <!-- MOBILE CARDS LIST -->
+    <div class="d-md-none p-3 pt-0">
+        {% for inv in invoices %}
+        <div class="card card-modern p-3 mb-2 border">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <span class="badge bg-light text-dark font-monospace border mb-1">{{ inv.ref }}</span>
+                    <h6 class="fw-bold m-0 text-dark">{{ inv.title or 'Invoiced Services' }}</h6>
+                </div>
+                <div>
+                    {% if inv.status == 'Paid' %}<span class="badge bg-success"><i class="fas fa-check me-1"></i>Paid</span>
+                    {% elif inv.status == 'Overdue' %}<span class="badge bg-danger"><i class="fas fa-exclamation-triangle me-1"></i>Overdue</span>
+                    {% else %}<span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Due</span>{% endif %}
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center py-2 border-top border-bottom small my-2">
+                <span class="text-muted">Due Date: {{ inv.due_date }}</span>
+                <span class="fw-bold fs-6 text-dark">{{ currency_symbol or '£' }}{{ "%.2f"|format(inv.total) }}</span>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center gap-2 pt-1">
+                <div class="d-flex gap-1">
+                    {% if inv.job_id %}
+                        <a href="/portal/job/{{ inv.job_id }}" class="badge bg-primary-subtle text-primary border text-decoration-none">
+                            <i class="fas fa-tools me-1"></i> Work Order
+                        </a>
+                    {% endif %}
+                </div>
+                <div class="d-flex gap-2">
+                    {% if inv.status != 'Paid' %}
+                    <a href="/pay/invoice/{{ inv.id }}" class="btn btn-sm btn-success fw-bold px-3">
+                        <i class="fas fa-credit-card me-1"></i> Pay
+                    </a>
+                    {% endif %}
+                    <a href="/portal/invoice/{{ inv.id }}" class="btn btn-sm btn-outline-primary fw-bold px-3">
+                        View
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-file-invoice-dollar fa-3x mb-2 opacity-25 d-block"></i>
+            <p class="mb-0 small">No invoices recorded under your account.</p>
+        </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}
