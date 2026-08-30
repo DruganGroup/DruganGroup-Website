@@ -13,6 +13,9 @@
         <p class="text-muted mb-0 small"><i class="fas fa-map-marker-alt me-1 text-danger opacity-75"></i>{{ prop[2] }}</p>
     </div>
     <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#uploadPhotoModal">
+            <i class="fas fa-camera me-1"></i> {% if prop[11] %}Change Photo{% else %}Upload Photo{% endif %}
+        </button>
         <form action="/portal/property/archive/{{ prop[0] }}" method="POST" onsubmit="return confirm('Archive this property? It will be hidden from your dashboard but history is kept.');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-outline-danger btn-sm fw-semibold">
@@ -24,6 +27,29 @@
         </a>
     </div>
 </div>
+
+<!-- PROPERTY PHOTO BANNER IF AVAILABLE -->
+{% if prop[11] %}
+<div class="card card-modern border-0 shadow-sm rounded-4 mb-4 overflow-hidden position-relative">
+    <div class="ratio ratio-21x9 bg-light">
+        <img src="/static/{{ prop[11] }}" class="w-100 h-100 object-fit-cover" alt="{{ prop[1] }}">
+    </div>
+    <div class="position-absolute bottom-0 start-0 end-0 p-3 bg-dark bg-opacity-75 text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h4 class="fw-bold m-0 text-white">{{ prop[1] }}</h4>
+            <small class="opacity-75 font-monospace">{{ prop[2] }} &bull; {{ prop[3] or 'Residential' }}</small>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            {% if prop[6] %}
+            <span class="badge bg-warning text-dark font-monospace fs-6"><i class="fas fa-key me-1"></i> Key: {{ prop[6] }}</span>
+            {% endif %}
+            <button class="btn btn-sm btn-light fw-bold" data-bs-toggle="modal" data-bs-target="#uploadPhotoModal">
+                <i class="fas fa-camera me-1"></i> Change Photo
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- COMPLIANCE ROW -->
 {% if compliance %}
@@ -191,6 +217,40 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- UPLOAD PROPERTY PHOTO MODAL -->
+<div class="modal fade" id="uploadPhotoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-light py-3 border-0">
+                <h5 class="modal-title fw-bold"><i class="fas fa-camera me-2 text-primary"></i>Upload Property Photo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/portal/property/{{ prop[0] }}/upload-photo" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-3">Upload a clear exterior or front photo of <strong>{{ prop[1] }}</strong>. This helps engineers, contractors, and office staff easily identify your property.</p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Select Image File</label>
+                        <input type="file" name="property_photo" class="form-control" accept="image/*" required onchange="previewPhoto(event)">
+                    </div>
+
+                    <div id="photoPreviewContainer" class="d-none mt-3 text-center">
+                        <small class="text-muted d-block mb-2 fw-semibold">Photo Preview</small>
+                        <img id="photoPreview" src="" alt="Preview" class="img-fluid rounded-3 border shadow-sm" style="max-height: 200px; object-fit: cover; width: 100%;">
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-3 border-0">
+                    <button type="button" class="btn btn-outline-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary fw-bold px-4">
+                        <i class="fas fa-cloud-upload-alt me-2"></i>Upload Photo
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

@@ -370,7 +370,6 @@ def view_quote(quote_id):
         return redirect(url_for('pdf.download_quote_pdf', quote_id=quote_id)) 
 
     comp_id = session.get('company_id')
-    
     config = get_site_config(comp_id)
 
     if config.get('logo') and not config['logo'].startswith('/uploads/'):
@@ -381,32 +380,134 @@ def view_quote(quote_id):
 
     conn = get_db(); cur = conn.cursor()
     
-    cur.execute("""        SELECT q.id, c.name, q.reference, q.date, q.total, q.status, q.expiry_date,
-               q.job_title, q.job_description
+    # Fetch Settings for Tax
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    currency = settings.get('currency_symbol', '£')
+    
+    cur.execute("""
+        SELECT q.id, c.name, q.reference, q.date, q.total, q.status, q.expiry_date,
+               q.job_title, q.job_description, c.id, c.email, c.phone,
+               COALESCE(p.address_line1, ''), COALESCE(p.postcode, '')
         FROM quotes q 
         LEFT JOIN clients c ON q.client_id = c.id 
+        LEFT JOIN properties p ON q.property_id = p.id
         WHERE q.id = %s AND q.company_id = %s
     """, (quote_id, comp_id))
-    # --- INDENTATION FIX END ---
+    q_row = cur.fetchone()
     
-    quote = cur.fetchone()
+    if not q_row: return "Quote not found", 404
+    
+    quote = {
+        'id': q_row[0],
+        'client_name': q_row[1] or 'Client',
+        'reference': q_row[2],
+        'date': q_row[3].strftime('%d/%m/%Y') if hasattr(q_row[3], 'strftime') else (q_row[3] or ''),
+        'total': float(q_row[4] or 0),
+        'status': q_row[5],
+        'expiry_date': q_row[6].strftime('%d/%m/%Y') if hasattr(q_row[6], 'strftime') else (q_row[6] or ''),
+        'job_title': q_row[7] or '',
+        'job_description': q_row[8] or '',
+        'client_id': q_row[9],
+        'client_email': q_row[10] or '',
+        'client_phone': q_row[11] or '',
+        'property_address': q_row[12] or '',
+        'property_postcode': q_row[13] or ''
+    }
 
-    cur.execute("SELECT value FROM settings WHERE key = 'currency_symbol' AND company_id = %s", (comp_id,))
-    res = cur.fetchone()
-    currency = res[0] if res else '£'
+    # Line Items
+    cur.execute("""
+        SELECT description, quantity, unit_price, total 
+        FROM quote_items 
+        WHERE quote_id = %s ORDER BY id ASC
+    """, (quote_id,))
+    items_raw = cur.fetchall()
+    items = []
+    subtotal = 0.0
+    for r in items_raw:
+        line_tot = float(r[3] or 0)
+        subtotal += line_tot
+        items.append({
+            'desc': r[0],
+            'qty': r[1],
+            'price': float(r[2] or 0),
+            'total': line_tot
+        })
 
+    # Tax Calculation
+    vat_reg = settings.get('vat_registered', 'no')
+    tax_rate = 0.0
+    if vat_reg in ['yes', 'on', 'true', '1']:
+        manual_rate = settings.get('default_tax_rate')
+        if manual_rate: 
+            tax_rate = float(manual_rate) / 100
+        else:
+            country = settings.get('country_code', 'UK')
+            TAX_RATES = {'UK': 0.20, 'IE': 0.23, 'US': 0.00, 'CAN': 0.05, 'AUS': 0.10, 'NZ': 0.15}
+            tax_rate = TAX_RATES.get(country, 0.20)
+
+    tax_amount = subtotal * tax_rate
+    grand_total = quote['total'] if quote['total'] > 0 else (subtotal + tax_amount)
+    if subtotal == 0 and grand_total > 0:
+        subtotal = grand_total / (1 + tax_rate) if tax_rate > 0 else grand_total
+        tax_amount = grand_total - subtotal
+
+    # Connected Job
+    cur.execute("""
+        SELECT id, ref, status, start_date, description
+        FROM jobs 
+        WHERE quote_id = %s AND company_id = %s
+        ORDER BY id DESC LIMIT 1
+    """, (quote_id, comp_id))
+    job_match = cur.fetchone()
+    connected_job = None
+    if job_match:
+        s_date = job_match[3].strftime('%d/%m/%Y') if hasattr(job_match[3], 'strftime') else (job_match[3] or '')
+        connected_job = {
+            'id': job_match[0],
+            'ref': job_match[1],
+            'status': job_match[2],
+            'start_date': s_date,
+            'desc': job_match[4]
+        }
+
+    # Connected Invoice
+    cur.execute("""
+        SELECT id, reference, status, total, due_date
+        FROM invoices
+        WHERE quote_id = %s AND company_id = %s
+        ORDER BY id DESC LIMIT 1
+    """, (quote_id, comp_id))
+    inv_match = cur.fetchone()
+    connected_invoice = None
+    if inv_match:
+        d_date = inv_match[4].strftime('%d/%m/%Y') if hasattr(inv_match[4], 'strftime') else (inv_match[4] or '')
+        connected_invoice = {
+            'id': inv_match[0],
+            'ref': inv_match[1],
+            'status': inv_match[2],
+            'total': float(inv_match[3] or 0),
+            'due_date': d_date
+        }
+
+    # Documents
     cur.execute("SELECT id, document_type, filepath, uploaded_at, visible_to_client FROM quote_documents WHERE quote_id = %s AND company_id = %s ORDER BY uploaded_at DESC", (quote_id, comp_id))
-    quote_docs = [{'id': r[0], 'type': r[1], 'path': r[2], 'date': r[3], 'visible': r[4]} for r in cur.fetchall()]
+    quote_docs = [{'id': r[0], 'type': r[1], 'path': r[2], 'date': r[3].strftime('%d/%m/%Y') if hasattr(r[3], 'strftime') else str(r[3]), 'visible': r[4]} for r in cur.fetchall()]
 
-    pass
-    
-    if not quote: return "Quote not found", 404
-    
     return render_template('office/view_quote_dashboard.html', 
                            quote=quote, 
+                           items=items,
+                           subtotal=subtotal,
+                           tax_amount=tax_amount,
+                           tax_rate_percent=int(tax_rate * 100),
+                           grand_total=grand_total,
+                           connected_job=connected_job,
+                           connected_invoice=connected_invoice,
                            currency_symbol=currency,
                            brand_color=config['color'], 
                            logo_url=config['logo'],
+                           config=config,
+                           settings=settings,
                            quote_docs=quote_docs)
                            
 @quote_bp.route('/office/quote/<int:quote_id>/book-job')

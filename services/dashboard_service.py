@@ -352,9 +352,14 @@ def get_office_dashboard_data(comp_id, user_date_fmt):
 
     # Upcoming & In Progress Jobs
     cur.execute("""
-        SELECT j.id, j.ref, j.site_address, c.name, j.start_date, j.status, j.description, q.job_title 
+        SELECT j.id, j.ref, 
+               COALESCE(p.address_line1, j.site_address, sr.partner_address_snapshot, ''), 
+               COALESCE(c.name, 'Direct Client'), 
+               j.start_date, j.status, j.description, q.job_title, j.created_at
         FROM jobs j 
         LEFT JOIN clients c ON j.client_id = c.id 
+        LEFT JOIN properties p ON j.property_id = p.id
+        LEFT JOIN service_requests sr ON j.service_request_id = sr.id
         LEFT JOIN quotes q ON j.quote_id = q.id
         WHERE j.company_id = %s AND j.status IN ('Scheduled', 'In Progress', 'Accepted', 'Pending')
         ORDER BY 
@@ -365,7 +370,10 @@ def get_office_dashboard_data(comp_id, user_date_fmt):
     """, (comp_id,))
     upcoming_jobs = []
     for r in cur.fetchall():
-        fmt_full, day_num, month_abbr = process_date(r[4], user_date_fmt)
+        date_target = r[4] or r[8]
+        fmt_full, day_num, month_abbr = process_date(date_target, user_date_fmt)
+        if not r[4]:
+            fmt_full = "TBC"
         title = (r[7] or r[6] or f"Job {r[1]}").strip()
         upcoming_jobs.append({
             'id': r[0], 'ref': r[1], 'address': r[2] or '', 'client_name': r[3] or 'Unknown Client',

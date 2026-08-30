@@ -19,14 +19,14 @@
     </div>
 
     <div class="row g-3 mb-4">
-        <!-- 1. New Requests -->
+        <!-- 1. New Requests (Clickable to Service Desk) -->
         <div class="col-6 col-lg-3">
-            <div class="card p-3 border-0 shadow-sm h-100 bg-white rounded-4">
+            <div class="card p-3 border-0 shadow-sm h-100 bg-white rounded-4" style="cursor: pointer;" onclick="window.location.href='/office/service-desk';">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">{{ _('New Requests') }}</span>
                         <h2 class="fw-bold text-dark m-0">{{ leads_count }}</h2>
-                        <span class="small text-primary"><i class="fas fa-inbox me-1"></i>Incoming</span>
+                        <span class="small text-primary fw-bold"><i class="fas fa-inbox me-1"></i>Service Desk &rarr;</span>
                     </div>
                     <div class="rounded-3 p-2 bg-primary bg-opacity-10 text-primary">
                         <i class="fas fa-bell fs-5"></i>
@@ -36,7 +36,7 @@
         </div>
         <!-- 2. Pending Quotes -->
         <div class="col-6 col-lg-3">
-            <div class="card p-3 border-0 shadow-sm h-100 bg-white rounded-4">
+            <div class="card p-3 border-0 shadow-sm h-100 bg-white rounded-4" style="cursor: pointer;" onclick="window.location.href='/office/quotes';">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">{{ _('Pending Quotes') }}</span>
@@ -51,12 +51,12 @@
         </div>
         <!-- 3. Active Jobs -->
         <div class="col-6 col-lg-3">
-            <div class="card p-3 border-0 shadow-sm h-100 bg-white rounded-4">
+            <div class="card p-3 border-0 shadow-sm h-100 bg-white rounded-4" style="cursor: pointer;" onclick="window.location.href='/office/calendar';">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">{{ _('Active Jobs') }}</span>
                         <h2 class="fw-bold text-dark m-0">{{ active_jobs }}</h2>
-                        <span class="small text-success fw-bold"><i class="fas fa-tools me-1"></i>In Progress</span>
+                        <span class="small text-success fw-bold"><i class="fas fa-tools me-1"></i>Master Schedule &rarr;</span>
                     </div>
                     <div class="rounded-3 p-2 bg-success bg-opacity-10 text-success">
                         <i class="fas fa-hammer fs-5"></i>
@@ -66,7 +66,7 @@
         </div>
         <!-- 4. Unpaid Invoices -->
         <div class="col-6 col-lg-3">
-            <div class="card p-3 border-0 shadow-sm h-100 bg-white rounded-4">
+            <div class="card p-3 border-0 shadow-sm h-100 bg-white rounded-4" style="cursor: pointer;" onclick="window.location.href='/office/sales';">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.72rem;">{{ _('Unpaid Invoices') }}</span>
@@ -83,121 +83,76 @@
         </div>
     </div>
 
-    <div class="row g-4">
-        
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white fw-bold border-bottom py-3">
-                    <i class="fas fa-bell text-primary me-2"></i>{{ _('New Requests') }}
-                </div>
-                <div class="list-group list-group-flush">
-                    {% for r in incoming_requests %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="fw-bold text-dark">{{ r.client_name }}</div>
-                            <small class="text-muted d-block">{{ r.desc|truncate(30) }}</small>
-                            <small class="text-primary" style="font-size: 0.75rem;">{{ r.date_added }}</small>
-                        </div>
-                        <a href="/office/quote/new?request_id={{ r.id }}&client_id={{ r.client_id }}" class="btn btn-sm btn-outline-dark fw-bold">
-                            {{ _('Review') }} <i class="fas fa-arrow-right ms-1"></i>
+    <!-- Operational Schedule & Upcoming Jobs -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
+                <div class="card-header bg-white fw-bold border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-calendar-alt text-primary fs-5"></i>
+                        <span class="fs-6">Operational Schedule & Upcoming Jobs</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="/office/service-desk" class="btn btn-sm btn-outline-primary fw-bold">
+                            <i class="fas fa-headset me-1"></i> Service Desk
+                        </a>
+                        <a href="/office/calendar" class="btn btn-sm btn-primary fw-bold shadow-sm">
+                            <i class="fas fa-calendar-week me-1"></i> Master Calendar
                         </a>
                     </div>
-                    {% else %}
-                    <div class="p-4 text-center text-muted small">
-                        <i class="fas fa-check-circle text-success mb-2 fs-4"></i><br>
-                        {{ _('No pending requests.') }}
-                    </div>
-                    {% endfor %}
                 </div>
-            </div>
-        </div>
-
-        <!-- Upcoming Jobs -->
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white overflow-hidden">
-                <div class="card-header bg-white fw-bold border-bottom py-3 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-calendar-alt text-warning me-2"></i>Upcoming Jobs</span>
-                    <a href="/office/calendar" class="btn btn-sm btn-light border text-muted py-0 px-2" style="font-size: 0.75rem;">Full Calendar</a>
-                </div>
-                <div class="list-group list-group-flush">
+                <div class="row g-0">
                     {% for j in upcoming_jobs %}
-                    <div class="list-group-item p-3">
-                        <div class="d-flex align-items-center mb-2">
+                    <div class="col-md-6 border-bottom p-3">
+                        <div class="d-flex align-items-start gap-3">
                             <!-- Crisp Date Badge -->
-                            <div class="me-3 text-center border rounded-3 p-1 bg-light shadow-sm" style="min-width: 52px;">
-                                <div class="fw-bold fs-5 lh-1 text-dark">{{ j.day if j.day and j.day != 'None' else 'TBC' }}</div>
-                                <div style="font-size: 0.65rem;" class="text-uppercase fw-bold text-primary">{{ j.month if j.month and j.month != 'None' else 'DATE' }}</div>
+                            <div class="text-center border rounded-3 p-2 bg-light shadow-sm flex-shrink-0" style="min-width: 58px;">
+                                <div class="fw-bold fs-4 lh-1 text-dark">{{ j.day if j.day and j.day != 'None' else 'TBC' }}</div>
+                                <div style="font-size: 0.65rem;" class="text-uppercase fw-bold text-primary mt-1">{{ j.month if j.month and j.month != 'None' else 'DATE' }}</div>
                             </div>
                             <!-- Job Info -->
-                            <div class="w-100 text-truncate">
+                            <div class="flex-grow-1 text-truncate">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="badge bg-dark-subtle text-dark border font-monospace" style="font-size: 0.7rem;">{{ j.ref }}</span>
-                                    <div>
-                                        {% if j.status == 'In Progress' %}
-                                            <span class="badge bg-warning text-dark"><i class="fas fa-tools me-1"></i>In Progress</span>
-                                        {% else %}
-                                            <span class="badge bg-primary"><i class="fas fa-clock me-1"></i>Scheduled</span>
-                                        {% endif %}
-                                    </div>
+                                    <span class="badge bg-dark text-white font-monospace" style="font-size: 0.72rem;">{{ j.ref }}</span>
+                                    {% if j.status == 'In Progress' %}
+                                        <span class="badge bg-warning text-dark"><i class="fas fa-tools me-1"></i>In Progress</span>
+                                    {% elif j.status == 'Scheduled' %}
+                                        <span class="badge bg-info text-dark"><i class="fas fa-calendar-check me-1"></i>Scheduled</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ j.status }}</span>
+                                    {% endif %}
                                 </div>
-                                <a href="/office/job/{{ j.id }}/files" class="text-decoration-none text-dark d-block fw-bold text-truncate" title="{{ j.title }}">
+                                <a href="/office/job/{{ j.id }}/files" class="text-decoration-none text-dark d-block fw-bold text-truncate fs-6" title="{{ j.title }}">
                                     {{ j.title }}
                                 </a>
-                                <div class="text-muted small text-truncate" style="font-size: 0.75rem;">
-                                    <i class="fas fa-user-circle me-1"></i>{{ j.client_name }}
-                                    {% if j.address %} &bull; <i class="fas fa-map-marker-alt me-1"></i>{{ j.address }}{% endif %}
+                                <div class="text-muted small text-truncate mt-1">
+                                    <span class="fw-semibold text-secondary"><i class="fas fa-user-tie me-1"></i>{{ j.client_name }}</span>
+                                    {% if j.address %} &bull; <i class="fas fa-map-marker-alt me-1 text-danger opacity-75"></i>{{ j.address }}{% endif %}
+                                </div>
+                                <!-- Actions Row -->
+                                <div class="d-flex gap-2 mt-2">
+                                    <a href="/office/job/{{ j.id }}/files" class="btn btn-sm btn-outline-primary fw-bold py-1 px-2" title="View Job Hub & Files" style="font-size: 0.75rem;">
+                                        <i class="fas fa-folder-open me-1"></i> Files
+                                    </a>
+                                    <a href="/office/job/{{ j.id }}/materials/pdf" target="_blank" class="btn btn-sm btn-outline-dark fw-bold py-1 px-2" title="View Materials List" style="font-size: 0.75rem;">
+                                        <i class="fas fa-shopping-basket me-1"></i> Materials
+                                    </a>
+                                    <a href="/office/job/{{ j.id }}/rams/create" class="btn btn-sm btn-outline-warning text-dark fw-bold py-1 px-2" title="Create / View RAMS" style="font-size: 0.75rem;">
+                                        <i class="fas fa-file-contract me-1"></i> RAMS
+                                    </a>
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- Actions Row -->
-                        <div class="d-flex gap-1 mt-2">
-                            <a href="/office/job/{{ j.id }}/files" class="btn btn-xs btn-outline-primary flex-fill fw-bold py-1" title="View Job Hub & Files" style="font-size: 0.75rem;">
-                                <i class="fas fa-folder-open me-1"></i> Files
-                            </a>
-                            <a href="/office/job/{{ j.id }}/materials/pdf" target="_blank" class="btn btn-xs btn-outline-dark flex-fill fw-bold py-1" title="View Materials List" style="font-size: 0.75rem;">
-                                <i class="fas fa-shopping-basket me-1"></i> Materials
-                            </a>
-                            <a href="/office/job/{{ j.id }}/rams/create" class="btn btn-xs btn-outline-warning flex-fill fw-bold text-dark py-1" title="Create / View RAMS" style="font-size: 0.75rem;">
-                                <i class="fas fa-file-contract me-1"></i> RAMS
-                            </a>
-                        </div>
                     </div>
                     {% else %}
-                    <div class="p-5 text-center text-muted small">
+                    <div class="col-12 p-5 text-center text-muted">
                         <i class="fas fa-calendar-check text-muted mb-2 fs-3 opacity-50 d-block"></i>
-                        No scheduled jobs. Click "New Job" to add one!
+                        No scheduled jobs. Click "New Job" above to schedule one!
                     </div>
                     {% endfor %}
                 </div>
             </div>
         </div>
-
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white fw-bold border-bottom py-3">
-                    <i class="fas fa-wallet text-success me-2"></i>Ready to Invoice
-                </div>
-                <div class="list-group list-group-flush">
-                    {% for j in uninvoiced_jobs %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center bg-danger bg-opacity-10">
-                        <div>
-                            <div class="fw-bold text-dark">{{ j.ref }}</div>
-                            <small class="text-dark">{{ j.client_name }}</small>
-                        </div>
-                        <form action="/office/job/{{ j.id }}/files" method="get">
-                            <button class="btn btn-sm btn-success fw-bold shadow-sm">
-                                Invoice <i class="fas fa-pound-sign ms-1"></i>
-                            </button>
-                        </form>
-                    </div>
-                    {% else %}
-                    <div class="p-4 text-center text-muted small">All jobs invoiced.</div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-
     </div>
 	
     <div class="row g-4 mt-1">

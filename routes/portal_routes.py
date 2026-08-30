@@ -113,12 +113,12 @@ def portal_home():
         job[3] = format_date_by_country(job[3], comp_id)
         active_jobs.append(job)
 
-    # UPDATED: Fetch ONLY 'Active' Properties with rich compliance & counts
+    # UPDATED: Fetch ONLY 'Active' Properties with rich compliance & counts + photo
     cur.execute("""
         SELECT p.id, p.address_line1, p.postcode, p.type,
             (SELECT COUNT(*) FROM service_requests sr WHERE sr.property_id = p.id AND sr.status NOT IN ('Completed', 'Resolved', 'Cancelled', 'Finished')),
             p.gas_expiry, p.eicr_expiry, p.pat_expiry, p.epc_expiry,
-            p.tenant_name, p.tenant_phone
+            p.tenant_name, p.tenant_phone, p.photo
         FROM properties p 
         WHERE p.client_id=%s AND p.status = 'Active'
         ORDER BY p.id DESC
@@ -359,7 +359,7 @@ def property_detail(property_id):
 
     cur.execute("""
         SELECT id, address_line1, postcode, type, tenant_name, tenant_phone, key_code,
-               gas_expiry, eicr_expiry, pat_expiry, epc_expiry
+               gas_expiry, eicr_expiry, pat_expiry, epc_expiry, photo
         FROM properties WHERE id=%s AND client_id=%s
     """, (property_id, client_id))
     prop_row = cur.fetchone()
@@ -501,12 +501,16 @@ def portal_add_property():
     tenant_email = request.form.get('tenant_email')
     key_code = request.form.get('key_code')
     
+    photo_file = request.files.get('property_photo') or request.files.get('photo')
+    from routes.client_routes import save_property_photo
+    photo_path = save_property_photo(photo_file, comp_id)
+    
     conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("""
-            INSERT INTO properties (company_id, client_id, address_line1, postcode, type, tenant_name, tenant_phone, tenant_email, key_code, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')
-        """, (comp_id, client_id, addr, postcode, prop_type, tenant_name, tenant_phone, tenant_email, key_code))
+            INSERT INTO properties (company_id, client_id, address_line1, postcode, type, tenant_name, tenant_phone, tenant_email, key_code, photo, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')
+        """, (comp_id, client_id, addr, postcode, prop_type, tenant_name, tenant_phone, tenant_email, key_code, photo_path))
         conn.commit()
         flash("✅ Property added successfully.", "success")
     except Exception as e:
@@ -515,6 +519,29 @@ def portal_add_property():
         pass
         
     return redirect(url_for('portal.portal_home'))
+
+@portal_bp.route('/portal/property/<int:property_id>/upload-photo', methods=['POST'])
+def portal_upload_property_photo(property_id):
+    if not check_portal_access(): return redirect(get_login_url())
+    client_id = session['portal_client_id']
+    comp_id = session['portal_company_id']
+    
+    photo_file = request.files.get('property_photo') or request.files.get('photo')
+    if not photo_file or not photo_file.filename:
+        flash("❌ Please select a photo file to upload.", "warning")
+        return redirect(f'/portal/property/{property_id}')
+        
+    from routes.client_routes import save_property_photo
+    new_photo = save_property_photo(photo_file, comp_id)
+    if new_photo:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("UPDATE properties SET photo = %s WHERE id = %s AND client_id = %s", (new_photo, property_id, client_id))
+        conn.commit()
+        flash("📸 Property photo updated successfully!", "success")
+    else:
+        flash("❌ Could not save photo. Please try another image format.", "error")
+        
+    return redirect(f'/portal/property/{property_id}')
 
 # --- 6. ARCHIVE PROPERTY (WAS DELETE) ---
 @portal_bp.route('/portal/property/archive/<int:property_id>', methods=['POST'])

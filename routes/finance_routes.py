@@ -1108,16 +1108,28 @@ def view_invoice_dashboard(invoice_id):
         return redirect(url_for('auth.login'))
         
     company_id = session.get('company_id')
+    config = get_site_config(company_id)
     conn = get_db()
     cur = conn.cursor()
     
-    cur.execute("SELECT value FROM settings WHERE key='currency_symbol' AND company_id=%s", (company_id,))
-    res = cur.fetchone(); currency = res[0] if res else '£'
+    cur.execute("SELECT key, value FROM settings WHERE company_id=%s", (company_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    currency = settings.get('currency_symbol', '£')
     
     cur.execute("""
-        SELECT i.id, i.reference, c.name, i.date, i.total, i.status 
+        SELECT i.id, i.reference, c.name, i.date, i.total, i.status,
+               i.due_date, c.id, c.email, c.phone,
+               COALESCE(p.address_line1, ''), COALESCE(p.postcode, ''),
+               i.subtotal, i.tax,
+               COALESCE(q.job_title, j.description, 'Invoice Services'),
+               COALESCE(q.job_description, j.description, ''),
+               i.job_id, j.ref as job_ref, j.status as job_status,
+               i.quote_id, q.reference as quote_ref, q.status as quote_status
         FROM invoices i 
         JOIN clients c ON i.client_id = c.id 
+        LEFT JOIN jobs j ON i.job_id = j.id
+        LEFT JOIN quotes q ON i.quote_id = q.id
+        LEFT JOIN properties p ON (j.property_id = p.id OR q.property_id = p.id)
         WHERE i.id = %s AND i.company_id = %s
     """, (invoice_id, company_id))
     inv = cur.fetchone()
@@ -1129,13 +1141,95 @@ def view_invoice_dashboard(invoice_id):
     invoice = {
         'id': inv[0],
         'reference': inv[1],
-        'client_name': inv[2],
-        'date': inv[3].strftime('%d/%m/%Y') if hasattr(inv[3], 'strftime') else inv[3],
-        'total': inv[4],
-        'status': inv[5]
+        'client_name': inv[2] or 'Client',
+        'date': inv[3].strftime('%d/%m/%Y') if hasattr(inv[3], 'strftime') else str(inv[3] or ''),
+        'total': float(inv[4] or 0),
+        'status': inv[5],
+        'due_date': inv[6].strftime('%d/%m/%Y') if hasattr(inv[6], 'strftime') else str(inv[6] or ''),
+        'client_id': inv[7],
+        'client_email': inv[8] or '',
+        'client_phone': inv[9] or '',
+        'property_address': inv[10] or '',
+        'property_postcode': inv[11] or '',
+        'title': inv[14] or 'Invoice',
+        'desc': inv[15] or ''
     }
+
+    # Line Items
+    cur.execute("""
+        SELECT description, quantity, unit_price, total
+        FROM invoice_items
+        WHERE invoice_id = %s ORDER BY id ASC
+    """, (invoice_id,))
+    items_raw = cur.fetchall()
+    items = []
+    items_total_sum = 0.0
+    for r in items_raw:
+        line_tot = float(r[3] or 0)
+        items_total_sum += line_tot
+        items.append({
+            'desc': r[0],
+            'qty': r[1],
+            'price': float(r[2] or 0),
+            'total': line_tot
+        })
+
+    # Tax & Subtotal
+    from services.tax_engine import TaxEngine
+    comp_tax_rate = TaxEngine.get_tax_rate(settings)
+    stored_subtotal = float(inv[12]) if inv[12] is not None else None
+    stored_tax = float(inv[13]) if inv[13] is not None else None
+    grand_total = float(inv[4] or 0.0)
+
+    if stored_subtotal is not None and stored_tax is not None:
+        subtotal = stored_subtotal
+        tax_amount = stored_tax
+    elif comp_tax_rate > 0:
+        divisor = 1 + comp_tax_rate
+        subtotal = grand_total / divisor
+        tax_amount = grand_total - subtotal
+    else:
+        subtotal = grand_total if grand_total > 0 else items_total_sum
+        tax_amount = 0.0
+
+    if not items:
+        items.append({
+            'desc': invoice['title'] or 'General Contract Works',
+            'qty': 1,
+            'price': subtotal,
+            'total': subtotal
+        })
+
+    connected_job = None
+    if inv[16]:
+        connected_job = {
+            'id': inv[16],
+            'ref': inv[17] or f"JOB-{inv[16]}",
+            'status': inv[18] or 'Active'
+        }
+
+    connected_quote = None
+    if inv[19]:
+        connected_quote = {
+            'id': inv[19],
+            'ref': inv[20] or f"Q-{inv[19]}",
+            'status': inv[21] or 'Accepted'
+        }
     
-    return render_template('finance/view_invoice_dashboard.html', invoice=invoice, currency=currency)
+    return render_template('finance/view_invoice_dashboard.html', 
+                           invoice=invoice, 
+                           items=items,
+                           subtotal=subtotal,
+                           tax_amount=tax_amount,
+                           tax_rate_percent=int(comp_tax_rate * 100),
+                           grand_total=grand_total,
+                           connected_job=connected_job,
+                           connected_quote=connected_quote,
+                           currency=currency,
+                           brand_color=config.get('color', '#0f172a'),
+                           logo_url=config.get('logo'),
+                           config=config,
+                           settings=settings)
 
 @finance_bp.route('/finance-dashboard')
 def finance_dashboard():
