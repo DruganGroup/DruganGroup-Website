@@ -89,15 +89,27 @@ def job_files(job_id):
     # Calculate True Gang Cost (Vehicle + Driver + Crew)
     veh_id, van_reg, van_daily_cost = get_effective_vehicle_gang_cost(cur, comp_id, vehicle_id=assigned_veh_id, engineer_id=assigned_eng_id)
 
+    title_val = (job_row[9] or job_row[1] or f"Job {job_row[0]}").strip()
+    desc_val = (job_row[1] or '').strip()
+    if desc_val == title_val:
+        desc_val = ''
+
     job = {
-        'id': job_id, 'ref': job_row[0], 'desc': job_row[1], 'address': job_row[2],
-        'status': job_row[3], 'client': job_row[6], 'title': job_row[9] or f"Job {job_row[0]}",
+        'id': job_id,
+        'ref': job_row[0],
+        'desc': desc_val,
+        'address': job_row[2] or '',
+        'status': job_row[3] or 'Scheduled',
+        'client': job_row[6] or 'Unassigned Client',
+        'email': job_row[7] or '',
+        'phone': job_row[8] or '',
+        'title': title_val,
         'property_id': job_row[12] or '',
         'key_code': job_row[13] or '',
         'quote_id': job_row[4],
         'vehicle_id': assigned_veh_id,
         'engineer_id': assigned_eng_id,
-        'van_reg': van_reg,
+        'van_reg': van_reg or 'No Van Assigned',
         'client_id': client_id
     }
     quote_total = float(job_row[5] or 0.0)

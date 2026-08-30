@@ -35,8 +35,10 @@
     </div>
 
     <h3>Delivery Address:</h3>
+    {% if client_name %}
     <p style="font-size: 14px; margin-bottom: 5px; font-weight: bold;">{{ client_name }}</p>
-    <p style="font-size: 14px; margin-top: 0; margin-bottom: 30px;">{{ address }}</p>
+    {% endif %}
+    <p style="font-size: 14px; margin-top: 0; margin-bottom: 30px;">{{ address or 'Site Delivery' }}</p>
 
     {% if grouped_items %}
         {% for supplier, items in grouped_items.items() %}

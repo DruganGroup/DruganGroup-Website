@@ -52,17 +52,25 @@
                 </div>
             </div>
 
+            {% if job.desc and job.desc != 'None' and job.desc != job.title %}
             <div class="fs-5 text-secondary mb-2">
                 {{ job.desc }}
             </div>
+            {% endif %}
 
             <div class="text-muted small d-flex align-items-center gap-3 flex-wrap">
-                <span><i class="fas fa-user-circle me-1"></i> {{ job.client }}</span>
-                <span><i class="fas fa-map-marker-alt me-1"></i> {{ job.address }}</span>
-                <span><i class="fas fa-hashtag me-1"></i> {{ job.ref }}</span>
+                {% if job.client and job.client != 'None' %}
+                <span><i class="fas fa-user-circle me-1"></i> {% if job.client_id %}<a href="/client/{{ job.client_id }}" class="text-decoration-none text-muted fw-semibold">{{ job.client }}</a>{% else %}{{ job.client }}{% endif %}</span>
+                {% endif %}
+                {% if job.address and job.address != 'None' %}
+                <span><i class="fas fa-map-marker-alt me-1"></i> {% if job.property_id %}<a href="/office/property/{{ job.property_id }}" class="text-decoration-none text-muted">{{ job.address }}</a>{% else %}{{ job.address }}{% endif %}</span>
+                {% endif %}
+                <span><i class="fas fa-hashtag me-1"></i> <strong class="text-dark">{{ job.ref }}</strong></span>
+                {% if van_reg and van_reg != 'None' and van_reg != 'No Van Assigned' %}
                 <span><i class="fas fa-truck me-1"></i> {{ van_reg }}</span>
-                {% if job.key_code %}
-                <span class="text-danger fw-bold"><i class="fas fa-key me-1"></i> Access/Key: {{ job.key_code }}</span>
+                {% endif %}
+                {% if job.key_code and job.key_code != 'None' %}
+                <span class="badge bg-dark text-warning"><i class="fas fa-key me-1"></i> Access/Key: {{ job.key_code }}</span>
                 {% endif %}
             </div>
         </div>
@@ -168,26 +176,27 @@
     <div class="row g-4">
         <div class="col-lg-8">
             
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white fw-bold py-3">
-                    <i class="fas fa-images me-2 text-primary"></i> Site Photos
+            <!-- Site Photos Gallery -->
+            <div class="card border-0 shadow-sm mb-4 rounded-4 overflow-hidden bg-white">
+                <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-images me-2 text-primary"></i> Site & Progress Photos</span>
                 </div>
                 <div class="card-body">
                     <div class="row g-2">
-                        {% set has_photos = false %}
-                        {% for f in files if f[0] == 'Site Photo' %}
-                            {% set has_photos = true %}
+                        {% set photo_list = [] %}
+                        {% for f in files if f[0] in ['Site Photo', 'Photo', 'Progress Photo', 'Completion Photo'] %}
+                            {% set _ = photo_list.append(f) %}
                             {% set file_url = f[4] if f[4].startswith('/') else '/' ~ f[4] %}
                             <div class="col-4 col-sm-3 col-md-2">
-                                <a href="{{ file_url }}" target="_blank" class="d-block position-relative ratio ratio-1x1 border rounded overflow-hidden">
+                                <a href="{{ file_url }}" target="_blank" class="d-block position-relative ratio ratio-1x1 border rounded-3 overflow-hidden shadow-sm hover-shadow transition">
                                     <img src="{{ file_url }}" class="w-100 h-100 object-fit-cover" alt="Site Photo">
                                 </a>
                             </div>
                         {% endfor %}
                         
-                        {% if not has_photos %}
-                            <div class="col-12 text-center py-4 text-muted bg-light rounded border border-dashed">
-                                <i class="fas fa-camera fa-2x mb-2 opacity-25"></i>
+                        {% if photo_list|length == 0 %}
+                            <div class="col-12 text-center py-4 text-muted bg-light rounded-3 border border-dashed">
+                                <i class="fas fa-camera fa-2x mb-2 opacity-25 d-block"></i>
                                 <p class="small m-0">No photos uploaded yet.</p>
                             </div>
                         {% endif %}
@@ -195,19 +204,19 @@
                 </div>
             </div>
 
-            <div class="card border-0 shadow-sm">
+            <!-- Project Timeline / Activity -->
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
                 <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center">
-    <span><i class="fas fa-list-ul me-2 text-dark"></i> Project Timeline</span>
-    
-    <div>
-        <button onclick="emailSupplier({{ job.id }})" class="btn btn-sm btn-primary fw-bold me-2">
-            <i class="fas fa-envelope me-1"></i> Email Supplier
-        </button>
-        <a href="/office/job/{{ job.id }}/materials/pdf" class="btn btn-sm btn-outline-dark fw-bold">
-            <i class="fas fa-file-pdf me-1"></i> Merchant List
-        </a>
-    </div>
-</div>
+                    <span><i class="fas fa-list-ul me-2 text-dark"></i> Project Timeline & Costs</span>
+                    <div>
+                        <button onclick="emailSupplier({{ job.id }})" class="btn btn-sm btn-primary fw-bold me-2 rounded-pill shadow-sm">
+                            <i class="fas fa-envelope me-1"></i> Email Supplier
+                        </button>
+                        <a href="/office/job/{{ job.id }}/materials/pdf" target="_blank" class="btn btn-sm btn-outline-dark fw-bold rounded-pill">
+                            <i class="fas fa-file-pdf me-1"></i> Merchant List
+                        </a>
+                    </div>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0 small">
                         <thead class="bg-light text-muted text-uppercase">
@@ -220,7 +229,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for f in files if f[0] != 'Site Photo' %}
+                            {% for f in files if f[0] not in ['Site Photo', 'Photo', 'Progress Photo', 'Completion Photo'] %}
                             <tr>
                                 <td class="ps-3">
     {% if 'Invoice' in f[0] %}

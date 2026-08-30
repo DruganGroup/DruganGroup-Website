@@ -288,12 +288,26 @@ def get_office_dashboard_data(comp_id, user_date_fmt):
     cur = conn.cursor()
     
     def process_date(date_val, fmt):
-        if not date_val: return "TBC", None, None
+        if not date_val:
+            return "TBC", "TBC", "DATE"
         dt = date_val
         if isinstance(date_val, str):
-            try: dt = datetime.strptime(date_val[:10], '%Y-%m-%d')
-            except: return str(date_val), None, None
-        return dt.strftime(fmt), dt.strftime('%d'), dt.strftime('%b')
+            clean_str = str(date_val).strip()
+            parsed = None
+            for pattern in ('%Y-%m-%d', '%Y-%m-%d %H:%M:%S', '%d/%m/%Y', '%Y/%m/%d', '%d-%m-%Y'):
+                try:
+                    parsed = datetime.strptime(clean_str[:10] if len(clean_str) >= 10 else clean_str, pattern)
+                    break
+                except Exception:
+                    pass
+            if parsed:
+                dt = parsed
+            else:
+                return clean_str, "TBC", "DATE"
+        try:
+            return dt.strftime(fmt), dt.strftime('%d'), dt.strftime('%b').upper()
+        except Exception:
+            return str(date_val), "TBC", "DATE"
 
     # Counters
     cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id=%s AND status='Pending'", (comp_id,))
@@ -324,7 +338,7 @@ def get_office_dashboard_data(comp_id, user_date_fmt):
 
     # Recent Quotes
     cur.execute("""
-        SELECT q.id, q.reference, c.name, q.total, q.status, q.date
+        SELECT q.id, q.reference, c.name, q.total, q.status, q.date, q.job_title
         FROM quotes q
         JOIN clients c ON q.client_id = c.id
         WHERE q.company_id = %s AND q.status IN ('Draft', 'Sent', 'Pending', 'Accepted')
@@ -332,24 +346,27 @@ def get_office_dashboard_data(comp_id, user_date_fmt):
     """, (comp_id,))
     recent_quotes = [{
         'id': r[0], 'ref': r[1], 'client_name': r[2], 
-        'total': r[3], 'status': r[4], 'date': format_date(r[5], user_date_fmt)
+        'total': r[3], 'status': r[4], 'date': format_date(r[5], user_date_fmt),
+        'title': r[6] or f"Quote {r[1]}"
     } for r in cur.fetchall()]
 
     # Upcoming & In Progress Jobs
     cur.execute("""
-        SELECT j.id, j.ref, j.site_address, c.name, j.start_date, j.status 
+        SELECT j.id, j.ref, j.site_address, c.name, j.start_date, j.status, j.description, q.job_title 
         FROM jobs j 
         LEFT JOIN clients c ON j.client_id = c.id 
+        LEFT JOIN quotes q ON j.quote_id = q.id
         WHERE j.company_id = %s AND j.status IN ('Scheduled', 'In Progress') 
-        ORDER BY j.start_date ASC LIMIT 5
+        ORDER BY j.start_date ASC LIMIT 8
     """, (comp_id,))
     upcoming_jobs = []
     for r in cur.fetchall():
         fmt_full, day_num, month_abbr = process_date(r[4], user_date_fmt)
+        title = (r[7] or r[6] or f"Job {r[1]}").strip()
         upcoming_jobs.append({
-            'id': r[0], 'ref': r[1], 'address': r[2], 'client_name': r[3],
+            'id': r[0], 'ref': r[1], 'address': r[2] or '', 'client_name': r[3] or 'Unknown Client',
             'start_date_fmt': fmt_full, 'day': day_num, 'month': month_abbr,
-            'status': r[5]
+            'status': r[5], 'title': title, 'desc': r[6] or ''
         })
 
     # Uninvoiced Jobs

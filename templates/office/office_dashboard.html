@@ -75,49 +75,62 @@
             </div>
         </div>
 
+        <!-- Upcoming Jobs -->
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white fw-bold border-bottom py-3">
-                    <i class="fas fa-clipboard-list text-warning me-2"></i>{{ _('Upcoming Jobs (RAMS)') }}
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white overflow-hidden">
+                <div class="card-header bg-white fw-bold border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-calendar-alt text-warning me-2"></i>Upcoming Jobs</span>
+                    <a href="/office/calendar" class="btn btn-sm btn-light border text-muted py-0 px-2" style="font-size: 0.75rem;">Full Calendar</a>
                 </div>
                 <div class="list-group list-group-flush">
                     {% for j in upcoming_jobs %}
-                    <div class="list-group-item">
+                    <div class="list-group-item p-3">
                         <div class="d-flex align-items-center mb-2">
-                            <div class="me-3 text-center border rounded p-1 bg-light" style="min-width: 50px;">
-                                <div class="fw-bold fs-5 lh-1">{{ j.day }}</div>
-                                <div style="font-size: 0.65rem;" class="text-uppercase text-muted">{{ j.month }}</div>
+                            <!-- Crisp Date Badge -->
+                            <div class="me-3 text-center border rounded-3 p-1 bg-light shadow-sm" style="min-width: 52px;">
+                                <div class="fw-bold fs-5 lh-1 text-dark">{{ j.day if j.day and j.day != 'None' else 'TBC' }}</div>
+                                <div style="font-size: 0.65rem;" class="text-uppercase fw-bold text-primary">{{ j.month if j.month and j.month != 'None' else 'DATE' }}</div>
                             </div>
-                            <div class="w-100">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="badge bg-white text-dark border">{{ j.ref }}</span>
+                            <!-- Job Info -->
+                            <div class="w-100 text-truncate">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="badge bg-dark-subtle text-dark border font-monospace" style="font-size: 0.7rem;">{{ j.ref }}</span>
                                     <div>
                                         {% if j.status == 'In Progress' %}
-                                            <span class="badge bg-warning text-dark me-1"><i class="fas fa-tools me-1"></i>In Progress</span>
+                                            <span class="badge bg-warning text-dark"><i class="fas fa-tools me-1"></i>In Progress</span>
                                         {% else %}
-                                            <span class="badge bg-primary me-1">Scheduled</span>
+                                            <span class="badge bg-primary"><i class="fas fa-clock me-1"></i>Scheduled</span>
                                         {% endif %}
-                                        <small class="text-muted">{{ j.start_date_fmt }}</small>
                                     </div>
                                 </div>
-                                <div class="fw-bold text-dark small">{{ j.client_name or _('Unknown Client') }}</div>
+                                <a href="/office/job/{{ j.id }}/files" class="text-decoration-none text-dark d-block fw-bold text-truncate" title="{{ j.title }}">
+                                    {{ j.title }}
+                                </a>
+                                <div class="text-muted small text-truncate" style="font-size: 0.75rem;">
+                                    <i class="fas fa-user-circle me-1"></i>{{ j.client_name }}
+                                    {% if j.address %} &bull; <i class="fas fa-map-marker-alt me-1"></i>{{ j.address }}{% endif %}
+                                </div>
                             </div>
                         </div>
                         
+                        <!-- Actions Row -->
                         <div class="d-flex gap-1 mt-2">
-                            <a href="/office/job/{{ j.id }}/files" class="btn btn-sm btn-light border flex-fill text-muted" title="{{ _('View Files') }}">
-                                <i class="fas fa-folder-open me-1"></i> {{ _('Files') }}
+                            <a href="/office/job/{{ j.id }}/files" class="btn btn-xs btn-outline-primary flex-fill fw-bold py-1" title="View Job Hub & Files" style="font-size: 0.75rem;">
+                                <i class="fas fa-folder-open me-1"></i> Files
                             </a>
-                            <a href="/office/job/{{ j.id }}/materials/pdf" target="_blank" class="btn btn-sm btn-dark flex-fill fw-bold" title="{{ _('Material List') }}">
-                                <i class="fas fa-shopping-basket me-1"></i> {{ _('Mat. List') }}
+                            <a href="/office/job/{{ j.id }}/materials/pdf" target="_blank" class="btn btn-xs btn-outline-dark flex-fill fw-bold py-1" title="View Materials List" style="font-size: 0.75rem;">
+                                <i class="fas fa-shopping-basket me-1"></i> Materials
                             </a>
-                            <a href="/office/job/{{ j.id }}/rams/create" class="btn btn-sm btn-warning flex-fill fw-bold" title="{{ _('Create RAMS') }}">
-    <i class="fas fa-file-contract me-1"></i> {{ _('RAMS') }}
-</a>
+                            <a href="/office/job/{{ j.id }}/rams/create" class="btn btn-xs btn-outline-warning flex-fill fw-bold text-dark py-1" title="Create / View RAMS" style="font-size: 0.75rem;">
+                                <i class="fas fa-file-contract me-1"></i> RAMS
+                            </a>
                         </div>
                     </div>
                     {% else %}
-                    <div class="p-4 text-center text-muted small">{{ _('No upcoming jobs.') }}</div>
+                    <div class="p-5 text-center text-muted small">
+                        <i class="fas fa-calendar-check text-muted mb-2 fs-3 opacity-50 d-block"></i>
+                        No scheduled jobs. Click "New Job" to add one!
+                    </div>
                     {% endfor %}
                 </div>
             </div>
