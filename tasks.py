@@ -265,14 +265,20 @@ def send_tenant_email_task(company_id, recipient_email, subject, body_html, atta
         encryptor = get_encryptor()
         smtp_password = encryptor.decrypt(raw_pass)
 
-        # 3. Construct the Email
-        msg = MIMEMultipart()
+        # 3. Construct the Email (Multipart alternative for text/plain + styled HTML)
+        msg = MIMEMultipart('mixed')
         msg['From'] = smtp_email
         msg['To'] = recipient_email
         msg['Subject'] = subject
         
-        # Attach the HTML body
-        msg.attach(MIMEText(body_html, 'html'))
+        from email_service import format_plain_to_html
+        plain_text_body = body_html or ""
+        formatted_html = format_plain_to_html(plain_text_body, subject=subject)
+
+        alt_part = MIMEMultipart('alternative')
+        alt_part.attach(MIMEText(plain_text_body, 'plain', 'utf-8'))
+        alt_part.attach(MIMEText(formatted_html, 'html', 'utf-8'))
+        msg.attach(alt_part)
 
         # 4. Handle Optional Attachments (e.g., Invoices or Quotes)
         if attachment_b64 and attachment_name:

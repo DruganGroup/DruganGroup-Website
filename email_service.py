@@ -5,9 +5,70 @@ from email.mime.application import MIMEApplication
 import os
 import time
 import uuid
+import html
+import re
 from datetime import datetime
 from db import get_db
 from utils.encryption import get_encryptor
+
+def format_plain_to_html(body_text, subject=""):
+    """
+    Converts plain text email into clean responsive HTML with proper paragraph spacing,
+    line breaks, and beautifully formatted quoted reply threads.
+    """
+    if not body_text:
+        return ""
+    if re.search(r'<(?:!doctype\s+html|html|body|table|div[\s>])', body_text, re.IGNORECASE):
+        return body_text
+
+    patterns = [
+        r'(?:\r?\n)*(-{3,}\s*(?:Original Message|On\s+.+?wrote:?)\s*-{3,})(?:\r?\n)*',
+        r'(?:\r?\n)*(--- On\s+.+?wrote:\s*---)(?:\r?\n)*',
+        r'(?:\r?\n)*(---------- Original Message ----------)(?:\r?\n)*'
+    ]
+    separator = None
+    parts = [body_text]
+    for pattern in patterns:
+        split_res = re.split(pattern, body_text, maxsplit=1, flags=re.IGNORECASE)
+        if len(split_res) == 3:
+            parts = [split_res[0], split_res[1], split_res[2]]
+            separator = split_res[1]
+            break
+
+    def text_to_html_paragraphs(t):
+        if not t.strip(): return ""
+        escaped = html.escape(t.strip())
+        paragraphs = re.split(r'\n{2,}', escaped)
+        html_out = []
+        for p in paragraphs:
+            lines = p.split('\n')
+            p_content = '<br>'.join(lines)
+            html_out.append(f'<p style="margin: 0 0 14px 0; font-size: 14px; line-height: 1.6; color: #222222;">{p_content}</p>')
+        return ''.join(html_out)
+
+    if separator and len(parts) == 3:
+        main_message = text_to_html_paragraphs(parts[0])
+        sep_header = html.escape(parts[1].strip())
+        quoted_message = text_to_html_paragraphs(parts[2])
+        formatted_content = f"""{main_message}
+<div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 13px; color: #64748b;">
+    <div style="font-weight: 600; margin-bottom: 8px; color: #475569;">{sep_header}</div>
+    <div style="border-left: 3px solid #0d6efd; padding-left: 12px; margin-left: 2px; color: #475569;">
+        {quoted_message}
+    </div>
+</div>"""
+    else:
+        formatted_content = text_to_html_paragraphs(body_text)
+
+    return f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #222222; margin: 0; padding: 20px; background-color: #ffffff;">
+    <div style="max-width: 650px; margin: 0 auto;">
+        {formatted_content}
+    </div>
+</body>
+</html>"""
 
 def record_sent_email(company_id, recipient_email, subject, body_html, sender_email=None):
     """
@@ -95,12 +156,19 @@ def send_company_email(company_id, to_email, subject, body, pdf_path=None):
         print("❌ Error: Missing SMTP settings for this company.")
         return False, "Missing Email Settings. Please configure them in Finance > Settings."
 
-    # 3. Construct Email
-    msg = MIMEMultipart()
+    # 3. Construct Email (Multipart alternative for text/plain + styled HTML)
+    msg = MIMEMultipart('mixed')
     msg['From'] = smtp_user
     msg['To'] = to_email
     msg['Subject'] = subject
-    msg.attach(MIMEText(body, 'html'))
+
+    plain_text_body = body or ""
+    html_body = format_plain_to_html(plain_text_body, subject=subject)
+
+    alt_part = MIMEMultipart('alternative')
+    alt_part.attach(MIMEText(plain_text_body, 'plain', 'utf-8'))
+    alt_part.attach(MIMEText(html_body, 'html', 'utf-8'))
+    msg.attach(alt_part)
 
     # 4. Attach PDF
     if pdf_path and os.path.exists(pdf_path):

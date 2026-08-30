@@ -26,7 +26,11 @@
             <tbody>
                 {% for inv in invoices %}
                 <tr>
-                    <td class="ps-4 fw-bold text-brand">{{ inv[1] }}</td>
+                    <td class="ps-4 fw-bold">
+                        <a href="/portal/invoice/{{ inv[0] }}" class="text-brand fw-bold text-decoration-none hover-underline">
+                            {{ inv[1] }}
+                        </a>
+                    </td>
                     <td>{{ inv[2] }}</td>
                     <td>{{ inv[3] }}</td>
                     <td class="fw-bold">£{{ "%.2f"|format(inv[4]) }}</td>
@@ -40,11 +44,14 @@
                         <div class="btn-group">
                             {% if inv[5] != 'Paid' %}
                             <a href="/pay/invoice/{{ inv[0] }}" class="btn btn-sm btn-success fw-bold">
-                                <i class="fas fa-credit-card me-1"></i> Pay Online
+                                <i class="fas fa-credit-card me-1"></i> Pay
                             </a>
                             {% endif %}
-                            <a href="/finance/invoice/{{ inv[0] }}/download" target="_blank" class="btn btn-sm btn-outline-secondary" title="Download PDF">
-                                <i class="fas fa-download me-1"></i> PDF
+                            <a href="/portal/invoice/{{ inv[0] }}" class="btn btn-sm btn-outline-primary fw-bold" title="View Invoice">
+                                <i class="fas fa-eye me-1"></i> View
+                            </a>
+                            <a href="/portal/invoice/{{ inv[0] }}/download" target="_blank" class="btn btn-sm btn-outline-secondary" title="Download PDF">
+                                <i class="fas fa-file-pdf me-1 text-danger"></i> PDF
                             </a>
                         </div>
                     </td>

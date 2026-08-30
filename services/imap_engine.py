@@ -4,6 +4,7 @@ from email.header import decode_header
 import email.utils
 from datetime import datetime
 import re
+import html
 from db import get_db
 from utils.encryption import get_encryptor
 
@@ -24,6 +25,28 @@ def decode_mime_words(s):
         return u''.join(pieces)
     except Exception:
         return str(s)
+
+def _clean_html_to_text(html_content):
+    if not html_content:
+        return ""
+    # Strip style and script blocks
+    text = re.sub(r'<style[\s\S]*?</style>', '', html_content, flags=re.IGNORECASE)
+    text = re.sub(r'<script[\s\S]*?</script>', '', text, flags=re.IGNORECASE)
+    # Convert line breaks and paragraph/block closures
+    text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'</(?:p|div|tr|li|h[1-6]|blockquote)>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'<(?:p|div|tr|li|h[1-6]|blockquote)[^>]*>', '\n', text, flags=re.IGNORECASE)
+    # Strip all remaining tags
+    text = re.sub(r'<[^>]+>', '', text)
+    # Unescape HTML entities
+    text = html.unescape(text)
+    # Normalize line endings
+    text = text.replace('\r\n', '\n').replace('\r', '\n')
+    # Clean up excess whitespace on lines
+    lines = [re.sub(r'[ \t]+', ' ', line).strip() for line in text.split('\n')]
+    text = '\n'.join(lines)
+    # Consolidate 3+ newlines to 2
+    return re.sub(r'\n{3,}', '\n\n', text).strip()
 
 def _extract_body_from_message(msg):
     body_text = ""
@@ -66,13 +89,12 @@ def _extract_body_from_message(msg):
                 body_html = decoded_str
 
     if body_text.strip():
-        return body_text.strip()
+        # Clean text line endings
+        normalized = body_text.replace('\r\n', '\n').replace('\r', '\n')
+        return re.sub(r'\n{3,}', '\n\n', normalized).strip()
     
     if body_html.strip():
-        cleaned = re.sub(r'<br\s*/?>', '\n', body_html, flags=re.IGNORECASE)
-        cleaned = re.sub(r'</p>', '\n\n', cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r'<[^>]+>', '', cleaned)
-        return re.sub(r'\n{3,}', '\n\n', cleaned).strip()
+        return _clean_html_to_text(body_html)
 
     return ""
 

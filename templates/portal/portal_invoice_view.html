@@ -1,0 +1,145 @@
+{% extends "portal/portal_base.html" %}
+
+{% block title %}Invoice {{ invoice.ref }} | {{ company_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <a href="/portal/invoices" class="btn btn-outline-secondary btn-sm fw-bold">
+        <i class="fas fa-arrow-left me-2"></i>Back to Invoices
+    </a>
+    <div class="d-flex gap-2 align-items-center">
+        {% if invoice.status == 'Paid' %}
+        <span class="badge bg-success fs-6 shadow-sm px-3 py-2">
+            <i class="fas fa-check-circle me-1"></i> Paid
+        </span>
+        {% elif invoice.status == 'Overdue' %}
+        <span class="badge bg-danger fs-6 shadow-sm px-3 py-2">
+            <i class="fas fa-exclamation-triangle me-1"></i> Overdue
+        </span>
+        {% else %}
+        <span class="badge bg-warning text-dark fs-6 shadow-sm px-3 py-2">
+            <i class="fas fa-clock me-1"></i> Payment Due
+        </span>
+        {% endif %}
+        
+        <a href="/portal/invoice/{{ invoice.id }}/download" target="_blank" class="btn btn-outline-dark btn-sm fw-bold">
+            <i class="fas fa-file-pdf me-1 text-danger"></i> Download PDF
+        </a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card border-0 shadow-lg overflow-hidden rounded-4">
+            <div class="card-header border-0 p-4 p-md-5 text-white" style="background-color: {{ brand_color }};">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                    <div>
+                        <h1 class="fw-bold mb-0 text-white">INVOICE</h1>
+                        <p class="opacity-75 mb-0 fs-5">#{{ invoice.ref }}</p>
+                    </div>
+                    <div class="text-md-end">
+                        <h5 class="mb-1 text-white-50">Amount Due</h5>
+                        <h2 class="fw-bold mb-0 text-white">{{ config.currency }}{{ "%.2f"|format(invoice.grand_total) }}</h2>
+                        <small class="opacity-75 d-block mt-1">Issued: {{ invoice.date }} | Due: {{ invoice.due_date }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body p-4 p-md-5 bg-white">
+                <div class="row mb-5">
+                    <div class="col-md-6 mb-4 mb-md-0">
+                        <p class="small text-uppercase text-muted fw-bold mb-2">Issued By</p>
+                        {% if logo_url %}
+                            <img src="{{ logo_url }}" alt="Logo" style="max-height: 60px;" class="mb-3">
+                        {% else %}
+                            <h4 class="fw-bold text-dark">{{ company_name }}</h4>
+                        {% endif %}
+                        <div class="text-muted small">
+                            {{ config.address }}<br>
+                            {{ config.email }}<br>
+                            {{ config.phone }}
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <p class="small text-uppercase text-muted fw-bold mb-2">Billed To</p>
+                        <h5 class="fw-bold text-dark">{{ client_name }}</h5>
+                        {% if invoice.site_address %}
+                        <div class="text-muted small mb-2">
+                            <i class="fas fa-map-marker-alt me-1 text-primary"></i> Site: {{ invoice.site_address }}
+                        </div>
+                        {% endif %}
+                        {% if invoice.title %}
+                        <div class="fw-bold text-secondary small">{{ invoice.title }}</div>
+                        {% endif %}
+                        {% if invoice.desc %}
+                        <p class="small text-muted mt-1">{{ invoice.desc }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="table-responsive mb-4">
+                    <table class="table align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="border-0">Description</th>
+                                <th class="border-0 text-center" style="width: 100px;">Qty</th>
+                                <th class="border-0 text-end" style="width: 150px;">Unit Price</th>
+                                <th class="border-0 text-end" style="width: 150px;">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td class="fw-bold py-3 text-dark">{{ item.desc }}</td>
+                                <td class="text-center py-3">{{ item.qty }}</td>
+                                <td class="text-end py-3">{{ config.currency }}{{ "%.2f"|format(item.price) }}</td>
+                                <td class="text-end py-3 fw-bold">{{ config.currency }}{{ "%.2f"|format(item.total) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="row justify-content-end">
+                    <div class="col-md-5">
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                            <span class="text-muted">Subtotal</span>
+                            <span class="fw-bold">{{ config.currency }}{{ "%.2f"|format(invoice.subtotal) }}</span>
+                        </div>
+                        
+                        {% if invoice.tax_rate_percent > 0 %}
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                            <span class="text-muted">VAT ({{ invoice.tax_rate_percent }}%)</span>
+                            <span class="fw-bold">{{ config.currency }}{{ "%.2f"|format(invoice.tax_amount) }}</span>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="d-flex justify-content-between align-items-center py-3">
+                            <span class="fs-5 fw-bold text-dark">Total</span>
+                            <span class="fs-4 fw-bold" style="color: {{ brand_color }};">
+                                {{ config.currency }}{{ "%.2f"|format(invoice.grand_total) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {% if invoice.status != 'Paid' %}
+                <div class="mt-5 pt-4 border-top text-center">
+                    <p class="mb-3 text-muted">Ready to settle this balance? You can securely pay online with a card.</p>
+                    <a href="/pay/invoice/{{ invoice.id }}" 
+                       class="btn btn-lg px-5 shadow text-white fw-bold" 
+                       style="background-color: #28a745; border-radius: 50px;">
+                        <i class="fas fa-credit-card me-2"></i> Pay Online ({{ config.currency }}{{ "%.2f"|format(invoice.grand_total) }})
+                    </a>
+                </div>
+                {% else %}
+                <div class="mt-5 pt-4 border-top text-center text-success">
+                    <i class="fas fa-check-circle fa-3x mb-2"></i>
+                    <h5 class="fw-bold">Invoice Paid in Full</h5>
+                    <p class="text-muted small">Thank you for your payment.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

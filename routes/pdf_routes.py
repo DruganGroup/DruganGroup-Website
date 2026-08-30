@@ -95,22 +95,33 @@ def task_status(task_id):
 
 @pdf_bp.route('/finance/invoice/<int:invoice_id>/download')
 def download_invoice_pdf(invoice_id):
-    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']:
+    is_staff = session.get('role') in ['Admin', 'SuperAdmin', 'Finance', 'Office']
+    portal_client_id = session.get('portal_client_id')
+    portal_comp_id = session.get('portal_company_id')
+
+    if not is_staff and not (portal_client_id and portal_comp_id):
         return redirect(url_for('auth.login'))
         
     conn = get_db(); cur = conn.cursor()
-    comp_id = session.get('company_id')
+    comp_id = session.get('company_id') if is_staff else portal_comp_id
     
-    # ✅ SECURITY FIX: Verify invoice belongs to user's company
+    # ✅ SECURITY FIX: Verify invoice belongs to user's company / client
     if not comp_id:
         cur.close(); pass
         return redirect(url_for('auth.login'))
     
-    cur.execute("SELECT company_id FROM invoices WHERE id = %s", (invoice_id,))
-    invoice_row = cur.fetchone()
-    if not invoice_row or invoice_row[0] != comp_id:
-        cur.close(); pass
-        return "Unauthorized: Invoice not found or belongs to different company", 403
+    if is_staff:
+        cur.execute("SELECT company_id FROM invoices WHERE id = %s", (invoice_id,))
+        invoice_row = cur.fetchone()
+        if not invoice_row or invoice_row[0] != comp_id:
+            cur.close(); pass
+            return "Unauthorized: Invoice not found or belongs to different company", 403
+    else:
+        cur.execute("SELECT company_id, client_id FROM invoices WHERE id = %s", (invoice_id,))
+        invoice_row = cur.fetchone()
+        if not invoice_row or invoice_row[0] != comp_id or invoice_row[1] != portal_client_id:
+            cur.close(); pass
+            return "Unauthorized: Invoice not found or access denied", 403
 
     # 1. Fetch Invoice + Linked Data
     cur.execute("""

@@ -273,6 +273,45 @@ function openNewCompose() {
     clearAttachment();
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function renderEmailBody(text) {
+    if (!text) return '';
+    const patterns = [
+        /(-{3,}\s*(?:Original Message|On\s+.+?wrote:?)\s*-{3,})/i,
+        /(--- On\s+.+?wrote:\s*---)/i,
+        /(---------- Original Message ----------)/i
+    ];
+    let sepIndex = -1;
+    let matchStr = '';
+    for (let p of patterns) {
+        let m = text.match(p);
+        if (m) {
+            sepIndex = m.index;
+            matchStr = m[0];
+            break;
+        }
+    }
+    if (sepIndex !== -1) {
+        let main = text.substring(0, sepIndex).trim();
+        let quoted = text.substring(sepIndex + matchStr.length).trim();
+        let safeMain = escapeHtml(main);
+        let safeQuoted = escapeHtml(quoted);
+        let safeSep = escapeHtml(matchStr);
+        return `<div class="mb-3">${safeMain}</div>
+                <div class="mt-4 pt-3 border-top text-muted">
+                    <div class="fw-bold mb-2 small text-secondary"><i class="fas fa-history me-1"></i> ${safeSep}</div>
+                    <div class="ps-3 border-start border-3 border-primary bg-light p-2 rounded small text-dark">${safeQuoted}</div>
+                </div>`;
+    }
+    return escapeHtml(text);
+}
+
 function openEmailModal(id) {
     currentEmailId = id;
     const dataDiv = document.getElementById('email-data-' + id);
@@ -291,7 +330,7 @@ function openEmailModal(id) {
     document.getElementById('modalSender').innerText = sender;
     document.getElementById('modalRecipient').innerText = recipient ? `To: ${recipient}` : '';
     document.getElementById('modalDate').innerText = date;
-    document.getElementById('modalBody').innerText = body;
+    document.getElementById('modalBody').innerHTML = renderEmailBody(body);
     
     // Set Avatar Initial
     let initial = sender ? sender.charAt(0).toUpperCase() : '?';
@@ -350,16 +389,23 @@ function replyCurrentEmail() {
         replySubject = 'Re: ' + replySubject;
     }
     
-    const quotedBody = `\n\n\n--- On ${currentEmailData.date}, ${currentEmailData.sender} wrote: ---\n${currentEmailData.body}`;
+    const quotedBody = `\n\n\n---------- Original Message ----------\nFrom: ${currentEmailData.sender}\nDate: ${currentEmailData.date}\nSubject: ${currentEmailData.subject}\n\n${currentEmailData.body}`;
     
     document.getElementById('composeModalTitle').innerHTML = '<i class="fas fa-reply me-2"></i> Reply Message';
     document.getElementById('composeToEmail').value = replyTo;
     document.getElementById('composeSubject').value = replySubject;
-    document.getElementById('composeBody').value = quotedBody;
+    const bodyTextarea = document.getElementById('composeBody');
+    bodyTextarea.value = quotedBody;
     clearAttachment();
     
     const composeModal = new bootstrap.Modal(document.getElementById('composeModal'));
     composeModal.show();
+
+    setTimeout(() => {
+        bodyTextarea.focus();
+        bodyTextarea.setSelectionRange(0, 0);
+        bodyTextarea.scrollTop = 0;
+    }, 350);
 }
 
 function useDraftInReply() {
@@ -379,16 +425,23 @@ function useDraftInReply() {
         replySubject = 'Re: ' + replySubject;
     }
     
-    const quotedBody = currentEmailData ? `\n\n--- On ${currentEmailData.date}, ${currentEmailData.sender} wrote: ---\n${currentEmailData.body}` : '';
+    const quotedBody = currentEmailData ? `\n\n\n---------- Original Message ----------\nFrom: ${currentEmailData.sender}\nDate: ${currentEmailData.date}\nSubject: ${currentEmailData.subject}\n\n${currentEmailData.body}` : '';
     
     document.getElementById('composeModalTitle').innerHTML = '<i class="fas fa-magic me-2"></i> Reply Message (AI Drafted)';
     document.getElementById('composeToEmail').value = replyTo;
     document.getElementById('composeSubject').value = replySubject;
-    document.getElementById('composeBody').value = draftText + quotedBody;
+    const bodyTextarea = document.getElementById('composeBody');
+    bodyTextarea.value = draftText + quotedBody;
     clearAttachment();
     
     const composeModal = new bootstrap.Modal(document.getElementById('composeModal'));
     composeModal.show();
+
+    setTimeout(() => {
+        bodyTextarea.focus();
+        bodyTextarea.setSelectionRange(0, 0);
+        bodyTextarea.scrollTop = 0;
+    }, 350);
 }
 
 async function trashCurrentEmail() {

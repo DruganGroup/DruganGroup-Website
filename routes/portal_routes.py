@@ -477,6 +477,111 @@ def portal_invoices():
                            brand_color=config.get('color'),
                            invoices=invoices)
 
+@portal_bp.route('/portal/invoice/<int:invoice_id>')
+def portal_view_invoice(invoice_id):
+    if not check_portal_access(): return redirect(get_login_url())
+    
+    client_id = session['portal_client_id']
+    comp_id = session['portal_company_id']
+    
+    conn = get_db(); cur = conn.cursor()
+
+    # 1. Company Settings
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    
+    config = {
+        'name': settings.get('company_name', 'Our Company'),
+        'email': settings.get('company_email', ''),
+        'phone': settings.get('company_phone', ''),
+        'address': settings.get('company_address', ''),
+        'logo': settings.get('logo', ''),
+        'color': settings.get('brand_color', '#333333'),
+        'currency': settings.get('currency_symbol', '£')
+    }
+
+    # 2. Fetch Invoice Header + Job / Quote details
+    cur.execute("""
+        SELECT i.id, i.reference, i.date, i.due_date, i.total, i.status,
+               COALESCE(q.job_title, j.description, 'Invoice') as job_title,
+               COALESCE(q.job_description, j.description, '') as job_desc,
+               COALESCE(p.address_line1, ''), COALESCE(p.postcode, '')
+        FROM invoices i
+        LEFT JOIN jobs j ON i.job_id = j.id
+        LEFT JOIN quotes q ON i.quote_id = q.id
+        LEFT JOIN properties p ON (j.property_id = p.id OR q.property_id = p.id)
+        WHERE i.id = %s AND i.client_id = %s AND i.company_id = %s
+    """, (invoice_id, client_id, comp_id))
+    inv_row = cur.fetchone()
+    
+    if not inv_row:
+        return "Invoice not found or access denied", 404
+
+    # 3. Line Items
+    cur.execute("""
+        SELECT description, quantity, unit_price, total
+        FROM invoice_items
+        WHERE invoice_id = %s ORDER BY id ASC
+    """, (invoice_id,))
+    items_raw = cur.fetchall()
+    items = []
+    
+    tax_rate = float(settings.get('tax_rate', 0.20))
+    grand_total = float(inv_row[4] or 0)
+    
+    if items_raw:
+        for r in items_raw:
+            items.append({
+                'desc': r[0],
+                'qty': r[1],
+                'price': float(r[2] or 0),
+                'total': float(r[3] or 0)
+            })
+        divisor = 1 + tax_rate
+        subtotal = grand_total / divisor
+        tax_amount = grand_total - subtotal
+    else:
+        divisor = 1 + tax_rate
+        subtotal = grand_total / divisor
+        tax_amount = grand_total - subtotal
+        items.append({
+            'desc': inv_row[6] or 'Standard Invoiced Services',
+            'qty': 1,
+            'price': subtotal,
+            'total': subtotal
+        })
+
+    site_addr = f"{inv_row[8]}, {inv_row[9]}" if inv_row[8] else ""
+
+    invoice = {
+        'id': inv_row[0],
+        'ref': inv_row[1],
+        'date': format_date_by_country(inv_row[2], comp_id),
+        'due_date': format_date_by_country(inv_row[3], comp_id),
+        'status': inv_row[5],
+        'title': inv_row[6] or "Invoice",
+        'desc': inv_row[7] or "",
+        'site_address': site_addr,
+        'subtotal': subtotal,
+        'tax_rate_percent': int(tax_rate * 100),
+        'tax_amount': tax_amount,
+        'grand_total': grand_total
+    }
+
+    return render_template('portal/portal_invoice_view.html',
+                           client_name=session.get('portal_client_name'),
+                           company_name=config['name'],
+                           logo_url=config['logo'],
+                           brand_color=config['color'],
+                           config=config,
+                           invoice=invoice,
+                           items=items)
+
+@portal_bp.route('/portal/invoice/<int:invoice_id>/download')
+def portal_download_invoice(invoice_id):
+    if not check_portal_access(): return redirect(get_login_url())
+    return redirect(f"/finance/invoice/{invoice_id}/download")
+
 @portal_bp.route('/portal/quotes')
 def portal_quotes():
     if not check_portal_access(): return redirect(get_login_url())
