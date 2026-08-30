@@ -9,21 +9,23 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --brand-color: {{ brand_color or '#0d6efd' }};
+            --brand-color: {{ brand_color or '#c5a059' }};
             --brand-bg: #f8fafc;
             --card-border: #e2e8f0;
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { background-color: var(--brand-bg); font-family: 'Inter', sans-serif; color: #1e293b; padding-bottom: 95px; margin: 0; min-height: 100vh; }
-        .site-topbar { background: #fff; border-bottom: 1px solid var(--card-border); padding: 12px 16px; position: sticky; top: 0; z-index: 1030; display: flex; align-items: center; justify-content: space-between; }
+        .site-topbar { background: #fff; border-bottom: 1.5px solid var(--card-border); padding: 12px 16px; position: sticky; top: 0; z-index: 1030; display: flex; align-items: center; justify-content: space-between; }
         .site-logo-badge { max-height: 32px; max-width: 120px; object-fit: contain; }
-        .card-site { background: #fff; border: 1px solid var(--card-border); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+        .card-site { background: #fff; border: 1.5px solid var(--card-border); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
         .btn-site-brand { background: var(--brand-color); color: #fff !important; border: none; font-weight: 700; border-radius: 12px; padding: 14px 20px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
         .btn-site-outline { background: #fff; border: 1.5px solid var(--card-border); color: #0f172a; font-weight: 600; border-radius: 12px; padding: 12px 18px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
-        .site-bottom-nav { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); width: calc(100% - 24px); max-width: 500px; background: rgba(255,255,255,0.95); backdrop-filter: blur(16px); border: 1px solid rgba(226,232,240,0.8); border-radius: 20px; padding: 8px 12px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.12); z-index: 1040; }
+        .site-bottom-nav { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); width: calc(100% - 24px); max-width: 500px; background: rgba(255,255,255,0.95); backdrop-filter: blur(16px); border: 1.5px solid var(--card-border); border-radius: 20px; padding: 8px 12px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.12); z-index: 1040; }
         .site-nav-item { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: #64748b; font-size: 0.72rem; font-weight: 600; gap: 3px; padding: 6px 14px; border-radius: 12px; }
-        .site-nav-item.active { color: var(--brand-color); background: rgba(13,110,253,0.08); font-weight: 700; }
+        .site-nav-item.active { color: var(--brand-color); background: rgba(0,0,0,0.05); font-weight: 700; border-bottom: 2px solid var(--brand-color); }
         .site-nav-item i { font-size: 1.15rem; }
+        .form-control, .form-select { border-radius: 12px; border: 1.5px solid var(--card-border); padding: 12px 14px; }
+        .form-control:focus, .form-select:focus { border-color: var(--brand-color); box-shadow: 0 0 0 3px rgba(0,0,0,0.08); }
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -37,6 +39,11 @@
         </div>
         <div class="d-flex align-items-center gap-2">
             <span class="badge bg-light text-dark border px-2 py-1"><i class="fas fa-hard-hat me-1 text-warning"></i> Field</span>
+            {% if current_user_photo %}
+                <img src="{{ current_user_photo if current_user_photo.startswith(('/static/', 'http')) else ('/static/' ~ current_user_photo.lstrip('/')) }}" class="rounded-circle shadow-sm" style="width: 32px; height: 32px; object-fit: cover; border: 2px solid var(--brand-color);" alt="Profile">
+            {% elif current_staff_name %}
+                <div class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; font-size: 0.85rem; background-color: var(--brand-color);" title="{{ current_staff_name }}">{{ current_staff_name[0] }}</div>
+            {% endif %}
             <a href="/logout" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1 fw-semibold" title="Sign Out">
                 <i class="fas fa-sign-out-alt me-1"></i> Sign Out
             </a>

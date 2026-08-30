@@ -337,6 +337,28 @@ def inject_sidebar_alerts():
         return dict(pending_tickets_count=pending_tickets, unread_emails_count=unread_emails)
     except Exception:
         return dict(pending_tickets_count=0, unread_emails_count=0)
+
+@app.context_processor
+def inject_user_profile():
+    user_id = session.get('user_id')
+    comp_id = session.get('company_id')
+    if not user_id or not comp_id:
+        return dict(current_user_photo=None, current_staff_name=None)
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT s.profile_photo, s.name 
+            FROM users u 
+            JOIN staff s ON LOWER(u.email) = LOWER(s.email) AND u.company_id = s.company_id 
+            WHERE u.id = %s
+        """, (user_id,))
+        row = cur.fetchone()
+        if row:
+            return dict(current_user_photo=row[0], current_staff_name=row[1])
+        return dict(current_user_photo=None, current_staff_name=None)
+    except Exception:
+        return dict(current_user_photo=None, current_staff_name=None)
     
 @app.route('/uploads/<path:filename>')
 def serve_uploads(filename):

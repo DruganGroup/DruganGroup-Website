@@ -55,12 +55,22 @@
 </style>
 
 <div class="hero-card">
-    <div class="d-flex justify-content-between align-items-start mb-3">
-        <div>
-            <div class="badge bg-white bg-opacity-20 text-white rounded-pill px-3 py-1 small fw-semibold mb-2">
-                <i class="fas fa-calendar-day me-1"></i> {{ now_ymd }}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex align-items-center gap-3">
+            {% set profile_img = (my_profile.profile_pic if my_profile and my_profile.profile_pic else current_user_photo) %}
+            {% if profile_img %}
+                <img src="{{ profile_img if profile_img.startswith(('/static/', 'http')) else ('/static/' ~ profile_img.lstrip('/')) }}" class="rounded-circle border border-2 border-white shadow" style="width: 52px; height: 52px; object-fit: cover;" alt="Avatar">
+            {% else %}
+                <div class="rounded-circle bg-white bg-opacity-20 text-white fw-bold d-flex align-items-center justify-content-center border border-2 border-white shadow" style="width: 52px; height: 52px; font-size: 1.35rem;">
+                    {{ staff_name[0] if staff_name else 'E' }}
+                </div>
+            {% endif %}
+            <div>
+                <div class="badge bg-white bg-opacity-20 text-white rounded-pill px-3 py-1 small fw-semibold mb-1">
+                    <i class="fas fa-calendar-day me-1"></i> {{ now_ymd }}
+                </div>
+                <h3 class="fw-bold m-0 text-white">Hello, {{ staff_name.split(' ')[0] if staff_name else 'Engineer' }}</h3>
             </div>
-            <h3 class="fw-bold m-0 text-white">Hello, {{ staff_name.split(' ')[0] if staff_name else 'Engineer' }}</h3>
         </div>
         <div class="badge {{ 'bg-success' if is_at_work or active_job else 'bg-secondary' }} px-3 py-2 rounded-pill d-flex align-items-center gap-2 shadow-sm">
             <span class="pulse-status-dot" style="background: {{ '#10b981' if is_at_work or active_job else '#cbd5e1' }};"></span>

@@ -110,10 +110,10 @@
 <div class="row g-2 mb-3">
     {% if job.tenant_name or job.tenant_phone %}
     <div class="col-12">
-        <div class="card-site p-3 border-start border-4 border-primary">
+        <div class="card-site p-3" style="border-left: 4px solid var(--brand-color) !important;">
             <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="small fw-bold text-primary text-uppercase"><i class="fas fa-user me-1"></i> On-Site Resident / Tenant</span>
-                <span class="badge bg-primary bg-opacity-10 text-primary small">Primary Contact</span>
+                <span class="small fw-bold text-uppercase" style="color: var(--brand-color);"><i class="fas fa-user me-1"></i> On-Site Resident / Tenant</span>
+                <span class="badge bg-light text-dark border small">Primary Contact</span>
             </div>
             <div class="d-flex justify-content-between align-items-center mt-2">
                 <div>
@@ -131,7 +131,7 @@
     {% endif %}
 
     <div class="col-12">
-        <div class="card-site p-3 border-start border-4 border-secondary">
+        <div class="card-site p-3" style="border-left: 4px solid #64748b !important;">
             <div class="d-flex justify-content-between align-items-center mb-1">
                 <span class="small fw-bold text-muted text-uppercase"><i class="fas fa-user-tie me-1"></i> Account Owner / Client</span>
             </div>
@@ -152,14 +152,14 @@
 
 <!-- WORK ORDER DESCRIPTION -->
 <div class="card-site p-3 mb-3">
-    <h6 class="fw-bold text-uppercase text-muted small mb-2"><i class="fas fa-clipboard-list me-1 text-primary"></i> Work Order Scope</h6>
+    <h6 class="fw-bold text-uppercase text-muted small mb-2"><i class="fas fa-clipboard-list me-1" style="color: var(--brand-color);"></i> Work Order Scope</h6>
     <div class="p-3 bg-light rounded-3 text-dark small leading-relaxed">{{ job.description }}</div>
 </div>
 
 <!-- COMPLIANCE & SAFETY SIGN-OFF (RAMS, CP12, EICR) -->
 <div class="card-site p-3 mb-3">
     <h6 class="fw-bold text-uppercase text-muted small mb-3">
-        <i class="fas fa-file-contract me-1 text-primary"></i> Safety & Compliance Documents
+        <i class="fas fa-file-contract me-1" style="color: var(--brand-color);"></i> Safety & Compliance Documents
     </h6>
     
     <div class="d-flex flex-column gap-2">

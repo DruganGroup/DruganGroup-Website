@@ -185,10 +185,12 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+
     <!-- MOBILE CARDS LIST -->
-    <div class="d-md-none p-3 pt-0">
+    <div class="d-md-none p-3 pt-3">
         {% for inv in invoices %}
-        <div class="card card-modern p-3 mb-2 border">
+        <div class="card card-modern p-3 mb-2 border shadow-sm rounded-3">
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <div>
                     <span class="badge bg-light text-dark font-monospace border mb-1">{{ inv.ref }}</span>
