@@ -78,7 +78,9 @@ def get_site_config(comp_id):
         "color": "#c5a059", 
         "logo": "/static/images/logo.png",
         "name": "Our Company",
-        "email": ""
+        "email": "",
+        "phone": "",
+        "website": ""
     }
 
     if not comp_id:
@@ -107,7 +109,9 @@ def get_site_config(comp_id):
             "color": settings_dict.get('brand_color') or "#c5a059",
             "logo": settings_dict.get('logo', '/static/images/logo.png'),
             "name": company_name,
-            "email": settings_dict.get('company_email', '')
+            "email": settings_dict.get('company_email', ''),
+            "phone": settings_dict.get('company_phone', ''),
+            "website": settings_dict.get('company_website', '')
         }
     except Exception as e:
         print(f"Config Error: {e}")

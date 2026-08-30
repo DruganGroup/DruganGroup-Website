@@ -279,6 +279,8 @@ def inject_branding():
             logo = config.get('logo') or default_logo
             name = config.get('name') or session.get('company_name') or 'My Company'
             email = config.get('email') or ''
+            phone = config.get('phone') or ''
+            website = config.get('website') or ''
 
             # Keep session in sync
             if 'company_id' in session:
@@ -291,7 +293,9 @@ def inject_branding():
                 logo=logo,
                 logo_url=logo,
                 company_name=name,
-                company_email=email
+                company_email=email,
+                company_phone=phone,
+                company_website=website
             )
         except:
             pass
@@ -305,13 +309,15 @@ def inject_branding():
                 logo=config.get('logo') or default_logo,
                 logo_url=config.get('logo') or default_logo,
                 company_name=g.tenant_name, # Pass name for "Login to [Company]" text
-                company_email=config.get('email') or ''
+                company_email=config.get('email') or '',
+                company_phone=config.get('phone') or '',
+                company_website=config.get('website') or ''
             )
         except:
             pass
 
     # 3. FALLBACK (Main Marketing Site)
-    return dict(brand_color=default_color, logo=default_logo, logo_url=default_logo, company_name='Business Better', company_email='')
+    return dict(brand_color=default_color, logo=default_logo, logo_url=default_logo, company_name='Business Better', company_email='', company_phone='', company_website='')
 
 @app.context_processor
 def inject_sidebar_alerts():
