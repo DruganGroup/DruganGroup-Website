@@ -69,6 +69,30 @@ def get_effective_vehicle_gang_cost(cur, comp_id, vehicle_id=None, engineer_id=N
         return v_row[0], v_row[1] or "Company Van", gang_cost
 
     return None, "No Vehicle", 0.0
+def get_effective_vehicle_running_cost(cur, comp_id, vehicle_id=None, engineer_id=None):
+    """
+    Finds the active vehicle and returns (vehicle_id, vehicle_reg, daily_base_running_cost).
+    Does NOT include driver or crew wages (used when labour is already billed via timesheets).
+    """
+    if vehicle_id:
+        cur.execute("SELECT id, reg_plate, daily_cost FROM vehicles WHERE id = %s AND company_id = %s", (vehicle_id, comp_id))
+        v_row = cur.fetchone()
+        if v_row:
+            return v_row[0], v_row[1] or "Fleet Vehicle", float(v_row[2] or 0)
+
+    if engineer_id:
+        cur.execute("SELECT id, reg_plate, daily_cost FROM vehicles WHERE assigned_driver_id = %s AND company_id = %s LIMIT 1", (engineer_id, comp_id))
+        v_row = cur.fetchone()
+        if v_row:
+            return v_row[0], v_row[1] or "Assigned Vehicle", float(v_row[2] or 0)
+
+    cur.execute("SELECT id, reg_plate, daily_cost FROM vehicles WHERE company_id = %s AND status = 'Active' LIMIT 1", (comp_id,))
+    v_row = cur.fetchone()
+    if v_row:
+        return v_row[0], v_row[1] or "Company Van", float(v_row[2] or 0)
+
+    return None, "No Vehicle", 0.0
+
 def calculate_service_request_estimate(cur, comp_id, issue_desc="", property_id=None, cert_type=None):
     """
     Calculates a cross-referenced estimated budget and price based on:

@@ -125,11 +125,12 @@ def download_invoice_pdf(invoice_id):
 
     # 1. Fetch Invoice + Linked Data
     cur.execute("""
-        SELECT i.id, i.reference, i.date_created, i.due_date, 
+        SELECT i.id, i.reference, COALESCE(i.date, i.date_created), i.due_date, 
                c.name, c.billing_address, c.email, i.total, i.status,
                COALESCE(q.job_title, j.description, 'Invoice') as job_title,
                COALESCE(q.job_description, j.description, '') as job_desc,
-               j.property_id, q.property_id
+               j.property_id, q.property_id,
+               i.subtotal, i.tax
         FROM invoices i 
         JOIN clients c ON i.client_id = c.id
         LEFT JOIN jobs j ON i.job_id = j.id
@@ -186,10 +187,23 @@ def download_invoice_pdf(invoice_id):
     # --------------------------------
 
     total_val = float(inv[7] or 0)
-    user_rate = get_tax_rate(settings)
-    divisor = 1 + (user_rate / 100)
-    subtotal_val = total_val / divisor
-    tax_val = total_val - subtotal_val
+    stored_subtotal = float(inv[13]) if (len(inv) > 13 and inv[13] is not None) else None
+    stored_tax = float(inv[14]) if (len(inv) > 14 and inv[14] is not None) else None
+    
+    vat_enabled = settings.get('vat_registered') in ['yes', 'on', 'true', '1']
+    user_rate = get_tax_rate(settings) if vat_enabled else 0.0
+    
+    if stored_subtotal is not None and stored_tax is not None:
+        subtotal_val = stored_subtotal
+        tax_val = stored_tax
+    elif not vat_enabled:
+        subtotal_val = total_val
+        tax_val = 0.0
+    else:
+        divisor = 1 + (user_rate / 100) if user_rate > 0 else 1.0
+        subtotal_val = total_val / divisor
+        tax_val = total_val - subtotal_val
+        
     country = settings.get('country_code', 'UK')
     ref_display = inv[1] if inv[1] else "DRAFT"
 
@@ -210,7 +224,7 @@ def download_invoice_pdf(invoice_id):
             'subtotal': subtotal_val,
             'tax': tax_val,
             'total': total_val,
-            'tax_rate_display': user_rate,
+            'tax_rate_display': user_rate if (vat_enabled and tax_val > 0) else 0.0,
             'status': inv[8],
             'currency_symbol': settings.get('currency_symbol', '£'),
             'job_title': inv[9],

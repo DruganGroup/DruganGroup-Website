@@ -448,17 +448,24 @@ def generate_pdf(template_name, context, output_filename):
     # --- TOTALS ---
     subtotal = sum(Decimal(str(item.get('total', 0))) for item in items)
     
-    vat_enabled = settings.get('vat_registered') == 'yes'
-    tax_rate = Decimal('0.20') if vat_enabled else Decimal('0.00')
-    tax_amount = subtotal * tax_rate
-    grand_total = subtotal + tax_amount
+    vat_enabled = settings.get('vat_registered') in ['yes', 'on', 'true', '1']
+    if 'tax' in invoice and invoice.get('tax') is not None and vat_enabled:
+        tax_amount = Decimal(str(invoice.get('tax', 0)))
+        grand_total = Decimal(str(invoice.get('total', subtotal + tax_amount)))
+    elif vat_enabled:
+        default_rate = Decimal(str(settings.get('default_tax_rate') or 20)) / Decimal('100')
+        tax_amount = round(subtotal * default_rate, 2)
+        grand_total = subtotal + tax_amount
+    else:
+        tax_amount = Decimal('0.00')
+        grand_total = subtotal
 
     pdf.ln(5)
     pdf.set_draw_color(*pdf.brand_color)
     pdf.line(135, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(2)
 
-    if vat_enabled:
+    if vat_enabled and tax_amount > 0:
         pdf.set_font('Helvetica', '', 10)
         pdf.cell(155, 6, "Subtotal:", 0, 0, 'R')
         pdf.cell(35, 6, f"{cur_sym}{subtotal:.2f}  ", 0, 1, 'R')

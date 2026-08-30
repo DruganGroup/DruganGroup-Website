@@ -431,14 +431,13 @@ def update_job(job_id):
             # 3. GET FINANCIAL SETTINGS (From DB)
             cur.execute("""
                 SELECT key, value FROM settings 
-                WHERE company_id = %s 
-                AND key IN ('labour_markup_percent', 'material_markup_percent', 'vat_registered', 'country_code')
+                WHERE company_id = %s
             """, (comp_id,))
             settings = {row[0]: row[1] for row in cur.fetchall()}
             
             # Calculate Multipliers (Default to 0 if not set in DB)
-            labour_markup = float(settings.get('labour_markup_percent', 0)) / 100
-            material_markup = float(settings.get('material_markup_percent', 0)) / 100
+            labour_markup = float(settings.get('labour_markup_percent', 0) or 0) / 100
+            material_markup = float(settings.get('material_markup_percent', 0) or 0) / 100
 
             # 4. CALCULATE LABOUR (Real Data)
             # Fetch actual hours from timesheets for this job (Bill both Approved and Pending)
@@ -492,17 +491,17 @@ def update_job(job_id):
                     VALUES (%s, %s, %s, %s, %s)
                 """, (inv_id, f"Material: {mat[0]}", qty, sell_price, line_total))
 
-            # 5b. CALCULATE VEHICLE & GANG CHARGE
+            # 5b. CALCULATE VEHICLE RUNNING CHARGE (Base Running Cost Only)
             cur.execute("SELECT vehicle_id, engineer_id FROM jobs WHERE id = %s", (job_id,))
             j_v_row = cur.fetchone()
             if j_v_row:
                 j_veh, j_eng = j_v_row
-                from services.pricing_engine import get_effective_vehicle_gang_cost
-                _, van_reg_name, daily_gang_cost = get_effective_vehicle_gang_cost(cur, comp_id, vehicle_id=j_veh, engineer_id=j_eng)
+                from services.pricing_engine import get_effective_vehicle_running_cost
+                _, van_reg_name, daily_running_cost = get_effective_vehicle_running_cost(cur, comp_id, vehicle_id=j_veh, engineer_id=j_eng)
                 cur.execute("SELECT COUNT(DISTINCT date) FROM staff_timesheets WHERE job_id = %s", (job_id,))
                 days_cnt = cur.fetchone()[0] or 1
-                if daily_gang_cost > 0:
-                    van_sell_daily = round(daily_gang_cost * (1.0 + labour_markup), 2)
+                if daily_running_cost > 0:
+                    van_sell_daily = round(daily_running_cost, 2)
                     van_tot = round(days_cnt * van_sell_daily, 2)
                     cur.execute("""
                         INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)

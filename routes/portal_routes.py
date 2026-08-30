@@ -505,7 +505,8 @@ def portal_view_invoice(invoice_id):
         SELECT i.id, i.reference, i.date, i.due_date, i.total, i.status,
                COALESCE(q.job_title, j.description, 'Invoice') as job_title,
                COALESCE(q.job_description, j.description, '') as job_desc,
-               COALESCE(p.address_line1, ''), COALESCE(p.postcode, '')
+               COALESCE(p.address_line1, ''), COALESCE(p.postcode, ''),
+               i.subtotal, i.tax
         FROM invoices i
         LEFT JOIN jobs j ON i.job_id = j.id
         LEFT JOIN quotes q ON i.quote_id = q.id
@@ -525,31 +526,45 @@ def portal_view_invoice(invoice_id):
     """, (invoice_id,))
     items_raw = cur.fetchall()
     items = []
+    items_total_sum = 0.0
     
-    tax_rate = float(settings.get('tax_rate', 0.20))
-    grand_total = float(inv_row[4] or 0)
+    for r in items_raw:
+        line_tot = float(r[3] or 0)
+        items_total_sum += line_tot
+        items.append({
+            'desc': r[0],
+            'qty': r[1],
+            'price': float(r[2] or 0),
+            'total': line_tot
+        })
+        
+    from services.tax_engine import TaxEngine
+    comp_tax_rate = TaxEngine.get_tax_rate(settings)
     
-    if items_raw:
-        for r in items_raw:
-            items.append({
-                'desc': r[0],
-                'qty': r[1],
-                'price': float(r[2] or 0),
-                'total': float(r[3] or 0)
-            })
-        divisor = 1 + tax_rate
+    stored_subtotal = float(inv_row[10]) if inv_row[10] is not None else None
+    stored_tax = float(inv_row[11]) if inv_row[11] is not None else None
+    grand_total = float(inv_row[4] or 0.0)
+    
+    if stored_subtotal is not None and stored_tax is not None:
+        subtotal = stored_subtotal
+        tax_amount = stored_tax
+    elif comp_tax_rate > 0:
+        divisor = 1 + comp_tax_rate
         subtotal = grand_total / divisor
         tax_amount = grand_total - subtotal
     else:
-        divisor = 1 + tax_rate
-        subtotal = grand_total / divisor
-        tax_amount = grand_total - subtotal
+        subtotal = grand_total if grand_total > 0 else items_total_sum
+        tax_amount = 0.0
+
+    if not items:
         items.append({
             'desc': inv_row[6] or 'Standard Invoiced Services',
             'qty': 1,
             'price': subtotal,
             'total': subtotal
         })
+
+    tax_rate_percent = int(round((tax_amount / subtotal) * 100)) if (subtotal > 0 and tax_amount > 0) else 0
 
     site_addr = f"{inv_row[8]}, {inv_row[9]}" if inv_row[8] else ""
 
@@ -563,7 +578,7 @@ def portal_view_invoice(invoice_id):
         'desc': inv_row[7] or "",
         'site_address': site_addr,
         'subtotal': subtotal,
-        'tax_rate_percent': int(tax_rate * 100),
+        'tax_rate_percent': tax_rate_percent,
         'tax_amount': tax_amount,
         'grand_total': grand_total
     }

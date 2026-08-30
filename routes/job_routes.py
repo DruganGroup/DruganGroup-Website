@@ -383,9 +383,10 @@ def generate_invoice_from_job(job_id):
 
     cur.execute("SELECT COUNT(DISTINCT date) FROM staff_timesheets WHERE job_id = %s", (job_id,))
     days_cnt = cur.fetchone()[0] or 1
-    _, van_reg_name, daily_gang_cost = get_effective_vehicle_gang_cost(cur, comp_id, vehicle_id=veh_id, engineer_id=eng_id)
-    if daily_gang_cost > 0:
-        van_sell_daily = round(daily_gang_cost * labour_mult, 2)
+    from services.pricing_engine import get_effective_vehicle_running_cost
+    _, van_reg_name, daily_running_cost = get_effective_vehicle_running_cost(cur, comp_id, vehicle_id=veh_id, engineer_id=eng_id)
+    if daily_running_cost > 0:
+        van_sell_daily = round(daily_running_cost, 2)
         van_tot = round(days_cnt * van_sell_daily, 2)
         cur.execute("""
             INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
