@@ -107,15 +107,21 @@
             <i class="fas fa-home me-3"></i> {{ _('Dashboard') }}
         </a>
 
-        <a href="/office/service-desk" class="{% if 'service-desk' in request.path %}active{% endif %}">
-            <i class="fas fa-headset me-3"></i> Desk & Compliance
+        <a href="/office/service-desk" class="{% if 'service-desk' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
+            <div><i class="fas fa-headset me-3"></i> Desk & Compliance</div>
+            <span id="sidebarTicketsBadge" class="badge bg-danger rounded-pill shadow-sm" style="{% if not pending_tickets_count or pending_tickets_count == 0 %}display:none;{% endif %}">
+                {{ pending_tickets_count or 0 }}
+            </span>
         </a>
            
         <a href="/office/calendar" class="{% if 'calendar' in request.path %}active{% endif %}">
             <i class="fas fa-calendar-alt me-3"></i> Master Calendar
         </a>
-        <a href="/office/inbox" class="{% if 'inbox' in request.path %}active{% endif %}">
-            <i class="fas fa-envelope-open-text me-3"></i> Communications
+        <a href="/office/inbox" class="{% if 'inbox' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
+            <div><i class="fas fa-envelope-open-text me-3"></i> Communications</div>
+            <span id="sidebarEmailsBadge" class="badge bg-warning text-dark rounded-pill shadow-sm" style="{% if not unread_emails_count or unread_emails_count == 0 %}display:none;{% endif %}">
+                {{ unread_emails_count or 0 }}
+            </span>
         </a>
         <a href="/clients" class="{% if 'client' in request.path %}active{% endif %}">
             <i class="fas fa-address-book me-3"></i> {{ _('Clients') }}
@@ -159,6 +165,37 @@
     {% include "components/quick_add.html" ignore missing %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Auto-sync sidebar alert badges every 30 seconds
+        function updateSidebarAlerts() {
+            fetch('/office/api/sidebar-alerts')
+                .then(res => res.json())
+                .then(data => {
+                    const ticketBadge = document.getElementById('sidebarTicketsBadge');
+                    const emailBadge = document.getElementById('sidebarEmailsBadge');
+                    
+                    if (ticketBadge) {
+                        if (data.pending_tickets > 0) {
+                            ticketBadge.innerText = data.pending_tickets;
+                            ticketBadge.style.display = 'inline-block';
+                        } else {
+                            ticketBadge.style.display = 'none';
+                        }
+                    }
+                    
+                    if (emailBadge) {
+                        if (data.unread_emails > 0) {
+                            emailBadge.innerText = data.unread_emails;
+                            emailBadge.style.display = 'inline-block';
+                        } else {
+                            emailBadge.style.display = 'none';
+                        }
+                    }
+                })
+                .catch(err => console.debug('Sidebar alert sync:', err));
+        }
+        setInterval(updateSidebarAlerts, 30000);
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

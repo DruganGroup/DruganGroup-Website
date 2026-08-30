@@ -96,14 +96,14 @@ def task_status(task_id):
 @pdf_bp.route('/finance/invoice/<int:invoice_id>/download')
 def download_invoice_pdf(invoice_id):
     is_staff = session.get('role') in ['Admin', 'SuperAdmin', 'Finance', 'Office']
-    portal_client_id = session.get('portal_client_id')
-    portal_comp_id = session.get('portal_company_id')
+    portal_client_id = int(session.get('portal_client_id')) if session.get('portal_client_id') else None
+    portal_comp_id = int(session.get('portal_company_id')) if session.get('portal_company_id') else None
 
     if not is_staff and not (portal_client_id and portal_comp_id):
         return redirect(url_for('auth.login'))
         
     conn = get_db(); cur = conn.cursor()
-    comp_id = session.get('company_id') if is_staff else portal_comp_id
+    comp_id = int(session.get('company_id')) if is_staff else portal_comp_id
     
     # ✅ SECURITY FIX: Verify invoice belongs to user's company / client
     if not comp_id:
@@ -113,13 +113,13 @@ def download_invoice_pdf(invoice_id):
     if is_staff:
         cur.execute("SELECT company_id FROM invoices WHERE id = %s", (invoice_id,))
         invoice_row = cur.fetchone()
-        if not invoice_row or invoice_row[0] != comp_id:
+        if not invoice_row or int(invoice_row[0]) != comp_id:
             cur.close(); pass
             return "Unauthorized: Invoice not found or belongs to different company", 403
     else:
         cur.execute("SELECT company_id, client_id FROM invoices WHERE id = %s", (invoice_id,))
         invoice_row = cur.fetchone()
-        if not invoice_row or invoice_row[0] != comp_id or invoice_row[1] != portal_client_id:
+        if not invoice_row or int(invoice_row[0]) != comp_id or int(invoice_row[1]) != portal_client_id:
             cur.close(); pass
             return "Unauthorized: Invoice not found or access denied", 403
 
@@ -256,23 +256,38 @@ def download_invoice_pdf(invoice_id):
 
 @pdf_bp.route('/office/quote/<int:quote_id>/download')
 def download_quote_pdf(quote_id):
-    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance', 'Office']:
+    is_staff = session.get('role') in ['Admin', 'SuperAdmin', 'Finance', 'Office']
+    portal_client_id = int(session.get('portal_client_id')) if session.get('portal_client_id') else None
+    portal_comp_id = int(session.get('portal_company_id')) if session.get('portal_company_id') else None
+
+    if not is_staff and not (portal_client_id and portal_comp_id):
         return redirect(url_for('auth.login'))
         
     conn = get_db(); cur = conn.cursor()
-    comp_id = session.get('company_id')
+    comp_id = int(session.get('company_id')) if is_staff else portal_comp_id
 
-    cur.execute("""
-        SELECT q.id, q.reference, q.date, q.expiry_date, 
-               c.name, c.billing_address, c.email, q.total, q.status,
-               q.job_title, q.job_description, q.property_id
-        FROM quotes q 
-        JOIN clients c ON q.client_id = c.id 
-        WHERE q.id = %s AND q.company_id = %s
-    """, (quote_id, comp_id))
-    quote = cur.fetchone()
+    if is_staff:
+        cur.execute("""
+            SELECT q.id, q.reference, q.date, q.expiry_date, 
+                   c.name, c.billing_address, c.email, q.total, q.status,
+                   q.job_title, q.job_description, q.property_id
+            FROM quotes q 
+            JOIN clients c ON q.client_id = c.id 
+            WHERE q.id = %s AND q.company_id = %s
+        """, (quote_id, comp_id))
+        quote = cur.fetchone()
+    else:
+        cur.execute("""
+            SELECT q.id, q.reference, q.date, q.expiry_date, 
+                   c.name, c.billing_address, c.email, q.total, q.status,
+                   q.job_title, q.job_description, q.property_id
+            FROM quotes q 
+            JOIN clients c ON q.client_id = c.id 
+            WHERE q.id = %s AND q.company_id = %s AND q.client_id = %s
+        """, (quote_id, comp_id, portal_client_id))
+        quote = cur.fetchone()
     
-    if not quote: pass; return "Quote not found", 404
+    if not quote: pass; return "Quote not found or access denied", 404
 
     # Resolve Addresses
     billing_addr = quote[5]

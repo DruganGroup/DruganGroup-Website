@@ -402,6 +402,28 @@ def generate_invoice_from_job(job_id):
             VALUES (%s, %s, 1, %s, %s)
         """, (inv_id, f"Expense: {e_desc}", e_amt, e_amt))
 
+    # CHECK ACCEPTED QUOTE FLOOR (Preserve Agreed Contract Value & Net Margin)
+    cur.execute("SELECT quote_id, quote_total FROM jobs WHERE id = %s", (job_id,))
+    q_info = cur.fetchone()
+    q_id = q_info[0] if q_info else None
+    quoted_amount = float(q_info[1] or 0.0) if q_info else 0.0
+    
+    if not quoted_amount and q_id:
+        cur.execute("SELECT total FROM quotes WHERE id = %s", (q_id,))
+        q_tot_row = cur.fetchone()
+        if q_tot_row and q_tot_row[0]:
+            quoted_amount = float(q_tot_row[0])
+            
+    cur.execute("SELECT COALESCE(SUM(total), 0) FROM invoice_items WHERE invoice_id = %s", (inv_id,))
+    actual_subtotal = float(cur.fetchone()[0] or 0.0)
+    
+    if quoted_amount > 0 and actual_subtotal < quoted_amount:
+        difference = round(quoted_amount - actual_subtotal, 2)
+        cur.execute("""
+            INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
+            VALUES (%s, %s, 1, %s, %s)
+        """, (inv_id, "Agreed Contract Scope Allowance / Efficiency Margin", difference, difference))
+
     cur.execute("SELECT COALESCE(SUM(total), 0) FROM invoice_items WHERE invoice_id = %s", (inv_id,))
     subtotal = float(cur.fetchone()[0] or 0.0)
 
@@ -618,6 +640,7 @@ def update_job_status(job_id):
     if new_status in valid_statuses:
         conn = get_db(); cur = conn.cursor()
         cur.execute("UPDATE jobs SET status = %s WHERE id = %s AND company_id = %s", (new_status, job_id, comp_id))
+        cur.execute("UPDATE service_requests SET status = %s WHERE id = (SELECT service_request_id FROM jobs WHERE id = %s AND company_id = %s)", (new_status, job_id, comp_id))
         conn.commit()
         flash(f"✅ Job status updated to {new_status}", "success")
     return redirect(f"/office/job/{job_id}/files")
@@ -632,6 +655,7 @@ def api_update_job_status(job_id):
     if new_status in valid_statuses:
         conn = get_db(); cur = conn.cursor()
         cur.execute("UPDATE jobs SET status = %s WHERE id = %s AND company_id = %s", (new_status, job_id, comp_id))
+        cur.execute("UPDATE service_requests SET status = %s WHERE id = (SELECT service_request_id FROM jobs WHERE id = %s AND company_id = %s)", (new_status, job_id, comp_id))
         conn.commit()
         return jsonify({'success': True, 'status': new_status})
     return jsonify({'error': 'Invalid status'}), 400

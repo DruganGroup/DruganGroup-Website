@@ -69,8 +69,8 @@ def portal_auth():
                 flash("❌ Your portal access has been disabled by the administration.")
                 return redirect(url_for('portal.portal_login', company_id=company_id))
                 
-            session['portal_client_id'] = user[0]
-            session['portal_company_id'] = company_id
+            session['portal_client_id'] = int(user[0])
+            session['portal_company_id'] = int(company_id)
             session['portal_client_name'] = user[1]
             return redirect(url_for('portal.portal_home'))
         else:
@@ -178,7 +178,7 @@ def portal_job_view(job_id):
         SELECT filepath, uploaded_at, file_type 
         FROM job_evidence 
         WHERE job_id = %s 
-        AND visible_to_client = TRUE
+        AND (visible_to_client = TRUE OR file_type IN ('Site Photo', 'Completion Photo', 'Progress Photo'))
         ORDER BY uploaded_at DESC
     """, (job_id,))
     
@@ -597,6 +597,11 @@ def portal_download_invoice(invoice_id):
     if not check_portal_access(): return redirect(get_login_url())
     return redirect(f"/finance/invoice/{invoice_id}/download")
 
+@portal_bp.route('/portal/quote/<int:quote_id>/download')
+def portal_download_quote(quote_id):
+    if not check_portal_access(): return redirect(get_login_url())
+    return redirect(f"/office/quote/{quote_id}/download")
+
 @portal_bp.route('/portal/quotes')
 def portal_quotes():
     if not check_portal_access(): return redirect(get_login_url())
@@ -849,14 +854,22 @@ def portal_view_request(request_id):
         pass
         return "Request not found", 404
 
-    # 2. Fetch Completion Report (If job is done)
+    # 2. Fetch Completion Report & Linked Job Status
     cur.execute("""
-        SELECT work_summary, end_date, 
-               (SELECT filepath FROM job_evidence WHERE job_id = j.id AND file_type='Completion Photo' LIMIT 1),
+        SELECT j.work_summary, j.end_date, 
+               (SELECT filepath FROM job_evidence WHERE job_id = j.id AND (file_type='Completion Photo' OR file_type='Site Photo') LIMIT 1),
                (SELECT name FROM staff WHERE id = j.engineer_id)
-        FROM jobs j WHERE service_request_id = %s AND status = 'Completed'
+        FROM jobs j WHERE service_request_id = %s AND j.status = 'Completed'
+        ORDER BY j.id DESC LIMIT 1
     """, (request_id,))
     completion = cur.fetchone()
+
+    cur.execute("""
+        SELECT j.id, j.ref, j.status, j.start_date, (SELECT name FROM staff WHERE id = j.engineer_id) as eng_name
+        FROM jobs j WHERE service_request_id = %s
+        ORDER BY j.id DESC LIMIT 1
+    """, (request_id,))
+    scheduled_job = cur.fetchone()
 
     # 3. Fetch Timeline Updates (The New Feature)
     # Note: Ensure you have run the SQL to create the 'request_updates' table first
@@ -872,13 +885,12 @@ def portal_view_request(request_id):
     except Exception:
         pass # Table might not exist yet, fail gracefully
 
-    pass
-
     return render_template('portal/portal_request_view.html', 
                            req=req, 
                            completion=completion, 
+                           scheduled_job=scheduled_job,
                            updates=updates,
-                           company_name=session.get('portal_company_name', 'Client Portal'))
+                           company_name=session.get('portal_client_name', 'Client Portal'))
 
 @portal_bp.route('/portal/settings', methods=['GET', 'POST'])
 def portal_settings():

@@ -323,6 +323,24 @@ def inject_branding():
 
     # 3. FALLBACK (Main Marketing Site)
     return dict(brand_color=default_color, logo=default_logo, logo_url=default_logo)
+
+@app.context_processor
+def inject_sidebar_alerts():
+    comp_id = session.get('company_id')
+    if not comp_id:
+        return dict(pending_tickets_count=0, unread_emails_count=0)
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id = %s AND status NOT IN ('Completed', 'Cancelled', 'Resolved')", (comp_id,))
+        pending_tickets = cur.fetchone()[0] or 0
+        
+        cur.execute("SELECT COUNT(*) FROM emails WHERE company_id = %s AND folder = 'Inbox' AND status = 'Unread'", (comp_id,))
+        unread_emails = cur.fetchone()[0] or 0
+        
+        return dict(pending_tickets_count=pending_tickets, unread_emails_count=unread_emails)
+    except Exception:
+        return dict(pending_tickets_count=0, unread_emails_count=0)
     
 @app.route('/uploads/<path:filename>')
 def serve_uploads(filename):

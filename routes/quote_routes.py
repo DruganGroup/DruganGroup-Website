@@ -710,6 +710,16 @@ def convert_to_invoice(quote_id):
                                 VALUES (%s, %s, %s, %s, %s)
                             """, (new_inv_id, f"Equipment/Van: {v_reg} {v_make}", days_worked, v_sell_price, v_line_total))
 
+            # If job was quoted and completed cheaper, retain the agreed quote price floor
+            quoted_amount = float(quote[1] or 0.0)
+            if quoted_amount > 0 and subtotal < quoted_amount:
+                difference = round(quoted_amount - subtotal, 2)
+                cur.execute("""
+                    INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
+                    VALUES (%s, %s, 1, %s, %s)
+                """, (new_inv_id, "Agreed Contract Scope Allowance / Efficiency Margin", difference, difference))
+                subtotal = quoted_amount
+
         else:
             # Job not completed (or doesn't exist) - use original Quote items
             cur.execute("SELECT description, quantity, unit_price, total FROM quote_items WHERE quote_id = %s", (quote_id,))

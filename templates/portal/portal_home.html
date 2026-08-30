@@ -92,12 +92,20 @@
                         </thead>
                         <tbody>
                             {% for r in recent_requests %}
-                            <tr>
+                            <tr style="cursor: pointer;" onclick="window.location.href='/portal/request/{{ r[0] }}';">
                                 <td class="ps-4 small text-muted">{{ r[4] }}</td>
                                 <td class="fw-bold">{{ r[1] }}</td>
                                 <td class="text-muted small text-truncate" style="max-width: 150px;">{{ r[2] }}</td>
                                 <td class="text-end pe-4">
-                                    <span class="badge {{ 'bg-success' if r[3] == 'Completed' else 'bg-warning text-dark' }}">{{ r[3] }}</span>
+                                    {% if r[3] in ['Completed', 'Finished', 'Resolved'] %}
+                                        <span class="badge bg-success"><i class="fas fa-check me-1"></i> Finished</span>
+                                    {% elif r[3] == 'In Progress' %}
+                                        <span class="badge bg-primary"><i class="fas fa-tools me-1"></i> In Progress</span>
+                                    {% elif r[3] == 'Scheduled' %}
+                                        <span class="badge bg-info text-dark"><i class="fas fa-calendar-check me-1"></i> Scheduled</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i> Pending</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% else %}

@@ -260,6 +260,7 @@ def toggle_site_time(job_id):
             
             # Update Job Status
             cur.execute("UPDATE jobs SET status = 'In Progress', start_date = CURRENT_TIMESTAMP WHERE id = %s", (job_id,))
+            cur.execute("UPDATE service_requests SET status = 'In Progress' WHERE id = (SELECT service_request_id FROM jobs WHERE id = %s)", (job_id,))
             flash("✅ Job Started.", "success")
 
         elif action == 'stop':
@@ -412,6 +413,7 @@ def update_job(job_id):
                 WHERE id = %s RETURNING client_id
             """, (work_summary, private_notes, signature, job_id))
             client_id = cur.fetchone()[0]
+            cur.execute("UPDATE service_requests SET status = 'Completed' WHERE id = (SELECT service_request_id FROM jobs WHERE id = %s)", (job_id,))
 
             # 2. Create Invoice
             # We put the "Work Summary" in the notes, not as a £0.00 line item
@@ -507,6 +509,29 @@ def update_job(job_id):
                         INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
                         VALUES (%s, %s, %s, %s, %s)
                     """, (inv_id, f"Vehicle & Equipment ({van_reg_name}) - {days_cnt} day(s)", days_cnt, van_sell_daily, van_tot))
+
+            # 5c. CHECK ACCEPTED QUOTE FLOOR (Preserve Agreed Contract Value & Net Margin)
+            cur.execute("SELECT quote_id, quote_total FROM jobs WHERE id = %s", (job_id,))
+            q_info = cur.fetchone()
+            q_id = q_info[0] if q_info else None
+            quoted_amount = float(q_info[1] or 0.0) if q_info else 0.0
+            
+            if not quoted_amount and q_id:
+                cur.execute("SELECT total FROM quotes WHERE id = %s", (q_id,))
+                q_tot_row = cur.fetchone()
+                if q_tot_row and q_tot_row[0]:
+                    quoted_amount = float(q_tot_row[0])
+            
+            cur.execute("SELECT COALESCE(SUM(total), 0) FROM invoice_items WHERE invoice_id = %s", (inv_id,))
+            actual_subtotal = float(cur.fetchone()[0] or 0.0)
+            
+            # If job was quoted and completed faster/cheaper, retain the agreed quote price floor
+            if quoted_amount > 0 and actual_subtotal < quoted_amount:
+                difference = round(quoted_amount - actual_subtotal, 2)
+                cur.execute("""
+                    INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total)
+                    VALUES (%s, %s, 1, %s, %s)
+                """, (inv_id, "Agreed Contract Scope Allowance / Efficiency Margin", difference, difference))
 
             # 6. FINAL TOTALS & TAX
             cur.execute("SELECT SUM(total) FROM invoice_items WHERE invoice_id = %s", (inv_id,))

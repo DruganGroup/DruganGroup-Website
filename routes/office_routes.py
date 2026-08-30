@@ -1471,3 +1471,26 @@ def update_sales_record():
         pass
         
     return redirect(url_for('office.office_sales_dashboard'))
+
+@office_bp.route('/office/api/sidebar-alerts')
+def api_sidebar_alerts():
+    if not check_office_access(): 
+        return jsonify({'pending_tickets': 0, 'unread_emails': 0})
+        
+    comp_id = session.get('company_id')
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id = %s AND status NOT IN ('Completed', 'Cancelled', 'Resolved')", (comp_id,))
+        pending_tickets = cur.fetchone()[0] or 0
+        
+        cur.execute("SELECT COUNT(*) FROM emails WHERE company_id = %s AND folder = 'Inbox' AND status = 'Unread'", (comp_id,))
+        unread_emails = cur.fetchone()[0] or 0
+        
+        return jsonify({
+            'pending_tickets': pending_tickets,
+            'unread_emails': unread_emails
+        })
+    except Exception:
+        return jsonify({'pending_tickets': 0, 'unread_emails': 0})
+    finally:
+        pass

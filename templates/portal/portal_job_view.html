@@ -56,13 +56,14 @@
             </div>
             <div class="list-group list-group-flush">
                 {% for doc in job_docs %}
+                {% set doc_url = doc.path if doc.path.startswith('/') else '/' ~ doc.path %}
                 <div class="list-group-item py-3 d-flex justify-content-between align-items-center bg-light">
                     <div>
                         <span class="badge bg-secondary mb-1">{{ doc.type }}</span>
                         <div class="small fw-bold text-muted">{{ doc.date }}</div>
                     </div>
-                    <a href="/{{ doc.path }}" target="_blank" class="btn btn-sm btn-outline-dark">
-                        <i class="fas fa-download"></i> View
+                    <a href="{{ doc_url }}" target="_blank" class="btn btn-sm btn-outline-dark">
+                        <i class="fas fa-download me-1"></i> View
                     </a>
                 </div>
                 {% endfor %}
@@ -72,19 +73,20 @@
 
         <div class="card shadow-sm border-0 mt-4">
             <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-                <h5 class="m-0 fw-bold"><i class="fas fa-camera me-2 text-brand"></i>Site Gallery</h5>
+                <h5 class="m-0 fw-bold"><i class="fas fa-camera me-2 text-brand"></i>Site Gallery & Progress Photos</h5>
                 <span class="badge bg-light text-dark border">{{ photos|length }} Photos</span>
             </div>
             <div class="card-body p-4">
                 {% if photos %}
                     <div class="row g-3">
                         {% for p in photos %}
+                        {% set photo_url = p.path if p.path.startswith('/') else '/' ~ p.path %}
                         <div class="col-6 col-md-4 col-lg-3">
                             <div class="position-relative border rounded overflow-hidden shadow-sm group-hover-zoom" style="height: 180px;">
-                                <a href="/{{ p[0] }}" target="_blank">
-                                    <img src="/{{ p[0] }}" 
+                                <a href="{{ photo_url }}" target="_blank">
+                                    <img src="{{ photo_url }}" 
                                          class="w-100 h-100 object-fit-cover transition-transform" 
-                                         style="transition: transform 0.3s ease;"
+                                         style="transition: transform 0.3s ease; object-fit: cover;" 
                                          alt="Site Photo"
                                          onmouseover="this.style.transform='scale(1.05)'"
                                          onmouseout="this.style.transform='scale(1)'"
@@ -94,10 +96,10 @@
                                 <div class="position-absolute bottom-0 start-0 w-100 p-2" 
                                      style="background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);">
                                     <small class="text-white d-block text-truncate">
-                                        <i class="fas fa-calendar-alt me-1 opacity-75"></i> {{ p[1] }}
+                                        <i class="fas fa-calendar-alt me-1 opacity-75"></i> {{ p.date }}
                                     </small>
                                     <span class="badge bg-white text-dark mt-1" style="font-size: 0.6rem; opacity: 0.9;">
-                                        {{ p[2] or 'Site Photo' }}
+                                        {{ p.type or 'Site Photo' }}
                                     </span>
                                 </div>
                             </div>
