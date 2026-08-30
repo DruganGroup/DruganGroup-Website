@@ -1,71 +1,85 @@
 {% extends "site/site_base.html" %}
 
-{% block title %}Log Fuel | Site Hub{% endblock %}
+{% block title %}Log Fuel | {{ company_name or 'Site Companion' }}{% endblock %}
+
+{% block back_button %}
+<a href="/site-hub" class="btn btn-sm btn-light border rounded-pill px-2 py-1 text-muted" title="Back to Hub">
+    <i class="fas fa-arrow-left"></i>
+</a>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
-            <span><i class="fas fa-gas-pump me-2"></i> Log Fuel for {{ reg }}</span>
-            <span id="ai-badge" class="badge bg-dark text-warning" style="display:none;">
-                <i class="fas fa-robot me-1"></i> AI Active
-            </span>
+<div class="d-flex align-items-center justify-content-between mb-3 px-1">
+    <div>
+        <h5 class="fw-bold m-0 text-dark">Log Fuel & Energy</h5>
+        <span class="small text-muted">Vehicle refuelling & receipt entry</span>
+    </div>
+    <span class="badge bg-warning text-dark font-monospace fw-bold px-3 py-2 rounded-pill shadow-sm">
+        <i class="fas fa-gas-pump me-1"></i> {{ reg }}
+    </span>
+</div>
+
+<form method="POST" enctype="multipart/form-data" id="fuelForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- RECEIPT CAMERA DROPZONE -->
+    <div class="card-site p-4 text-center mb-3 border-2 border-dashed" style="border-style: dashed; background: #ffffff;">
+        <div class="mb-3">
+            <div class="mx-auto bg-warning bg-opacity-10 text-warning rounded-circle d-flex align-items-center justify-content-center mb-2" style="width: 56px; height: 56px; font-size: 1.5rem;">
+                <i class="fas fa-receipt"></i>
+            </div>
+            <h6 class="fw-bold text-dark m-0">Snap Fuel Receipt</h6>
+            <span class="small text-muted">Upload photo for company bookkeeping & verification</span>
         </div>
-        <div class="card-body">
-            <form method="POST" enctype="multipart/form-data" id="fuelForm">
-                
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                <div class="mb-4 text-center p-4 border rounded bg-light" id="upload-area">
-                    <label class="form-label fw-bold mb-3">📸 Step 1: Snap Receipt</label>
-                    <input type="file" name="receipt" id="receiptInput" class="form-control" accept="image/*" capture="environment" required>
-                    <div id="scan-status" class="mt-2 small text-muted">Upload to auto-fill details</div>
-                    
-                    <div id="loading-spinner" class="mt-3" style="display:none;">
-                        <div class="spinner-border text-warning" role="status"></div>
-                        <p class="small fw-bold mt-1 text-dark">AI Reading Receipt...</p>
-                    </div>
-                </div>
+        <input type="file" name="receipt" id="receiptInput" class="form-control" accept="image/*" capture="environment">
+        
+        <div id="loading-spinner" class="mt-3" style="display:none;">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            <span class="small fw-semibold ms-1 text-muted">Reading Receipt Details...</span>
+        </div>
+        <div id="scan-status" class="mt-2 small text-muted">Receipt photo will attach to maintenance log</div>
+    </div>
 
-                <div class="row">
-                    <div class="col-6">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small">Total Cost (£)</label>
-                            <input type="number" step="0.01" name="total_cost" id="total_cost" class="form-control fw-bold" placeholder="0.00" required>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                         <div class="mb-3">
-                            <label class="form-label fw-bold small">Litres</label>
-                            <input type="number" step="0.01" name="litres" id="litres" class="form-control fw-bold" placeholder="0.00" required>
-                        </div>
-                    </div>
-                </div>
+    <!-- ENTRY FIELDS -->
+    <div class="card-site p-3 mb-4">
+        <div class="row g-2 mb-3">
+            <div class="col-6">
+                <label class="fw-bold small text-muted text-uppercase mb-1">Total Cost ({{ currency_symbol or '£' }})</label>
+                <input type="number" step="0.01" name="total_cost" id="total_cost" class="form-control form-control-lg fw-bold" placeholder="0.00" required>
+            </div>
+            <div class="col-6">
+                <label class="fw-bold small text-muted text-uppercase mb-1">Litres</label>
+                <input type="number" step="0.01" name="litres" id="litres" class="form-control form-control-lg fw-bold" placeholder="0.00" required>
+            </div>
+        </div>
 
-                <div class="mb-3">
-                    <label class="form-label fw-bold small">Fuel Type</label>
-                    <select name="fuel_type" id="fuel_type" class="form-select fw-bold">
-                        <option value="Diesel" selected>Diesel</option>
-                        <option value="Petrol">Petrol / Unleaded</option>
-                        <option value="Premium Diesel">Premium Diesel</option>
-                        <option value="Premium Petrol">Premium Petrol</option>
-                        <option value="AdBlue">AdBlue</option>
-                    </select>
-                </div>
+        <div class="mb-3">
+            <label class="fw-bold small text-muted text-uppercase mb-1">Fuel Type</label>
+            <select name="fuel_type" id="fuel_type" class="form-select form-select-lg fw-semibold">
+                <option value="Diesel" selected>Diesel</option>
+                <option value="Petrol">Petrol / Unleaded</option>
+                <option value="Premium Diesel">Premium Diesel</option>
+                <option value="Premium Petrol">Premium Petrol</option>
+                <option value="AdBlue">AdBlue</option>
+                <option value="EV Charging">EV Fast Charge</option>
+            </select>
+        </div>
 
-                <div class="mb-3">
-                    <label class="form-label fw-bold small">Current Mileage (Odometer)</label>
-                    <input type="number" name="mileage" class="form-control fw-bold" placeholder="e.g. 54000" required>
-                </div>
-
-                <button type="submit" class="btn btn-warning w-100 fw-bold py-3 shadow-sm">
-                    <i class="fas fa-check-circle me-2"></i> Save Log
-                </button>
-                <a href="/site-hub" class="btn btn-outline-secondary w-100 mt-2">Cancel</a>
-            </form>
+        <div>
+            <label class="fw-bold small text-muted text-uppercase mb-1">Current Odometer (Mileage)</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-tachometer-alt"></i></span>
+                <input type="number" name="mileage" class="form-control form-control-lg fw-bold border-start-0" placeholder="e.g. 54300" required>
+            </div>
         </div>
     </div>
-</div>
+
+    <button type="submit" class="btn-site-brand py-3 fs-6 shadow mb-3">
+        <i class="fas fa-check-circle fs-5"></i> Save Fuel Log
+    </button>
+    <a href="/site-hub" class="btn-site-outline py-2 text-decoration-none text-center">Cancel</a>
+</form>
 
 <script>
 document.getElementById('receiptInput').addEventListener('change', function(event) {
@@ -74,7 +88,6 @@ document.getElementById('receiptInput').addEventListener('change', function(even
 
     const status = document.getElementById('scan-status');
     const spinner = document.getElementById('loading-spinner');
-    const badge = document.getElementById('ai-badge');
     
     status.style.display = 'none';
     spinner.style.display = 'block';
@@ -82,38 +95,33 @@ document.getElementById('receiptInput').addEventListener('change', function(even
     const formData = new FormData();
     formData.append('receipt', file);
     
-    // NOTE: This call needs to include the CSRF token in headers if using AJAX, 
-    // but for now the user will just manually verify the data after the "scan" simulation.
     fetch('/site/api/scan-receipt', {
         method: 'POST',
         body: formData,
         headers: {
-            'X-CSRFToken': "{{ csrf_token() }}" // Added security for the API call too
+            'X-CSRFToken': "{{ csrf_token() }}"
         }
     })
     .then(response => response.json())
     .then(result => {
         spinner.style.display = 'none';
-        
         if (result.success && result.data) {
             const data = result.data;
             if (data.total_cost) document.getElementById('total_cost').value = data.total_cost;
             if (data.litres) document.getElementById('litres').value = data.litres;
             if (data.fuel_type) document.getElementById('fuel_type').value = data.fuel_type;
             
-            badge.style.display = 'inline-block';
-            status.innerText = "✅ Data extracted! Verify below.";
+            status.innerText = "✅ Extracted details filled! Please verify values.";
             status.style.display = 'block';
             status.className = "mt-2 small text-success fw-bold";
         } else {
-            status.innerText = "Could not auto-read. Please type details.";
+            status.innerText = "Receipt attached. Verify values above.";
             status.style.display = 'block';
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         spinner.style.display = 'none';
-        status.innerText = "Manual entry required.";
+        status.innerText = "Receipt attached. Please confirm values.";
         status.style.display = 'block';
     });
 });

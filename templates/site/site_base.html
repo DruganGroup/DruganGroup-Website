@@ -2,89 +2,71 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{% block title %}Site Hub{% endblock %}</title>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>{% block title %}Site Companion{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { 
-            background-color: #f4f6f8; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding-bottom: 80px; /* Space for bottom nav if needed */
+        :root {
+            --brand-color: {{ brand_color or '#0d6efd' }};
+            --brand-bg: #f8fafc;
+            --card-border: #e2e8f0;
         }
-        .navbar-brand img { 
-            height: 40px; 
-            object-fit: contain; 
-        }
-        .brand-header {
-            background-color: {{ brand_color or '#333' }};
-            color: white;
-            padding: 15px;
-            border-bottom-left-radius: 15px;
-            border-bottom-right-radius: 15px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        .card {
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        .btn {
-            border-radius: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .alert {
-            border-radius: 10px;
-            border: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--brand-bg); font-family: 'Inter', sans-serif; color: #1e293b; padding-bottom: 95px; margin: 0; min-height: 100vh; }
+        .site-topbar { background: #fff; border-bottom: 1px solid var(--card-border); padding: 12px 16px; position: sticky; top: 0; z-index: 1030; display: flex; align-items: center; justify-content: space-between; }
+        .site-logo-badge { max-height: 32px; max-width: 120px; object-fit: contain; }
+        .card-site { background: #fff; border: 1px solid var(--card-border); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+        .btn-site-brand { background: var(--brand-color); color: #fff !important; border: none; font-weight: 700; border-radius: 12px; padding: 14px 20px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
+        .btn-site-outline { background: #fff; border: 1.5px solid var(--card-border); color: #0f172a; font-weight: 600; border-radius: 12px; padding: 12px 18px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
+        .site-bottom-nav { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); width: calc(100% - 24px); max-width: 500px; background: rgba(255,255,255,0.95); backdrop-filter: blur(16px); border: 1px solid rgba(226,232,240,0.8); border-radius: 20px; padding: 8px 12px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.12); z-index: 1040; }
+        .site-nav-item { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: #64748b; font-size: 0.72rem; font-weight: 600; gap: 3px; padding: 6px 14px; border-radius: 12px; }
+        .site-nav-item.active { color: var(--brand-color); background: rgba(13,110,253,0.08); font-weight: 700; }
+        .site-nav-item i { font-size: 1.15rem; }
     </style>
+    {% block head %}{% endblock %}
 </head>
 <body>
-
-    <div class="brand-header d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center">
-            {% if logo_url %}
-                <img src="{{ logo_url }}" alt="Logo" class="me-2" style="height: 35px; background: white; padding: 2px; border-radius: 4px;">
-            {% else %}
-                <i class="fas fa-tools fa-lg me-2"></i>
-            {% endif %}
-            <span class="fw-bold fs-5">Site Companion</span>
-        </div>
-        
-        <div>
-            <a href="/logout" class="text-white text-decoration-none">
-                <i class="fas fa-sign-out-alt"></i>
+    <header class="site-topbar">
+        <div class="d-flex align-items-center gap-2">
+            {% block back_button %}
+            <a href="/launcher" class="btn btn-sm btn-light border rounded-pill px-2 py-1 text-muted"><i class="fas fa-th-large"></i></a>
+            {% endblock %}
+            <a href="/site-hub" class="text-decoration-none text-dark d-flex align-items-center gap-2">
+                {% if logo_url %}<img src="{{ logo_url }}" alt="Logo" class="site-logo-badge">{% else %}<span class="fw-bold fs-6">{{ company_name or 'Site Companion' }}</span>{% endif %}
             </a>
         </div>
-    </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-dark border px-2 py-1"><i class="fas fa-hard-hat me-1 text-warning"></i> Field</span>
+            <a href="/logout" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" title="Sign Out"><i class="fas fa-sign-out-alt"></i></a>
+        </div>
+    </header>
 
-    <div class="container">
-        
+    <main class="container-fluid px-3 pt-3" style="max-width: 720px;">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
-                        {% if category == 'error' or category == 'warning' %}
-                            <i class="fas fa-exclamation-circle me-2"></i>
-                        {% else %}
-                            <i class="fas fa-check-circle me-2"></i>
-                        {% endif %}
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <div class="alert alert-{{ 'danger' if category in ['error', 'danger'] else ('warning' if category == 'warning' else 'success') }} alert-dismissible fade show border-0 shadow-sm rounded-4 mb-3 d-flex align-items-center justify-content-between p-3" role="alert">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-{{ 'exclamation-circle text-danger' if category in ['error', 'danger'] else ('exclamation-triangle text-warning' if category == 'warning' else 'check-circle text-success') }} fs-5"></i>
+                        <span class="fw-semibold small">{{ message }}</span>
                     </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
-
         {% block content %}{% endblock %}
+    </main>
 
-    </div>
-
+    <nav class="site-bottom-nav">
+        <a href="/site-hub" class="site-nav-item {% if request.endpoint == 'site.site_dashboard' %}active{% endif %}"><i class="fas fa-home"></i><span>Hub</span></a>
+        <a href="/site/van-check" class="site-nav-item {% if 'van' in request.endpoint %}active{% endif %}"><i class="fas fa-truck-pickup"></i><span>Van Check</span></a>
+        <a href="/site/log-fuel" class="site-nav-item {% if 'fuel' in request.endpoint %}active{% endif %}"><i class="fas fa-gas-pump"></i><span>Fuel</span></a>
+        <a href="/launcher" class="site-nav-item"><i class="fas fa-rocket"></i><span>Launcher</span></a>
+    </nav>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
+    {% block scripts %}{% endblock %}
 </body>
 </html>

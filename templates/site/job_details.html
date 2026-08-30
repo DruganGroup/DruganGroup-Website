@@ -1,393 +1,389 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Job #{{ job.ref }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; padding-bottom: 80px; }
-        .header-bar { 
-            background-color: {{ brand_color or '#333' }}; 
-            color: white; 
-            padding: 15px; 
-            border-radius: 0 0 15px 15px; 
-            margin-bottom: 20px; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        .action-btn { border-radius: 12px; padding: 15px; font-weight: bold; font-size: 1.1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; margin-bottom: 10px; }
-        .evidence-img { width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 2px solid #ddd; }
-        .material-item { border-bottom: 1px solid #eee; padding: 10px 0; }
-        .material-item:last-child { border-bottom: none; }
-    </style>
-</head>
-<body>
+{% extends "site/site_base.html" %}
 
-    <div class="header-bar">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <a href="/site-hub" class="text-white"><i class="fas fa-arrow-left fa-lg"></i></a>
-            
-            {% if logo_url %}
-                <img src="{{ logo_url }}" style="max-height: 40px; background: rgba(255,255,255,0.9); padding: 5px; border-radius: 5px;">
-            {% else %}
-                <span class="fw-bold text-uppercase small opacity-50">Site App</span>
-            {% endif %}
-            
-            <span class="badge {{ 'bg-success' if job.status == 'In Progress' else 'bg-warning text-dark' }} shadow-sm">
-                {{ job.status }}
-            </span> 
-        </div>
-        <h4 class="m-0 fw-bold text-center">{{ job.ref }}</h4>
-    </div>
+{% block title %}Work Order #{{ job.ref }} | {{ company_name or 'Site Companion' }}{% endblock %}
 
-    <div class="container">
-        
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                <div class="alert alert-success shadow-sm rounded-4 mb-3 fw-bold">{{ messages[0] }}</div>
-            {% endif %}
-        {% endwith %}
-
-        <div class="card shadow-sm border-0 mb-3">
-            <div class="card-body">
-                <h6 class="text-muted fw-bold text-uppercase small">Location</h6>
-                <h5 class="fw-bold mb-1">{{ job.address }}</h5> 
-                
-                {% if job.gate_code or job.key_code %}
-                <div class="mt-2">
-                    <span class="badge bg-dark text-warning"><i class="fas fa-key me-1"></i> Access/Key: {{ job.key_code or job.gate_code }}</span>
-                </div>
-                {% endif %}
-
-                <div class="d-grid gap-2 mt-3">
-                    <a href="https://maps.google.com/?q={{ job.address }}" target="_blank" class="btn btn-primary fw-bold">
-    <i class="fas fa-map-marked-alt me-2"></i> Open in Maps
+{% block back_button %}
+<a href="/site-hub" class="btn btn-sm btn-light border rounded-pill px-2 py-1 text-muted" title="Back to Hub">
+    <i class="fas fa-arrow-left"></i>
 </a>
-                </div>
-            </div>
-        </div>
+{% endblock %}
 
-        <!-- TENANT / ON-SITE CONTACT -->
-        <div class="card shadow-sm border-0 mb-3 border-start border-4 border-primary">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <h6 class="text-primary fw-bold text-uppercase small m-0"><i class="fas fa-user me-1"></i> Tenant / On-Site Resident</h6>
-                    <span class="badge bg-primary-subtle text-primary border border-primary small">Primary Contact</span>
+{% block content %}
+<style>
+    .job-header-card {
+        background: linear-gradient(135deg, var(--brand-color), #0f172a);
+        color: #fff;
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+        margin-bottom: 16px;
+    }
+    .evidence-thumb {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 2px solid var(--card-border);
+    }
+    .cert-action-btn {
+        border-radius: 14px;
+        padding: 14px;
+        font-weight: 700;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.2s ease;
+    }
+    .cert-action-btn:active { transform: scale(0.98); }
+</style>
+
+<!-- TOP JOB HEADER -->
+<div class="job-header-card">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="badge bg-white bg-opacity-20 text-white rounded-pill px-3 py-1 font-monospace fw-bold fs-6">
+            <i class="fas fa-hashtag me-1"></i>{{ job.ref }}
+        </span>
+        <span class="badge {{ 'bg-success' if job.status == 'Completed' else ('bg-warning text-dark' if job.status == 'In Progress' else 'bg-primary') }} px-3 py-2 rounded-pill fw-bold small shadow-sm">
+            {{ job.status }}
+        </span>
+    </div>
+    <h4 class="fw-bold m-0 text-white">{{ job.client_name }}</h4>
+    <div class="small text-white text-opacity-75 mt-1"><i class="fas fa-map-marker-alt me-1 text-danger"></i> {{ job.address }}</div>
+</div>
+
+<!-- LIVE SHIFT TIMER -->
+<div class="mb-3">
+    {% if job.status == 'Completed' %}
+        <div class="card-site p-3 text-center bg-light">
+            <div class="text-success fw-bold fs-6"><i class="fas fa-check-circle me-1"></i> Work Order Completed</div>
+        </div>
+    {% elif user_is_clocked_in %}
+        <div class="card-site p-3 text-center border-success bg-success bg-opacity-10 shadow-sm">
+            <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                <span class="pulse-status-dot"></span>
+                <span class="fw-bold text-success fs-6">YOU ARE CLOCKED IN ON THIS JOB</span>
+            </div>
+            <p class="small text-muted mb-3">On-site hours are actively recording for client invoicing.</p>
+            <form method="POST" action="/site/job/{{ job.id }}/toggle-site-time">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="stop">
+                <button type="submit" class="btn btn-danger w-100 fw-bold py-3 rounded-3 shadow">
+                    <i class="fas fa-pause-circle me-1"></i> PAUSE / STOP SHIFT TIMER
+                </button>
+            </form>
+        </div>
+    {% else %}
+        <div class="card-site p-3 text-center shadow-sm">
+            <h6 class="fw-bold text-dark mb-1">Arrived On Site?</h6>
+            <p class="small text-muted mb-3">Tap below to clock in and start recording work time.</p>
+            <form method="POST" action="/site/job/{{ job.id }}/toggle-site-time">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="start">
+                <button type="submit" class="btn btn-success w-100 fw-bold py-3 rounded-3 shadow">
+                    <i class="fas fa-play-circle me-1"></i> START SITE SHIFT TIMER
+                </button>
+            </form>
+        </div>
+    {% endif %}
+</div>
+
+<!-- PROPERTY LOCATION & ACCESS CODE -->
+<div class="card-site p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="fw-bold text-uppercase text-muted small m-0">
+            <i class="fas fa-location-arrow text-primary me-1"></i> Site Location
+        </h6>
+        {% if job.key_code or job.gate_code %}
+        <span class="badge bg-dark text-warning px-2 py-1 small">
+            <i class="fas fa-key me-1"></i> Key/Gate: {{ job.key_code or job.gate_code }}
+        </span>
+        {% endif %}
+    </div>
+    <div class="fw-bold fs-6 mb-3 text-dark">{{ job.address }}</div>
+    <a href="https://maps.google.com/?q={{ job.address }}" target="_blank" class="btn-site-outline py-2 text-decoration-none">
+        <i class="fas fa-map-marked-alt text-primary"></i> Open Directions in Maps
+    </a>
+</div>
+
+<!-- ON-SITE RESIDENT & CLIENT CONTACTS -->
+<div class="row g-2 mb-3">
+    {% if job.tenant_name or job.tenant_phone %}
+    <div class="col-12">
+        <div class="card-site p-3 border-start border-4 border-primary">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small fw-bold text-primary text-uppercase"><i class="fas fa-user me-1"></i> On-Site Resident / Tenant</span>
+                <span class="badge bg-primary bg-opacity-10 text-primary small">Primary Contact</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <div>
+                    <div class="fw-bold text-dark">{{ job.tenant_name or 'Resident' }}</div>
+                    {% if job.tenant_phone %}<div class="small text-muted"><i class="fas fa-phone me-1 text-success"></i>{{ job.tenant_phone }}</div>{% endif %}
                 </div>
-                
-                {% if job.tenant_name or job.tenant_phone %}
-                <div class="d-flex justify-content-between align-items-center mt-2">
-                    <div>
-                        <div class="fw-bold fs-5 text-dark">{{ job.tenant_name or 'Resident' }}</div>
-                        {% if job.tenant_phone %}
-                            <div class="text-muted"><i class="fas fa-phone me-1 small text-success"></i>{{ job.tenant_phone }}</div>
-                        {% endif %}
-                        {% if job.tenant_email %}
-                            <div class="text-muted small"><i class="fas fa-envelope me-1 small"></i>{{ job.tenant_email }}</div>
-                        {% endif %}
-                    </div>
-                    {% if job.tenant_phone %}
-                    <a href="tel:{{ job.tenant_phone }}" class="btn btn-success fw-bold shadow-sm px-3 py-2" title="Call Tenant">
-                        <i class="fas fa-phone me-1"></i> Call Tenant
-                    </a>
-                    {% endif %}
-                </div>
-                {% else %}
-                <div class="text-muted small mt-2 fst-italic">
-                    <i class="fas fa-info-circle me-1"></i> No tenant recorded / Property may be vacant.
-                </div>
+                {% if job.tenant_phone %}
+                <a href="tel:{{ job.tenant_phone }}" class="btn btn-success btn-sm fw-bold px-3 py-2 rounded-pill">
+                    <i class="fas fa-phone me-1"></i> Call
+                </a>
                 {% endif %}
             </div>
         </div>
+    </div>
+    {% endif %}
 
-        <!-- CLIENT / LANDLORD CONTACT -->
-        <div class="card shadow-sm border-0 mb-3 border-start border-4 border-secondary">
-            <div class="card-body">
-                <h6 class="text-muted fw-bold text-uppercase small mb-1"><i class="fas fa-user-tie me-1"></i> Client / Landlord (Account Owner)</h6>
-                <div class="d-flex justify-content-between align-items-center mt-2">
-                    <div>
-                        <div class="fw-bold fs-5">{{ job.client_name }}</div>
-                        {% if job.client_phone %}
-                            <div class="text-muted"><i class="fas fa-phone me-1 small text-success"></i>{{ job.client_phone }}</div>
-                        {% endif %}
-                    </div>
-                    {% if job.client_phone %}
-                    <a href="tel:{{ job.client_phone }}" class="btn btn-outline-secondary fw-bold shadow-sm px-3 py-2" title="Call Client">
-                        <i class="fas fa-phone me-1"></i> Call Landlord
-                    </a>
-                    {% endif %}
+    <div class="col-12">
+        <div class="card-site p-3 border-start border-4 border-secondary">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small fw-bold text-muted text-uppercase"><i class="fas fa-user-tie me-1"></i> Account Owner / Client</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <div>
+                    <div class="fw-bold text-dark">{{ job.client_name }}</div>
+                    {% if job.client_phone %}<div class="small text-muted"><i class="fas fa-phone me-1 text-success"></i>{{ job.client_phone }}</div>{% endif %}
                 </div>
+                {% if job.client_phone %}
+                <a href="tel:{{ job.client_phone }}" class="btn btn-outline-secondary btn-sm fw-bold px-3 py-2 rounded-pill">
+                    <i class="fas fa-phone me-1"></i> Call
+                </a>
+                {% endif %}
             </div>
         </div>
+    </div>
+</div>
 
-        <div class="card shadow-sm border-0 mb-3">
-            <div class="card-body">
-                <h6 class="text-muted fw-bold text-uppercase small mb-3">Work Order</h6>
-                <div class="alert alert-secondary border-0">
-                    <i class="fas fa-info-circle me-2"></i> <strong>Desc:</strong> {{ job.description }}
+<!-- WORK ORDER DESCRIPTION -->
+<div class="card-site p-3 mb-3">
+    <h6 class="fw-bold text-uppercase text-muted small mb-2"><i class="fas fa-clipboard-list me-1 text-primary"></i> Work Order Scope</h6>
+    <div class="p-3 bg-light rounded-3 text-dark small leading-relaxed">{{ job.description }}</div>
+</div>
+
+<!-- COMPLIANCE & SAFETY SIGN-OFF (RAMS, CP12, EICR) -->
+<div class="card-site p-3 mb-3">
+    <h6 class="fw-bold text-uppercase text-muted small mb-3">
+        <i class="fas fa-file-contract me-1 text-primary"></i> Safety & Compliance Documents
+    </h6>
+    
+    <div class="d-flex flex-column gap-2">
+        <a href="/office/job/{{ job.id }}/rams/create" class="cert-action-btn bg-warning bg-opacity-10 text-dark border border-warning">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-clipboard-check text-warning fs-5"></i>
+                <div>
+                    <div class="fw-bold">Risk Assessment & RAMS</div>
+                    <div class="small text-muted">Complete site safety declaration</div>
                 </div>
             </div>
-        </div>
-        {% if 'Gas' in job.description or 'CP12' in job.description or 'Boiler' in job.description %}
-        <div class="mb-3">
-            <a href="/site/cert/cp12/create?job_id={{ job.id }}&prop_id={{ job.property_id }}" class="btn btn-warning w-100 fw-bold shadow-sm border border-warning text-dark py-3">
-                <i class="fas fa-burn fa-lg me-2"></i> CREATE CP12 CERTIFICATE
-            </a>
-        </div>
+            <i class="fas fa-chevron-right text-muted"></i>
+        </a>
+
+        {% if 'gas' in job.description.lower() or 'cp12' in job.description.lower() or 'boiler' in job.description.lower() or 'heating' in job.description.lower() %}
+        <a href="/site/cert/cp12/create?job_id={{ job.id }}&prop_id={{ job.property_id }}" class="cert-action-btn bg-danger bg-opacity-10 text-danger border border-danger">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-burn fs-5"></i>
+                <div>
+                    <div class="fw-bold">Gas Safety (CP12) Certificate</div>
+                    <div class="small text-muted">Issue appliance inspection cert</div>
+                </div>
+            </div>
+            <i class="fas fa-chevron-right text-muted"></i>
+        </a>
         {% endif %}
 
-        {% if 'EICR' in job.description or 'Electrical' in job.description or 'Wiring' in job.description %}
-        <div class="mb-3">
-            <a href="/site/cert/eicr/create?job_id={{ job.id }}&prop_id={{ job.property_id }}" class="btn btn-info w-100 fw-bold shadow-sm border border-info text-white py-3">
-                <i class="fas fa-bolt fa-lg me-2"></i> CREATE EICR REPORT
-            </a>
-        </div>
+        {% if 'electric' in job.description.lower() or 'eicr' in job.description.lower() or 'wiring' in job.description.lower() or 'socket' in job.description.lower() or 'pat' in job.description.lower() %}
+        <a href="/site/cert/eicr/create?job_id={{ job.id }}&prop_id={{ job.property_id }}" class="cert-action-btn bg-info bg-opacity-10 text-dark border border-info">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-bolt text-info fs-5"></i>
+                <div>
+                    <div class="fw-bold">Electrical (EICR / PAT) Report</div>
+                    <div class="small text-muted">Issue circuit inspection report</div>
+                </div>
+            </div>
+            <i class="fas fa-chevron-right text-muted"></i>
+        </a>
         {% endif %}
+    </div>
+</div>
 
-        <div class="card shadow-sm border-0 mb-3">
-            <div class="card-header bg-white border-bottom-0 d-flex justify-content-between align-items-center">
-                <h6 class="text-muted fw-bold text-uppercase small m-0">Materials & Parts</h6>
-                <button class="btn btn-sm btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#addMaterialModal">
-                    <i class="fas fa-plus me-1"></i> Add Item
-                </button>
-            </div>
-            <div class="card-body pt-0">
-                {% if materials %}
-                    {% for mat in materials %}
-                    <div class="material-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <span class="badge bg-light text-dark border me-2">{{ mat[1] }}x</span>
-                            <strong>{{ mat[0] }}</strong>
-                        </div>
-                        <div class="text-muted small">£{{ mat[2] }}</div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="text-center text-muted small py-2">No items added yet.</div>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="card shadow-sm border-0 mb-3">
-            <div class="card-header bg-white border-bottom-0 d-flex justify-content-between align-items-center">
-                <h6 class="text-muted fw-bold text-uppercase small m-0"><i class="fas fa-book me-1"></i> Site Diary</h6>
-                <button class="btn btn-sm btn-outline-dark fw-bold" data-bs-toggle="modal" data-bs-target="#addNoteModal">
-                    <i class="fas fa-pen me-1"></i> Leave Note
-                </button>
-            </div>
-            <div class="card-body pt-0">
-                <p class="small text-muted mb-2">Notes here are sent straight to the office team.</p>
-                {% if diary %}
-                    {% for d in diary %}
-                    <div class="material-item">
-                        <div class="d-flex justify-content-between">
-                            <strong class="small">{{ d[0] }}</strong>
-                            <span class="text-muted small">{{ d[2].strftime('%d/%m %H:%M') if d[2] else '' }}</span>
-                        </div>
-                        <div class="text-dark">{{ d[1] }}</div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="text-center text-muted small py-2">No notes left yet.</div>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="mb-4">
-            {% if job.status == 'Completed' %}
-
-                <div class="alert alert-secondary text-center fw-bold">
-                    <i class="fas fa-check-circle me-2"></i> Job Completed
-                </div>
-
-            {% elif user_is_clocked_in %}
-                <div class="card bg-success text-white mb-3">
-                    <div class="card-body text-center">
-                        <div class="spinner-grow spinner-grow-sm text-white mb-2" role="status"></div>
-                        <h6 class="fw-bold mb-2">YOU ARE CLOCKED IN</h6>
-                        <p class="small text-white-50 mb-3">Time is being recorded.</p>
-                        
-                        <form method="POST" action="/site/job/{{ job.id }}/toggle-site-time">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="action" value="stop">
-                            <button type="submit" class="btn btn-danger w-100 btn-lg fw-bold shadow border-2 border-white">
-                                <i class="fas fa-sign-out-alt me-2"></i> STOP YOUR SHIFT
-                            </button>
-                        </form>
-                    </div>
-                </div>
-
-            {% else %}
-                <div class="card bg-light border-success mb-3">
-                    <div class="card-body text-center">
-                        <h6 class="fw-bold text-success mb-2">ARRIVED AT SITE?</h6>
-                        <p class="small text-muted mb-3">Tap below to start YOUR shift.</p>
-                        
-                        <form method="POST" action="/site/job/{{ job.id }}/toggle-site-time">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="action" value="start">
-                            <button type="submit" class="btn btn-success w-100 btn-lg fw-bold shadow">
-                                <i class="fas fa-stopwatch me-2"></i> START YOUR SHIFT
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            {% endif %}
-        </div>
-
-        <button class="btn btn-outline-dark action-btn" onclick="document.getElementById('photoInput').click();">
-            <i class="fas fa-camera me-2"></i> Add Evidence Photo
+<!-- MATERIALS & PARTS -->
+<div class="card-site p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="fw-bold text-uppercase text-muted small m-0"><i class="fas fa-boxes me-1 text-primary"></i> Materials & Parts</h6>
+        <button class="btn btn-sm btn-outline-primary fw-bold rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addMaterialModal">
+            <i class="fas fa-plus me-1"></i> Add Part
         </button>
-        <form method="POST" action="/site/job/{{ job.id }}/update" enctype="multipart/form-data" id="photoForm" style="display:none;">
+    </div>
+    {% if materials %}
+        <div class="list-group list-group-flush pt-1">
+            {% for mat in materials %}
+            <div class="list-group-item px-0 d-flex justify-content-between align-items-center border-light">
+                <div>
+                    <span class="badge bg-light text-dark border me-2">{{ mat[1] }}x</span>
+                    <strong class="text-dark">{{ mat[0] }}</strong>
+                </div>
+                <span class="text-muted small fw-semibold">{{ currency_symbol or '£' }}{{ mat[2] }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center text-muted small py-3 fst-italic">No materials added yet</div>
+    {% endif %}
+</div>
+
+<!-- SITE DIARY -->
+<div class="card-site p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="fw-bold text-uppercase text-muted small m-0"><i class="fas fa-book me-1 text-primary"></i> Site Diary Feed</h6>
+        <button class="btn btn-sm btn-outline-dark fw-bold rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+            <i class="fas fa-pen me-1"></i> Add Note
+        </button>
+    </div>
+    {% if diary %}
+        <div class="list-group list-group-flush pt-1">
+            {% for d in diary %}
+            <div class="list-group-item px-0 border-light">
+                <div class="d-flex justify-content-between small text-muted mb-1">
+                    <strong class="text-dark">{{ d[0] }}</strong>
+                    <span>{{ d[2].strftime('%d/%m %H:%M') if d[2] else '' }}</span>
+                </div>
+                <div class="small text-secondary">{{ d[1] }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center text-muted small py-3 fst-italic">No site notes recorded yet</div>
+    {% endif %}
+</div>
+
+<!-- EVIDENCE PHOTOS -->
+<div class="card-site p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold text-uppercase text-muted small m-0"><i class="fas fa-camera me-1 text-primary"></i> Evidence Photos</h6>
+        <button class="btn btn-sm btn-outline-dark fw-bold rounded-pill px-3" onclick="document.getElementById('photoInput').click();">
+            <i class="fas fa-camera me-1"></i> Snap Photo
+        </button>
+    </div>
+
+    <form method="POST" action="/site/job/{{ job.id }}/update" enctype="multipart/form-data" id="photoForm" style="display:none;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="upload_photo">
+        <input type="file" name="photo" id="photoInput" accept="image/*" capture="environment" onchange="document.getElementById('photoForm').submit();">
+    </form>
+
+    {% if photos %}
+    <div class="d-flex flex-wrap gap-2">
+        {% for p in photos %}
+            {% set raw_p = p.replace('/static/', '').replace('static/', '').lstrip('/') %}
+            {% set file_url = '/static/' ~ raw_p %}
+            <a href="{{ file_url }}" target="_blank">
+                {% if file_url.lower().endswith('.pdf') %}
+                    <div class="evidence-thumb d-flex align-items-center justify-content-center bg-light text-danger"><i class="fas fa-file-pdf fa-2x"></i></div>
+                {% else %}
+                    <img src="{{ file_url }}" class="evidence-thumb" alt="Evidence">
+                {% endif %}
+            </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted small py-3 fst-italic">No photos uploaded yet</div>
+    {% endif %}
+</div>
+
+<!-- COMPLETION ACTION -->
+{% if job.status != 'Completed' %}
+    {% if not photos %}
+        <button type="button" class="btn btn-secondary w-100 py-3 rounded-3 fw-bold mb-5" disabled>
+            <i class="fas fa-exclamation-triangle me-2"></i> Add Photo Evidence to Complete Job
+        </button>
+    {% else %}
+        <button type="button" class="btn-site-brand py-3 fs-6 shadow mb-5" data-bs-toggle="modal" data-bs-target="#completeJobModal">
+            <i class="fas fa-check-circle fs-5"></i> Sign Off & Complete Work Order
+        </button>
+    {% endif %}
+{% endif %}
+
+<div class="modal fade" id="addMaterialModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content card-site border-0" method="POST" action="/site/job/{{ job.id }}/add-material">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="action" value="upload_photo">
-            <input type="file" name="photo" id="photoInput" accept="image/*" capture="environment" onchange="document.getElementById('photoForm').submit();">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Add Material / Part</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 pt-0">
+                <div class="mb-3">
+                    <label class="small fw-bold text-muted">Item Name / Description</label>
+                    <input type="text" name="description" class="form-control form-control-lg" placeholder="e.g. 15mm Copper Elbow" required>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="small fw-bold text-muted">Quantity</label>
+                        <input type="number" name="quantity" class="form-control form-control-lg" value="1" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="small fw-bold text-muted">Unit Price ({{ currency_symbol or '£' }})</label>
+                        <input type="number" step="0.01" name="price" class="form-control form-control-lg" placeholder="0.00">
+                    </div>
+                </div>
+                <button type="submit" class="btn-site-brand py-3">Add to Work Order</button>
+            </div>
         </form>
-
-        {% if not photos %}
-            <button type="button" class="btn btn-secondary action-btn" disabled>
-                <i class="fas fa-exclamation-triangle me-2"></i> Add Photo to Complete
-            </button>
-        {% else %}
-            <button type="button" class="btn btn-primary action-btn text-white mt-2" data-bs-toggle="modal" data-bs-target="#completeJobModal">
-                <i class="fas fa-check-circle me-2"></i> Sign Off & Complete
-            </button>
-        {% endif %}
-
-        {% if photos %}
-        <div class="card shadow-sm border-0 mb-4 mt-3">
-            <div class="card-body">
-                <h6 class="text-muted fw-bold text-uppercase small mb-3">Evidence Gallery</h6>
-                <div class="d-flex flex-wrap gap-2">
-                    {% for p in photos %}
-                        {% set raw_p = p.replace('/static/', '').replace('static/', '').lstrip('/') %}
-                        {% set file_url = '/static/' ~ raw_p %}
-                        <a href="{{ file_url }}" target="_blank">
-                            {% if file_url.lower().endswith('.pdf') %}
-                                <div class="evidence-img d-flex align-items-center justify-content-center bg-light border text-danger">
-                                    <i class="fas fa-file-pdf fa-2x"></i>
-                                </div>
-                            {% else %}
-                                <img src="{{ file_url }}" class="evidence-img">
-                            {% endif %}
-                        </a>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-        {% endif %}
-
     </div>
+</div>
 
-    <div class="modal fade" id="addMaterialModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow rounded-4">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title fw-bold">Add Material</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4 pt-0">
-                    <form method="POST" action="/site/job/{{ job.id }}/add-material">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        
-                        <div class="mb-3">
-                            <label class="small fw-bold text-muted">Item Name / Description</label>
-                            <input type="text" name="description" class="form-control form-control-lg" placeholder="e.g. 15mm Copper Elbow" required>
-                        </div>
-                        <div class="row">
-                            <div class="col-6">
-                                <label class="small fw-bold text-muted">Quantity</label>
-                                <input type="number" name="quantity" class="form-control form-control-lg" value="1" required>
-                            </div>
-                            <div class="col-6">
-                                <label class="small fw-bold text-muted">Unit Price (£)</label>
-                                <input type="number" step="0.01" name="price" class="form-control form-control-lg" placeholder="0.00">
-                            </div>
-                        </div>
-                        <div class="d-grid mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg fw-bold">Add to Job</button>
-                        </div>
-                    </form>
-                </div>
+<div class="modal fade" id="addNoteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content card-site border-0" method="POST" action="/site/job/{{ job.id }}/add-note">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold"><i class="fas fa-book me-2"></i> Site Diary Note</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="addNoteModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow rounded-4">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title fw-bold"><i class="fas fa-book me-2"></i> Site Diary Note</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-body p-4 pt-0">
+                <div class="mb-3">
+                    <label class="small fw-bold text-muted">Message to Office Desk</label>
+                    <textarea name="entry_text" class="form-control form-control-lg" rows="4" placeholder="e.g. Client requested additional inspection. Parts ordered." required></textarea>
                 </div>
-                <div class="modal-body p-4 pt-0">
-                    <form method="POST" action="/site/job/{{ job.id }}/add-note">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div class="mb-3">
-                            <label class="small fw-bold text-muted">Message to the office</label>
-                            <textarea name="entry_text" class="form-control form-control-lg" rows="4" placeholder="e.g. Client wants extra socket fitted. Awaiting parts delivery." required></textarea>
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-dark btn-lg fw-bold"><i class="fas fa-paper-plane me-2"></i> Send to Office</button>
-                        </div>
-                    </form>
-                </div>
+                <button type="submit" class="btn-site-brand py-3">Send to Office</button>
             </div>
-        </div>
+        </form>
     </div>
+</div>
 
-    <div class="modal fade" id="completeJobModal" tabindex="-1" aria-hidden="true">
-
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow rounded-4">
-                <div class="modal-header bg-primary text-white border-0">
-                    <h5 class="modal-title fw-bold">Job Completion</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form method="POST" action="/site/job/{{ job.id }}/update">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="action" value="complete">
-                        
-                        <div class="mb-3">
-                            <label class="fw-bold small text-muted">Work Summary (For Invoice)</label>
-                            <textarea name="work_summary" class="form-control" rows="3" placeholder="e.g. Replaced leaking pipe..." required></textarea>
-                            <div class="form-text small text-primary"><i class="fas fa-magic me-1"></i> Materials listed above will be auto-added to the invoice.</div>
-                        </div>
-
-                        {% if session.get('employment_type') == 'Sub-Contractor' %}
-                        <div class="alert alert-warning border-warning shadow-sm mb-3">
-                            <h6 class="fw-bold text-dark"><i class="fas fa-file-invoice-dollar me-2"></i>Submit Invoice</h6>
-                            <p class="small mb-2 text-muted">Enter your total labor & materials charge for this job.</p>
-                            
-                            <div class="input-group">
-                                <span class="input-group-text fw-bold">£</span>
-                                <input type="number" step="0.01" name="sub_contractor_cost" class="form-control fw-bold fs-5" placeholder="0.00">
-                            </div>
-                        </div>
-                        {% endif %}
-                        <div class="mb-3">
-                            <label class="fw-bold small text-danger">Private Office Notes</label>
-                            <textarea name="private_notes" class="form-control bg-light" rows="2" placeholder="Internal notes..."></textarea>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="fw-bold small text-muted">Client Signature</label>
-                            <input type="text" name="signature" class="form-control form-control-lg" placeholder="e.g. John Smith" required>
-                        </div>
-
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-success btn-lg fw-bold">
-                                <i class="fas fa-check-circle me-2"></i> Submit & Finish
-                            </button>
-                        </div>
-                    </form>
-                </div>
+<div class="modal fade" id="completeJobModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content card-site border-0" method="POST" action="/site/job/{{ job.id }}/update">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="complete">
+            <div class="modal-header border-0 bg-primary text-white rounded-top-4">
+                <h5 class="modal-title fw-bold text-white"><i class="fas fa-check-circle me-2"></i> Complete Work Order</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-        </div>
-    </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="fw-bold small text-muted">Work Summary (For Invoice & Client Report)</label>
+                    <textarea name="work_summary" class="form-control" rows="3" placeholder="e.g. Replaced leaking valve and tested pressure..." required></textarea>
+                </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+                {% if session.get('employment_type') == 'Sub-Contractor' %}
+                <div class="alert alert-warning border-0 rounded-3 mb-3">
+                    <label class="fw-bold small text-dark"><i class="fas fa-file-invoice-dollar me-1"></i> Sub-Contractor Total Charge</label>
+                    <input type="number" step="0.01" name="sub_contractor_cost" class="form-control fw-bold fs-5 mt-1" placeholder="0.00">
+                </div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label class="fw-bold small text-muted">Private Office Notes (Internal)</label>
+                    <textarea name="private_notes" class="form-control bg-light" rows="2" placeholder="Internal notes not visible on client invoice..."></textarea>
+                </div>
+
+                <div class="mb-4">
+                    <label class="fw-bold small text-muted">Client / Tenant Sign-Off Name</label>
+                    <input type="text" name="signature" class="form-control form-control-lg fw-semibold" placeholder="e.g. John Smith" required>
+                </div>
+
+                <button type="submit" class="btn btn-success w-100 py-3 fw-bold rounded-3 shadow">
+                    <i class="fas fa-check-circle me-1"></i> Submit & Finish Work Order
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

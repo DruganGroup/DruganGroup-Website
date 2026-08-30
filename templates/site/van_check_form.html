@@ -1,98 +1,115 @@
 {% extends "site/site_base.html" %}
 
-{% block title %}Daily Check | Site Hub{% endblock %}
+{% block title %}Daily Van Safety Check | {{ company_name or 'Site Companion' }}{% endblock %}
+
+{% block back_button %}
+<a href="/site-hub" class="btn btn-sm btn-light border rounded-pill px-2 py-1 text-muted" title="Back to Hub">
+    <i class="fas fa-arrow-left"></i>
+</a>
+{% endblock %}
 
 {% block content %}
-<div class="header-bar d-flex justify-content-between align-items-center bg-success text-white p-3 rounded-bottom mb-4 shadow-sm">
-    <a href="/site-hub" class="text-white"><i class="fas fa-arrow-left fa-lg"></i></a>
-    <h5 class="m-0 fw-bold">Daily Walkaround</h5>
-    <i class="fas fa-clipboard-check fa-lg"></i>
+<div class="d-flex align-items-center justify-content-between mb-3 px-1">
+    <div>
+        <h5 class="fw-bold m-0 text-dark">Daily Walkaround Check</h5>
+        <span class="small text-muted">Vehicle safety & roadworthiness inspection</span>
+    </div>
+    <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-pill small fw-bold">
+        <i class="fas fa-shield-alt me-1"></i> DVSA Standard
+    </span>
 </div>
 
-<div class="container">
-    
-    <form method="POST" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<form method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        <div class="card shadow-sm border-0 mb-3">
-            <div class="card-body">
-                <label class="fw-bold small text-muted">Vehicle Registration</label>
-                
-                {% if assigned_van %}
-                    <div class="input-group">
-                        <span class="input-group-text bg-light border-0"><i class="fas fa-lock text-muted"></i></span>
-                        <input type="text" class="form-control form-control-lg fw-bold bg-white" value="{{ assigned_van[1] }}" disabled>
-                        <input type="hidden" name="reg_plate" value="{{ assigned_van[1] }}">
+    <!-- VEHICLE SELECTOR & MILEAGE -->
+    <div class="card-site p-3 mb-3">
+        <div class="mb-3">
+            <label class="fw-bold small text-muted text-uppercase mb-1">Vehicle Registration</label>
+            {% if assigned_van %}
+                <div class="d-flex align-items-center justify-content-between p-2 px-3 bg-light border rounded-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-warning text-dark font-monospace fw-bold fs-6 px-3 py-2 border shadow-sm">{{ assigned_van[1] }}</span>
+                        <span class="small text-success fw-semibold"><i class="fas fa-check-circle me-1"></i> Assigned to you</span>
                     </div>
-                    <div class="form-text small text-success">
-                        <i class="fas fa-link me-1"></i> Linked to your profile.
-                    </div>
-                {% else %}
-                    <select name="reg_plate" class="form-select form-select-lg fw-bold mt-1" required>
-                        <option value="" disabled selected>Select Vehicle...</option>
-                        {% for v in vehicles %}
-                            <option value="{{ v }}">{{ v }}</option>
-                        {% endfor %}
-                    </select>
-                    <div class="form-text small text-warning">
-                        <i class="fas fa-exclamation-triangle me-1"></i> No van assigned to you. Please select.
-                    </div>
-                {% endif %}
-            </div>
+                </div>
+                <input type="hidden" name="reg_plate" value="{{ assigned_van[1] }}">
+            {% else %}
+                <select name="reg_plate" class="form-select form-select-lg fw-bold" required>
+                    <option value="" disabled selected>Select Company Vehicle...</option>
+                    {% for v in vehicles %}
+                        <option value="{{ v }}">{{ v }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text small text-warning"><i class="fas fa-exclamation-triangle me-1"></i> Select the vehicle you are driving today</div>
+            {% endif %}
         </div>
 
-        <div class="card shadow-sm border-0 mb-3">
-            <div class="card-body">
-                <label class="fw-bold small text-muted">Current Mileage</label>
-                <input type="number" name="mileage" class="form-control form-control-lg fw-bold mt-1" placeholder="e.g. 45100" required>
+        <div>
+            <label class="fw-bold small text-muted text-uppercase mb-1">Current Odometer (Mileage)</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-tachometer-alt"></i></span>
+                <input type="number" name="mileage" class="form-control form-control-lg fw-bold border-start-0" placeholder="e.g. 54200" required>
             </div>
         </div>
+    </div>
 
-        <div class="mb-2 ms-1 text-uppercase text-secondary fw-bold" style="font-size: 0.8rem;">External Checks</div>
+    <!-- EXTERNAL CHECKS -->
+    <div class="card-site p-3 mb-3">
+        <h6 class="fw-bold text-uppercase text-muted small mb-3">
+            <i class="fas fa-car me-1 text-primary"></i> External Safety Checks
+        </h6>
         
-        {% for check in ['Lights & Indicators', 'Tyres & Wheels', 'Mirrors & Glass', 'Doors & Bodywork'] %}
-        <div class="card shadow-sm border-0 mb-2">
-            <div class="card-body py-3 d-flex align-items-center">
-                <input class="form-check-input me-3" type="checkbox" name="checks" value="{{ check }}" style="transform: scale(1.3);" required>
-                <span class="fw-bold text-dark">{{ check }}</span>
-            </div>
-        </div>
+        {% for check in ['Lights & Indicators', 'Tyres & Wheels (Tread/Pressure)', 'Mirrors & Windscreen Glass', 'Doors, Locks & Bodywork'] %}
+        <label class="d-flex align-items-center justify-content-between p-3 mb-2 rounded-3 border bg-light bg-opacity-50 cursor-pointer">
+            <span class="fw-semibold text-dark">{{ check }}</span>
+            <input class="form-check-input ms-2" type="checkbox" name="checks" value="{{ check }}" checked style="transform: scale(1.3); cursor: pointer;" required>
+        </label>
         {% endfor %}
+    </div>
 
-        <div class="mb-2 ms-1 mt-4 text-uppercase text-secondary fw-bold" style="font-size: 0.8rem;">Internal Checks</div>
+    <!-- INTERNAL CHECKS -->
+    <div class="card-site p-3 mb-3">
+        <h6 class="fw-bold text-uppercase text-muted small mb-3">
+            <i class="fas fa-sliders-h me-1 text-primary"></i> Internal Safety Checks
+        </h6>
 
-        {% for check in ['Brakes & Steering', 'Fluids (Oil/Water)', 'Dashboard Warning Lights'] %}
-        <div class="card shadow-sm border-0 mb-2">
-            <div class="card-body py-3 d-flex align-items-center">
-                <input class="form-check-input me-3" type="checkbox" name="checks" value="{{ check }}" style="transform: scale(1.3);" required>
-                <span class="fw-bold text-dark">{{ check }}</span>
-            </div>
-        </div>
+        {% for check in ['Brakes & Steering Controls', 'Fluid Levels (Oil, Coolant, Screenwash)', 'Dashboard Warning Lights Clear', 'Seatbelts & Horn Operation'] %}
+        <label class="d-flex align-items-center justify-content-between p-3 mb-2 rounded-3 border bg-light bg-opacity-50 cursor-pointer">
+            <span class="fw-semibold text-dark">{{ check }}</span>
+            <input class="form-check-input ms-2" type="checkbox" name="checks" value="{{ check }}" checked style="transform: scale(1.3); cursor: pointer;" required>
+        </label>
         {% endfor %}
+    </div>
 
-        <div class="mb-2 ms-1 mt-4 text-uppercase text-danger fw-bold" style="font-size: 0.8rem;">Defect Reporting</div>
-        <div class="card border-danger mb-4 shadow-sm">
-            <div class="card-body bg-light">
-                <label class="fw-bold small mb-2 text-dark">Any Defects Found?</label>
-                <textarea name="defects" class="form-control mb-3" rows="2" placeholder="Describe issues here (Leave empty if none)"></textarea>
-                
-                <label class="fw-bold small mb-2 text-dark">Upload Photo (If Defect Found)</label>
-                <input type="file" name="photo" class="form-control" accept="image/*" capture="environment">
-            </div>
+    <!-- DEFECTS & PHOTO -->
+    <div class="card-site p-3 mb-3 border-danger border-opacity-50">
+        <h6 class="fw-bold text-danger small text-uppercase mb-2">
+            <i class="fas fa-exclamation-triangle me-1"></i> Defect Reporting (Optional)
+        </h6>
+        
+        <div class="mb-3">
+            <label class="small text-muted fw-bold mb-1">Defect Description</label>
+            <textarea name="defects" class="form-control" rows="2" placeholder="Describe any defects found (leave blank if vehicle is in perfect condition)"></textarea>
         </div>
 
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-body">
-                <label class="fw-bold small text-muted">Driver Signature</label>
-                <input type="text" name="signature" class="form-control form-control-lg mt-1" placeholder="Type Name to Sign" required>
-                <div class="form-text small">By submitting, I confirm the vehicle is safe to drive.</div>
-            </div>
+        <div>
+            <label class="small text-muted fw-bold mb-1">Defect Photo (If applicable)</label>
+            <input type="file" name="photo" class="form-control" accept="image/*" capture="environment">
         </div>
+    </div>
 
-        <button type="submit" class="btn btn-success w-100 btn-lg fw-bold shadow mb-5 py-3">
-            <i class="fas fa-check-circle me-2"></i> Submit Safety Check
-        </button>
+    <!-- SIGN-OFF -->
+    <div class="card-site p-3 mb-4">
+        <label class="fw-bold small text-muted text-uppercase mb-1">Driver Declaration & Signature</label>
+        <input type="text" name="signature" class="form-control form-control-lg fw-semibold" placeholder="Type your full name to sign" required>
+        <div class="form-text small text-muted mt-2">
+            <i class="fas fa-info-circle me-1 text-primary"></i> By submitting, I declare that I have inspected this vehicle and it is safe to operate.
+        </div>
+    </div>
 
-    </form>
-</div>
+    <button type="submit" class="btn-site-brand py-3 fs-6 shadow mb-5">
+        <i class="fas fa-check-circle fs-5"></i> Submit Walkaround Inspection
+    </button>
+</form>
 {% endblock %}
