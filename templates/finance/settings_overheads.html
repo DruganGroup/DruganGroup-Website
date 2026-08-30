@@ -3,22 +3,23 @@
 {% block settings_content %}
 <div class="row">
     <div class="col-md-4 mb-4">
-        <div class="card p-4 bg-dark text-white text-center mb-3 shadow">
-            <h6 class="text-uppercase text-white-50">Total Monthly Fixed Cost</h6>
+        <div class="card p-4 bg-dark text-white text-center mb-3 shadow rounded-4">
+            <h6 class="text-uppercase text-white-50 small fw-bold">Total Monthly Fixed Overheads</h6>
             <h1 class="fw-bold text-warning mb-0">
                 {{ currency_symbol }}
                 {{ "%.2f"|format(total_overhead) }}
             </h1>
-            <small class="text-white-50">Recurring fixed expenses only</small>
+            <small class="text-white-50">Recurring fixed operating expenses</small>
         </div>
         
-        <div class="card p-3 bg-white border-dashed">
-            <h6 class="fw-bold small text-uppercase mb-2 text-dark">Add New Category</h6>
+        <div class="card p-3 bg-white border shadow-sm rounded-4">
+            <h6 class="fw-bold small text-uppercase mb-2 text-dark"><i class="fas fa-folder-plus text-primary me-2"></i>Add New Category</h6>
             <form method="POST">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <input type="hidden" name="action" value="add_category">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> 
+                <input type="hidden" name="action" value="add_category">
                 <div class="input-group">
-                    <input type="text" name="category_name" class="form-control" placeholder="e.g. Rent, Software..." required>
-                    <button type="submit" class="btn btn-dark"><i class="fas fa-plus"></i></button>
+                    <input type="text" name="category_name" class="form-control" placeholder="e.g. Rent, Utilities, Software..." required>
+                    <button type="submit" class="btn btn-dark fw-bold"><i class="fas fa-plus"></i></button>
                 </div>
             </form>
         </div>
@@ -26,49 +27,89 @@
 
     <div class="col-md-8">
         {% for cat in overheads %}
-        <div class="card mb-3">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <strong class="text-uppercase">{{ cat.name }}</strong>
-                <div>
-                    <span class="badge bg-secondary me-2">{{ currency_symbol }}{{ "%.2f"|format(cat.total) }}</span>
-                    <form method="POST" style="display:inline;" onsubmit="return confirm('Delete Category?');">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <input type="hidden" name="action" value="delete_category">
+        <div class="card mb-3 border shadow-sm rounded-4 overflow-hidden">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-coins text-warning"></i>
+                    <strong class="text-uppercase text-dark">{{ cat.name }}</strong>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-secondary px-3 py-2 fw-bold">{{ currency_symbol }}{{ "%.2f"|format(cat.total) }}/mo</span>
+                    <form method="POST" class="m-0" onsubmit="return confirm('Delete this entire category and all its items?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> 
+                        <input type="hidden" name="action" value="delete_category">
                         <input type="hidden" name="category_id" value="{{ cat.id }}">
-                        <button type="submit" class="btn btn-sm text-danger border-0" title="Delete Category" aria-label="Delete Category"><i class="fas fa-times"></i></button>
+                        <button type="submit" class="btn btn-sm text-danger border-0" title="Delete Category" aria-label="Delete Category"><i class="fas fa-trash"></i></button>
                     </form>
                 </div>
             </div>
             <div class="card-body p-0">
-                <table class="table table-striped mb-0">
-                    {% for item in cat.items %}
-                    <tr>
-                        <td class="ps-3">{{ item[1] }}</td>
-                        <td class="fw-bold text-end" style="width:120px;">{{ currency_symbol }}{{ item[2] }}</td>
-                        <td style="width:40px;">
-                            <form method="POST">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <input type="hidden" name="action" value="delete_item">
-                                <input type="hidden" name="item_id" value="{{ item[0] }}">
-                                <button type="submit" class="btn btn-sm text-danger p-0" title="Delete Item" aria-label="Delete Item"><i class="fas fa-trash"></i></button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light small text-uppercase text-muted">
+                        <tr>
+                            <th class="ps-3">Item Name</th>
+                            <th style="width: 130px;">Frequency</th>
+                            <th class="text-end" style="width: 130px;">Cost</th>
+                            <th class="text-end pe-3" style="width: 50px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in cat.items %}
+                        <tr>
+                            <td class="ps-3 fw-bold text-dark">{{ item[1] }}</td>
+                            <td>
+                                <span class="badge {{ 'bg-primary-subtle text-primary' if (item[3] or 'Monthly') == 'Monthly' else 'bg-info-subtle text-info' }} rounded-pill px-2 py-1">
+                                    {{ item[3] or 'Monthly' }}
+                                </span>
+                            </td>
+                            <td class="fw-bold text-end">{{ currency_symbol }}{{ "%.2f"|format(item[2]|float) }}</td>
+                            <td class="text-end pe-3">
+                                <form method="POST" class="m-0">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> 
+                                    <input type="hidden" name="action" value="delete_item">
+                                    <input type="hidden" name="item_id" value="{{ item[0] }}">
+                                    <button type="submit" class="btn btn-sm text-danger p-0 border-0" title="Delete Item" aria-label="Delete Item"><i class="fas fa-times"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted small py-3">No items in this category yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
                 </table>
-                <div class="p-2 border-top bg-light">
-                    <form method="POST" class="row g-1">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> <input type="hidden" name="action" value="add_item">
+                <div class="p-3 border-top bg-light">
+                    <form method="POST" class="row g-2 align-items-center">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> 
+                        <input type="hidden" name="action" value="add_item">
                         <input type="hidden" name="category_id" value="{{ cat.id }}">
-                        <div class="col-7"><input type="text" name="item_name" class="form-control form-control-sm" placeholder="Item Name" required></div>
-                        <div class="col-3"><input type="number" step="0.01" name="item_cost" class="form-control form-control-sm" placeholder="Cost" required></div>
-                        <div class="col-2"><button type="submit" class="btn btn-sm btn-success w-100 fw-bold" title="Add Item"><i class="fas fa-plus me-1"></i> Add</button></div>
+                        <div class="col-md-5">
+                            <input type="text" name="item_name" class="form-control form-control-sm" placeholder="Item Name (e.g. Office Rent)" required>
+                        </div>
+                        <div class="col-md-3">
+                            <select name="frequency" class="form-select form-select-sm">
+                                <option value="Monthly" selected>Monthly</option>
+                                <option value="Yearly">Yearly (Annual)</option>
+                                <option value="Quarterly">Quarterly</option>
+                                <option value="Weekly">Weekly</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <input type="number" step="0.01" name="item_cost" class="form-control form-control-sm text-end" placeholder="Amount" required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-sm btn-success w-100 fw-bold" title="Add Item"><i class="fas fa-plus me-1"></i> Add</button>
+                        </div>
                     </form>
                 </div>
             </div>
         </div>
         {% else %}
-        <div class="text-center text-muted py-5 border rounded bg-light">
-            <i class="fas fa-chart-line fa-2x mb-2"></i>
-            <p>No overheads tracked yet. Add a category to start.</p>
+        <div class="text-center text-muted py-5 border rounded-4 bg-light">
+            <i class="fas fa-chart-line fa-3x mb-3 text-secondary opacity-50"></i>
+            <h5>No overhead categories yet</h5>
+            <p class="small text-muted mb-0">Add your first category on the left (e.g. Rent, Software, Utilities, Insurance) to track operating expenses.</p>
         </div>
         {% endfor %}
     </div>

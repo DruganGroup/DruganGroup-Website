@@ -844,25 +844,78 @@ def settings_banking():
 
 @finance_bp.route('/finance/settings/overheads', methods=['GET', 'POST'])
 def settings_overheads():
-    if session.get('role') not in ['Admin', 'SuperAdmin']: return redirect(url_for('auth.login'))
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']: return redirect(url_for('auth.login'))
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
     conn = get_db()
     cur = conn.cursor()
+    
+    # Ensure tables exist
+    try:
+        cur.execute("CREATE TABLE IF NOT EXISTS overhead_categories (id SERIAL PRIMARY KEY, company_id INTEGER NOT NULL, name VARCHAR(100) NOT NULL);")
+        cur.execute("CREATE TABLE IF NOT EXISTS overhead_items (id SERIAL PRIMARY KEY, category_id INTEGER NOT NULL, name VARCHAR(100) NOT NULL, amount DECIMAL(10,2) DEFAULT 0.00, frequency VARCHAR(20) DEFAULT 'Monthly', date_incurred DATE, receipt_path TEXT, FOREIGN KEY (category_id) REFERENCES overhead_categories(id) ON DELETE CASCADE);")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+
     if request.method == 'POST':
         act = request.form.get('action')
-        if act == 'add_category': cur.execute("INSERT INTO overhead_categories (company_id, name) VALUES (%s, %s)", (comp_id, request.form.get('category_name')))
-        elif act == 'add_item': cur.execute("INSERT INTO overhead_items (category_id, name, amount) VALUES (%s, %s, %s)", (request.form.get('category_id'), request.form.get('item_name'), request.form.get('item_cost')))
-        elif act == 'delete_item': cur.execute("DELETE FROM overhead_items WHERE id = %s", (request.form.get('item_id'),))
-        elif act == 'delete_category': cur.execute("DELETE FROM overhead_categories WHERE id = %s AND company_id = %s", (request.form.get('category_id'), comp_id))
+        if act == 'add_category':
+            cat_name = request.form.get('category_name')
+            if cat_name:
+                cur.execute("INSERT INTO overhead_categories (company_id, name) VALUES (%s, %s)", (comp_id, cat_name.strip()))
+                flash("Category added.", "success")
+        elif act == 'add_item':
+            cat_id = request.form.get('category_id')
+            item_name = request.form.get('item_name')
+            item_cost = request.form.get('item_cost') or 0.00
+            freq = request.form.get('frequency', 'Monthly')
+            if cat_id and item_name:
+                cur.execute("INSERT INTO overhead_items (category_id, name, amount, frequency, date_incurred) VALUES (%s, %s, %s, %s, CURRENT_DATE)", (cat_id, item_name.strip(), item_cost, freq))
+                flash("Overhead item added.", "success")
+        elif act == 'delete_item':
+            item_id = request.form.get('item_id')
+            if item_id:
+                cur.execute("DELETE FROM overhead_items WHERE id = %s AND category_id IN (SELECT id FROM overhead_categories WHERE company_id = %s)", (item_id, comp_id))
+                flash("Overhead item removed.", "info")
+        elif act == 'delete_category':
+            cat_id = request.form.get('category_id')
+            if cat_id:
+                cur.execute("DELETE FROM overhead_categories WHERE id = %s AND company_id = %s", (cat_id, comp_id))
+                flash("Category removed.", "info")
         conn.commit()
-    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,)); settings = {row[0]: row[1] for row in cur.fetchall()}
-    cur.execute("SELECT id, name FROM overhead_categories WHERE company_id = %s ORDER BY id ASC", (comp_id,)); cats = cur.fetchall()
+
+    cur.execute("SELECT key, value FROM settings WHERE company_id = %s", (comp_id,))
+    settings = {row[0]: row[1] for row in cur.fetchall()}
+    currency_symbol = settings.get('currency_symbol', '£')
+    
+    cur.execute("SELECT id, name FROM overhead_categories WHERE company_id = %s ORDER BY id ASC", (comp_id,))
+    cats = cur.fetchall()
+    
     class CO:
-        def __init__(self, i, n, it, t): self.id=i; self.name=n; self.items=it; self.total=t
-    overheads = []; tot = 0
+        def __init__(self, i, n, it, t):
+            self.id = i
+            self.name = n
+            self.items = it
+            self.total = t
+            
+    overheads = []
+    tot = 0.0
     for c in cats:
-        cur.execute("SELECT id, name, amount FROM overhead_items WHERE category_id = %s", (c[0],)); items = cur.fetchall()
-        ct = sum([float(i[2]) for i in items]); tot += ct; overheads.append(CO(c[0], c[1], items, ct))
-    return render_template('finance/settings_overheads.html', settings=settings, overheads=overheads, total_overhead=tot, active_tab='overheads', brand_color=config['color'], logo_url=config['logo'])
+        cur.execute("SELECT id, name, amount, frequency FROM overhead_items WHERE category_id = %s ORDER BY id ASC", (c[0],))
+        items = cur.fetchall()
+        ct = sum([float(i[2] or 0) for i in items])
+        tot += ct
+        overheads.append(CO(c[0], c[1], items, ct))
+        
+    return render_template('finance/settings_overheads.html', 
+                           settings=settings, 
+                           overheads=overheads, 
+                           total_overhead=tot, 
+                           currency_symbol=currency_symbol,
+                           active_tab='overheads', 
+                           brand_color=config['color'], 
+                           logo_url=config['logo'])
     
 @finance_bp.route('/finance/setup-templates')
 def setup_invoice_templates():
