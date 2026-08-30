@@ -56,7 +56,7 @@ def service_desk():
             conn.rollback()
 
     # 1. FETCH SERVICE REQUESTS (TICKETS)
-    # Modified to show if it's from a partner, with tenant & client contact details
+    # Modified to show if it's from a partner, with tenant & client contact details and booked job schedule info
     cur.execute("""
         SELECT sr.id, sr.priority, 
                COALESCE(p.address_line1, sr.partner_address_snapshot), 
@@ -68,10 +68,21 @@ def service_desk():
                c.phone,
                p.tenant_name,
                p.tenant_phone,
-               p.key_code
+               p.key_code,
+               j.id as job_id,
+               j.ref as job_ref,
+               j.start_date as scheduled_date,
+               st.name as engineer_name
         FROM service_requests sr
         LEFT JOIN properties p ON sr.property_id = p.id
         LEFT JOIN clients c ON sr.client_id = c.id
+        LEFT JOIN LATERAL (
+            SELECT id, ref, start_date, engineer_id 
+            FROM jobs 
+            WHERE service_request_id = sr.id 
+            ORDER BY id DESC LIMIT 1
+        ) j ON true
+        LEFT JOIN staff st ON j.engineer_id = st.id
         WHERE sr.company_id = %s AND sr.status != 'Completed'
         ORDER BY sr.created_at DESC
     """, (comp_id,))
@@ -79,6 +90,7 @@ def service_desk():
     raw_reqs = cur.fetchall()
     requests = []
     for r in raw_reqs:
+        sched_date_str = format_date(r[16]) if r[16] else ''
         requests.append({
             'id': r[0], 'severity': r[1], 'property_address': r[2],
             'issue_description': r[3], 'client_name': r[4], 'status': r[5],
@@ -86,7 +98,11 @@ def service_desk():
             'client_phone': r[10] or '',
             'tenant_name': r[11] or '',
             'tenant_phone': r[12] or '',
-            'key_code': r[13] or ''
+            'key_code': r[13] or '',
+            'job_id': r[14],
+            'job_ref': r[15],
+            'scheduled_date': sched_date_str,
+            'engineer_name': r[17] or ''
         })
 
     # 2. FETCH COMPLIANCE ALERTS
@@ -1488,7 +1504,8 @@ def api_sidebar_alerts():
     comp_id = session.get('company_id')
     conn = get_db(); cur = conn.cursor()
     try:
-        cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id = %s AND status NOT IN ('Completed', 'Cancelled', 'Resolved')", (comp_id,))
+        # Only count new/raised/open tickets that haven't been scheduled, booked or in progress
+        cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id = %s AND status IN ('Pending', 'New', 'Open', 'Raised')", (comp_id,))
         pending_tickets = cur.fetchone()[0] or 0
         
         cur.execute("SELECT COUNT(*) FROM emails WHERE company_id = %s AND folder = 'Inbox' AND status = 'Unread'", (comp_id,))

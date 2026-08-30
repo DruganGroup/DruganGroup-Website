@@ -321,7 +321,8 @@ def inject_sidebar_alerts():
     try:
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id = %s AND status NOT IN ('Completed', 'Cancelled', 'Resolved')", (comp_id,))
+        # Only count new/raised/open tickets that haven't been scheduled, booked or in progress
+        cur.execute("SELECT COUNT(*) FROM service_requests WHERE company_id = %s AND status IN ('Pending', 'New', 'Open', 'Raised')", (comp_id,))
         pending_tickets = cur.fetchone()[0] or 0
         
         cur.execute("SELECT COUNT(*) FROM emails WHERE company_id = %s AND folder = 'Inbox' AND status = 'Unread'", (comp_id,))
