@@ -75,9 +75,8 @@
 
     <nav class="navbar navbar-expand-xl navbar-dark fixed-top">
         <div class="container">
-            <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+            <a class="navbar-brand d-flex align-items-center" href="/">
                 <img src="{{ url_for('static', filename='images/logobb.png') }}" alt="Business Better Logo">
-                <span class="d-none d-sm-inline-block fw-bold fs-5 text-white">Business Better</span>
             </a>
             <button class="navbar-toggler border-0 p-2" type="button" data-bs-toggle="collapse" data-bs-target="#bbNavbar">
                 <i class="fas fa-bars text-white fs-4"></i>
@@ -94,7 +93,7 @@
                         </ul>
                     </li>
                     <li class="nav-item"><a class="nav-link" href="/features">{{ _('Features') }}</a></li>
-                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-1" href="/demo"><span>{{ _('Live Sandbox') }}</span><span class="nav-badge-live ms-1"><span class="pulse-dot"></span> {{ _('Interactive') }}</span></a></li>
+                    <li class="nav-item"><a class="nav-link" href="/demo">{{ _('Live Sandbox') }}</a></li>
                     <li class="nav-item"><a class="nav-link" href="/comparison">{{ _('Why Switch?') }}</a></li>
                     <li class="nav-item"><a class="nav-link" href="/pricing">{{ _('Pricing') }}</a></li>
                     <li class="nav-item"><a class="nav-link" href="/about">{{ _('About') }}</a></li>
@@ -102,7 +101,7 @@
                 </ul>
                 <div class="d-flex align-items-center gap-2 mt-3 mt-xl-0">
                     <div class="dropdown me-1">
-                        <button class="btn btn-sm btn-outline-slate dropdown-toggle text-white d-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown">
+                        <button class="btn btn-sm btn-outline-slate dropdown-toggle text-white d-flex align-items-center gap-1 rounded-pill" type="button" data-bs-toggle="dropdown">
                             <i class="fas fa-globe text-gold"></i> <span class="text-uppercase small">{{ current_lang }}</span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark bg-dark border-secondary shadow-lg py-1">
@@ -116,8 +115,8 @@
                             <li><a class="dropdown-item small" href="/set-language/pt">Português</a></li>
                         </ul>
                     </div>
-                    <a href="/login" class="btn btn-sm btn-outline-slate px-3">{{ _('Login') }}</a>
-                    <a href="/register" class="btn btn-sm btn-brand px-3">{{ _('Start Free Trial') }}</a>
+                    <a href="/login" class="btn btn-sm btn-outline-slate px-3 rounded-pill">{{ _('Login') }}</a>
+                    <a href="/register" class="btn btn-sm btn-brand px-3 rounded-pill" style="padding: 7px 18px !important; font-size: 0.88rem;">{{ _('Start Free Trial') }}</a>
                 </div>
             </div>
         </div>
@@ -134,9 +133,8 @@
             </div>
             <div class="row g-4 mb-5">
                 <div class="col-lg-4 col-md-6">
-                    <div class="d-flex align-items-center gap-2 mb-3">
+                    <div class="mb-3">
                         <img src="{{ url_for('static', filename='images/logobb.png') }}" style="height: 38px;" alt="Business Better">
-                        <span class="fw-bold fs-5 text-white">Business Better</span>
                     </div>
                     <p class="text-secondary small mb-4">{{ _('The institutional Business Operating System for modern commercial contractors and property management agencies. Total executive control, live margin accounting, and zero blind spots.') }}</p>
                     <div class="small text-muted"><i class="fas fa-headset text-gold me-2"></i> {{ _('UK Support: 0330 223 8225') }}</div>
