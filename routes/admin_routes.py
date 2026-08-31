@@ -1336,20 +1336,31 @@ def view_system_logs():
     conn = get_db()
     cur = conn.cursor()
     
-    cur.execute("SELECT COUNT(*) FROM system_logs")
-    total_logs = cur.fetchone()[0]
-    total_pages = math.ceil(total_logs / per_page)
-    
     # Fetch Logs with User/Company Joins
     comp_id = session.get('company_id')
     filter_company_id = request.args.get('company_id', type=int)
+    is_super = (session.get('role') == 'SuperAdmin' and session.get('is_global_admin', False))
     
-    if session.get('role') == 'SuperAdmin' and session.get('is_global_admin', False):
+    # Fetch list of all companies for the filter dropdown
+    cur.execute("SELECT id, name FROM companies ORDER BY name ASC")
+    all_companies = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
+    
+    filter_company_name = None
+    if filter_company_id:
+        cur.execute("SELECT name FROM companies WHERE id = %s", (filter_company_id,))
+        c_row = cur.fetchone()
+        filter_company_name = c_row[0] if c_row else f"Company #{filter_company_id}"
+
+    if is_super:
         if filter_company_id:
+            cur.execute("SELECT COUNT(*) FROM system_logs WHERE company_id = %s", (filter_company_id,))
+            total_logs = cur.fetchone()[0]
+            total_pages = max(1, math.ceil(total_logs / per_page))
+            
             query = """
                 SELECT 
                     s.id,
-                    TO_CHAR(s.created_at, 'DD Mon HH24:MI') as time_str,
+                    TO_CHAR(s.created_at, 'DD Mon HH24:MI:SS') as time_str,
                     s.level,
                     s.message,
                     s.traceback,
@@ -1367,10 +1378,14 @@ def view_system_logs():
             """
             cur.execute(query, (filter_company_id, per_page, offset))
         else:
+            cur.execute("SELECT COUNT(*) FROM system_logs")
+            total_logs = cur.fetchone()[0]
+            total_pages = max(1, math.ceil(total_logs / per_page))
+            
             query = """
                 SELECT 
                     s.id,
-                    TO_CHAR(s.created_at, 'DD Mon HH24:MI') as time_str,
+                    TO_CHAR(s.created_at, 'DD Mon HH24:MI:SS') as time_str,
                     s.level,
                     s.message,
                     s.traceback,
@@ -1387,10 +1402,14 @@ def view_system_logs():
             """
             cur.execute(query, (per_page, offset))
     else:
+        cur.execute("SELECT COUNT(*) FROM system_logs WHERE company_id = %s", (comp_id,))
+        total_logs = cur.fetchone()[0]
+        total_pages = max(1, math.ceil(total_logs / per_page))
+        
         query = """
             SELECT 
                 s.id,
-                TO_CHAR(s.created_at, 'DD Mon HH24:MI') as time_str,
+                TO_CHAR(s.created_at, 'DD Mon HH24:MI:SS') as time_str,
                 s.level,
                 s.message,
                 s.traceback,
@@ -1407,11 +1426,14 @@ def view_system_logs():
             LIMIT %s OFFSET %s
         """
         cur.execute(query, (comp_id, per_page, offset))
+        
     logs = cur.fetchall()
-    pass
     
     return render_template('admin/system_logs.html', 
                            logs=logs, 
                            page=page, 
                            total_pages=total_pages,
-                           total_logs=total_logs)
+                           total_logs=total_logs,
+                           filter_company_id=filter_company_id,
+                           filter_company_name=filter_company_name,
+                           all_companies=all_companies)
