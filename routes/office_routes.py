@@ -36,6 +36,10 @@ def service_desk():
         "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS partner_company_id INTEGER;",
         "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS parent_request_id INTEGER;",
         "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS partner_address_snapshot VARCHAR(255);",
+        "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS budget_allowance NUMERIC(10,2);",
+        "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS external_contractor_name VARCHAR(255);",
+        "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS external_contractor_email VARCHAR(255);",
+        "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS external_contractor_phone VARCHAR(50);",
         "ALTER TABLE companies ADD COLUMN IF NOT EXISTS partner_code VARCHAR(20);",
         """CREATE TABLE IF NOT EXISTS company_partners (
             id SERIAL PRIMARY KEY,
@@ -56,12 +60,12 @@ def service_desk():
             conn.rollback()
 
     # 1. FETCH SERVICE REQUESTS (TICKETS)
-    # Modified to show if it's from a partner, with tenant & client contact details and booked job schedule info
+    # Modified to show partner details, budget allowances, external contractor routing, and child job progress
     cur.execute("""
         SELECT sr.id, sr.priority, 
                COALESCE(p.address_line1, sr.partner_address_snapshot), 
                sr.issue_description, 
-               COALESCE(c.name, 'Partner Network Job'), 
+               COALESCE(c.name, (SELECT name FROM companies WHERE id = sr.partner_company_id), 'Direct / Partner Job'), 
                sr.status, sr.photo_path, sr.created_at,
                sr.partner_company_id,
                sr.parent_request_id,
@@ -72,7 +76,15 @@ def service_desk():
                j.id as job_id,
                j.ref as job_ref,
                j.start_date as scheduled_date,
-               st.name as engineer_name
+               st.name as engineer_name,
+               sr.budget_allowance,
+               sr.external_contractor_name,
+               sr.external_contractor_email,
+               sr.external_contractor_phone,
+               (SELECT name FROM companies WHERE id = (SELECT company_id FROM service_requests WHERE parent_request_id = sr.id LIMIT 1)) as dispatched_to_partner_name,
+               (SELECT j2.status FROM jobs j2 WHERE j2.service_request_id = (SELECT id FROM service_requests WHERE parent_request_id = sr.id LIMIT 1) LIMIT 1) as partner_job_status,
+               (SELECT j2.start_date FROM jobs j2 WHERE j2.service_request_id = (SELECT id FROM service_requests WHERE parent_request_id = sr.id LIMIT 1) LIMIT 1) as partner_job_start_date,
+               (SELECT COUNT(*) FROM job_evidence je2 WHERE je2.job_id = (SELECT j2.id FROM jobs j2 WHERE j2.service_request_id = (SELECT id FROM service_requests WHERE parent_request_id = sr.id LIMIT 1) LIMIT 1)) as partner_photos_count
         FROM service_requests sr
         LEFT JOIN properties p ON sr.property_id = p.id
         LEFT JOIN clients c ON sr.client_id = c.id
@@ -91,10 +103,13 @@ def service_desk():
     requests = []
     for r in raw_reqs:
         sched_date_str = format_date(r[16]) if r[16] else ''
+        partner_sched_date_str = format_date(r[24]) if r[24] else ''
         requests.append({
             'id': r[0], 'severity': r[1], 'property_address': r[2],
             'issue_description': r[3], 'client_name': r[4], 'status': r[5],
             'photo_path': r[6], 'date': r[7].strftime('%d/%m/%Y %H:%M') if r[7] else '',
+            'partner_company_id': r[8],
+            'parent_request_id': r[9],
             'client_phone': r[10] or '',
             'tenant_name': r[11] or '',
             'tenant_phone': r[12] or '',
@@ -102,7 +117,15 @@ def service_desk():
             'job_id': r[14],
             'job_ref': r[15],
             'scheduled_date': sched_date_str,
-            'engineer_name': r[17] or ''
+            'engineer_name': r[17] or '',
+            'budget_allowance': float(r[18]) if r[18] is not None else None,
+            'external_contractor_name': r[19] or '',
+            'external_contractor_email': r[20] or '',
+            'external_contractor_phone': r[21] or '',
+            'dispatched_to_partner_name': r[22] or '',
+            'partner_job_status': r[23] or '',
+            'partner_job_start_date': partner_sched_date_str,
+            'partner_photos_count': int(r[25] or 0)
         })
 
     # 2. FETCH COMPLIANCE ALERTS
@@ -249,6 +272,14 @@ def dispatch_to_partner():
     comp_id = session.get('company_id')
     req_id = request.form.get('request_id')
     partner_id = request.form.get('partner_company_id')
+    budget_raw = request.form.get('budget_allowance', '').strip()
+    
+    budget_allowance = None
+    if budget_raw:
+        try:
+            budget_allowance = float(budget_raw)
+        except ValueError:
+            budget_allowance = None
     
     if not partner_id:
         flash("❌ No partner selected.", "error")
@@ -258,9 +289,10 @@ def dispatch_to_partner():
     with db_transaction() as cur:
         # 1. Fetch original request details
         cur.execute("""
-            SELECT sr.issue_description, sr.priority, sr.photo_path, p.address_line1
+            SELECT sr.issue_description, sr.priority, sr.photo_path, p.address_line1,
+                   p.tenant_name, p.tenant_phone, p.key_code
             FROM service_requests sr
-            JOIN properties p ON sr.property_id = p.id
+            LEFT JOIN properties p ON sr.property_id = p.id
             WHERE sr.id = %s AND sr.company_id = %s
         """, (req_id, comp_id))
         row = cur.fetchone()
@@ -269,18 +301,18 @@ def dispatch_to_partner():
             flash("❌ Request not found.", "error")
             return redirect(url_for('office.service_desk'))
             
-        desc, priority, photo, address = row
+        desc, priority, photo, address, t_name, t_phone, key_code = row
         
         # 2. Insert into Partner's Service Requests
         cur.execute("""
             INSERT INTO service_requests (
                 company_id, issue_description, priority, status, photo_path, 
-                partner_address_snapshot, parent_request_id, partner_company_id
-            ) VALUES (%s, %s, %s, 'Pending', %s, %s, %s, %s)
-        """, (partner_id, desc, priority, photo, address, req_id, comp_id))
+                partner_address_snapshot, parent_request_id, partner_company_id, budget_allowance
+            ) VALUES (%s, %s, %s, 'Pending', %s, %s, %s, %s, %s)
+        """, (partner_id, desc, priority, photo, address, req_id, comp_id, budget_allowance))
         
-        # 3. Update my request status
-        cur.execute("UPDATE service_requests SET status = 'Sent to Partner' WHERE id = %s", (req_id,))
+        # 3. Update my request status and budget
+        cur.execute("UPDATE service_requests SET status = 'Sent to Partner', budget_allowance = %s WHERE id = %s", (budget_allowance, req_id))
         
         # 4. Notify Partner via Email (From the dispatching tenant to the partner)
         cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'company_email'", (partner_id,))
@@ -289,9 +321,12 @@ def dispatch_to_partner():
         if partner_email_row and partner_email_row[0]:
             partner_email = partner_email_row[0]
             my_company_name = session.get('company_name', 'A partner company')
+            budget_line = f"<br><strong>Pre-Approved Budget Allowance:</strong> £{budget_allowance:.2f}" if budget_allowance is not None else ""
+            tenant_line = f"<br><strong>On-Site Tenant:</strong> {t_name} ({t_phone})" if t_name or t_phone else ""
+            key_line = f"<br><strong>Key Safe Code:</strong> {key_code}" if key_code else ""
             
             subject = f"New Partner Job Dispatched: {priority} Priority"
-            body = f"Hello,<br><br><strong>{my_company_name}</strong> has dispatched a new service request to your network.<br><br><strong>Priority:</strong> {priority}<br><strong>Description:</strong> {desc}<br><strong>Location:</strong> {address}<br><br>Please check your Service Desk to view and action this request.<br><br>Thank you."
+            body = f"Hello,<br><br><strong>{my_company_name}</strong> has dispatched a new service request to your network.<br><br><strong>Priority:</strong> {priority}<br><strong>Description:</strong> {desc}<br><strong>Location:</strong> {address}{tenant_line}{key_line}{budget_line}<br><br>Please check your Service Desk to view and action this request.<br><br>Thank you."
             
             from tasks import send_tenant_email_task
             send_tenant_email_task.delay(
@@ -301,9 +336,243 @@ def dispatch_to_partner():
                 body_html=body
             )
 
-        flash("✅ Job successfully dispatched to partner network!", "success")
+        flash(f"✅ Job successfully dispatched to partner network" + (f" with £{budget_allowance:.2f} budget allowance!" if budget_allowance is not None else "!"), "success")
         
     return redirect(url_for('office.service_desk'))
+
+@office_bp.route('/office/dispatch-to-external', methods=['POST'])
+def dispatch_to_external():
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    req_id = request.form.get('request_id')
+    contractor_name = request.form.get('contractor_name', '').strip()
+    contractor_email = request.form.get('contractor_email', '').strip()
+    contractor_phone = request.form.get('contractor_phone', '').strip()
+    budget_raw = request.form.get('budget_allowance', '').strip()
+    notes = request.form.get('dispatch_notes', '').strip()
+    
+    if not contractor_name or not contractor_email:
+        flash("❌ Contractor Name and Email are required.", "error")
+        return redirect(url_for('office.service_desk'))
+        
+    budget_allowance = None
+    if budget_raw:
+        try:
+            budget_allowance = float(budget_raw)
+        except ValueError:
+            budget_allowance = None
+            
+    from utils.db_utils import db_transaction
+    with db_transaction() as cur:
+        # Fetch request details
+        cur.execute("""
+            SELECT sr.issue_description, sr.priority, sr.photo_path, 
+                   COALESCE(p.address_line1, sr.partner_address_snapshot),
+                   p.tenant_name, p.tenant_phone, p.key_code, c.name as client_name
+            FROM service_requests sr
+            LEFT JOIN properties p ON sr.property_id = p.id
+            LEFT JOIN clients c ON sr.client_id = c.id
+            WHERE sr.id = %s AND sr.company_id = %s
+        """, (req_id, comp_id))
+        row = cur.fetchone()
+        
+        if not row:
+            flash("❌ Request not found.", "error")
+            return redirect(url_for('office.service_desk'))
+            
+        desc, priority, photo, address, t_name, t_phone, key_code, client_name = row
+        
+        # Update Service Request status
+        cur.execute("""
+            UPDATE service_requests 
+            SET status = 'Sent to External Contractor',
+                external_contractor_name = %s,
+                external_contractor_email = %s,
+                external_contractor_phone = %s,
+                budget_allowance = %s
+            WHERE id = %s AND company_id = %s
+        """, (contractor_name, contractor_email, contractor_phone, budget_allowance, req_id, comp_id))
+        
+        # Send Branded Work Order Email
+        my_company_name = session.get('company_name', 'Operations Team')
+        budget_line = f"<li><strong>Authorized Budget Allowance:</strong> £{budget_allowance:.2f} (Do not exceed without approval)</li>" if budget_allowance is not None else ""
+        tenant_line = f"<li><strong>On-Site Tenant / Contact:</strong> {t_name} ({t_phone})</li>" if t_name or t_phone else ""
+        key_line = f"<li><strong>Key Safe / Access Code:</strong> <span style='font-family:monospace; font-weight:bold; color:#d9534f;'>{key_code}</span></li>" if key_code else ""
+        notes_line = f"<p><strong>Additional Instructions from Office:</strong><br>{notes}</p>" if notes else ""
+        
+        subject = f"Work Order #{req_id} - {priority} Priority: {address}"
+        body = f"""
+        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; line-height: 1.6;">
+            <h2 style="color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 8px;">Work Order Request</h2>
+            <p>Dear {contractor_name},</p>
+            <p><strong>{my_company_name}</strong> has dispatched the following maintenance work order to you for attendance:</p>
+            
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li><strong>Work Order Ref:</strong> #{req_id}</li>
+                    <li><strong>Property Location:</strong> {address}</li>
+                    <li><strong>Urgency / Priority:</strong> {priority}</li>
+                    {tenant_line}
+                    {key_line}
+                    {budget_line}
+                </ul>
+            </div>
+            
+            <div style="background-color: #fff; border-left: 4px solid #3b82f6; padding: 12px 15px; margin-bottom: 20px;">
+                <strong>Fault / Work Description:</strong><br>
+                {desc}
+            </div>
+            
+            {notes_line}
+            
+            <p style="font-size: 0.9rem; color: #64748b;">
+                Please attend and confirm completion by replying directly to this email with your invoice and completion photos.
+            </p>
+            <p>Kind regards,<br><strong>{my_company_name}</strong></p>
+        </div>
+        """
+        
+        from tasks import send_tenant_email_task
+        send_tenant_email_task.delay(
+            company_id=comp_id,
+            recipient_email=contractor_email,
+            subject=subject,
+            body_html=body
+        )
+        
+        flash(f"✅ Work order emailed to {contractor_name} ({contractor_email}) successfully!", "success")
+        
+    return redirect(url_for('office.service_desk'))
+
+@office_bp.route('/office/partner-job/<int:request_id>')
+def view_partner_job(request_id):
+    if not check_office_access(): return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. Fetch originating request (must belong to this company or this company is the partner)
+    cur.execute("""
+        SELECT sr.id, sr.priority, sr.issue_description, sr.photo_path,
+               COALESCE(p.address_line1, sr.partner_address_snapshot),
+               p.tenant_name, p.tenant_phone, p.key_code,
+               sr.budget_allowance, sr.created_at, sr.company_id,
+               c_origin.name as origin_company_name,
+               sr.status
+        FROM service_requests sr
+        LEFT JOIN properties p ON sr.property_id = p.id
+        LEFT JOIN companies c_origin ON sr.company_id = c_origin.id
+        WHERE sr.id = %s
+    """, (request_id,))
+    orig_req = cur.fetchone()
+    
+    if not orig_req:
+        flash("❌ Request not found.", "error")
+        return redirect(url_for('office.service_desk'))
+        
+    orig_comp_id = orig_req[10]
+    
+    # 2. Find the child service request in Partner Company workspace
+    cur.execute("""
+        SELECT sr_child.id, sr_child.company_id, c_partner.name as partner_company_name,
+               sr_child.status, sr_child.created_at
+        FROM service_requests sr_child
+        JOIN companies c_partner ON sr_child.company_id = c_partner.id
+        WHERE sr_child.parent_request_id = %s
+    """, (request_id,))
+    child_req = cur.fetchone()
+    
+    # Check authorization: user's company must be either the originating company or the partner company
+    partner_comp_id = child_req[1] if child_req else None
+    if comp_id != orig_comp_id and comp_id != partner_comp_id:
+        flash("Unauthorized access to partner job.", "error")
+        return redirect(url_for('office.service_desk'))
+        
+    # 3. Find the partner's Job if scheduled
+    partner_job = None
+    evidence_photos = []
+    diary_notes = []
+    
+    if child_req:
+        child_req_id = child_req[0]
+        cur.execute("""
+            SELECT j.id, j.ref, j.status, j.start_date, j.end_date, j.created_at,
+                   st.name as engineer_name
+            FROM jobs j
+            LEFT JOIN staff st ON j.engineer_id = st.id
+            WHERE j.service_request_id = %s
+            ORDER BY j.id DESC LIMIT 1
+        """, (child_req_id,))
+        job_row = cur.fetchone()
+        
+        if job_row:
+            partner_job = {
+                'id': job_row[0],
+                'ref': job_row[1],
+                'status': job_row[2],
+                'start_date': format_date(job_row[3]) if job_row[3] else None,
+                'end_date': format_date(job_row[4]) if job_row[4] else None,
+                'created_at': format_date(job_row[5]) if job_row[5] else None,
+                'engineer_name': job_row[6] or 'Assigned Crew'
+            }
+            
+            # Fetch Photos & Evidence (Safe - no wages/financials)
+            cur.execute("""
+                SELECT id, filepath, uploaded_at, file_type
+                FROM job_evidence
+                WHERE job_id = %s
+                ORDER BY uploaded_at DESC
+            """, (job_row[0],))
+            for ev in cur.fetchall():
+                fpath = ev[1] if ev[1].startswith('/') else '/' + ev[1]
+                evidence_photos.append({
+                    'id': ev[0],
+                    'path': fpath,
+                    'date': format_date(ev[2]) if ev[2] else '',
+                    'type': ev[3] or 'Site Evidence Photo'
+                })
+                
+            # Fetch Site Diary Notes
+            cur.execute("""
+                SELECT id, staff_name, entry_text, created_at
+                FROM site_diary
+                WHERE job_id = %s
+                ORDER BY created_at ASC
+            """, (job_row[0],))
+            for d in cur.fetchall():
+                diary_notes.append({
+                    'id': d[0],
+                    'staff_name': d[1],
+                    'entry_text': d[2],
+                    'created_at': format_date(d[3]) if d[3] else ''
+                })
+                
+    ticket_data = {
+        'id': orig_req[0],
+        'priority': orig_req[1],
+        'description': orig_req[2],
+        'photo_path': orig_req[3] if (orig_req[3] and orig_req[3].startswith('/')) else ('/' + orig_req[3] if orig_req[3] else None),
+        'address': orig_req[4],
+        'tenant_name': orig_req[5] or 'Resident',
+        'tenant_phone': orig_req[6] or '',
+        'key_code': orig_req[7] or '',
+        'budget_allowance': float(orig_req[8]) if orig_req[8] is not None else None,
+        'created_at': format_date(orig_req[9]) if orig_req[9] else '',
+        'origin_company_name': orig_req[11],
+        'status': orig_req[12],
+        'partner_company_name': child_req[2] if child_req else 'Partner Network',
+        'partner_req_status': child_req[3] if child_req else 'Pending'
+    }
+    
+    return render_template('office/partner_job_view.html',
+                           ticket=ticket_data,
+                           job=partner_job,
+                           photos=evidence_photos,
+                           diary=diary_notes,
+                           brand_color=config.get('color', '#0f172a'),
+                           logo=config.get('logo'))
 
 @office_bp.route('/office-hub')
 def office_dashboard():
