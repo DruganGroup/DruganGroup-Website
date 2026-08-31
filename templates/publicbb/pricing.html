@@ -1,154 +1,88 @@
 {% extends "publicbb/base.html" %}
 
-{% block title %}{{ _('Pricing') }} | {{ _('Business Better') }}{% endblock %}
+{% block title %}{{ _('Transparent Enterprise Pricing | Business Better') }}{% endblock %}
+
+{% block meta_description %}{{ _('Transparent pricing for trade contractors and estate agencies. 14-day fully featured free trial with zero setup fees. Cancel anytime.') }}{% endblock %}
 
 {% block content %}
-<header class="py-5 text-center position-relative overflow-hidden" style="background-color: var(--bb-bg); padding-top: 100px !important;">
-    <div class="container py-4 position-relative z-2">
-        <div class="d-inline-block px-4 py-2 mb-3 border border-warning rounded-pill bg-dark">
-            <span class="text-gold text-uppercase small fw-bold"><i class="fas fa-tags me-2"></i>{{ _('All-Inclusive Pricing') }}</span>
-        </div>
-        <h1 class="fw-bold display-4 text-white mb-3">{{ _('Choose your') }} <span class="text-gold">{{ _('Power Level.') }}</span></h1>
-        <p class="lead text-secondary mx-auto mb-4" style="max-width: 600px;">
-            {{ _('No hidden fees. Cancel anytime. Scale as you grow.') }}
+<header class="py-5 text-center position-relative overflow-hidden" style="background: radial-gradient(circle at 50% 20%, rgba(197, 160, 89, 0.08) 0%, rgba(9, 12, 16, 1) 70%);">
+    <div class="container py-4">
+        <div class="b2b-badge mb-3"><i class="fas fa-tags me-1"></i> {{ _('Transparent Enterprise Pricing') }}</div>
+        <h1 class="display-4 fw-bold text-white mb-3">
+            {{ _('Clear Plans For') }} <span class="text-gold">{{ _('Every Stage of Growth.') }}</span>
+        </h1>
+        <p class="lead text-secondary mx-auto mb-4" style="max-width: 650px;">
+            {{ _('Every plan includes our core platform capabilities. No hidden implementation fees. 14-day unrestricted free trial.') }}
         </p>
-        <div class="alert alert-dark border border-success d-inline-block mx-auto">
-            <i class="fas fa-piggy-bank text-success me-2"></i>
-            <span class="text-white">{{ _('Save up to') }} <strong class="text-success">{{ _('£86/month') }}</strong> {{ _('vs traditional software stack') }}</span>
-        </div>
     </div>
 </header>
 
-<section class="py-5" style="background-color: var(--bb-bg);">
+<section class="py-5" style="background: var(--bb-bg-secondary);">
     <div class="container pb-5">
         
-        <div class="text-center mb-5">
-            <div class="d-inline-block px-3 py-1 border border-secondary rounded-pill mb-3">
-                <small class="text-white text-uppercase fw-bold"><i class="fas fa-hammer text-gold me-2"></i> {{ _('For Trade & Management') }}</small>
-            </div>
-        </div>
-
-        <div class="row g-4 justify-content-center align-items-center mb-5">
-            
+        <div class="row g-4 justify-content-center align-items-stretch mb-5">
             {% for plan in plans %}
             {% if 'Agency' not in plan.name %}
-            
             <div class="col-lg-4 col-md-6">
-                {% set is_popular = 'Growing' in plan.name %}
-                
-                <div class="card h-100 {{ 'border-warning shadow-lg bg-black transform-scale' if is_popular else 'border-secondary bg-dark hover-lift' }} text-white rounded-4 position-relative">
-                    
+                {% set is_popular = 'Growing' in plan.name or 'Pro' in plan.name %}
+                <div class="b2b-card h-100 d-flex flex-column text-center {{ 'border-gold shadow-lg' if is_popular else '' }}">
                     {% if is_popular %}
-                    <div class="position-absolute top-0 start-50 translate-middle badge bg-warning text-dark px-3 py-2 rounded-pill shadow-sm">
-                        {{ _('MOST POPULAR') }}
+                    <div class="position-absolute top-0 start-50 translate-middle">
+                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold">{{ _('MOST POPULAR') }}</span>
                     </div>
                     {% endif %}
 
-                    <div class="card-body p-5 text-center">
-                        <h4 class="fw-bold {{ 'text-gold' if is_popular else 'text-secondary' }} mb-3">{{ plan.name }}</h4>
-                        <div class="display-4 fw-bold mb-3 text-white">£{{ "%.0f"|format(plan.price) }}<span class="fs-6 text-secondary fw-normal">/mo</span></div>
-                        
-                        <p class="text-secondary small mb-4">
-                            {% if plan.price < 50 %}{{ _('Perfect for getting organized.') }}
-                            {% elif plan.price < 150 %}{{ _('Connect the office to the van.') }}
-                            {% else %}{{ _('Total control for larger firms.') }}{% endif %}
-                        </p>
-                        
-                        <div class="d-grid mb-4">
-                            <a href="/register?plan={{ plan.id }}" class="btn {{ 'btn-brand fw-bold' if is_popular else 'btn-outline-light' }} rounded-pill">{{ _('Start Free Trial') }}</a>
-                        </div>
-                        
-                        <ul class="list-unstyled text-start small mx-auto text-secondary" style="max-width: 260px;">
-                            <li class="mb-3"><i class="fas fa-user {{ 'text-gold' if is_popular else 'text-secondary' }} me-2"></i> 
-                                <strong>{{ plan.max_users if plan.max_users > 0 else 'Unlimited' }}</strong> Staff
-                            </li>
-                            
-                            {% if plan.max_vehicles > 0 %}
-                            <li class="mb-3"><i class="fas fa-truck {{ 'text-gold' if is_popular else 'text-secondary' }} me-2"></i> 
-                                <strong>{{ plan.max_vehicles }}</strong> Vehicles
-                            </li>
-                            {% endif %}
-
-                            {% if 'Finance' in plan.modules %}
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Quotes & AI Bookkeeping</li>
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Automated Payroll</li>
-                            {% endif %}
-                            
-                            {% if 'Portal' in plan.modules %}
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Client Portal & B2B Sync</li>
-                            {% endif %}
-
-                            {% if 'Fleet' in plan.modules %}
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Live Fleet Telematics</li>
-                            {% endif %}
-
-                            {% if 'Compliance' in plan.modules %}
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> Smart Compliance Tracking</li>
-                            {% endif %}
-                            
-                            {% if 'RAMS' in plan.modules %}
-                            <li class="mb-3"><i class="fas fa-check text-gold me-2"></i> <strong>RAMS Studio</strong></li>
-                            {% endif %}
-                        </ul>
+                    <h4 class="fw-bold text-white mb-2 font-heading mt-2">{{ plan.name }}</h4>
+                    <div class="display-5 fw-bold text-white mb-3 font-heading">
+                        £{{ "%.0f"|format(plan.price) }}<span class="fs-6 text-secondary fw-normal">/mo</span>
                     </div>
+
+                    <div class="mb-4">
+                        <a href="/register?plan={{ plan.id }}" class="btn {{ 'btn-brand' if is_popular else 'btn-outline-slate' }} w-100 py-2 fw-semibold">
+                            {{ _('Start 14-Day Free Trial') }}
+                        </a>
+                    </div>
+
+                    <ul class="list-unstyled text-start small text-secondary mx-auto mb-4 flex-grow-1" style="max-width: 260px;">
+                        <li class="mb-2"><i class="fas fa-user text-gold me-2"></i> <strong>{{ plan.max_users if plan.max_users > 0 else 'Unlimited' }}</strong> {{ _('Staff Accounts') }}</li>
+                        {% if plan.max_vehicles > 0 %}
+                        <li class="mb-2"><i class="fas fa-truck text-gold me-2"></i> <strong>{{ plan.max_vehicles }}</strong> {{ _('Fleet Vehicles') }}</li>
+                        {% endif %}
+                        <li class="mb-2"><i class="fas fa-check text-gold me-2"></i> {{ _('Live Job Margin Engine') }}</li>
+                        <li class="mb-2"><i class="fas fa-check text-gold me-2"></i> {{ _('CIS & PAYE Payroll Run') }}</li>
+                        <li class="mb-2"><i class="fas fa-check text-gold me-2"></i> {{ _('Dynamic 60s RAMS Studio') }}</li>
+                        <li class="mb-2"><i class="fas fa-check text-gold me-2"></i> {{ _('B2B Partner Link Network') }}</li>
+                        <li class="mb-2"><i class="fas fa-check text-gold me-2"></i> {{ _('White-Label Client Portal') }}</li>
+                    </ul>
                 </div>
             </div>
-            
             {% endif %}
-            {% else %}
-            <div class="col-12 text-center text-muted">
-                <i class="fas fa-info-circle me-2"></i> No plans configured yet.
-            </div>
             {% endfor %}
-
         </div>
 
-        <div class="row justify-content-center mt-5">
-            
+        <!-- AGENCY SECTION -->
+        <div class="row justify-content-center mt-4">
             {% for plan in plans %}
             {% if 'Agency' in plan.name %}
-            
-            <div class="col-lg-8 mb-4">
-                <div class="card border-info bg-black text-white rounded-4 position-relative overflow-hidden">
-                    <div class="row g-0 align-items-center">
-                        <div class="col-md-5 p-4 bg-dark border-end border-secondary text-center d-flex flex-column justify-content-center h-100">
-                            <h4 class="fw-bold text-info mb-2">{{ plan.name }}</h4>
-                            <div class="display-5 fw-bold text-white mb-2">£{{ "%.0f"|format(plan.price) }}<span class="fs-6 text-secondary fw-normal">/mo</span></div>
-                            <small class="text-secondary">For Estate Agents & Block Managers</small>
+            <div class="col-lg-9">
+                <div class="p-4 rounded-4 bg-black border border-info shadow-lg">
+                    <div class="row align-items-center g-4">
+                        <div class="col-md-5 text-center text-md-start">
+                            <span class="badge bg-info text-black fw-bold px-3 py-1 mb-2">{{ _('ESTATE AGENTS & PMS') }}</span>
+                            <h3 class="text-white fw-bold mb-1 font-heading">{{ plan.name }}</h3>
+                            <div class="display-6 fw-bold text-white font-heading">£{{ "%.0f"|format(plan.price) }}<small class="fs-6 text-secondary fw-normal">/mo</small></div>
                         </div>
-                        <div class="col-md-7 p-4">
-                            <p class="text-secondary mb-3">
-                                Connect your tenants directly to your maintenance desk.
-                            </p>
-                            <div class="row g-2 mb-4">
-                                <div class="col-6"><small class="text-white"><i class="fas fa-check text-info me-2"></i> <strong>{{ plan.max_properties if plan.max_properties > 0 else 'Unlimited' }}</strong> Properties</small></div>
-                                <div class="col-6"><small class="text-white"><i class="fas fa-check text-info me-2"></i> Tenant Reporting</small></div>
-                                
-                                {% if 'Compliance' in plan.modules %}
-                                <div class="col-6"><small class="text-white"><i class="fas fa-check text-info me-2"></i> Compliance Tracking</small></div>
-                                {% endif %}
-                                
-                                <div class="col-6"><small class="text-white"><i class="fas fa-check text-info me-2"></i> Auto-Dispatch Logic</small></div>
-                            </div>
-                            <a href="/register?plan={{ plan.id }}" class="btn btn-outline-info rounded-pill w-100">Start {{ plan.name }} Trial</a>
+                        <div class="col-md-7">
+                            <p class="text-secondary small mb-3">{{ _('Dedicated tenant photo reporting desk, contractor auto-dispatching, and gas/electrical compliance expiry radar.') }}</p>
+                            <a href="/register?plan={{ plan.id }}" class="btn btn-brand w-100 py-2">{{ _('Start Agency Free Trial') }} <i class="fas fa-arrow-right ms-2"></i></a>
                         </div>
                     </div>
                 </div>
             </div>
-
             {% endif %}
             {% endfor %}
-            
         </div>
 
     </div>
 </section>
-
-<style>
-    .hover-lift { transition: transform 0.3s ease, border-color 0.3s ease; }
-    .hover-lift:hover { transform: translateY(-5px); border-color: var(--bb-gold) !important; }
-    
-    .transform-scale { transform: scale(1.05); z-index: 2; }
-    @media (max-width: 992px) { .transform-scale { transform: scale(1); } }
-</style>
 {% endblock %}

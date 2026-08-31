@@ -1,271 +1,143 @@
 {% extends "publicbb/base.html" %}
 
-{% block title %}All Features | Business Better{% endblock %}
+{% block title %}{{ _('Complete Enterprise Capability Catalog | Business Better') }}{% endblock %}
 
-{% block head %}
-<link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-<style>
-    :root {
-        --bb-black: #050505;
-        --bb-gold: #d4af37;
-        --bb-glass: rgba(255, 255, 255, 0.03);
-    }
-    body { background-color: var(--bb-black); color: #e0e0e0; font-family: 'Montserrat', sans-serif; }
-    h1, h2, h3, h4 { letter-spacing: -0.5px; }
-    
-    .dept-header {
-        border-bottom: 2px solid var(--bb-gold);
-        padding-bottom: 10px;
-        margin-bottom: 30px;
-        margin-top: 60px;
-        color: white;
-    }
-
-    .feature-card {
-        background: var(--bb-glass);
-        border: 1px solid rgba(255,255,255,0.05);
-        border-radius: 8px;
-        padding: 25px;
-        height: 100%;
-        transition: transform 0.3s ease;
-    }
-    .feature-card:hover {
-        transform: translateY(-5px);
-        border-color: rgba(212, 175, 55, 0.3);
-    }
-    .feature-icon {
-        color: var(--bb-gold);
-        font-size: 2rem;
-        margin-bottom: 15px;
-    }
-</style>
-{% endblock %}
+{% block meta_description %}{{ _('Explore all 30+ enterprise modules included in Business Better: CIS payroll, live margin tracking, dynamic RAMS, fleet telematics, and B2B partner network.') }}{% endblock %}
 
 {% block content %}
-<header class="py-5 text-center">
-    <div class="container mt-5">
-        <span class="text-gold border border-warning px-3 py-1 rounded-pill small fw-bold text-uppercase tracking-wide">The Complete Catalog</span>
-        <h1 class="display-4 fw-bold text-white mt-4 mb-3">Every Feature.<br>Zero Add-Ons.</h1>
-        <p class="lead text-secondary mx-auto" style="max-width: 700px;">
-            Unlike other software, we don't charge you extra for modules. Everything you see below is included in the core platform to help you automate your entire business.
+<header class="py-5 text-center position-relative overflow-hidden" style="background: radial-gradient(circle at 50% 20%, rgba(197, 160, 89, 0.08) 0%, rgba(9, 12, 16, 1) 70%);">
+    <div class="container py-4">
+        <div class="b2b-badge mb-3"><i class="fas fa-layer-group me-1"></i> {{ _('Institutional Feature Catalog') }}</div>
+        <h1 class="display-4 fw-bold text-white mb-3">{{ _('Every Module Included.') }}<br><span class="text-gold">{{ _('Zero Add-On Fees.') }}</span></h1>
+        <p class="lead text-secondary mx-auto mb-4" style="max-width: 750px;">
+            {{ _('We do not penalize growth with nickel-and-dime module pricing. Everything detailed below is included in the core platform to run your business end-to-end.') }}
         </p>
     </div>
 </header>
 
-<section class="py-5 mb-5">
+<section class="py-5" style="background: var(--bb-bg-secondary);">
     <div class="container">
         
-        <!-- HR & PAYROLL -->
-        <h2 class="dept-header"><i class="fas fa-users text-gold me-3"></i> HR & Automated Payroll</h2>
-        <div class="row g-4">
-            <div class="col-md-4" data-aos="fade-up">
-                <div class="feature-card">
-                    <i class="fas fa-file-invoice-dollar feature-icon"></i>
-                    <h4 class="fw-bold text-white">One-Click Payroll Run</h4>
-                    <p class="small text-muted">Automatically pulls all approved timesheets for the week. Calculates Gross Pay based on their specific Hourly or Day rate.</p>
-                </div>
+        <!-- HR & AUTOMATED PAYROLL -->
+        <div class="mb-5">
+            <div class="d-flex align-items-center gap-3 border-bottom border-gold pb-2 mb-4">
+                <i class="fas fa-users text-gold fs-4"></i>
+                <h3 class="text-white fw-bold mb-0 font-heading">{{ _('HR, Timesheets & Automated Payroll') }}</h3>
             </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
-                <div class="feature-card">
-                    <i class="fas fa-calculator feature-icon"></i>
-                    <h4 class="fw-bold text-white">Smart Tax Engine (CIS & PAYE)</h4>
-                    <p class="small text-muted">Automatically applies 20% or 30% CIS deductions for sub-contractors, and calculates PAYE limits based on custom Tax Codes and NI limits.</p>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="b2b-card h-100">
+                        <i class="fas fa-file-invoice-dollar text-gold fs-3 mb-3"></i>
+                        <h5 class="text-white fw-bold mb-2">{{ _('1-Click Payroll Run') }}</h5>
+                        <p class="text-secondary small mb-0">{{ _('Pulls all approved timesheets for the week. Calculates gross pay per engineer based on hourly or day rates.') }}</p>
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
-                <div class="feature-card">
-                    <i class="fas fa-envelope-open-text feature-icon"></i>
-                    <h4 class="fw-bold text-white">Automated PDF Payslips</h4>
-                    <p class="small text-muted">Clicking 'Finalize' instantly generates beautiful, white-labeled PDF payslips and automatically emails them directly to your staff.</p>
+                <div class="col-md-4">
+                    <div class="b2b-card h-100">
+                        <i class="fas fa-receipt text-gold fs-3 mb-3"></i>
+                        <h5 class="text-white fw-bold mb-2">{{ _('Smart Tax Engine (CIS & PAYE)') }}</h5>
+                        <p class="text-secondary small mb-0">{{ _('Auto-deducts 20% or 30% CIS for subcontractors and handles PAYE thresholds, tax codes, and National Insurance limits.') }}</p>
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up">
-                <div class="feature-card">
-                    <i class="fas fa-umbrella-beach feature-icon"></i>
-                    <h4 class="fw-bold text-white">Automated Holiday Accrual</h4>
-                    <p class="small text-muted">Tracks 12.07% holiday accrual for entitled staff. Automatically generates 8-hour paid timesheets when you approve Annual Leave.</p>
-                </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
-                <div class="feature-card">
-                    <i class="fas fa-file-csv feature-icon"></i>
-                    <h4 class="fw-bold text-white">Bulk Bank Export (BACS)</h4>
-                    <p class="small text-muted">Exports a perfectly formatted CSV containing staff Bank Names, Account Numbers, Sort Codes, and Net Pay to upload straight to your bank.</p>
+                <div class="col-md-4">
+                    <div class="b2b-card h-100">
+                        <i class="fas fa-envelope-open-text text-gold fs-3 mb-3"></i>
+                        <h5 class="text-white fw-bold mb-2">{{ _('Automated PDF Payslips & BACS') }}</h5>
+                        <p class="text-secondary small mb-0">{{ _('Instantly generates white-labeled PDF payslips emailed to staff and exports standard CSV files for direct bank upload.') }}</p>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- SERVICE DESK & B2B -->
-        <h2 class="dept-header"><i class="fas fa-network-wired text-gold me-3"></i> Service Desk & B2B Network</h2>
-        <div class="row g-4">
-            <div class="col-md-4" data-aos="fade-up">
-                <div class="feature-card">
-                    <i class="fas fa-headset feature-icon"></i>
-                    <h4 class="fw-bold text-white">Client Ticketing System</h4>
-                    <p class="small text-muted">A dedicated help desk where tenants and clients can log issues directly. Track ticket status, assign them to staff, and keep an organized audit trail of all communications.</p>
-                </div>
+        <!-- SERVICE DESK & B2B NETWORK -->
+        <div class="mb-5">
+            <div class="d-flex align-items-center gap-3 border-bottom border-gold pb-2 mb-4">
+                <i class="fas fa-network-wired text-gold fs-4"></i>
+                <h3 class="text-white fw-bold mb-0 font-heading">{{ _('Service Desk & B2B Partner Network') }}</h3>
             </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
-                <div class="feature-card">
-                    <i class="fas fa-link feature-icon"></i>
-                    <h4 class="fw-bold text-white">B2B Partner Network</h4>
-                    <p class="small text-muted">Link your database with Estate Agents or Subcontractors using secure Partner Codes. Send and receive live jobs instantly between companies.</p>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="b2b-card h-100">
+                        <i class="fas fa-headset text-gold fs-3 mb-3"></i>
+                        <h5 class="text-white fw-bold mb-2">{{ _('24/7 Tenant Photo Ticketing') }}</h5>
+                        <p class="text-secondary small mb-0">{{ _('Dedicated ticketing portal requiring mandatory photo evidence before submission. Completely eliminates phone chase-ups.') }}</p>
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
-                <div class="feature-card">
-                    <i class="fas fa-camera feature-icon"></i>
-                    <h4 class="fw-bold text-white">Client Portal Photo Uploads</h4>
-                    <p class="small text-muted">Clients log into your white-labeled portal, describe their fault, upload a photo of the damage, and it drops instantly onto your dashboard.</p>
+                <div class="col-md-4">
+                    <div class="b2b-card h-100">
+                        <i class="fas fa-link text-gold fs-3 mb-3"></i>
+                        <h5 class="text-white fw-bold mb-2">{{ _('B2B Partner Link Codes') }}</h5>
+                        <p class="text-secondary small mb-0">{{ _('Link databases with estate agents or trusted subcontractors. Send and receive work orders with live synced status updates.') }}</p>
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
-                <div class="feature-card">
-                    <i class="fas fa-hard-hat feature-icon"></i>
-                    <h4 class="fw-bold text-white">1-Click Dispatch</h4>
-                    <p class="small text-muted">Review incoming tickets and click "Dispatch" to instantly assign it to an engineer and schedule it on the master calendar.</p>
-                </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up">
-                <div class="feature-card">
-                    <i class="fas fa-sync-alt feature-icon"></i>
-                    <h4 class="fw-bold text-white">Live B2B Status Syncing</h4>
-                    <p class="small text-muted">When you subcontract a job to a partner company, you get live updates when they mark it 'In Progress' or 'Completed' without sharing private data.</p>
+                <div class="col-md-4">
+                    <div class="b2b-card h-100">
+                        <i class="fas fa-bolt text-gold fs-3 mb-3"></i>
+                        <h5 class="text-white fw-bold mb-2">{{ _('1-Click Engineer Dispatch') }}</h5>
+                        <p class="text-secondary small mb-0">{{ _('Review incoming tickets and assign directly to field crew calendars, notifying the worker mobile companion app instantly.') }}</p>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- FINANCE & AI BOOKKEEPING -->
-        <h2 class="dept-header"><i class="fas fa-chart-line text-gold me-3"></i> Finance & AI Bookkeeping</h2>
-        <div class="row g-4">
-            <div class="col-md-4" data-aos="fade-up">
-                <div class="feature-card">
-                    <i class="fas fa-robot feature-icon"></i>
-                    <h4 class="fw-bold text-white">AI Receipt Scanning</h4>
-                    <p class="small text-muted">Upload a photo of a receipt to the Sorting Office. Our AI (ChatGPT/Claude/Gemini) reads the text, extracts the totals, and assigns it as a Job Expense.</p>
-                </div>
+        <div class="mb-5">
+            <div class="d-flex align-items-center gap-3 border-bottom border-gold pb-2 mb-4">
+                <i class="fas fa-chart-line text-gold fs-4"></i>
+                <h3 class="text-white fw-bold mb-0 font-heading">{{ _('Financial Intelligence & AI Bookkeeping') }}</h3>
             </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
-                <div class="feature-card">
-                    <i class="fas fa-chart-pie feature-icon"></i>
-                    <h4 class="fw-bold text-white">Live Profit Margin Analysis</h4>
-                    <p class="small text-muted">The system automatically calculates (Invoiced Revenue) minus (Staff Wages + AI Receipts + Van Costs) to give you a true live profit margin per job.</p>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="b2b-card h-100">
+                        <i class="fas fa-robot text-gold fs-3 mb-3"></i>
+                        <h5 class="text-white fw-bold mb-2">{{ _('AI Receipt Scanning') }}</h5>
+                        <p class="text-secondary small mb-0">{{ _('Upload receipts to the Sorting Office. Integrated AI reads merchant totals and assigns line items to project job expenses.') }}</p>
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
-                <div class="feature-card">
-                    <i class="fas fa-file-invoice feature-icon"></i>
-                    <h4 class="fw-bold text-white">1-Click Invoicing & Stripe</h4>
-                    <p class="small text-muted">Convert completed jobs directly into beautifully branded PDF Invoices. Clients can pay instantly online via the secure Stripe integration.</p>
+                <div class="col-md-4">
+                    <div class="b2b-card h-100">
+                        <i class="fas fa-calculator text-gold fs-3 mb-3"></i>
+                        <h5 class="text-white fw-bold mb-2">{{ _('Live Profit Margin Tracker') }}</h5>
+                        <p class="text-secondary small mb-0">{{ _('Auto-calculates Invoiced Revenue minus (Engineer Wages + Materials + Van daily cost) for live true margin visibility.') }}</p>
+                    </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- ESTIMATING & QUOTING -->
-        <h2 class="dept-header"><i class="fas fa-calculator text-gold me-3"></i> Smart Estimator & Quoting</h2>
-        <div class="row g-4">
-            <div class="col-md-4" data-aos="fade-up">
-                <div class="feature-card">
-                    <i class="fas fa-magic feature-icon"></i>
-                    <h4 class="fw-bold text-white">Trade-Specific Calculators</h4>
-                    <p class="small text-muted">Tell the engine you need "30m of Fencing". It calculates the exact number of posts, rails, cement bags, and labor hours required.</p>
-                </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
-                <div class="feature-card">
-                    <i class="fas fa-database feature-icon"></i>
-                    <h4 class="fw-bold text-white">Live Material Database</h4>
-                    <p class="small text-muted">Upload your supplier price lists. The estimator pulls the exact live cost of materials and automatically applies your default profit markup.</p>
-                </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
-                <div class="feature-card">
-                    <i class="fas fa-signature feature-icon"></i>
-                    <h4 class="fw-bold text-white">Client Acceptance Portal</h4>
-                    <p class="small text-muted">Send the quote via email. Clients view it in their portal and click "Accept". It instantly converts the quote into an active, scheduled Job.</p>
+                <div class="col-md-4">
+                    <div class="b2b-card h-100">
+                        <i class="fas fa-credit-card text-gold fs-3 mb-3"></i>
+                        <h5 class="text-white fw-bold mb-2">{{ _('1-Click Invoicing & Stripe') }}</h5>
+                        <p class="text-secondary small mb-0">{{ _('Convert completed jobs directly to branded PDF invoices with integrated Stripe online credit card payment links.') }}</p>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- COMPLIANCE & RAMS -->
-        <h2 class="dept-header"><i class="fas fa-shield-alt text-gold me-3"></i> Compliance & Safety</h2>
-        <div class="row g-4">
-            <div class="col-md-4" data-aos="fade-up">
-                <div class="feature-card">
-                    <i class="fas fa-certificate feature-icon"></i>
-                    <h4 class="fw-bold text-white">Smart Expiry Tracker</h4>
-                    <p class="small text-muted">Tracks Gas (CP12), Electric (EICR), EPC, and PAT dates. Shows up as a warning on your dashboard 30 days before they expire.</p>
-                </div>
+        <!-- COMPLIANCE & FLEET -->
+        <div class="mb-5">
+            <div class="d-flex align-items-center gap-3 border-bottom border-gold pb-2 mb-4">
+                <i class="fas fa-shield-alt text-gold fs-4"></i>
+                <h3 class="text-white fw-bold mb-0 font-heading">{{ _('Compliance, RAMS & Fleet Operations') }}</h3>
             </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
-                <div class="feature-card">
-                    <i class="fas fa-file-pdf feature-icon"></i>
-                    <h4 class="fw-bold text-white">PDF Certificate Generator</h4>
-                    <p class="small text-muted">Engineers can fill out gas or electric safety checks on their phone. It auto-generates a legal PDF certificate with their digital signature.</p>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="b2b-card h-100">
+                        <i class="fas fa-certificate text-gold fs-3 mb-3"></i>
+                        <h5 class="text-white fw-bold mb-2">{{ _('30-Day Expiry Radar') }}</h5>
+                        <p class="text-secondary small mb-0">{{ _('Tracks Gas (CP12), Electric (EICR), EPC, and PAT dates with automated dashboard warnings 30 days prior to expiry.') }}</p>
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
-                <div class="feature-card">
-                    <i class="fas fa-clipboard-list feature-icon"></i>
-                    <h4 class="fw-bold text-white">Dynamic RAMS</h4>
-                    <p class="small text-muted">Select the hazards on a specific job, and the system automatically generates a comprehensive Risk Assessment & Method Statement for your crew.</p>
+                <div class="col-md-4">
+                    <div class="b2b-card h-100">
+                        <i class="fas fa-hard-hat text-gold fs-3 mb-3"></i>
+                        <h5 class="text-white fw-bold mb-2">{{ _('Dynamic RAMS Studio') }}</h5>
+                        <p class="text-secondary small mb-0">{{ _('Select on-site hazards to generate professional Risk Assessments and Method Statements in under 60 seconds.') }}</p>
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up">
-                <div class="feature-card">
-                    <i class="fas fa-book-open feature-icon"></i>
-                    <h4 class="fw-bold text-white">Site Diaries & Audits</h4>
-                    <p class="small text-muted">Workers log daily site notes, which are permanently time-stamped. Perfect for commercial contracts requiring indisputable proof of work and delay justifications.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- GLOBALIZATION -->
-        <h2 class="dept-header"><i class="fas fa-globe text-gold me-3"></i> {{ _('Global Reach') }} & Localization</h2>
-        <div class="row g-4 mb-5">
-            <div class="col-lg-6" data-aos="fade-up">
-                <div class="feature-box h-100">
-                    <h4 class="text-white fw-bold"><i class="fas fa-language text-gold me-2"></i> Multi-Language Engine</h4>
-                    <p class="text-secondary small">Translate the entire software and client portal instantly into English, Spanish, French, German, Mandarin, Hindi, and Portuguese. We even support full RTL (Right-to-Left) formatting for Arabic users.</p>
-                </div>
-            </div>
-            <div class="col-lg-6" data-aos="fade-up" data-aos-delay="100">
-                <div class="feature-box h-100">
-                    <h4 class="text-white fw-bold"><i class="fas fa-file-contract text-gold me-2"></i> {{ _('Global Compliance') }}</h4>
-                    <p class="text-secondary small">Generate strictly-formatted legal certificates natively. Includes UK (CP12, EICR), US (OSHA, NFPA 70E), Canada (ESA), Australia (CCEW), France (Consuel), Germany (DGUV V3), Spain (CIE), and UAE (DEWA) regulations.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- FLEET & COMMS -->
-        <h2 class="dept-header"><i class="fas fa-truck text-gold me-3"></i> Fleet & Communications</h2>
-        <div class="row g-4">
-            <div class="col-md-4" data-aos="fade-up">
-                <div class="feature-card">
-                    <i class="fas fa-satellite-dish feature-icon"></i>
-                    <h4 class="fw-bold text-white">Live API Telematics</h4>
-                    <p class="small text-muted">Integrate Samsara, Geotab, Verizon, or TomTom. Track your vans on the map and pull live odometer/fuel readings into your dashboard.</p>
-                </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
-                <div class="feature-card">
-                    <i class="fas fa-tools feature-icon"></i>
-                    <h4 class="fw-bold text-white">Lifecycle & Maintenance</h4>
-                    <p class="small text-muted">Beyond GPS, the system tracks MOT, Tax, and Insurance expiries with 30-day alerts. Workers can snap fuel receipts and log morning vehicle defect checks directly to the DB.</p>
-                </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
-                <div class="feature-card">
-                    <i class="fas fa-envelope feature-icon"></i>
-                    <h4 class="fw-bold text-white">Built-In Email Client</h4>
-                    <p class="small text-muted">Connect your company IMAP/SMTP. Read and reply to client emails directly inside the software without switching to Outlook.</p>
-                </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
-                <div class="feature-card">
-                    <i class="fas fa-bolt feature-icon"></i>
-                    <h4 class="fw-bold text-white">Global Quick Add</h4>
-                    <p class="small text-muted">A floating action button on every screen lets you instantly create a New Quote, New Client, or New Invoice without hunting through menus.</p>
+                <div class="col-md-4">
+                    <div class="b2b-card h-100">
+                        <i class="fas fa-truck text-gold fs-3 mb-3"></i>
+                        <h5 class="text-white fw-bold mb-2">{{ _('Telematics & Defect Logs') }}</h5>
+                        <p class="text-secondary small mb-0">{{ _('Integrate Samsara or Geotab GPS. Enforce daily morning vehicle defect logs before crew departure.') }}</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -273,7 +145,17 @@
     </div>
 </section>
 
-<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-<script>AOS.init({ duration: 800, once: true });</script>
-
+<!-- CTA -->
+<section class="py-5 text-center" style="background: var(--bb-bg);">
+    <div class="container py-4">
+        <h3 class="display-6 fw-bold text-white mb-3">{{ _('Experience Every Feature In Your Free Trial') }}</h3>
+        <p class="lead text-secondary mx-auto mb-4" style="max-width: 600px;">
+            {{ _('No restrictions. 14 days of unrestricted access to the entire Business Operating System.') }}
+        </p>
+        <div class="d-flex justify-content-center gap-3">
+            <a href="/register" class="btn btn-brand btn-lg px-5 py-3">{{ _('Start 14-Day Free Trial') }} <i class="fas fa-arrow-right ms-2"></i></a>
+            <a href="/demo" class="btn btn-outline-slate btn-lg px-5 py-3">{{ _('Explore Live Demo') }}</a>
+        </div>
+    </div>
+</section>
 {% endblock %}

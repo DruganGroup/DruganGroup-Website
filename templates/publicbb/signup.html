@@ -1,180 +1,135 @@
 {% extends "publicbb/base.html" %}
 
-{% block title %}Create Your Account | Business Better{% endblock %}
+{% block title %}{{ _('Start Your 14-Day Free Trial | Business Better') }}{% endblock %}
 
 {% block content %}
-<div class="container py-5">
+<section class="py-5" style="background: var(--bb-bg-secondary);">
+    <div class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-danger shadow-lg mb-4 text-center fw-bold" role="alert">
+                                <i class="fas fa-exclamation-triangle me-2"></i> {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
 
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-danger shadow-lg mb-4 text-center fw-bold" role="alert">
-                            <i class="fas fa-exclamation-triangle me-2"></i> {{ message }}
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-        </div>
-    </div>
-    <div class="row justify-content-center">
-        <div class="col-lg-9">
-            
-            <div class="text-center mb-5">
-                <div class="alert alert-dark border-success mb-4">
-                    <i class="fas fa-users text-success me-2"></i>
-                    <span class="text-white">Join <strong class="text-success">500+ businesses</strong> who've consolidated their software stack with Business Better</span>
+                <div class="text-center mb-5">
+                    <div class="b2b-badge mb-3"><i class="fas fa-rocket me-1"></i> {{ _('14-Day Free Trial • Instant Setup') }}</div>
+                    <h1 class="display-5 fw-bold text-white mb-2 font-heading">{{ _('Provision Your Workspace') }}</h1>
+                    <p class="text-secondary small">{{ _('Account Configuration & Tier Selection') }}</p>
                 </div>
-                <h1 class="fw-bold text-white">Let's set up your <span class="text-gold">Workspace</span></h1>
-                <p class="text-secondary">Step 1 of 2: Account Configuration</p>
-            </div>
 
-            <div class="card border-secondary bg-dark text-white rounded-4 shadow-lg p-4">
-                <form action="{{ url_for('auth.process_signup') }}" method="POST" id="signupForm">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    
-                    <h5 class="text-gold border-bottom border-secondary pb-2 mb-4">1. Company Details</h5>
-                    
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label text-secondary small fw-bold">Company Name</label>
-                            <input type="text" name="company_name" class="form-control bg-black text-white border-secondary" placeholder="e.g. Acme Construction" required>
-                        </div>
+                <div class="b2b-card p-4 p-md-5">
+                    <form action="{{ url_for('auth.process_signup') }}" method="POST" id="signupForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
-                        <div class="col-md-6">
-                            <label class="form-label text-secondary small fw-bold">Choose your URL</label>
-                            <div class="input-group">
-                                <input type="text" name="sub_domain" id="sub_domain" class="form-control bg-black text-white border-secondary" placeholder="acme" pattern="[a-zA-Z0-9-]+" title="No spaces or symbols" required>
-                                <span class="input-group-text bg-secondary text-light border-secondary">.businessbetter.co.uk</span>
+                        <h5 class="text-gold border-bottom border-secondary pb-2 mb-4 font-heading">
+                            <i class="fas fa-building me-2"></i> 1. {{ _('Company Details') }}
+                        </h5>
+                        
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-bold">{{ _('Company Name') }}</label>
+                                <input type="text" name="company_name" class="form-control" placeholder="e.g. Acme Commercial Ltd" required>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-bold">{{ _('Workspace Subdomain') }}</label>
+                                <div class="input-group">
+                                    <input type="text" name="sub_domain" id="sub_domain" class="form-control" placeholder="acme" pattern="[a-zA-Z0-9-]+" title="No spaces or symbols" required>
+                                    <span class="input-group-text bg-dark text-secondary border-secondary">.businessbetter.co.uk</span>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label text-secondary small fw-bold">{{ _('Industry Sector') }}</label>
+                                <select name="company_type" class="form-select" required>
+                                    <option value="" disabled selected>{{ _('Select your sector...') }}</option>
+                                    <option value="Trade">{{ _('Commercial Contractor / Construction / Trade') }}</option>
+                                    <option value="Agency">{{ _('Property Management / Estate Agency') }}</option>
+                                </select>
                             </div>
                         </div>
 
-                        <div class="col-12">
-                            <label class="form-label text-secondary small fw-bold">Industry Sector</label>
-                            <select name="company_type" class="form-select bg-black text-white border-secondary" required>
-                                <option value="" disabled selected>Select your trade...</option>
-                                <option value="Trade">Construction / Trade (Roofing, Building, etc.)</option>
-                                <option value="Agency">Property Management / Estate Agency</option>
-                            </select>
-                        </div>
-                    </div>
+                        <h5 class="text-gold border-bottom border-secondary pb-2 mb-4 mt-5 font-heading">
+                            <i class="fas fa-tags me-2"></i> 2. {{ _('Select Your Plan') }}
+                        </h5>
 
-                    <h5 class="text-gold border-bottom border-secondary pb-2 mb-4 mt-5">2. Select Your Plan</h5>
-
-                    {% set selected_plan = request.args.get('plan') %}
-
-                    {# IF A PLAN IS ALREADY SELECTED VIA URL #}
-                    {% if selected_plan %}
-                        
-                        <input type="hidden" name="plan_id" value="{{ selected_plan }}">
-                        
-                        <div class="alert alert-dark border-gold text-center py-4">
-                            <i class="fas fa-check-circle text-gold fa-2x mb-3"></i>
-                            <h5 class="text-white">Plan Pre-Selected</h5>
-                            <p class="text-secondary mb-0">
-                                You are registering for the selected tier. 
-                                <a href="{{ url_for('auth.show_signup') }}" class="text-gold fw-bold ms-2" style="text-decoration: underline;">Change Plan</a>
-                            </p>
-                        </div>
-
-                    {# ELSE: SHOW THE CARDS IN CATEGORIES #}
-                    {% else %}
-
-                        {% macro render_plan(plan) %}
-                        <div class="col-md-4">
-                            <label class="plan-card-option w-100" style="cursor: pointer;">
-                                <input type="radio" name="plan_id" value="{{ plan.id }}" required>
-                                <div class="card h-100 bg-black border-secondary p-3 text-center plan-box transition-all">
-                                    <h5 class="fw-bold text-white mb-1">{{ plan.name }}</h5>
-                                    <h3 class="text-gold mb-2">£{{ "%.2f"|format(plan.price) }}<small class="fs-6 text-muted">/mo</small></h3>
-                                    <div class="mt-2">
-                                        <span class="badge bg-secondary text-light border border-secondary">Select Plan</span>
-                                    </div>
+                        {% set selected_plan = request.args.get('plan') %}
+                        {% if selected_plan %}
+                            <input type="hidden" name="plan_id" value="{{ selected_plan }}">
+                            <div class="p-3 bg-black rounded border border-gold text-center mb-4">
+                                <i class="fas fa-check-circle text-gold me-2"></i>
+                                <span class="text-white fw-bold">{{ _('Plan Tier Pre-Selected') }}</span>
+                                <a href="{{ url_for('auth.show_signup') }}" class="small text-gold ms-3 text-decoration-underline">{{ _('Change Tier') }}</a>
+                            </div>
+                        {% else %}
+                            <div class="row g-3 mb-4">
+                                {% for plan in plans if plan.price > 0 %}
+                                <div class="col-md-4">
+                                    <label class="plan-option w-100" style="cursor: pointer;">
+                                        <input type="radio" name="plan_id" value="{{ plan.id }}" required class="d-none">
+                                        <div class="p-3 rounded bg-black border border-secondary text-center plan-card-box h-100">
+                                            <div class="fw-bold text-white small mb-1">{{ plan.name }}</div>
+                                            <div class="h4 text-gold mb-1 font-heading">£{{ "%.0f"|format(plan.price) }}<small class="fs-6 text-muted">/mo</small></div>
+                                            <span class="badge bg-dark border border-secondary text-secondary small mt-1">{{ _('Select') }}</span>
+                                        </div>
+                                    </label>
                                 </div>
-                            </label>
-                        </div>
-                        {% endmacro %}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
 
-                        <h6 class="text-white text-uppercase mb-3 ps-2 border-start border-gold border-3">Sole Traders</h6>
-                        <div class="row g-3 mb-5">
-                            {% set has_sole = false %}
-                            {% for plan in plans if 'Sole Trader' in plan.name and plan.price > 0 %}
-                                {{ render_plan(plan) }}
-                                {% set has_sole = true %}
-                            {% endfor %}
-                            {% if not has_sole %}<p class="text-muted small ps-3">No trade plans available.</p>{% endif %}
-                        </div>
+                        <style>
+                            .plan-option input:checked + .plan-card-box {
+                                border-color: var(--bb-gold) !important;
+                                background-color: rgba(197, 160, 89, 0.12) !important;
+                            }
+                        </style>
 
-                        <h6 class="text-white text-uppercase mb-3 ps-2 border-start border-gold border-3">Property Management & Agencies</h6>
-                        <div class="row g-3 mb-5">
-                            {% set has_agency = false %}
-                            {% for plan in plans if 'Agency' in plan.name and plan.price > 0 %}
-                                {{ render_plan(plan) }}
-                                {% set has_agency = true %}
-                            {% endfor %}
-                            {% if not has_agency %}<p class="text-muted small ps-3">No agency plans available.</p>{% endif %}
-                        </div>
+                        <h5 class="text-gold border-bottom border-secondary pb-2 mb-4 mt-5 font-heading">
+                            <i class="fas fa-user-shield me-2"></i> 3. {{ _('Executive Owner Account') }}
+                        </h5>
 
-                        <h6 class="text-white text-uppercase mb-3 ps-2 border-start border-gold border-3">Business Growth & Enterprise</h6>
                         <div class="row g-3 mb-4">
-                            {% set has_biz = false %}
-                            {% for plan in plans if 'Sole Trader' not in plan.name and 'Agency' not in plan.name and plan.price > 0 %}
-                                {{ render_plan(plan) }}
-                                {% set has_biz = true %}
-                            {% endfor %}
-                            {% if not has_biz %}<p class="text-muted small ps-3">No enterprise plans available.</p>{% endif %}
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-bold">{{ _('Full Name') }}</label>
+                                <input type="text" name="owner_name" class="form-control" placeholder="John Doe" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-bold">{{ _('Email Address') }}</label>
+                                <input type="email" name="owner_email" class="form-control" placeholder="john@acme.co.uk" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-bold">{{ _('Create Password') }}</label>
+                                <input type="password" name="password" class="form-control" placeholder="••••••••" required minlength="8">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-bold">{{ _('Confirm Password') }}</label>
+                                <input type="password" name="confirm_password" class="form-control" placeholder="••••••••" required minlength="8">
+                            </div>
                         </div>
 
-                    {% endif %}
-
-                    <style>
-                        .plan-card-option input { display: none; } 
-                        .plan-card-option input:checked + .plan-box {
-                            border-color: #C5A059 !important; 
-                            background-color: rgba(197, 160, 89, 0.15) !important;
-                            box-shadow: 0 0 15px rgba(197, 160, 89, 0.3);
-                        }
-                        .plan-box { transition: 0.3s all; }
-                        .plan-box:hover { transform: translateY(-3px); border-color: #666; }
-                    </style>
-
-                    <h5 class="text-gold border-bottom border-secondary pb-2 mb-4 mt-5">3. Owner Login</h5>
-
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label text-secondary small fw-bold">Your Full Name</label>
-                            <input type="text" name="owner_name" class="form-control bg-black text-white border-secondary" placeholder="e.g. John Doe" required>
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-brand btn-lg w-100 py-3 fw-bold">
+                                {{ _('Activate 14-Day Free Trial') }} <i class="fas fa-arrow-right ms-2"></i>
+                            </button>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label text-secondary small fw-bold">Email Address</label>
-                            <input type="email" name="owner_email" class="form-control bg-black text-white border-secondary" placeholder="john@acme.com" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label text-secondary small fw-bold">Create Password</label>
-                            <input type="password" name="password" class="form-control bg-black text-white border-secondary" required minlength="8">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label text-secondary small fw-bold">Confirm Password</label>
-                            <input type="password" name="confirm_password" class="form-control bg-black text-white border-secondary" required>
-                        </div>
-                    </div>
 
-                    <div class="d-grid mt-5">
-                        <button type="submit" class="btn btn-brand btn-lg fw-bold">
-                            Proceed to Payment <i class="fas fa-arrow-right ms-2"></i>
-                        </button>
-                    </div>
-
-                </form>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
-</div>
+</section>
 
 <script>
-    document.getElementById('sub_domain').addEventListener('input', function(e) {
-        this.value = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
-    });
+document.getElementById('sub_domain').addEventListener('input', function() {
+    this.value = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+});
 </script>
 {% endblock %}

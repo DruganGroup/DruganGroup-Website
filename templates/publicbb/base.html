@@ -1,214 +1,190 @@
+{% set current_lang = current_lang | default('en') %}
+{% set lang_dir = lang_dir | default('ltr') %}
 <!DOCTYPE html>
-<html lang="{{ current_lang | default('en') }}" dir="{{ lang_dir | default('ltr') }}">
+<html lang="{{ current_lang }}" dir="{{ lang_dir }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ _('Business Better | Field Service Management') }}{% endblock %}</title>
-    
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
+    <title>{% block title %}{{ _('Business Better | The Trade & Property Management Operating System') }}{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}{{ _('Institutional Business Operating System for commercial contractors and estate agencies. Consolidate estimating, live job costing, CIS payroll, fleet telematics, and compliance.') }}{% endblock %}">
+    <meta name="keywords" content="{% block meta_keywords %}{{ _('field service management, trade operating system, property maintenance software, CIS payroll software, fleet telematics UK, RAMS generator, estate agent repairs portal') }}{% endblock %}">
+    <meta name="author" content="Business Better Ltd">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="{{ request.base_url }}">
+    <link rel="alternate" hreflang="en" href="{{ request.base_url }}">
+    <link rel="alternate" hreflang="x-default" href="{{ request.base_url }}">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{% block og_title %}{{ _('Business Better | Executive Operating System') }}{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ _('Replace 6+ disconnected subscriptions with one real-time operations, CIS payroll, fleet compliance, and client portal platform.') }}{% endblock %}">
+    <meta property="og:image" content="{{ url_for('static', filename='images/logobb.png', _external=True) }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}{{ _('Business Better | The Complete Trade & Agency Operating System') }}{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}{{ _('Executive control, real-time job profitability, automated CIS payroll, and 24/7 tenant repair dispatching.') }}{% endblock %}">
+    <meta name="twitter:image" content="{{ url_for('static', filename='images/logobb.png', _external=True) }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
     <style>
-        /* BRAND IDENTITY: DUBAI GOLD & MIDNIGHT BLACK */
-        :root { 
-            --bb-bg: #050505;       /* Pure Black Background */
-            --bb-card: #0f1014;     /* Slightly lighter for cards */
-            --bb-gold: #d4af37;     /* The Core Gold Color */
-            --bb-gold-hover: #b5952f;
-            --bb-text: #e0e0e0;     /* Soft White Text */
-            --bb-muted: #94a3b8;    /* Muted Grey Text */
-            --bb-border: rgba(255, 255, 255, 0.1);
+        :root {
+            --bb-bg: #090c10; --bb-bg-secondary: #0e121a;
+            --bb-card: #131824; --bb-card-hover: #182030;
+            --bb-surface: #171e2c; --bb-border: rgba(255, 255, 255, 0.08);
+            --bb-border-gold: rgba(197, 160, 89, 0.35);
+            --bb-gold: #c5a059; --bb-gold-light: #dfbe78; --bb-gold-dark: #9d7b3a;
+            --bb-gold-gradient: linear-gradient(135deg, #dfbe78 0%, #c5a059 50%, #9d7b3a 100%);
+            --bb-success: #10b981; --bb-warning: #f59e0b; --bb-info: #0284c7; --bb-danger: #ef4444;
+            --bb-text: #f1f5f9; --bb-text-secondary: #94a3b8; --bb-text-muted: #64748b;
         }
-        
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: var(--bb-bg);
-            color: var(--bb-text);
-            display: flex; 
-            flex-direction: column; 
-            min-height: 100vh;
-            /* FIXED: Ensure content starts below the fixed navbar */
-            padding-top: 85px; 
-        }
-
-        h1, h2, h3, h4, h5, h6, .navbar-brand, .btn { 
-            font-family: 'Montserrat', sans-serif; 
-        }
-
-        /* OVERRIDE BOOTSTRAP DEFAULTS */
-        .bg-light { background-color: var(--bb-bg) !important; }
-        .bg-white { background-color: var(--bb-card) !important; }
-        .text-dark { color: var(--bb-text) !important; }
-        .text-muted { color: var(--bb-muted) !important; }
-        
-        /* NAVBAR STYLING */
-        .navbar { 
-            background: rgba(5, 5, 5, 0.95); /* High opacity for readability */
-            backdrop-filter: blur(12px); 
-            border-bottom: 1px solid var(--bb-border); 
-            padding: 15px 0;
-            height: 80px; /* Fixed height for consistency */
-        }
-        
-        .navbar-brand img {
-            height: 45px; /* FIXED: Professional sizing */
-            width: auto;
-        }
-
-        .nav-link { 
-            font-weight: 500; 
-            color: var(--bb-muted) !important; 
-            margin: 0 12px; 
-            font-size: 0.95rem;
-            transition: all 0.3s ease;
-        }
-        
-        .nav-link:hover, .nav-link.active { 
-            color: var(--bb-gold) !important; 
-        }
-        
-        /* BUTTONS */
-        .btn-brand { 
-            background: linear-gradient(135deg, #d4af37 0%, #aa8a29 100%); /* Gold Gradient */
-            color: #000; 
-            border: none; 
-            font-weight: 600; 
-            padding: 10px 25px;
-            border-radius: 4px;
-            transition: transform 0.2s;
-        }
-        
-        .btn-brand:hover { 
-            background: #f3cf55; 
-            color: #000; 
-            transform: translateY(-1px);
-            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
-        }
-
-        .btn-primary {
-            background-color: var(--bb-gold);
-            border-color: var(--bb-gold);
-            color: #000;
-        }
-        
-        .btn-primary:hover {
-            background-color: var(--bb-gold-hover);
-            border-color: var(--bb-gold-hover);
-            color: #000;
-        }
-        
-        /* FOOTER STYLING */
-        footer { 
-            margin-top: auto; 
-            background-color: #000; 
-            border-top: 1px solid var(--bb-border); 
-            padding: 80px 0 40px; 
-        }
-        
-        footer a { color: var(--bb-muted); text-decoration: none; transition: 0.2s; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bb-bg); color: var(--bb-text); min-height: 100vh; display: flex; flex-direction: column; padding-top: 85px; }
+        h1, h2, h3, h4, h5, h6, .font-heading { font-family: 'Montserrat', sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .bg-dark { background-color: var(--bb-card) !important; }
+        .bg-black { background-color: var(--bb-bg) !important; }
+        .text-gold { color: var(--bb-gold) !important; }
+        .border-gold { border-color: var(--bb-gold) !important; }
+        .navbar { background: rgba(9, 12, 16, 0.94); backdrop-filter: blur(16px); border-bottom: 1px solid var(--bb-border); height: 85px; z-index: 1050; }
+        .navbar-brand img { height: 40px; width: auto; }
+        .nav-link { font-weight: 500; color: var(--bb-text-secondary) !important; font-size: 0.92rem; padding: 8px 12px !important; }
+        .nav-link:hover, .nav-link.active { color: var(--bb-gold) !important; }
+        .nav-badge-live { display: inline-flex; align-items: center; gap: 5px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 20px; padding: 2px 8px; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; }
+        .pulse-dot { width: 6px; height: 6px; border-radius: 50%; background-color: #10b981; box-shadow: 0 0 8px #10b981; animation: pulseAnim 1.8s infinite; }
+        @keyframes pulseAnim { 0% { opacity: 0.7; } 50% { opacity: 1; transform: scale(1.3); } 100% { opacity: 0.7; } }
+        .btn-brand { background: var(--bb-gold-gradient); color: #0b0f17; font-weight: 600; font-size: 0.92rem; padding: 10px 22px; border-radius: 6px; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+        .btn-brand:hover { background: linear-gradient(135deg, #f0cf8a 0%, #d4af37 50%, #b89144 100%); color: #000; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(197, 160, 89, 0.35); }
+        .btn-brand-outline { background: transparent; color: var(--bb-gold); border: 1px solid var(--bb-gold); font-weight: 600; font-size: 0.92rem; padding: 9px 20px; border-radius: 6px; text-decoration: none; }
+        .btn-brand-outline:hover { background: rgba(197, 160, 89, 0.12); color: #fff; border-color: var(--bb-gold-light); }
+        .btn-outline-slate { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--bb-border); color: var(--bb-text); font-weight: 500; padding: 9px 20px; border-radius: 6px; text-decoration: none; }
+        .btn-outline-slate:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+        .b2b-card { background: var(--bb-card); border: 1px solid var(--bb-border); border-radius: 12px; padding: 30px; transition: all 0.3s ease; }
+        .b2b-card:hover { border-color: var(--bb-border-gold); transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4); }
+        .b2b-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(197, 160, 89, 0.1); border: 1px solid var(--bb-border-gold); border-radius: 30px; color: var(--bb-gold); font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; }
+        .form-control, .form-select { background-color: var(--bb-surface); border: 1px solid var(--bb-border); color: #fff; border-radius: 6px; padding: 12px 16px; }
+        .form-control:focus, .form-select:focus { background-color: #1a2233; border-color: var(--bb-gold); color: #fff; box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.2); }
+        .form-control::placeholder { color: var(--bb-text-muted); }
+        footer { margin-top: auto; background: #06080b; border-top: 1px solid var(--bb-border); padding: 70px 0 30px; }
+        footer a { color: var(--bb-text-secondary); text-decoration: none; font-size: 0.9rem; }
         footer a:hover { color: var(--bb-gold); }
-
-        /* FORM INPUTS (Dark Mode Fix) */
-        .form-control {
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--bb-border);
-            color: white;
-        }
-        .form-control:focus {
-            background-color: rgba(255, 255, 255, 0.1);
-            border-color: var(--bb-gold);
-            color: white;
-            box-shadow: none;
-        }
+        .trust-badge-item { display: inline-flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--bb-border); border-radius: 6px; padding: 8px 14px; font-size: 0.8rem; color: var(--bb-text-secondary); }
     </style>
     {% block head %}{% endblock %}
 </head>
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+    <nav class="navbar navbar-expand-xl navbar-dark fixed-top">
         <div class="container">
-            <a class="navbar-brand" href="/">
-                <img src="{{ url_for('static', filename='images/logobb.png') }}" alt="Business Better">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+                <img src="{{ url_for('static', filename='images/logobb.png') }}" alt="Business Better Logo">
+                <span class="d-none d-sm-inline-block fw-bold fs-5 text-white">Business Better</span>
             </a>
-            
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
+            <button class="navbar-toggler border-0 p-2" type="button" data-bs-toggle="collapse" data-bs-target="#bbNavbar">
+                <i class="fas fa-bars text-white fs-4"></i>
             </button>
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto align-items-center">
-                    <li class="nav-item"><a class="nav-link" href="/">{{ _('Home') }}</a></li>
+            <div class="collapse navbar-collapse" id="bbNavbar">
+                <ul class="navbar-nav mx-auto align-items-xl-center">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="solutionsDropdown" role="button" data-bs-toggle="dropdown">{{ _('Solutions') }}</a>
+                        <ul class="dropdown-menu dropdown-menu-dark bg-dark border-secondary shadow-lg p-2">
+                            <li><a class="dropdown-item py-2 rounded text-white" href="/features/trade"><div class="fw-bold"><i class="fas fa-hammer text-gold me-2"></i>{{ _('For Commercial Contractors') }}</div><small class="text-secondary">{{ _('True margin job costing & CIS payroll') }}</small></a></li>
+                            <li><a class="dropdown-item py-2 rounded text-white" href="/features/agents"><div class="fw-bold"><i class="fas fa-building text-info me-2"></i>{{ _('For Estate Agents & PMs') }}</div><small class="text-secondary">{{ _('24/7 tenant repair desk & auto-dispatch') }}</small></a></li>
+                            <li><hr class="dropdown-divider border-secondary opacity-25"></li>
+                            <li><a class="dropdown-item py-2 small text-gold" href="/features"><i class="fas fa-layer-group me-2"></i>{{ _('View Complete 30+ Feature Catalog') }}</a></li>
+                        </ul>
+                    </li>
                     <li class="nav-item"><a class="nav-link" href="/features">{{ _('Features') }}</a></li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-1" href="/demo"><span>{{ _('Live Sandbox') }}</span><span class="nav-badge-live ms-1"><span class="pulse-dot"></span> {{ _('Interactive') }}</span></a></li>
                     <li class="nav-item"><a class="nav-link" href="/comparison">{{ _('Why Switch?') }}</a></li>
                     <li class="nav-item"><a class="nav-link" href="/pricing">{{ _('Pricing') }}</a></li>
                     <li class="nav-item"><a class="nav-link" href="/about">{{ _('About') }}</a></li>
                     <li class="nav-item"><a class="nav-link" href="/contact">{{ _('Contact') }}</a></li>
-                    <li class="nav-item ms-3">
-                        <a href="/login" class="btn btn-brand">{{ _('Login') }}</a>
-                    </li>
-                    <li class="nav-item ms-2 dropdown">
-                        <a class="nav-link dropdown-toggle text-white" href="#" id="langDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-globe"></i> {{ current_lang | upper }}
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="langDropdown">
-                            <li><a class="dropdown-item" href="/set-language/en">English</a></li>
-                            <li><a class="dropdown-item" href="/set-language/es">Español</a></li>
-                            <li><a class="dropdown-item" href="/set-language/fr">Français</a></li>
-                            <li><a class="dropdown-item" href="/set-language/de">Deutsch</a></li>
-                            <li><a class="dropdown-item" href="/set-language/ar">العربية</a></li>
-                            <li><a class="dropdown-item" href="/set-language/zh">中文</a></li>
-                            <li><a class="dropdown-item" href="/set-language/hi">हिन्दी</a></li>
-                            <li><a class="dropdown-item" href="/set-language/pt">Português</a></li>
-                        </ul>
-                    </li>
                 </ul>
+                <div class="d-flex align-items-center gap-2 mt-3 mt-xl-0">
+                    <div class="dropdown me-1">
+                        <button class="btn btn-sm btn-outline-slate dropdown-toggle text-white d-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-globe text-gold"></i> <span class="text-uppercase small">{{ current_lang }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark bg-dark border-secondary shadow-lg py-1">
+                            <li><a class="dropdown-item small" href="/set-language/en">English</a></li>
+                            <li><a class="dropdown-item small" href="/set-language/es">Español</a></li>
+                            <li><a class="dropdown-item small" href="/set-language/fr">Français</a></li>
+                            <li><a class="dropdown-item small" href="/set-language/de">Deutsch</a></li>
+                            <li><a class="dropdown-item small" href="/set-language/ar">العربية (RTL)</a></li>
+                            <li><a class="dropdown-item small" href="/set-language/zh">中文</a></li>
+                            <li><a class="dropdown-item small" href="/set-language/hi">हिन्दी</a></li>
+                            <li><a class="dropdown-item small" href="/set-language/pt">Português</a></li>
+                        </ul>
+                    </div>
+                    <a href="/login" class="btn btn-sm btn-outline-slate px-3">{{ _('Login') }}</a>
+                    <a href="/register" class="btn btn-sm btn-brand px-3">{{ _('Start Free Trial') }}</a>
+                </div>
             </div>
         </div>
     </nav>
-    
-    {% block content %}{% endblock %}
+    <main>{% block content %}{% endblock %}</main>
 
     <footer>
         <div class="container">
+            <div class="row g-2 mb-5 pb-4 border-bottom border-secondary border-opacity-25 justify-content-center text-center">
+                <div class="col-6 col-md-auto"><div class="trust-badge-item"><i class="fas fa-shield-alt text-success"></i><span>{{ _('UK GDPR & Data Protected') }}</span></div></div>
+                <div class="col-6 col-md-auto"><div class="trust-badge-item"><i class="fas fa-lock text-gold"></i><span>{{ _('AES-256 Encryption') }}</span></div></div>
+                <div class="col-6 col-md-auto"><div class="trust-badge-item"><i class="fas fa-receipt text-info"></i><span>{{ _('HMRC CIS & PAYE Engine') }}</span></div></div>
+                <div class="col-6 col-md-auto"><div class="trust-badge-item"><i class="fas fa-server text-white"></i><span>{{ _('99.9% Enterprise SLA') }}</span></div></div>
+            </div>
             <div class="row g-4 mb-5">
-                <div class="col-lg-4">
-                    <h5 class="fw-bold text-white mb-3" style="font-family: 'Montserrat', sans-serif;">{{ _('Business Better') }}</h5>
-                    <p class="text-white-50">{{ _('The operating system for modern trade businesses. Executive control, forensic compliance, and real-time profit analysis.') }}</p>
-                </div>
-                <div class="col-lg-2 col-6">
-                    <h6 class="fw-bold text-white mb-3 text-uppercase small" style="letter-spacing: 1px; color: var(--bb-gold);">{{ _('Platform') }}</h6>
-                    <ul class="list-unstyled">
-                        <li class="mb-2"><a href="/features">{{ _('Features') }}</a></li>
-                        <li class="mb-2"><a href="/pricing">{{ _('Pricing') }}</a></li>
-                        <li class="mb-2"><a href="/login">{{ _('Login') }}</a></li>
-                    </ul>
-                </div>
-                <div class="col-lg-2 col-6">
-                    <h6 class="fw-bold text-white mb-3 text-uppercase small" style="letter-spacing: 1px; color: var(--bb-gold);">{{ _('Support') }}</h6>
-                    <ul class="list-unstyled">
-                        <li class="mb-2"><a href="/help">{{ _('Help Center') }}</a></li>
-                        <li class="mb-2"><a href="/contact">{{ _('Contact Us') }}</a></li>
-                        <li class="mb-2"><a href="/legal">{{ _('Legal & Privacy') }}</a></li> <li class="mb-2"><a href="/status">{{ _('System Status') }}</a></li>
-                    </ul>
-                </div>
-                <div class="col-lg-4">
-                    <h6 class="fw-bold text-white mb-3 text-uppercase small" style="letter-spacing: 1px; color: var(--bb-gold);">{{ _('Stay Ahead') }}</h6>
-                    <div class="input-group">
-                        <input type="text" class="form-control" placeholder="{{ _('Email address...') }}">
-                        <button class="btn btn-brand">{{ _('Join') }}</button>
+                <div class="col-lg-4 col-md-6">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <img src="{{ url_for('static', filename='images/logobb.png') }}" style="height: 38px;" alt="Business Better">
+                        <span class="fw-bold fs-5 text-white">Business Better</span>
                     </div>
+                    <p class="text-secondary small mb-4">{{ _('The institutional Business Operating System for modern commercial contractors and property management agencies. Total executive control, live margin accounting, and zero blind spots.') }}</p>
+                    <div class="small text-muted"><i class="fas fa-headset text-gold me-2"></i> {{ _('UK Support: 0330 223 8225') }}</div>
+                </div>
+                <div class="col-lg-2 col-6">
+                    <h6 class="fw-bold text-white mb-3 text-uppercase small text-gold">{{ _('Solutions') }}</h6>
+                    <ul class="list-unstyled small">
+                        <li class="mb-2"><a href="/features/trade">{{ _('For Contractors') }}</a></li>
+                        <li class="mb-2"><a href="/features/agents">{{ _('For Estate Agents') }}</a></li>
+                        <li class="mb-2"><a href="/features">{{ _('Full Catalog') }}</a></li>
+                        <li class="mb-2"><a href="/demo">{{ _('Interactive Sandbox') }}</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-2 col-6">
+                    <h6 class="fw-bold text-white mb-3 text-uppercase small text-gold">{{ _('Platform') }}</h6>
+                    <ul class="list-unstyled small">
+                        <li class="mb-2"><a href="/pricing">{{ _('Transparent Pricing') }}</a></li>
+                        <li class="mb-2"><a href="/register">{{ _('14-Day Free Trial') }}</a></li>
+                        <li class="mb-2"><a href="/login">{{ _('Tenant Login') }}</a></li>
+                        <li class="mb-2"><a href="/status">{{ _('System Status') }}</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-2 col-6">
+                    <h6 class="fw-bold text-white mb-3 text-uppercase small text-gold">{{ _('Governance') }}</h6>
+                    <ul class="list-unstyled small">
+                        <li class="mb-2"><a href="/help">{{ _('Knowledge Base') }}</a></li>
+                        <li class="mb-2"><a href="/legal">{{ _('Terms of Service') }}</a></li>
+                        <li class="mb-2"><a href="/legal#privacy">{{ _('Privacy Policy') }}</a></li>
+                        <li class="mb-2"><a href="/contact">{{ _('Enterprise Advisory') }}</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-2 col-6">
+                    <h6 class="fw-bold text-white mb-3 text-uppercase small text-gold">{{ _('Regional Certs') }}</h6>
+                    <ul class="list-unstyled small text-muted">
+                        <li class="mb-1">UK: CP12 / EICR</li>
+                        <li class="mb-1">US: OSHA / NFPA</li>
+                        <li class="mb-1">AU: CCEW / SWMS</li>
+                        <li class="mb-1">EU: Consuel / DGUV</li>
+                    </ul>
                 </div>
             </div>
-            <div class="border-top border-white border-opacity-10 pt-4 text-center">
-                <p class="small text-muted mb-0">&copy; 2026 {{ _('Business Better Ltd. All rights reserved.') }}</p>
+            <div class="border-top border-secondary border-opacity-25 pt-4 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+                <p class="small text-muted mb-0">&copy; {{ now().year if now else '2026' }} {{ _('Business Better Ltd. All rights reserved.') }}</p>
+                <div class="d-flex gap-3 small text-muted"><span><i class="fas fa-lock text-success me-1"></i> {{ _('SSL Encrypted') }}</span></div>
             </div>
         </div>
     </footer>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% block scripts %}{% endblock %}
 </body>
 </html>

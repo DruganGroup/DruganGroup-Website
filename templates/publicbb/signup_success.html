@@ -1,30 +1,24 @@
 {% extends "publicbb/base.html" %}
 
-{% block title %}Welcome Aboard! | Business Better{% endblock %}
+{% block title %}{{ _('Workspace Provisioned | Business Better') }}{% endblock %}
 
 {% block content %}
-<div class="container py-5 mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8 text-center">
-            
-            <div class="card bg-dark border-success shadow-lg p-5 rounded-4">
-                <div class="mb-4">
-                    <i class="fas fa-check-circle text-success" style="font-size: 5rem;"></i>
-                </div>
-                
-                <h1 class="text-white fw-bold mb-3">Payment Successful!</h1>
-                <p class="lead text-secondary mb-5">
-                    Your workspace is being provisioned. You can now log in to your dashboard.
-                </p>
-                
-                <div class="d-grid gap-3 col-md-6 mx-auto">
-                    <a href="/login" class="btn btn-brand btn-lg fw-bold">
-                        <i class="fas fa-sign-in-alt me-2"></i> Login to Dashboard
+<section class="py-5 d-flex align-items-center" style="min-height: 75vh; background: var(--bb-bg);">
+    <div class="container py-5 text-center">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="b2b-card p-5 border-success">
+                    <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                    <h2 class="text-white fw-bold mb-2 font-heading">{{ _('Workspace Provisioned Successfully!') }}</h2>
+                    <p class="text-secondary small mb-4">
+                        {{ _('Your 14-day free trial has been activated. Your operations database and staff portals are ready.') }}
+                    </p>
+                    <a href="/login" class="btn btn-brand btn-lg w-100 py-2">
+                        <i class="fas fa-sign-in-alt me-2"></i> {{ _('Access Tenant Hub') }}
                     </a>
                 </div>
             </div>
-
         </div>
     </div>
-</div>
+</section>
 {% endblock %}

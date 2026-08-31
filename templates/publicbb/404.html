@@ -1,25 +1,18 @@
 {% extends "publicbb/base.html" %}
-
-{% block title %}{{ _('Page Not Found') }} | {{ _('Business Better') }}{% endblock %}
+{% block title %}{{ _('Page Not Found | Business Better') }}{% endblock %}
 
 {% block content %}
-<section class="d-flex align-items-center justify-content-center" style="min-height: 80vh; background-color: var(--bb-bg);">
-    <div class="container text-center">
-        
-        <h1 class="display-1 fw-bold mb-0" style="font-size: 10rem; background: linear-gradient(135deg, #d4af37 0%, #aa8a29 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-            404
-        </h1>
-        
-        <h2 class="fw-bold text-white mb-3">{{ _('Off The Map.') }}</h2>
-        <p class="lead text-secondary mx-auto mb-5" style="max-width: 500px;">
-            {{ _("The page you are looking for has been moved, deleted, or never existed. Let's get you back to work.") }}
+<section class="d-flex align-items-center justify-content-center text-center" style="min-height: 75vh; background: var(--bb-bg);">
+    <div class="container py-5">
+        <div class="display-1 fw-bold text-gold font-heading mb-2">404</div>
+        <h2 class="fw-bold text-white mb-3">{{ _('Page Not Located') }}</h2>
+        <p class="lead text-secondary mx-auto mb-4" style="max-width: 500px;">
+            {{ _('The requested resource has been moved or does not exist. Let us direct you back to operational safety.') }}
         </p>
-
         <div class="d-flex justify-content-center gap-3">
-            <a href="/" class="btn btn-brand px-4 py-2">{{ _('Return Home') }}</a>
-            <a href="/contact" class="btn btn-outline-light px-4 py-2">{{ _('Report Issue') }}</a>
+            <a href="/" class="btn btn-brand px-4 py-2">{{ _('Return to Home') }}</a>
+            <a href="/contact" class="btn btn-outline-slate px-4 py-2">{{ _('Report Issue') }}</a>
         </div>
-
     </div>
 </section>
 {% endblock %}

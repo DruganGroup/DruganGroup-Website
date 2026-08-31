@@ -1,120 +1,74 @@
 {% extends "publicbb/base.html" %}
 
-{% block title %}Trade OS | Business Better{% endblock %}
+{% block title %}{{ _('For Commercial Contractors | Business Better') }}{% endblock %}
+
+{% block meta_description %}{{ _('The Business Operating System for commercial trade firms. Live margin tracking, auto-deducting van costs and labor, 60s RAMS studio, and CIS payroll.') }}{% endblock %}
 
 {% block content %}
-<header class="py-5 position-relative overflow-hidden" style="background-color: var(--bb-bg); padding-top: 100px !important;">
-    <div class="container position-relative z-2">
-        <div class="row align-items-center">
-            <div class="col-lg-8">
-                <div class="d-inline-flex align-items-center gap-2 px-3 py-1 mb-4 border border-warning rounded-pill bg-dark">
-                    <i class="fas fa-hammer text-gold"></i>
-                    <span class="text-white text-uppercase small fw-bold tracking-wide">Commercial & Industrial Edition</span>
-                </div>
-                <h1 class="display-3 fw-bold text-white mb-4">
-                    Stop Guessing Your Margins. <br>
-                    <span class="text-gold">Start Knowing Them.</span>
-                </h1>
-                <p class="lead text-secondary mb-4" style="max-width: 650px;">
-                    The only software that auto-deducts labor rates, material costs, and vehicle daily run fees from every job. 
-                    See your <strong>True Net Profit</strong> in real-time, not at the end of the year.
-                </p>
-                <div class="mb-4">
-                    <span class="badge bg-dark text-gold border border-warning px-3 py-2">
-                        <i class="fas fa-layer-group me-2"></i>Replaces: Estimating + Invoicing + Fleet + Compliance Tools
-                    </span>
-                </div>
-                <div class="d-flex gap-3">
-                    <a href="/pricing" class="btn btn-brand btn-lg shadow-lg">Start Free Trial</a>
-                    <a href="#compliance" class="btn btn-outline-light btn-lg">See Compliance Tools</a>
-                </div>
-            </div>
+<header class="py-5 position-relative overflow-hidden" style="background: radial-gradient(circle at 50% 20%, rgba(197, 160, 89, 0.08) 0%, rgba(9, 12, 16, 1) 70%);">
+    <div class="container py-4">
+        <div class="b2b-badge mb-3"><i class="fas fa-hammer me-1"></i> {{ _('Commercial & Industrial Edition') }}</div>
+        <h1 class="display-4 fw-bold text-white mb-3">
+            {{ _('Stop Guessing Your Margins.') }}<br>
+            <span class="text-gold">{{ _('Start Engineering Profit.') }}</span>
+        </h1>
+        <p class="lead text-secondary mb-4" style="max-width: 650px;">
+            {{ _('The only platform that auto-deducts engineer hourly rates, material receipts, and vehicle daily overhead from every active job in real-time.') }}
+        </p>
+        <div class="d-flex gap-3 flex-wrap">
+            <a href="/register" class="btn btn-brand btn-lg px-4 py-3">{{ _('Start 14-Day Free Trial') }} <i class="fas fa-arrow-right ms-2"></i></a>
+            <a href="/demo" class="btn btn-outline-slate btn-lg px-4 py-3">{{ _('Test Contractor Sandbox') }}</a>
         </div>
     </div>
 </header>
 
-<section class="py-5 bg-dark border-top border-secondary">
-    <div class="container py-5">
-        <div class="row align-items-center">
-            <div class="col-lg-5 mb-5 mb-lg-0">
-                <h2 class="text-white fw-bold mb-4">The "Blind Spot" Killer.</h2>
+<section class="py-5" style="background: var(--bb-bg-secondary);">
+    <div class="container py-4">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-6">
+                <div class="b2b-badge mb-3">{{ _('True Unit Economics') }}</div>
+                <h2 class="display-6 fw-bold text-white mb-4">{{ _('Eliminate The "Blind Spot" Problem') }}</h2>
                 <p class="text-secondary mb-4">
-                    Most tradesmen fail because they confuse "Revenue" with "Profit". 
-                    You might invoice £5,000, but after materials (£1,200), labor (£800), and van wear (£150), what's left?
+                    {{ _('Most trade businesses know their top-line bank balance, but lack granular job-level visibility. When a job runs over by 6 hours or materials increase, profit evaporates silently.') }}
                 </p>
-                <p class="text-white fw-bold mb-4">Business Better calculates this automatically.</p>
-                <ul class="list-unstyled text-secondary">
-                    <li class="mb-3 d-flex"><i class="fas fa-check text-gold mt-1 me-3"></i> <span><strong>Live Margin Tracking:</strong> See a progress bar of your budget on every job.</span></li>
-                    <li class="mb-3 d-flex"><i class="fas fa-check text-gold mt-1 me-3"></i> <span><strong>Daily Run Cost:</strong> Assign vans to jobs to auto-deduct lease/fuel/insurance costs.</span></li>
+                <ul class="list-unstyled text-secondary small mb-4">
+                    <li class="mb-3 d-flex align-items-start gap-2">
+                        <i class="fas fa-check text-gold mt-1"></i>
+                        <div><strong class="text-white">{{ _('Live Margin Progress') }}:</strong> {{ _('Visual budget tracker on every job showing live spend vs client price.') }}</div>
+                    </li>
+                    <li class="mb-3 d-flex align-items-start gap-2">
+                        <i class="fas fa-check text-gold mt-1"></i>
+                        <div><strong class="text-white">{{ _('Fleet Run Costs') }}:</strong> {{ _('Auto-deduct vehicle lease and fuel overhead on a daily basis.') }}</div>
+                    </li>
+                    <li class="mb-3 d-flex align-items-start gap-2">
+                        <i class="fas fa-check text-gold mt-1"></i>
+                        <div><strong class="text-white">{{ _('Instant RAMS in 60s') }}:</strong> {{ _('Auto-generate hazard documentation to satisfy commercial site directors before parking.') }}</div>
+                    </li>
                 </ul>
             </div>
-            <div class="col-lg-7 ps-lg-5">
-                <div class="p-4 bg-black border border-secondary rounded-4 shadow-lg">
-                    <div class="d-flex justify-content-between text-white border-bottom border-secondary pb-3 mb-3">
-                        <span class="h5 m-0">Project: Unit 4 Refit</span>
-                        <span class="badge bg-success">Complete</span>
+            <div class="col-lg-6">
+                <div class="p-4 rounded-4 bg-black border border-gold shadow-lg">
+                    <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-3 mb-3">
+                        <span class="text-white fw-bold">{{ _('Job Audit: Commercial Plant Installation') }}</span>
+                        <span class="badge bg-success bg-opacity-25 text-success border border-success">{{ _('Complete') }}</span>
                     </div>
-                    <div class="row text-center g-0">
-                        <div class="col-4 border-end border-secondary">
-                            <div class="small text-muted text-uppercase fw-bold">Invoiced</div>
-                            <div class="h3 text-white m-0">£12,500</div>
-                        </div>
-                        <div class="col-4 border-end border-secondary">
-                            <div class="small text-muted text-uppercase fw-bold">Total Cost</div>
-                            <div class="h3 text-danger m-0">£8,240</div>
+                    <div class="row text-center g-3">
+                        <div class="col-4">
+                            <small class="text-muted text-uppercase fw-bold">{{ _('Invoiced') }}</small>
+                            <div class="h4 text-white font-heading mt-1">£18,500</div>
                         </div>
                         <div class="col-4">
-                            <div class="small text-muted text-uppercase fw-bold">Net Profit</div>
-                            <div class="h3 text-gold m-0">£4,260</div>
+                            <small class="text-muted text-uppercase fw-bold">{{ _('Actual Cost') }}</small>
+                            <div class="h4 text-danger font-heading mt-1">£11,200</div>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-gold text-uppercase fw-bold">{{ _('Net Profit') }}</small>
+                            <div class="h4 text-gold font-heading mt-1">£7,300</div>
                         </div>
                     </div>
-                    <div class="mt-3 pt-3 border-top border-secondary small text-end text-muted">
-                        *Includes Material, Labor, and Fleet Costs
-                    </div>
                 </div>
             </div>
         </div>
     </div>
 </section>
-
-<section id="compliance" class="py-5" style="background-color: var(--bb-bg);">
-    <div class="container py-5">
-        <div class="text-center mb-5">
-            <h6 class="text-gold text-uppercase">Commercial Capabilities</h6>
-            <h2 class="text-white fw-bold">Win Bigger Contracts.</h2>
-            <p class="text-secondary mx-auto" style="max-width: 600px;">
-                Commercial clients need paperwork. We automate it.
-            </p>
-        </div>
-        
-        <div class="row g-4">
-            <div class="col-md-4">
-                <div class="p-4 border border-secondary rounded-4 h-100 bg-dark hover-gold">
-                    <i class="fas fa-file-contract fa-2x text-gold mb-3"></i>
-                    <h5 class="text-white fw-bold">Instant RAMS</h5>
-                    <p class="text-secondary small">Generate professional Risk Assessments and Method Statements in 60 seconds. Send them to the site manager before you even park the van.</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="p-4 border border-secondary rounded-4 h-100 bg-dark hover-gold">
-                    <i class="fas fa-hard-hat fa-2x text-gold mb-3"></i>
-                    <h5 class="text-white fw-bold">Site Diaries</h5>
-                    <p class="text-secondary small">Engineers upload photos and notes daily. Generate a "Proof of Work" PDF at the end of the job to guarantee payment.</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="p-4 border border-secondary rounded-4 h-100 bg-dark hover-gold">
-                    <i class="fas fa-id-card fa-2x text-gold mb-3"></i>
-                    <h5 class="text-white fw-bold">White-Label Portal</h5>
-                    <p class="text-secondary small">Give your clients a login to your branded portal. They can download their own invoices and certificates, saving you admin time.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<style>
-    .hover-gold { transition: transform 0.3s; }
-    .hover-gold:hover { transform: translateY(-5px); border-color: var(--bb-gold) !important; }
-</style>
 {% endblock %}

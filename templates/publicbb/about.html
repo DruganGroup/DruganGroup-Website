@@ -1,48 +1,37 @@
 {% extends "publicbb/base.html" %}
 
-{% block title %}{{ _('About Us') }} | {{ _('Business Better') }}{% endblock %}
+{% block title %}{{ _('About Us | Business Better') }}{% endblock %}
 
 {% block content %}
-<section class="py-5" style="background-color: var(--bb-bg);">
-    <div class="container py-5 text-center">
-        <div class="d-inline-block px-4 py-2 mb-3 border border-warning rounded-pill bg-dark">
-            <span class="text-gold text-uppercase small fw-bold"><i class="fas fa-info-circle me-2"></i>{{ _('Our Mission') }}</span>
-        </div>
-        <h1 class="fw-bold display-5 mb-3 text-white">{{ _('More Than Just Software.') }}</h1>
-        <p class="lead text-secondary mx-auto mb-4" style="max-width: 800px;">
-            {{ _("We aren't just an app for tracking vans. We are a complete") }} <strong>{{ _('Business Operating System') }}</strong> {{ _('designed to take you from a local firm to a national player.') }}
+<header class="py-5 text-center position-relative overflow-hidden" style="background: radial-gradient(circle at 50% 20%, rgba(197, 160, 89, 0.08) 0%, rgba(9, 12, 16, 1) 70%);">
+    <div class="container py-4">
+        <div class="b2b-badge mb-3"><i class="fas fa-info-circle me-1"></i> {{ _('Institutional Mission') }}</div>
+        <h1 class="display-4 fw-bold text-white mb-3">{{ _('More Than Software.') }}<br><span class="text-gold">{{ _('A Digital Operating System.') }}</span></h1>
+        <p class="lead text-secondary mx-auto mb-4" style="max-width: 750px;">
+            {{ _('We built Business Better to solve the single greatest threat to trade and property management firms: operational blind spots.') }}
         </p>
-        <div class="d-inline-block px-4 py-2 bg-dark border border-success rounded">
-            <span class="text-white small">
-                <i class="fas fa-layer-group text-gold me-2"></i>
-                <strong class="text-gold">{{ _('One Platform.') }}</strong> {{ _('Replaces 6+ Subscriptions.') }}
-            </span>
-        </div>
     </div>
-</section>
+</header>
 
-<section class="py-5 bg-dark">
-    <div class="container py-5">
-        <div class="row align-items-center">
-            <div class="col-lg-6 mb-4 mb-lg-0">
-                <div class="p-5 rounded-4 text-center border border-secondary" style="background: rgba(255,255,255,0.03);">
-                    <i class="fas fa-quote-left fa-2x mb-3 text-gold"></i>
-                    <h3 class="fw-light mb-4 text-white">"{{ _("I needed to know exactly where my money was going. Not just 'revenue', but actual net profit after every bolt, liter of fuel, and hour of labor.") }}"</h3>
+<section class="py-5" style="background: var(--bb-bg-secondary);">
+    <div class="container py-4">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-6">
+                <div class="p-4 rounded-4 bg-black border border-secondary">
+                    <i class="fas fa-quote-left fa-2x text-gold mb-3"></i>
+                    <h4 class="text-white fw-light mb-3">"{{ _('Most commercial contractors fail not from lack of work, but because they do not know their true unit economics until year-end accounts.') }}"</h4>
                     <div class="fw-bold text-gold">- {{ _('Founder, Business Better') }}</div>
                 </div>
             </div>
-            <div class="col-lg-6 ps-lg-5 text-white">
-                <h2 class="fw-bold mb-4">{{ _('The "Blind Spot" Problem') }}</h2>
-                <p class="text-secondary mb-4">
-                    {{ _("Most trade businesses fail because they have a blind spot. They know their bank balance, but they don't know their") }} <strong>{{ _('Unit Economics') }}</strong>.
+            <div class="col-lg-6">
+                <h3 class="text-white fw-bold mb-3">{{ _('The Unit Economics Problem') }}</h3>
+                <p class="text-secondary mb-3">
+                    {{ _('Traditional accounting software tells you historic revenue. It does not calculate real-time engineer payroll, subcontractor CIS deductions, or daily fleet overhead as jobs are active.') }}
                 </p>
                 <p class="text-secondary mb-4">
-                    {{ _('We built Business Better to fix that. By integrating') }} <strong>{{ _('HR (Next-of-Kin & Pay Rates)') }}</strong>, <strong>{{ _('Fleet Compliance') }}</strong>, {{ _('and') }} <strong>{{ _('Financial Data') }}</strong> {{ _('into one system, we eliminate the blind spots.') }}
+                    {{ _('By unifying Operations, Fleet Telematics, HR Payroll, and Client Service Desks into a single database, Business Better delivers total executive visibility.') }}
                 </p>
-                <div class="d-flex gap-3">
-                     <a href="/features" class="btn btn-brand fw-bold">{{ _('See The Tech') }}</a>
-                     <a href="/contact" class="btn btn-outline-light fw-bold">{{ _('Partner With Us') }}</a>
-                </div>
+                <a href="/register" class="btn btn-brand">{{ _('Start 14-Day Free Trial') }} <i class="fas fa-arrow-right ms-2"></i></a>
             </div>
         </div>
     </div>

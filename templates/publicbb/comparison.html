@@ -1,442 +1,81 @@
 {% extends "publicbb/base.html" %}
 
-{% block title %}Why Switch to Business Better | Replace 6+ Tools{% endblock %}
+{% block title %}{{ _('Why Switch to Business Better | Software Stack Audit') }}{% endblock %}
 
-{% block head %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800&display=swap" rel="stylesheet">
-
-<style>
-    body {
-        background-color: #050505;
-        color: #e0e0e0;
-    }
-
-    .comparison-table {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
-        overflow: hidden;
-    }
-
-    .comparison-row {
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        transition: background 0.3s;
-    }
-
-    .comparison-row:hover {
-        background: rgba(212, 175, 55, 0.05);
-    }
-
-    .feature-check {
-        color: #10b981;
-        font-size: 1.2rem;
-    }
-
-    .feature-cross {
-        color: #ef4444;
-        font-size: 1.2rem;
-    }
-
-    .highlight-box {
-        background: linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(212, 175, 55, 0.05) 100%);
-        border: 2px solid #d4af37;
-        border-radius: 8px;
-        padding: 30px;
-    }
-
-    .cost-badge {
-        display: inline-block;
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-weight: 600;
-        font-size: 0.9rem;
-    }
-
-    .cost-high {
-        background: rgba(239, 68, 68, 0.2);
-        color: #ef4444;
-        border: 1px solid #ef4444;
-    }
-
-    .cost-low {
-        background: rgba(16, 185, 129, 0.2);
-        color: #10b981;
-        border: 1px solid #10b981;
-    }
-</style>
-{% endblock %}
+{% block meta_description %}{{ _('Compare Business Better against disconnected software stacks. See how consolidating estimating, CIS payroll, fleet tracking, and compliance saves £86/mo and 40 admin hours.') }}{% endblock %}
 
 {% block content %}
-
-<header class="py-5 text-center" style="background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%); padding-top: 100px !important;">
-    <div class="container py-5">
-        <div class="d-inline-block px-4 py-2 mb-4 border border-warning rounded-pill bg-dark">
-            <span class="text-gold text-uppercase small fw-bold"><i class="fas fa-balance-scale me-2"></i>The Complete Comparison</span>
-        </div>
-        <h1 class="display-3 fw-bold text-white mb-4">
-            Why Switch to <span class="text-gold">Business Better?</span>
+<header class="py-5 text-center position-relative overflow-hidden" style="background: radial-gradient(circle at 50% 20%, rgba(197, 160, 89, 0.08) 0%, rgba(9, 12, 16, 1) 70%);">
+    <div class="container py-4">
+        <div class="b2b-badge mb-3"><i class="fas fa-balance-scale me-1"></i> {{ _('Institutional Software Audit') }}</div>
+        <h1 class="display-4 fw-bold text-white mb-3">
+            {{ _('Why Switch To') }} <span class="text-gold">{{ _('Business Better?') }}</span>
         </h1>
-        <p class="lead text-secondary mx-auto" style="max-width: 800px;">
-            Stop juggling multiple subscriptions, logins, and integrations. See exactly what you're replacing and how much you'll save.
+        <p class="lead text-secondary mx-auto mb-4" style="max-width: 700px;">
+            {{ _('Stop paying for 6+ separate subscriptions. See exactly what you replace and how much overhead you eliminate.') }}
         </p>
     </div>
 </header>
 
-<!-- COST COMPARISON SECTION -->
-<section class="py-5" style="background-color: #0f1014;">
-    <div class="container py-5">
-        <div class="text-center mb-5">
-            <h2 class="display-5 fw-bold text-white mb-3">The Real Cost of "Separate Tools"</h2>
-            <p class="text-secondary">Most trade businesses don't realize they're paying for the same features multiple times.</p>
-        </div>
-
-        <div class="row g-4">
-            <!-- Traditional Stack -->
-            <div class="col-lg-6">
-                <div class="p-4 border border-danger rounded-4 bg-dark h-100">
-                    <div class="d-flex align-items-center mb-4">
-                        <i class="fas fa-exclamation-triangle text-danger fa-2x me-3"></i>
-                        <h3 class="text-white mb-0">Traditional Software Stack</h3>
-                    </div>
-
-                    <div class="mb-3 p-3 bg-black rounded">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-white"><i class="fas fa-calculator me-2"></i> Estimating Software</span>
-                            <span class="cost-badge cost-high">£50/mo</span>
-                        </div>
-                        <p class="small text-muted mb-0">Limited to quotes only. No job tracking.</p>
-                    </div>
-
-                    <div class="mb-3 p-3 bg-black rounded">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-white"><i class="fas fa-file-invoice me-2"></i> Accounting (Xero/QuickBooks)</span>
-                            <span class="cost-badge cost-high">£30/mo</span>
-                        </div>
-                        <p class="small text-muted mb-0">Invoicing only. No job costing or fleet tracking.</p>
-                    </div>
-
-                    <div class="mb-3 p-3 bg-black rounded">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-white"><i class="fas fa-truck me-2"></i> Fleet Tracking</span>
-                            <span class="cost-badge cost-high">£40/mo</span>
-                        </div>
-                        <p class="small text-muted mb-0">GPS only. No compliance or safety checks.</p>
-                    </div>
-
-                    <div class="mb-3 p-3 bg-black rounded">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-white"><i class="fas fa-clipboard-check me-2"></i> Compliance Software</span>
-                            <span class="cost-badge cost-high">£50/mo</span>
-                        </div>
-                        <p class="small text-muted mb-0">Certificate tracking. No RAMS generation.</p>
-                    </div>
-
-                    <div class="mb-3 p-3 bg-black rounded">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-white"><i class="fas fa-users me-2"></i> HR System</span>
-                            <span class="cost-badge cost-high">£35/mo</span>
-                        </div>
-                        <p class="small text-muted mb-0">Staff records only. No payroll integration.</p>
-                    </div>
-
-                    <div class="mb-3 p-3 bg-black rounded">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-white"><i class="fas fa-globe me-2"></i> Client Portal</span>
-                            <span class="cost-badge cost-high">£30/mo</span>
-                        </div>
-                        <p class="small text-muted mb-0">Document sharing. No live job updates.</p>
-                    </div>
-
-                    <div class="mt-4 p-4 bg-danger bg-opacity-10 border border-danger rounded">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="h5 text-white mb-0">Monthly Total:</span>
-                            <span class="h3 text-danger mb-0 fw-bold">£235</span>
-                        </div>
-                        <hr class="border-danger opacity-25 my-3">
-                        <p class="small text-muted mb-2"><i class="fas fa-plus me-2"></i> Integration costs: £500-2,000 setup</p>
-                        <p class="small text-muted mb-2"><i class="fas fa-plus me-2"></i> Training time: 40+ hours</p>
-                        <p class="small text-muted mb-0"><i class="fas fa-plus me-2"></i> Data sync issues: Constant headaches</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Business Better -->
-            <div class="col-lg-6">
-                <div class="p-4 border border-warning rounded-4 bg-dark h-100 position-relative" style="box-shadow: 0 0 40px rgba(212, 175, 55, 0.3);">
-                    <div class="position-absolute top-0 start-50 translate-middle">
-                        <span class="badge bg-warning text-dark px-4 py-2 rounded-pill shadow-lg">BEST VALUE</span>
-                    </div>
-
-                    <div class="d-flex align-items-center mb-4 mt-3">
-                        <i class="fas fa-check-circle text-success fa-2x me-3"></i>
-                        <h3 class="text-white mb-0">Business Better</h3>
-                    </div>
-
-                    <div class="mb-4 p-4 bg-black rounded-4 border border-warning">
-                        <div class="text-center mb-3">
-                            <i class="fas fa-layer-group text-gold fa-3x mb-3"></i>
-                            <h4 class="text-white mb-2">All-In-One Platform</h4>
-                            <p class="text-secondary small mb-0">Everything integrated from day one</p>
-                        </div>
-                    </div>
-
-                    <div class="row g-3 mb-4">
-                        <div class="col-6">
-                            <div class="p-3 bg-black rounded text-center border border-success">
-                                <i class="fas fa-calculator text-gold fa-2x mb-2"></i>
-                                <p class="small text-white mb-0 fw-bold">Estimator</p>
-                                <p class="small text-success mb-0">✓ Included</p>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="p-3 bg-black rounded text-center border border-success">
-                                <i class="fas fa-file-invoice text-gold fa-2x mb-2"></i>
-                                <p class="small text-white mb-0 fw-bold">Invoicing</p>
-                                <p class="small text-success mb-0">✓ Included</p>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="p-3 bg-black rounded text-center border border-success">
-                                <i class="fas fa-truck text-gold fa-2x mb-2"></i>
-                                <p class="small text-white mb-0 fw-bold">Fleet Ops</p>
-                                <p class="small text-success mb-0">✓ Included</p>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="p-3 bg-black rounded text-center border border-success">
-                                <i class="fas fa-clipboard-check text-gold fa-2x mb-2"></i>
-                                <p class="small text-white mb-0 fw-bold">Compliance</p>
-                                <p class="small text-success mb-0">✓ Included</p>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="p-3 bg-black rounded text-center border border-success">
-                                <i class="fas fa-users text-gold fa-2x mb-2"></i>
-                                <p class="small text-white mb-0 fw-bold">HR System</p>
-                                <p class="small text-success mb-0">✓ Included</p>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="p-3 bg-black rounded text-center border border-success">
-                                <i class="fas fa-globe text-gold fa-2x mb-2"></i>
-                                <p class="small text-white mb-0 fw-bold">Portal</p>
-                                <p class="small text-success mb-0">✓ Included</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="p-4 bg-success bg-opacity-10 border border-success rounded">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="h5 text-white mb-0">Monthly Total:</span>
-                            <span class="h3 text-success mb-0 fw-bold">£149</span>
-                        </div>
-                        <hr class="border-success opacity-25 my-3">
-                        <p class="small text-gold mb-2"><i class="fas fa-check me-2"></i> Zero integration costs</p>
-                        <p class="small text-gold mb-2"><i class="fas fa-check me-2"></i> Intuitive interface: 2 hours training</p>
-                        <p class="small text-gold mb-0"><i class="fas fa-check me-2"></i> Real-time data sync: Built-in</p>
-                        
-                        <div class="mt-4 p-3 bg-warning bg-opacity-10 rounded text-center">
-                            <p class="h4 text-gold mb-0"><i class="fas fa-piggy-bank me-2"></i> Save £86/month</p>
-                            <p class="small text-white mb-0">That's £1,032 per year in your pocket</p>
-                        </div>
-                    </div>
-
-                    <div class="d-grid mt-4">
-                        <a href="/pricing" class="btn btn-brand btn-lg">Start Free Trial <i class="fas fa-arrow-right ms-2"></i></a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- FEATURE COMPARISON TABLE -->
-<section class="py-5">
-    <div class="container py-5">
-        <div class="text-center mb-5">
-            <h2 class="display-5 fw-bold text-white mb-3">Feature-by-Feature Breakdown</h2>
-            <p class="text-secondary">See exactly what you get with Business Better vs traditional tools.</p>
-        </div>
-
-        <div class="table-responsive">
-            <table class="table table-dark table-hover">
+<section class="py-5" style="background: var(--bb-bg-secondary);">
+    <div class="container py-3">
+        <div class="table-responsive rounded-4 border border-secondary shadow-lg overflow-hidden">
+            <table class="table table-dark table-hover mb-0">
                 <thead>
-                    <tr class="border-bottom border-warning">
-                        <th class="text-white fw-bold py-4" style="width: 40%;">Feature</th>
-                        <th class="text-center text-danger fw-bold py-4">Traditional Stack</th>
-                        <th class="text-center text-gold fw-bold py-4">Business Better</th>
+                    <tr class="border-bottom border-gold" style="background: #090c10;">
+                        <th class="py-4 px-4 text-white fw-bold" style="width: 45%;">{{ _('Operational Capability') }}</th>
+                        <th class="py-4 px-3 text-center text-danger fw-bold">{{ _('Traditional 6+ Stack') }}</th>
+                        <th class="py-4 px-3 text-center text-gold fw-bold">{{ _('Business Better BOS') }}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr class="comparison-row">
-                        <td class="py-4">
-                            <strong class="text-white">Unified Estimator</strong>
-                            <p class="small text-muted mb-0">Materials, labor, and fleet costs in one quote</p>
+                    <tr class="border-bottom border-secondary border-opacity-25">
+                        <td class="py-3 px-4">
+                            <strong class="text-white">{{ _('Unified Project Estimator') }}</strong>
+                            <div class="small text-secondary">{{ _('Materials, labor rates, and van fees in 1 quote') }}</div>
                         </td>
-                        <td class="text-center py-4"><i class="fas fa-times feature-cross"></i></td>
-                        <td class="text-center py-4"><i class="fas fa-check feature-check"></i></td>
+                        <td class="text-center py-3 text-danger"><i class="fas fa-times"></i></td>
+                        <td class="text-center py-3 text-success"><i class="fas fa-check-circle"></i> {{ _('Included') }}</td>
                     </tr>
-                    <tr class="comparison-row">
-                        <td class="py-4">
-                            <strong class="text-white">Live Job Costing</strong>
-                            <p class="small text-muted mb-0">Real-time profit tracking per job</p>
+                    <tr class="border-bottom border-secondary border-opacity-25">
+                        <td class="py-3 px-4">
+                            <strong class="text-white">{{ _('Live Unit Margin Tracking') }}</strong>
+                            <div class="small text-secondary">{{ _('Real-time spend deductions per job before billing') }}</div>
                         </td>
-                        <td class="text-center py-4"><i class="fas fa-times feature-cross"></i></td>
-                        <td class="text-center py-4"><i class="fas fa-check feature-check"></i></td>
+                        <td class="text-center py-3 text-danger"><i class="fas fa-times"></i></td>
+                        <td class="text-center py-3 text-success"><i class="fas fa-check-circle"></i> {{ _('Included') }}</td>
                     </tr>
-                    <tr class="comparison-row">
-                        <td class="py-4">
-                            <strong class="text-white">Fleet GPS + Compliance</strong>
-                            <p class="small text-muted mb-0">Track location AND enforce safety checks</p>
+                    <tr class="border-bottom border-secondary border-opacity-25">
+                        <td class="py-3 px-4">
+                            <strong class="text-white">{{ _('Fleet GPS + Defect Checks') }}</strong>
+                            <div class="small text-secondary">{{ _('Live telematics & morning safety defect checks') }}</div>
                         </td>
-                        <td class="text-center py-4"><i class="fas fa-times feature-cross"></i></td>
-                        <td class="text-center py-4"><i class="fas fa-check feature-check"></i></td>
+                        <td class="text-center py-3 text-warning"><small>{{ _('Separate App (£50/mo)') }}</small></td>
+                        <td class="text-center py-3 text-success"><i class="fas fa-check-circle"></i> {{ _('Included') }}</td>
                     </tr>
-                    <tr class="comparison-row">
-                        <td class="py-4">
-                            <strong class="text-white">Auto RAMS Generation</strong>
-                            <p class="small text-muted mb-0">Create Risk Assessments in 60 seconds</p>
+                    <tr class="border-bottom border-secondary border-opacity-25">
+                        <td class="py-3 px-4">
+                            <strong class="text-white">{{ _('Dynamic 60s RAMS Generator') }}</strong>
+                            <div class="small text-secondary">{{ _('Auto hazard detection & Risk Assessments') }}</div>
                         </td>
-                        <td class="text-center py-4"><i class="fas fa-times feature-cross"></i></td>
-                        <td class="text-center py-4"><i class="fas fa-check feature-check"></i></td>
+                        <td class="text-center py-3 text-warning"><small>{{ _('Separate App (£50/mo)') }}</small></td>
+                        <td class="text-center py-3 text-success"><i class="fas fa-check-circle"></i> {{ _('Included') }}</td>
                     </tr>
-                    <tr class="comparison-row">
-                        <td class="py-4">
-                            <strong class="text-white">Client Portal</strong>
-                            <p class="small text-muted mb-0">White-label portal with live job updates</p>
+                    <tr class="border-bottom border-secondary border-opacity-25">
+                        <td class="py-3 px-4">
+                            <strong class="text-white">{{ _('CIS & PAYE Automated Payroll') }}</strong>
+                            <div class="small text-secondary">{{ _('Subcontractor tax deductions & bulk BACS export') }}</div>
                         </td>
-                        <td class="text-center py-4"><span class="small text-warning">Separate tool</span></td>
-                        <td class="text-center py-4"><i class="fas fa-check feature-check"></i></td>
-                    </tr>
-                    <tr class="comparison-row">
-                        <td class="py-4">
-                            <strong class="text-white">Forensic Audit Trails</strong>
-                            <p class="small text-muted mb-0">Every action logged with IP and timestamp</p>
-                        </td>
-                        <td class="text-center py-4"><i class="fas fa-times feature-cross"></i></td>
-                        <td class="text-center py-4"><i class="fas fa-check feature-check"></i></td>
-                    </tr>
-                    <tr class="comparison-row">
-                        <td class="py-4">
-                            <strong class="text-white">Integrated HR & Payroll</strong>
-                            <p class="small text-muted mb-0">Staff records linked to job costs</p>
-                        </td>
-                        <td class="text-center py-4"><i class="fas fa-times feature-cross"></i></td>
-                        <td class="text-center py-4"><i class="fas fa-check feature-check"></i></td>
-                    </tr>
-                    <tr class="comparison-row">
-                        <td class="py-4">
-                            <strong class="text-white">Mobile App for Engineers</strong>
-                            <p class="small text-muted mb-0">Clock in/out, upload photos, complete jobs</p>
-                        </td>
-                        <td class="text-center py-4"><span class="small text-warning">Separate tool</span></td>
-                        <td class="text-center py-4"><i class="fas fa-check feature-check"></i></td>
-                    </tr>
-                    <tr class="comparison-row">
-                        <td class="py-4">
-                            <strong class="text-white">Data Integration</strong>
-                            <p class="small text-muted mb-0">All modules share the same database</p>
-                        </td>
-                        <td class="text-center py-4"><span class="small text-danger">Manual sync</span></td>
-                        <td class="text-center py-4"><i class="fas fa-check feature-check"></i></td>
-                    </tr>
-                    <tr class="comparison-row border-bottom border-warning">
-                        <td class="py-4">
-                            <strong class="text-white">24/7 Support</strong>
-                            <p class="small text-muted mb-0">UK-based support team</p>
-                        </td>
-                        <td class="text-center py-4"><span class="small text-warning">Multiple vendors</span></td>
-                        <td class="text-center py-4"><i class="fas fa-check feature-check"></i></td>
+                        <td class="text-center py-3 text-warning"><small>{{ _('Separate App (£40/mo)') }}</small></td>
+                        <td class="text-center py-3 text-success"><i class="fas fa-check-circle"></i> {{ _('Included') }}</td>
                     </tr>
                 </tbody>
             </table>
         </div>
-    </div>
-</section>
 
-<!-- TESTIMONIAL SECTION -->
-<section class="py-5" style="background-color: #0f1014;">
-    <div class="container py-5">
-        <div class="text-center mb-5">
-            <h2 class="display-5 fw-bold text-white mb-3">What Switchers Say</h2>
-            <p class="text-secondary">Real businesses that consolidated their software stack.</p>
-        </div>
-
-        <div class="row g-4">
-            <div class="col-md-4">
-                <div class="p-4 bg-dark border border-secondary rounded-4 h-100">
-                    <div class="mb-3">
-                        <i class="fas fa-quote-left text-gold fa-2x"></i>
-                    </div>
-                    <p class="text-white mb-4">"We were paying £280/month across 5 different tools. Business Better does everything for £149. The ROI was immediate."</p>
-                    <div class="d-flex align-items-center">
-                        <div class="bg-warning rounded-circle p-3 me-3">
-                            <i class="fas fa-user text-dark"></i>
-                        </div>
-                        <div>
-                            <p class="text-white mb-0 fw-bold">James Mitchell</p>
-                            <p class="small text-muted mb-0">Director, Mitchell Electrical</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-4">
-                <div class="p-4 bg-dark border border-secondary rounded-4 h-100">
-                    <div class="mb-3">
-                        <i class="fas fa-quote-left text-gold fa-2x"></i>
-                    </div>
-                    <p class="text-white mb-4">"The integration headaches alone were costing us 10 hours a week. Now everything just works together."</p>
-                    <div class="d-flex align-items-center">
-                        <div class="bg-warning rounded-circle p-3 me-3">
-                            <i class="fas fa-user text-dark"></i>
-                        </div>
-                        <div>
-                            <p class="text-white mb-0 fw-bold">Sarah Thompson</p>
-                            <p class="small text-muted mb-0">Operations Manager, Thompson Plumbing</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-4">
-                <div class="p-4 bg-dark border border-secondary rounded-4 h-100">
-                    <div class="mb-3">
-                        <i class="fas fa-quote-left text-gold fa-2x"></i>
-                    </div>
-                    <p class="text-white mb-4">"Finally, one system that does it all. Training new staff takes minutes, not days. Game changer."</p>
-                    <div class="d-flex align-items-center">
-                        <div class="bg-warning rounded-circle p-3 me-3">
-                            <i class="fas fa-user text-dark"></i>
-                        </div>
-                        <div>
-                            <p class="text-white mb-0 fw-bold">David Chen</p>
-                            <p class="small text-muted mb-0">Owner, Chen Construction Ltd</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="text-center mt-5">
+            <a href="/register" class="btn btn-brand btn-lg px-5 py-3">{{ _('Start 14-Day Free Trial') }} <i class="fas fa-arrow-right ms-2"></i></a>
         </div>
     </div>
 </section>
-
-<!-- FINAL CTA -->
-<section class="py-5">
-    <div class="container py-5">
-        <div class="highlight-box text-center">
-            <h2 class="display-5 fw-bold text-white mb-4">Ready to Simplify Your Business?</h2>
-            <p class="lead text-secondary mb-4">Join hundreds of trade businesses who've already made the switch.</p>
-            <div class="d-flex justify-content-center gap-3 flex-wrap">
-                <a href="/pricing" class="btn btn-brand btn-lg px-5">Start Free Trial</a>
-                <a href="/contact" class="btn btn-outline-light btn-lg px-5">Book a Demo</a>
-            </div>
-            <p class="small text-muted mt-4 mb-0">
-                <i class="fas fa-shield-alt me-2"></i> No credit card required | Cancel anytime | UK-based support
-            </p>
-        </div>
-    </div>
-</section>
-
 {% endblock %}
