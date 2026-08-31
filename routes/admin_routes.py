@@ -59,45 +59,118 @@ def log_audit(action, target, details=""):
     except Exception as e:
         print(f"Logging Failed: {e}") 
 
-# --- HELPER: CALCULATE REAL DISK USAGE ---
+# --- HELPER: CALCULATE REAL DISK & MEDIA USAGE ---
 def get_real_company_usage(company_id, cur):
+    seen_files = set()
     total_bytes = 0
-    tables = ['users', 'staff', 'vehicles', 'clients', 'jobs', 'transactions', 'maintenance_logs', 'materials']
+    photos_count = 0
+    photos_bytes = 0
+    docs_count = 0
+    docs_bytes = 0
+    
+    # 1. Physical tenant folders
+    for fld in [f'static/uploads/company_{company_id}', f'static/uploads/{company_id}']:
+        if os.path.exists(fld):
+            for root, _, files in os.walk(fld):
+                for f in files:
+                    fp = os.path.normpath(os.path.join(root, f))
+                    if fp not in seen_files:
+                        seen_files.add(fp)
+                        try:
+                            sz = os.path.getsize(fp)
+                            total_bytes += sz
+                            if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.gif')):
+                                photos_count += 1
+                                photos_bytes += sz
+                            else:
+                                docs_count += 1
+                                docs_bytes += sz
+                        except OSError: pass
+
+    # 2. Match database media references
+    try:
+        cur.execute("SELECT id FROM jobs WHERE company_id = %s", (company_id,))
+        job_ids = [str(r[0]) for r in cur.fetchall()]
+        cur.execute("SELECT reg_plate FROM vehicles WHERE company_id = %s", (company_id,))
+        veh_regs = [str(r[0]).replace(' ', '').upper() for r in cur.fetchall() if r[0]]
+        cur.execute("SELECT id FROM staff WHERE company_id = %s", (company_id,))
+        staff_ids = [str(r[0]) for r in cur.fetchall()]
+        
+        if os.path.exists('static/uploads/job_evidence') and job_ids:
+            for f in os.listdir('static/uploads/job_evidence'):
+                for jid in job_ids:
+                    if f.startswith(f'JOB_{jid}_'):
+                        fp = os.path.normpath(os.path.join('static/uploads/job_evidence', f))
+                        if fp not in seen_files and os.path.isfile(fp):
+                            seen_files.add(fp)
+                            sz = os.path.getsize(fp)
+                            total_bytes += sz
+                            photos_count += 1
+                            photos_bytes += sz
+
+        if os.path.exists('static/uploads/van_checks') and veh_regs:
+            for f in os.listdir('static/uploads/van_checks'):
+                for vreg in veh_regs:
+                    if vreg in f.replace(' ', '').upper():
+                        fp = os.path.normpath(os.path.join('static/uploads/van_checks', f))
+                        if fp not in seen_files and os.path.isfile(fp):
+                            seen_files.add(fp)
+                            sz = os.path.getsize(fp)
+                            total_bytes += sz
+                            photos_count += 1
+                            photos_bytes += sz
+
+        if os.path.exists('static/uploads/licenses') and staff_ids:
+            for f in os.listdir('static/uploads/licenses'):
+                for sid in staff_ids:
+                    if f.startswith(f'license_{sid}_'):
+                        fp = os.path.normpath(os.path.join('static/uploads/licenses', f))
+                        if fp not in seen_files and os.path.isfile(fp):
+                            seen_files.add(fp)
+                            sz = os.path.getsize(fp)
+                            total_bytes += sz
+                            photos_count += 1
+                            photos_bytes += sz
+    except Exception:
+        cur.connection.rollback()
+
+    # 3. Database row counts
     row_count = 0
+    tables = ['users', 'staff', 'vehicles', 'clients', 'properties', 'jobs', 'quotes', 'invoices', 'materials', 'service_requests', 'transactions', 'maintenance_logs', 'staff_timesheets', 'job_evidence', 'site_diary', 'certificates', 'audit_logs']
     for t in tables:
         try:
-            if t not in ALLOWED_TABLES:
-                continue
             cur.execute(f"SELECT COUNT(*) FROM {t} WHERE company_id = %s", (company_id,))
             row = cur.fetchone()
-            if row:
-                row_count += row[0]
-        except:
-            # FIX: If a table is missing, rollback so the DB connection stays alive
+            if row: row_count += row[0]
+        except Exception:
             cur.connection.rollback()
             
-    total_bytes += (row_count * 2048)
-
-    # Check Physical Files
+    db_bytes = row_count * 2048
+    
+    # 4. Telemetry requests (last 30d)
+    reqs_30d = 0
     try:
-        cur.execute("SELECT value FROM settings WHERE company_id = %s AND key = 'logo_url'", (company_id,))
-        row = cur.fetchone()
-        if row and row[0]:
-            file_path = row[0].replace('/static/', 'static/')
-            if os.path.exists(file_path): total_bytes += os.path.getsize(file_path)
-    except:
+        cur.execute("SELECT COUNT(*) FROM system_logs WHERE company_id = %s AND created_at > NOW() - INTERVAL '30 days'", (company_id,))
+        reqs_30d = cur.fetchone()[0] or 0
+    except Exception:
         cur.connection.rollback()
 
-    try:
-        cur.execute("SELECT defect_image_url FROM vehicles WHERE company_id = %s", (company_id,))
-        for row in cur.fetchall():
-            if row[0]:
-                file_path = row[0].replace('/static/', 'static/')
-                if os.path.exists(file_path): total_bytes += os.path.getsize(file_path)
-    except:
-        cur.connection.rollback()
-
-    return round(total_bytes / (1024 * 1024), 2)
+    file_mb = round(total_bytes / (1024 * 1024), 2)
+    db_mb = round(db_bytes / (1024 * 1024), 2)
+    
+    return {
+        'total_mb': round(file_mb + db_mb, 2),
+        'file_mb': file_mb,
+        'db_mb': db_mb,
+        'photos_count': photos_count,
+        'photos_mb': round(photos_bytes / (1024 * 1024), 2),
+        'docs_count': docs_count,
+        'docs_mb': round(docs_bytes / (1024 * 1024), 2),
+        'total_files': photos_count + docs_count,
+        'row_count': row_count,
+        'requests_30d': reqs_30d,
+        'bandwidth_mb': round((reqs_30d * 0.08) + (file_mb * 0.5), 2)
+    }
     
 # --- HELPER: BACKUP LOGIC ---
 def perform_company_backup(company_id, cur):
@@ -495,8 +568,33 @@ def super_admin_analytics():
     conn = get_db()
     cur = conn.cursor()
     
-    # FETCH TABLE INVENTORY & ROW COUNTS
+    # 1. GLOBAL DATABASE STORAGE (PostgreSQL Disk Footprint)
+    global_db_mb = 0.0
+    try:
+        cur.execute("SELECT pg_database_size(current_database());")
+        db_sz = cur.fetchone()
+        if db_sz:
+            global_db_mb = round(db_sz[0] / (1024 * 1024), 2)
+    except Exception:
+        cur.connection.rollback()
+
+    # 2. GLOBAL DISK UPLOADS STORAGE (Photos, Evidence, PDFs)
+    global_uploads_bytes = 0
+    global_uploads_count = 0
+    if os.path.exists('static/uploads'):
+        for root, _, files in os.walk('static/uploads'):
+            for f in files:
+                fp = os.path.join(root, f)
+                try:
+                    global_uploads_bytes += os.path.getsize(fp)
+                    global_uploads_count += 1
+                except OSError:
+                    pass
+    global_uploads_mb = round(global_uploads_bytes / (1024 * 1024), 2)
+    
+    # 3. FETCH TABLE INVENTORY & TOTAL ROWS
     db_inventory = []
+    total_db_rows = 0
     try:
         cur.execute("""
             SELECT table_name FROM information_schema.tables 
@@ -510,37 +608,74 @@ def super_admin_analytics():
                 cur.execute(f"SELECT COUNT(*) FROM {t}")
                 row = cur.fetchone()
                 if row:
-                    db_inventory.append({'name': t, 'rows': row[0]})
-            except:
+                    cnt = row[0]
+                    total_db_rows += cnt
+                    db_inventory.append({'name': t, 'rows': cnt})
+            except Exception:
                 cur.connection.rollback()
                 db_inventory.append({'name': t, 'rows': 'Error'})
-    except: pass
+    except Exception:
+        cur.connection.rollback()
 
-    # FETCH COMPANY STATS
-    cur.execute("SELECT id, name FROM companies")
+    # 4. FETCH COMPANY ACCURATE TELEMETRY & PHYSICAL STORAGE
+    cur.execute("SELECT id, name FROM companies ORDER BY id ASC")
     raw_comps = cur.fetchall()
     analytics_data = []
-    existing_table_names = [item['name'] for item in db_inventory]
+    
+    tracked_tables = [
+        'users', 'staff', 'vehicles', 'clients', 'properties', 'jobs', 
+        'quotes', 'invoices', 'materials', 'service_requests', 'transactions', 
+        'maintenance_logs', 'staff_timesheets', 'job_evidence', 'site_diary', 
+        'certificates', 'audit_logs'
+    ]
     
     for comp in raw_comps:
-        stat = {'name': comp[1], 'id': comp[0], 'total_rows': 0, 'breakdown': {}}
-        for t in ['users', 'staff', 'vehicles', 'clients', 'jobs', 'transactions', 'maintenance_logs']:
-            if t in existing_table_names and t in ALLOWED_TABLES:
-                try:
-                    cur.execute(f"SELECT COUNT(*) FROM {t} WHERE company_id = %s", (comp[0],))
-                    row = cur.fetchone()
-                    if row:
-                        c = row[0]
-                        stat['breakdown'][t] = c
-                        stat['total_rows'] += c
-                except: cur.connection.rollback()
+        comp_id, comp_name = comp
+        usage = get_real_company_usage(comp_id, cur)
         
-        stat['est_size_mb'] = round((stat['total_rows'] * 0.5) / 1024, 2)
-        stat['bandwidth_usage'] = round(stat['total_rows'] * 0.05, 2)
+        stat = {
+            'name': comp_name,
+            'id': comp_id,
+            'total_rows': usage['row_count'],
+            'breakdown': {},
+            'total_storage_mb': usage['total_mb'],
+            'file_mb': usage['file_mb'],
+            'db_mb': usage['db_mb'],
+            'photos_count': usage['photos_count'],
+            'photos_mb': usage['photos_mb'],
+            'docs_count': usage['docs_count'],
+            'docs_mb': usage['docs_mb'],
+            'total_files': usage['total_files'],
+            'requests_30d': usage['requests_30d'],
+            'bandwidth_usage': usage['bandwidth_mb']
+        }
+        
+        # Populate key category breakdowns
+        for t in ['staff', 'clients', 'vehicles', 'jobs', 'properties', 'invoices', 'materials', 'service_requests']:
+            if t in ALLOWED_TABLES:
+                try:
+                    cur.execute(f"SELECT COUNT(*) FROM {t} WHERE company_id = %s", (comp_id,))
+                    row = cur.fetchone()
+                    stat['breakdown'][t] = row[0] if row else 0
+                except Exception:
+                    cur.connection.rollback()
+                    stat['breakdown'][t] = 0
+        
         analytics_data.append(stat)
     
-    pass
-    return render_template('admin/super_admin_analytics.html', data=analytics_data, db_inventory=db_inventory)
+    global_stats = {
+        'total_companies': len(raw_comps),
+        'total_db_rows': total_db_rows,
+        'global_db_mb': global_db_mb,
+        'global_uploads_mb': global_uploads_mb,
+        'global_uploads_count': global_uploads_count,
+        'global_total_storage_mb': round(global_db_mb + global_uploads_mb, 2)
+    }
+    
+    return render_template('admin/super_admin_analytics.html', 
+                           data=analytics_data, 
+                           db_inventory=db_inventory,
+                           global_stats=global_stats)
 
 import stripe
 from utils.extensions import csrf
