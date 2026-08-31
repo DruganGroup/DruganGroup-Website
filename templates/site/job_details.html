@@ -156,6 +156,28 @@
     <div class="p-3 bg-light rounded-3 text-dark small leading-relaxed">{{ job.description }}</div>
 </div>
 
+<!-- REPORTED FAULT PHOTO FROM TENANT / CLIENT -->
+{% if job.fault_photo %}
+<div class="card-site p-3 mb-3 border-danger shadow-sm">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="fw-bold text-uppercase text-danger small m-0">
+            <i class="fas fa-camera text-danger me-1"></i> Reported Fault Photo (Tenant)
+        </h6>
+        <span class="badge bg-danger">{{ job.urgency or 'Issue Reported' }}</span>
+    </div>
+    <div class="text-center bg-light p-2 rounded-3 mb-2 border">
+        {% set f_url = job.fault_photo if job.fault_photo.startswith('/') else '/' ~ job.fault_photo %}
+        <a href="{{ f_url }}" target="_blank">
+            <img src="{{ f_url }}" class="img-fluid rounded-3 shadow-sm border" style="max-height: 220px; object-fit: cover; width: 100%;" alt="Reported Fault Photo">
+        </a>
+    </div>
+    {% if job.original_issue and job.original_issue != job.description %}
+    <p class="small text-muted mb-0"><strong>Tenant Note:</strong> {{ job.original_issue }}</p>
+    {% endif %}
+</div>
+{% endif %}
+
+
 <!-- COMPLIANCE & SAFETY SIGN-OFF (RAMS, CP12, EICR) -->
 <div class="card-site p-3 mb-3">
     <h6 class="fw-bold text-uppercase text-muted small mb-3">

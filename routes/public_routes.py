@@ -158,6 +158,68 @@ def demo():
     else:
         return render_template('public/index.html')
 
+# --- 1-CLICK INSTANT DEMO LAUNCHERS ---
+@public_bp.route('/demo/launch/<role>')
+def demo_launch(role):
+    from flask import session, redirect, url_for, flash
+    from db import get_db
+
+    conn = get_db()
+    if not conn:
+        flash("Could not connect to demo database.", "error")
+        return redirect(url_for('public.demo'))
+
+    cur = conn.cursor()
+    role_email_map = {
+        'office': ('demo.office@businessbetter.co.uk', 'user'),
+        'site': ('demo.site@businessbetter.co.uk', 'user'),
+        'client': ('demo.client@businessbetter.co.uk', 'client'),
+        'agency': ('demo.agency@businessbetter.co.uk', 'user'),
+        'contractor': ('demo.contractor@businessbetter.co.uk', 'user'),
+        'tenant': ('demo.tenant@businessbetter.co.uk', 'client')
+    }
+
+    if role not in role_email_map:
+        flash("Unknown demo sandbox role.", "error")
+        return redirect(url_for('public.demo'))
+
+    email, target_type = role_email_map[role]
+    session.clear()
+
+    if target_type == 'user':
+        cur.execute("""
+            SELECT u.id, u.name, u.role, u.company_id, u.email,
+                   (SELECT value FROM settings WHERE company_id = u.company_id AND key = 'company_name' LIMIT 1) as company_name,
+                   (SELECT modules FROM subscriptions WHERE company_id = u.company_id LIMIT 1) as modules
+            FROM users u
+            WHERE LOWER(TRIM(u.email)) = LOWER(TRIM(%s))
+        """, (email,))
+        user = cur.fetchone()
+        if user:
+            session.permanent = True
+            session['user_id'] = user[0]
+            session['user_name'] = user[1]
+            session['role'] = user[2]
+            session['company_id'] = user[3]
+            session['user_email'] = user[4]
+            session['company_name'] = user[5] or 'Demo Company'
+            session['modules'] = user[6] or 'Finance,Portal,Fleet,Compliance,RAMS'
+            return redirect(url_for('auth.main_launcher'))
+    else:
+        cur.execute("""
+            SELECT id, name, company_id FROM clients WHERE LOWER(TRIM(email)) = LOWER(TRIM(%s))
+        """, (email,))
+        client = cur.fetchone()
+        if client:
+            session['portal_client_id'] = client[0]
+            session['portal_client_name'] = client[1]
+            session['portal_company_id'] = client[2]
+            session['company_id'] = client[2]
+            return redirect(url_for('portal.portal_home'))
+
+    flash("Sandbox account ready.", "success")
+    return redirect(url_for('public.demo'))
+
 # --- SHARED/TRADE ROUTES (Drugan Group) ---
 @public_bp.route('/services')
 @public_bp.route('/services.html')

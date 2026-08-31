@@ -303,10 +303,12 @@ def job_details(job_id):
                p.postcode, 
                j.description, p.key_code,
                j.property_id,
-               p.tenant_name, p.tenant_phone, p.tenant_email, c.email
+               p.tenant_name, p.tenant_phone, p.tenant_email, c.email,
+               sr.photo_path, sr.issue_description, sr.priority
         FROM jobs j
         LEFT JOIN clients c ON j.client_id = c.id
         LEFT JOIN properties p ON j.property_id = p.id
+        LEFT JOIN service_requests sr ON j.service_request_id = sr.id
         WHERE j.id = %s
     """, (job_id,))
     row = cur.fetchone()
@@ -324,7 +326,10 @@ def job_details(job_id):
         'tenant_name': row[10] or "",
         'tenant_phone': row[11] or "",
         'tenant_email': row[12] or "",
-        'client_email': row[13] or ""
+        'client_email': row[13] or "",
+        'fault_photo': row[14],
+        'original_issue': row[15],
+        'urgency': row[16]
     }
 
     # Check Clock Status
