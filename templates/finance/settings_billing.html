@@ -1,0 +1,168 @@
+{% extends "finance/settings_layout.html" %}
+
+{% block settings_content %}
+<div class="row g-4 mb-4">
+    <!-- CURRENT SUBSCRIPTION CARD -->
+    <div class="col-md-5">
+        <div class="card p-4 h-100 border-0 shadow-sm rounded-4 text-white" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <span class="badge bg-warning text-dark fw-bold px-3 py-2 rounded-pill"><i class="fas fa-crown me-1"></i> ACTIVE TIER</span>
+                <span class="badge bg-success bg-opacity-25 text-success border border-success px-3 py-1">{{ current_sub.status or 'Active' }}</span>
+            </div>
+            
+            <h3 class="fw-bold mb-1 text-white">{{ current_sub.plan_name or 'Subscription' }}</h3>
+            <div class="display-6 fw-bold text-warning mb-3">
+                £{{ "%.0f"|format(current_sub.price) }}<small class="fs-6 text-white-50">/month</small>
+            </div>
+            
+            <div class="p-3 rounded-3 mb-3" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                <div class="d-flex justify-content-between small text-white-50 mb-1">
+                    <span>Activated:</span>
+                    <strong class="text-white">{{ current_sub.start_date or 'Active' }}</strong>
+                </div>
+                {% if current_sub.renewal_date %}
+                <div class="d-flex justify-content-between small text-white-50">
+                    <span>Next Renewal / End:</span>
+                    <strong class="text-warning">{{ current_sub.renewal_date }}</strong>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="mt-auto small text-white-50">
+                <i class="fas fa-info-circle me-1 text-warning"></i> 
+                You can upgrade or switch your plan tier anytime below as your staff or property portfolio grows.
+            </div>
+        </div>
+    </div>
+
+    <!-- LIVE RESOURCE ALLOCATION GAUGES -->
+    <div class="col-md-7">
+        <div class="card p-4 h-100 border-0 shadow-sm rounded-4 bg-light">
+            <h5 class="fw-bold text-dark mb-4"><i class="fas fa-tachometer-alt me-2 text-primary"></i> Live Resource Consumption</h5>
+            
+            <!-- Staff Gauge -->
+            <div class="mb-3">
+                <div class="d-flex justify-content-between small fw-bold mb-1">
+                    <span><i class="fas fa-users text-primary me-2"></i> Staff & Crew Logins</span>
+                    <span class="text-muted"><strong class="text-dark">{{ usage.staff_count }}</strong> / {{ current_sub.max_users if current_sub.max_users < 9999 else 'Unlimited' }}</span>
+                </div>
+                {% set u_pct = ((usage.staff_count / current_sub.max_users) * 100)|round(0) if current_sub.max_users < 9999 else 10 %}
+                <div class="progress" style="height: 8px;">
+                    <div class="progress-bar bg-primary" style="width: {{ [u_pct, 100]|min }}%;"></div>
+                </div>
+            </div>
+
+            <!-- Vehicles Gauge -->
+            <div class="mb-3">
+                <div class="d-flex justify-content-between small fw-bold mb-1">
+                    <span><i class="fas fa-truck text-warning me-2"></i> Fleet Gang Vehicles</span>
+                    <span class="text-muted"><strong class="text-dark">{{ usage.vehicles_count }}</strong> / {{ current_sub.max_vehicles if current_sub.max_vehicles < 9999 else 'Unlimited' }}</span>
+                </div>
+                {% set v_pct = ((usage.vehicles_count / current_sub.max_vehicles) * 100)|round(0) if current_sub.max_vehicles > 0 and current_sub.max_vehicles < 9999 else (100 if current_sub.max_vehicles == 0 and usage.vehicles_count > 0 else 5) %}
+                <div class="progress" style="height: 8px;">
+                    <div class="progress-bar bg-warning" style="width: {{ [v_pct, 100]|min }}%;"></div>
+                </div>
+            </div>
+
+            <!-- Properties Gauge -->
+            <div class="mb-0">
+                <div class="d-flex justify-content-between small fw-bold mb-1">
+                    <span><i class="fas fa-building text-success me-2"></i> Managed Properties & Sites</span>
+                    <span class="text-muted"><strong class="text-dark">{{ usage.properties_count }}</strong> / {{ current_sub.max_properties if current_sub.max_properties < 9999 else 'Unlimited' }}</span>
+                </div>
+<div class="card p-4 border-0 shadow-sm rounded-4 bg-white mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h5 class="fw-bold text-dark mb-1"><i class="fas fa-layer-group text-warning me-2"></i> Upgrade & Switch Plan Tier</h5>
+            <p class="text-muted small mb-0">Select a new plan below to immediately adjust your company limits and capacity.</p>
+        </div>
+        
+        <ul class="nav nav-pills" id="tierSwitchTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active fw-bold btn-sm rounded-pill px-3" data-bs-toggle="pill" data-bs-target="#tabBillingTrade" type="button">
+                    <i class="fas fa-hammer me-1"></i> Trade Tiers
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link fw-bold btn-sm rounded-pill px-3" data-bs-toggle="pill" data-bs-target="#tabBillingAgency" type="button">
+                    <i class="fas fa-building me-1"></i> Agency Tiers
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <div class="tab-content">
+        <!-- TRADE TIERS -->
+        <div class="tab-pane fade show active" id="tabBillingTrade">
+            <div class="row g-3">
+                {% for p in available_plans if p.sector == 'Trade' or ('Agency' not in p.name and 'Founder' not in p.name) %}
+                <div class="col-md-4">
+                    <div class="card p-3 h-100 rounded-3 border {{ 'border-warning border-2' if p.id == current_sub.plan_id else '' }}" style="background: {{ '#fffcf5' if p.id == current_sub.plan_id else '#fafafa' }};">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold m-0 text-dark">{{ p.name }}</h6>
+                            {% if p.id == current_sub.plan_id %}
+                                <span class="badge bg-warning text-dark font-monospace">CURRENT</span>
+                            {% endif %}
+                        </div>
+                        <div class="h4 fw-bold text-primary mb-3">£{{ "%.0f"|format(p.price) }}<small class="fs-6 text-muted">/mo</small></div>
+                        <ul class="list-unstyled small text-muted mb-3 flex-grow-1" style="font-size: 0.8rem;">
+                            <li class="mb-1"><i class="fas fa-users text-primary me-2"></i> {{ p.max_users if p.max_users < 9999 else 'Unlimited' }} Staff Logins</li>
+                            <li class="mb-1"><i class="fas fa-truck text-warning me-2"></i> {{ p.max_vehicles if p.max_vehicles < 9999 else 'Unlimited' }} Fleet Vehicles</li>
+                            <li class="mb-1"><i class="fas fa-building text-success me-2"></i> {{ p.max_properties if p.max_properties < 9999 else 'Unlimited' }} Sites</li>
+                        </ul>
+                        <div>
+                            {% if p.id == current_sub.plan_id %}
+                                <button class="btn btn-sm btn-secondary w-100 fw-bold" disabled>Active Plan</button>
+                            {% else %}
+                                <form method="POST" action="/finance/settings/switch-plan" onsubmit="return confirm('Switch subscription to {{ p.name }} (£{{ "%.0f"|format(p.price) }}/mo)?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="plan_id" value="{{ p.id }}">
+                                    <button type="submit" class="btn btn-sm {{ 'btn-warning text-dark fw-bold' if p.price > current_sub.price else 'btn-outline-primary fw-bold' }} w-100">
+                                        {{ 'Upgrade Tier' if p.price > current_sub.price else 'Switch to Plan' }} &rarr;
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        <!-- AGENCY TIERS -->
+        <div class="tab-pane fade" id="tabBillingAgency">
+            <div class="row g-3">
+                {% for p in available_plans if p.sector == 'Agency' or 'Agency' in p.name %}
+                <div class="col-md-4">
+                    <div class="card p-3 h-100 rounded-3 border {{ 'border-info border-2' if p.id == current_sub.plan_id else '' }}" style="background: {{ '#f0f9ff' if p.id == current_sub.plan_id else '#fafafa' }};">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold m-0 text-dark">{{ p.name }}</h6>
+                            {% if p.id == current_sub.plan_id %}
+                                <span class="badge bg-info text-dark font-monospace">CURRENT</span>
+                            {% endif %}
+                        </div>
+                        <div class="h4 fw-bold text-info mb-3">£{{ "%.0f"|format(p.price) }}<small class="fs-6 text-muted">/mo</small></div>
+                        <ul class="list-unstyled small text-muted mb-3 flex-grow-1" style="font-size: 0.8rem;">
+                            <li class="mb-1"><i class="fas fa-building text-info me-2"></i> {{ p.max_properties if p.max_properties < 9999 else 'Unlimited' }} Properties</li>
+                            <li class="mb-1"><i class="fas fa-user-tie text-primary me-2"></i> {{ p.max_clients if p.max_clients < 9999 else 'Unlimited' }} Landlords</li>
+                            <li class="mb-1"><i class="fas fa-headset text-success me-2"></i> {{ p.max_users if p.max_users < 9999 else 'Unlimited' }} Staff</li>
+                        </ul>
+                        <div>
+                            {% if p.id == current_sub.plan_id %}
+                                <button class="btn btn-sm btn-secondary w-100 fw-bold" disabled>Active Plan</button>
+                            {% else %}
+                                <form method="POST" action="/finance/settings/switch-plan" onsubmit="return confirm('Switch subscription to {{ p.name }} (£{{ "%.0f"|format(p.price) }}/mo)?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="plan_id" value="{{ p.id }}">
+                                    <button type="submit" class="btn btn-sm {{ 'btn-info text-dark fw-bold' if p.price > current_sub.price else 'btn-outline-primary fw-bold' }} w-100">
+                                        {{ 'Upgrade Tier' if p.price > current_sub.price else 'Switch to Plan' }} &rarr;
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

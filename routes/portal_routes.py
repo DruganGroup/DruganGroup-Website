@@ -491,6 +491,11 @@ def portal_add_property():
     comp_id = session.get('portal_company_id')
     client_id = session.get('portal_client_id')
     
+    allowed, msg = check_limit(comp_id, 'max_properties')
+    if not allowed:
+        flash(msg, "error")
+        return redirect(url_for('portal.portal_properties'))
+        
     addr = request.form.get('address')
     postcode = request.form.get('postcode')
     prop_type = request.form.get('type')

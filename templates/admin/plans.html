@@ -129,10 +129,10 @@
                 <div class="plan-body">
                     <label class="text-muted small fw-bold mb-2">USAGE LIMITS</label>
                     <div class="limit-grid">
-                        <div class="limit-item"><strong>{{ plan.max_users }}</strong> Users</div>
-                        <div class="limit-item"><strong>{{ plan.max_vehicles }}</strong> Vehicles</div>
-                        <div class="limit-item"><strong>Unlimited</strong> Clients</div>
-                        <div class="limit-item"><strong>Unlimited</strong> Properties</div>
+                        <div class="limit-item"><strong>{{ plan.max_users if plan.max_users < 9999 else 'Unlimited' }}</strong> Users</div>
+                        <div class="limit-item"><strong>{{ plan.max_vehicles if plan.max_vehicles < 9999 else 'Unlimited' }}</strong> Vehicles</div>
+                        <div class="limit-item"><strong>{{ plan.max_clients if plan.max_clients < 9999 else 'Unlimited' }}</strong> Clients</div>
+                        <div class="limit-item"><strong>{{ plan.max_properties if plan.max_properties < 9999 else 'Unlimited' }}</strong> Sites</div>
                         <div class="limit-item" style="grid-column: span 2;"><strong>{{ plan.max_storage }} GB</strong> Data Storage</div>
                     </div>
 
@@ -183,11 +183,11 @@
                 <div class="plan-body">
                     <label class="text-muted small fw-bold mb-2">USAGE LIMITS</label>
                     <div class="limit-grid">
-                        <div class="limit-item" style="grid-column: span 2; border-color: #2ecc71;">
-                            <strong class="text-success">UNLIMITED STAFF</strong>
-                        </div>
-                        <div class="limit-item"><strong>{{ plan.max_properties if plan.max_properties > 0 else 'UNLIMITED' }}</strong> Props</div>
-                        <div class="limit-item"><strong>{{ plan.max_storage }} GB</strong> Data Storage</div>
+                        <div class="limit-item"><strong>{{ plan.max_properties if plan.max_properties < 9999 else 'Unlimited' }}</strong> Props</div>
+                        <div class="limit-item"><strong>{{ plan.max_clients if plan.max_clients < 9999 else 'Unlimited' }}</strong> Landlords</div>
+                        <div class="limit-item"><strong>{{ plan.max_users if plan.max_users < 9999 else 'Unlimited' }}</strong> Staff</div>
+                        <div class="limit-item"><strong>{{ plan.max_vehicles if plan.max_vehicles < 9999 else 'Unlimited' }}</strong> Vans</div>
+                        <div class="limit-item" style="grid-column: span 2;"><strong>{{ plan.max_storage }} GB</strong> Data Storage</div>
                     </div>
 
                     <label class="text-muted small fw-bold mb-2 mt-2">ENABLED MODULES</label>

@@ -26,14 +26,12 @@ def show_signup():
     conn = get_db()
     cur = conn.cursor()
     
-    # Fetch active plans from DB to populate the dropdown
-    # We filter out any test plans that might have price=0 if you want
-    cur.execute("SELECT id, name, price FROM plans WHERE price > 0 ORDER BY price ASC")
+    # Fetch active plans from DB to populate the plan selector
+    cur.execute("SELECT id, name, price, COALESCE(sector, 'Trade') FROM plans WHERE price > 0 ORDER BY price ASC")
     rows = cur.fetchall()
-    pass
     
     # Format for the template
-    plans = [{'id': r[0], 'name': r[1], 'price': r[2]} for r in rows]
+    plans = [{'id': r[0], 'name': r[1], 'price': r[2], 'sector': r[3]} for r in rows]
     
     return render_template('publicbb/signup.html', plans=plans)
 

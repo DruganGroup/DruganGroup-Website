@@ -1,88 +1,187 @@
 {% extends "publicbb/base.html" %}
 
-{% block title %}{{ _('Transparent Enterprise Pricing | Business Better') }}{% endblock %}
+{% block title %}{{ _('Transparent Dual-Track Pricing | Business Better') }}{% endblock %}
 
-{% block meta_description %}{{ _('Transparent pricing for trade contractors and estate agencies. 14-day fully featured free trial with zero setup fees. Cancel anytime.') }}{% endblock %}
+{% block meta_description %}{{ _('Transparent pricing for commercial trade contractors and estate agencies. 14-day card-verified free trial with £0.00 charged today.') }}{% endblock %}
 
 {% block content %}
 <header class="py-5 text-center position-relative overflow-hidden" style="background: radial-gradient(circle at 50% 20%, rgba(197, 160, 89, 0.08) 0%, rgba(9, 12, 16, 1) 70%);">
     <div class="container py-4">
-        <div class="b2b-badge mb-3"><i class="fas fa-tags me-1"></i> {{ _('Transparent Enterprise Pricing') }}</div>
+        <div class="b2b-badge mb-3"><i class="fas fa-tags me-1"></i> {{ _('Dual-Track Enterprise Pricing') }}</div>
         <h1 class="display-4 fw-bold text-white mb-3">
-            {{ _('Clear Plans For') }} <span class="text-gold">{{ _('Every Stage of Growth.') }}</span>
+            {{ _('Priced For Value.') }} <span class="text-gold">{{ _('Tiered By Real Scale.') }}</span>
         </h1>
-        <p class="lead text-secondary mx-auto mb-4" style="max-width: 650px;">
-            {{ _('Every plan includes our core platform capabilities. No hidden implementation fees. 14-day unrestricted free trial.') }}
+        <p class="lead text-secondary mx-auto mb-4" style="max-width: 720px;">
+            {{ _('Fair pricing for sole traders, regional contractors, and high-portfolio property managers. 14-day fully featured trial with instant setup.') }}
         </p>
+
+        <!-- SECTOR SWITCHER PILL -->
+        <div class="d-inline-flex p-1 bg-black rounded-pill border border-secondary shadow-lg mb-2">
+            <button class="btn btn-sm px-4 py-2 rounded-pill fw-bold sector-btn active" id="btnShowTrade" onclick="switchTrack('trade')">
+                <i class="fas fa-hammer me-2 text-gold"></i> Commercial Contractors & Trade
+            </button>
+            <button class="btn btn-sm px-4 py-2 rounded-pill fw-bold sector-btn text-muted" id="btnShowAgency" onclick="switchTrack('agency')">
+                <i class="fas fa-building me-2 text-info"></i> Estate Agents & Property Managers
+            </button>
+        </div>
+        <div class="small text-muted mt-2">
+            <i class="fas fa-shield-alt text-gold me-1"></i> 14-Day Free Trial • £0.00 charged today
+        </div>
     </div>
 </header>
 
 <section class="py-5" style="background: var(--bb-bg-secondary);">
     <div class="container pb-5">
         
-        <div class="row g-4 justify-content-center align-items-stretch mb-5">
-            {% for plan in plans %}
-            {% if 'Agency' not in plan.name %}
-            <div class="col-lg-4 col-md-6">
-                {% set is_popular = 'Growing' in plan.name or 'Pro' in plan.name %}
-                <div class="b2b-card h-100 d-flex flex-column text-center {{ 'border-gold shadow-lg' if is_popular else '' }}">
-                    {% if is_popular %}
-                    <div class="position-absolute top-0 start-50 translate-middle">
-                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold">{{ _('MOST POPULAR') }}</span>
-                    </div>
-                    {% endif %}
-
-                    <h4 class="fw-bold text-white mb-2 font-heading mt-2">{{ plan.name }}</h4>
-                    <div class="display-5 fw-bold text-white mb-3 font-heading">
-                        £{{ "%.0f"|format(plan.price) }}<span class="fs-6 text-secondary fw-normal">/mo</span>
-                    </div>
-
-                    <div class="mb-4">
-                        <a href="/register?plan={{ plan.id }}" class="btn {{ 'btn-brand' if is_popular else 'btn-outline-slate' }} w-100 py-2 fw-semibold">
-                            {{ _('Start 14-Day Free Trial') }}
-                        </a>
-                    </div>
-
-                    <ul class="list-unstyled text-start small text-secondary mx-auto mb-4 flex-grow-1" style="max-width: 260px;">
-                        <li class="mb-2"><i class="fas fa-user text-gold me-2"></i> <strong>{{ plan.max_users if plan.max_users > 0 else 'Unlimited' }}</strong> {{ _('Staff Accounts') }}</li>
-                        {% if plan.max_vehicles > 0 %}
-                        <li class="mb-2"><i class="fas fa-truck text-gold me-2"></i> <strong>{{ plan.max_vehicles }}</strong> {{ _('Fleet Vehicles') }}</li>
-                        {% endif %}
-                        <li class="mb-2"><i class="fas fa-check text-gold me-2"></i> {{ _('Live Job Margin Engine') }}</li>
-                        <li class="mb-2"><i class="fas fa-check text-gold me-2"></i> {{ _('CIS & PAYE Payroll Run') }}</li>
-                        <li class="mb-2"><i class="fas fa-check text-gold me-2"></i> {{ _('Dynamic 60s RAMS Studio') }}</li>
-                        <li class="mb-2"><i class="fas fa-check text-gold me-2"></i> {{ _('B2B Partner Link Network') }}</li>
-                        <li class="mb-2"><i class="fas fa-check text-gold me-2"></i> {{ _('White-Label Client Portal') }}</li>
-                    </ul>
-                </div>
+        <!-- TRACK 1: COMMERCIAL CONTRACTORS & TRADE -->
+        <div id="trackTradeSection">
+            <div class="text-center mb-4">
+                <span class="badge bg-gold text-dark fw-bold px-3 py-1 mb-2">CONTRACTOR & TRADE TIERS</span>
+                <h3 class="text-white fw-bold">Tiered by Crew Staff & Fleet Vans</h3>
             </div>
-            {% endif %}
-            {% endfor %}
+            
+            <div class="row g-4 justify-content-center align-items-stretch mb-5">
+                {% for plan in plans if plan.get('sector') == 'Trade' or ('Agency' not in plan.name and 'Founder' not in plan.name) %}
+                <div class="col-lg-4 col-md-6">
+                    {% set is_popular = 'Growth' in plan.name or 'Pro' in plan.name or plan.price == 89 %}
+                    <div class="b2b-card h-100 d-flex flex-column text-center {{ 'border-gold shadow-lg' if is_popular else '' }}">
+                        {% if is_popular %}
+                        <div class="position-absolute top-0 start-50 translate-middle">
+                            <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold">{{ _('MOST POPULAR') }}</span>
+                        </div>
+                        {% endif %}
+
+                        <h4 class="fw-bold text-white mb-2 font-heading mt-2">{{ plan.name }}</h4>
+                        <div class="display-5 fw-bold text-white mb-3 font-heading">
+                            £{{ "%.0f"|format(plan.price) }}<span class="fs-6 text-secondary fw-normal">/mo</span>
+                        </div>
+
+                        <div class="mb-4">
+                            <a href="/register?plan={{ plan.id }}" class="btn {{ 'btn-brand' if is_popular else 'btn-outline-slate' }} w-100 py-2 fw-semibold">
+                                {{ _('Start 14-Day Free Trial') }}
+                            </a>
+                        </div>
+
+                        <ul class="list-unstyled text-start small text-secondary mx-auto mb-4 flex-grow-1" style="max-width: 280px;">
+                            <li class="mb-2"><i class="fas fa-users text-gold me-2"></i> <strong>{{ plan.max_users if plan.max_users > 0 and plan.max_users < 9999 else 'Unlimited' }}</strong> Staff & Engineer Logins</li>
+                            <li class="mb-2"><i class="fas fa-truck text-gold me-2"></i> <strong>{{ plan.max_vehicles if plan.max_vehicles > 0 and plan.max_vehicles < 9999 else 'Unlimited' }}</strong> Fleet Gang Vehicles</li>
+                            <li class="mb-2"><i class="fas fa-map-marker-alt text-gold me-2"></i> <strong>{{ plan.max_properties if plan.max_properties > 0 and plan.max_properties < 9999 else 'Unlimited' }}</strong> Site Locations</li>
+                            <li class="mb-2"><i class="fas fa-check text-gold me-2"></i> Live Unit Margin Tracking</li>
+                            <li class="mb-2"><i class="fas fa-check text-gold me-2"></i> AI Receipt Sorting Office</li>
+                            {% if plan.price >= 89 %}
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i> <strong>1-Click CIS & PAYE Payroll</strong></li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i> <strong>60s Dynamic RAMS Studio</strong></li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i> <strong>B2B Partner Link Network</strong></li>
+                            {% endif %}
+                            {% if plan.price >= 179 %}
+                            <li class="mb-2"><i class="fas fa-star text-warning me-2"></i> <strong>Multi-Gang Resource Costing</strong></li>
+                            <li class="mb-2"><i class="fas fa-star text-warning me-2"></i> <strong>Priority UK Account Desk</strong></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
 
-        <!-- AGENCY SECTION -->
-        <div class="row justify-content-center mt-4">
-            {% for plan in plans %}
-            {% if 'Agency' in plan.name %}
-            <div class="col-lg-9">
-                <div class="p-4 rounded-4 bg-black border border-info shadow-lg">
-                    <div class="row align-items-center g-4">
-                        <div class="col-md-5 text-center text-md-start">
-                            <span class="badge bg-info text-black fw-bold px-3 py-1 mb-2">{{ _('ESTATE AGENTS & PMS') }}</span>
-                            <h3 class="text-white fw-bold mb-1 font-heading">{{ plan.name }}</h3>
-                            <div class="display-6 fw-bold text-white font-heading">£{{ "%.0f"|format(plan.price) }}<small class="fs-6 text-secondary fw-normal">/mo</small></div>
+        <!-- TRACK 2: ESTATE AGENTS & PROPERTY MANAGERS -->
+        <div id="trackAgencySection" style="display: none;">
+            <div class="text-center mb-4">
+                <span class="badge bg-info text-dark fw-bold px-3 py-1 mb-2">ESTATE AGENTS & PROPERTY MANAGERS</span>
+                <h3 class="text-white fw-bold">Tiered by Managed Property Portfolio Size</h3>
+            </div>
+
+            <div class="row g-4 justify-content-center align-items-stretch mb-5">
+                {% for plan in plans if plan.get('sector') == 'Agency' or 'Agency' in plan.name %}
+                <div class="col-lg-4 col-md-6">
+                    {% set is_agency_popular = 'Pro' in plan.name or plan.price == 119 %}
+                    <div class="b2b-card h-100 d-flex flex-column text-center {{ 'border-info shadow-lg' if is_agency_popular else '' }}">
+                        {% if is_agency_popular %}
+                        <div class="position-absolute top-0 start-50 translate-middle">
+                            <span class="badge bg-info text-black px-3 py-2 rounded-pill fw-bold">{{ _('RECOMMENDED FOR AGENCIES') }}</span>
                         </div>
-                        <div class="col-md-7">
-                            <p class="text-secondary small mb-3">{{ _('Dedicated tenant photo reporting desk, contractor auto-dispatching, and gas/electrical compliance expiry radar.') }}</p>
-                            <a href="/register?plan={{ plan.id }}" class="btn btn-brand w-100 py-2">{{ _('Start Agency Free Trial') }} <i class="fas fa-arrow-right ms-2"></i></a>
+                        {% endif %}
+
+                        <h4 class="fw-bold text-white mb-2 font-heading mt-2">{{ plan.name }}</h4>
+                        <div class="display-5 fw-bold text-white mb-3 font-heading">
+                            £{{ "%.0f"|format(plan.price) }}<span class="fs-6 text-secondary fw-normal">/mo</span>
                         </div>
+
+                        <div class="mb-4">
+                            <a href="/register?plan={{ plan.id }}" class="btn {{ 'btn-brand' if is_agency_popular else 'btn-outline-slate' }} w-100 py-2 fw-semibold">
+                                {{ _('Start Agency Free Trial') }}
+                            </a>
+                        </div>
+
+                        <ul class="list-unstyled text-start small text-secondary mx-auto mb-4 flex-grow-1" style="max-width: 280px;">
+                            <li class="mb-2"><i class="fas fa-building text-info me-2"></i> <strong>{{ plan.max_properties if plan.max_properties > 0 and plan.max_properties < 9999 else 'Unlimited' }}</strong> Managed Properties</li>
+                            <li class="mb-2"><i class="fas fa-user-tie text-info me-2"></i> <strong>{{ plan.max_clients if plan.max_clients > 0 and plan.max_clients < 9999 else 'Unlimited' }}</strong> Landlords / Clients</li>
+                            <li class="mb-2"><i class="fas fa-headset text-info me-2"></i> <strong>{{ plan.max_users if plan.max_users > 0 and plan.max_users < 9999 else 'Unlimited' }}</strong> Agency Staff Seats</li>
+                            <li class="mb-2"><i class="fas fa-check text-info me-2"></i> 24/7 Tenant Photo Repair Desk</li>
+                            <li class="mb-2"><i class="fas fa-check text-info me-2"></i> 30-Day Gas & Electrical Radar</li>
+                            <li class="mb-2"><i class="fas fa-check text-info me-2"></i> Landlord & Tenant Portal Access</li>
+                            {% if plan.price >= 119 %}
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i> <strong>B2B Partner Dispatch Network</strong></li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i> <strong>Pre-Approved Budget Caps</strong></li>
+                            {% endif %}
+                            {% if plan.price >= 229 %}
+                            <li class="mb-2"><i class="fas fa-star text-warning me-2"></i> <strong>Multi-Branch Portfolios</strong></li>
+                            {% endif %}
+                        </ul>
                     </div>
                 </div>
+                {% endfor %}
             </div>
-            {% endif %}
-            {% endfor %}
+        </div>
+        <!-- GUARANTEE STRIP -->
+        <div class="p-4 rounded-4 bg-black border border-secondary text-center shadow-lg">
+            <div class="row align-items-center g-3">
+                <div class="col-md-4">
+                    <i class="fas fa-credit-card text-gold fa-2x mb-2"></i>
+                    <h6 class="text-white fw-bold mb-1">14-Day Free Trial Verification</h6>
+                    <small class="text-muted">£0.00 charged today. Seamless recurring billing starts on Day 14.</small>
+                </div>
+                <div class="col-md-4">
+                    <i class="fas fa-sliders-h text-success fa-2x mb-2"></i>
+                    <h6 class="text-white fw-bold mb-1">Flexible Upgrade & Downgrade</h6>
+                    <small class="text-muted">Scale staff or property capacity anytime directly inside your Finance Hub.</small>
+                </div>
+                <div class="col-md-4">
+                    <i class="fas fa-ban text-info fa-2x mb-2"></i>
+                    <h6 class="text-white fw-bold mb-1">Cancel Anytime</h6>
+                    <small class="text-muted">No lengthy lock-in contracts. Export all your data with 1 click.</small>
+                </div>
+            </div>
         </div>
 
     </div>
 </section>
+
+<script>
+function switchTrack(track) {
+    const tradeSec = document.getElementById('trackTradeSection');
+    const agencySec = document.getElementById('trackAgencySection');
+    const btnTrade = document.getElementById('btnShowTrade');
+    const btnAgency = document.getElementById('btnShowAgency');
+
+    if (track === 'agency') {
+        tradeSec.style.display = 'none';
+        agencySec.style.display = 'block';
+        btnAgency.classList.add('active', 'bg-info', 'text-black');
+        btnAgency.classList.remove('text-muted');
+        btnTrade.classList.remove('active', 'bg-gold', 'text-black');
+        btnTrade.classList.add('text-muted');
+    } else {
+        agencySec.style.display = 'none';
+        tradeSec.style.display = 'block';
+        btnTrade.classList.add('active', 'bg-gold', 'text-black');
+        btnTrade.classList.remove('text-muted');
+        btnAgency.classList.remove('active', 'bg-info', 'text-black');
+        btnAgency.classList.add('text-muted');
+    }
+}
+document.addEventListener('DOMContentLoaded', () => {
+    switchTrack('trade');
+});
+</script>
 {% endblock %}

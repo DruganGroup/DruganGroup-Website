@@ -316,6 +316,11 @@ def add_property(client_id):
     if 'user_id' not in session: return redirect(url_for('auth.login'))
     
     comp_id = session.get('company_id')
+    allowed, msg = check_limit(comp_id, 'max_properties')
+    if not allowed:
+        flash(msg, "error")
+        return redirect(url_for('clients.view_client', id=client_id))
+        
     addr = request.form.get('address')
     post = request.form.get('postcode')
     tenant = request.form.get('tenant_name')

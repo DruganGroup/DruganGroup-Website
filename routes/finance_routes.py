@@ -276,6 +276,11 @@ def finance_fleet():
         
         with db_transaction() as t_cur:
             if action == 'add_vehicle':
+                allowed, msg = check_limit(comp_id, 'max_vehicles')
+                if not allowed:
+                    flash(msg, "error")
+                    return redirect(url_for('finance.finance_fleet'))
+                    
                 reg = request.form.get('reg_number').upper() 
                 model = request.form.get('make_model')
                 daily = request.form.get('daily_cost') or 0.00
@@ -1317,6 +1322,158 @@ def finance_dashboard():
                            brand_color=config['color'],
                            logo_url=config['logo'])
                            
+@finance_bp.route('/finance/settings/billing')
+def settings_billing():
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']: 
+        return redirect(url_for('auth.login'))
+    
+    comp_id = session.get('company_id')
+    config = get_site_config(comp_id)
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. Fetch Current Subscription
+    cur.execute("""
+        SELECT s.id, s.plan_id, s.status, s.start_date, s.renewal_date, s.stripe_customer_id,
+               COALESCE(p.name, s.plan_tier, 'Basic'), COALESCE(p.price, 0),
+               COALESCE(p.max_users, s.max_users, 9999),
+               COALESCE(p.max_vehicles, s.max_vehicles, 9999),
+               COALESCE(p.max_properties, s.max_properties, 9999),
+               COALESCE(p.max_clients, s.max_clients, 9999),
+               COALESCE(p.sector, 'Trade')
+        FROM subscriptions s
+        LEFT JOIN plans p ON s.plan_id = p.id
+        WHERE s.company_id = %s
+    """, (comp_id,))
+    sub_row = cur.fetchone()
+    
+    current_sub = None
+    if sub_row:
+        current_sub = {
+            'id': sub_row[0],
+            'plan_id': sub_row[1],
+            'status': sub_row[2],
+            'start_date': sub_row[3].strftime('%d %b %Y') if sub_row[3] else '',
+            'renewal_date': sub_row[4].strftime('%d %b %Y') if sub_row[4] else '',
+            'stripe_customer_id': sub_row[5],
+            'plan_name': sub_row[6],
+            'price': float(sub_row[7] or 0),
+            'max_users': sub_row[8],
+            'max_vehicles': sub_row[9],
+            'max_properties': sub_row[10],
+            'max_clients': sub_row[11],
+            'sector': sub_row[12]
+        }
+
+    # 2. Compute Live Usage
+    cur.execute("SELECT COUNT(*) FROM staff WHERE company_id = %s AND status = 'Active'", (comp_id,))
+    staff_count = cur.fetchone()[0] or 0
+
+    cur.execute("SELECT COUNT(*) FROM vehicles WHERE company_id = %s", (comp_id,))
+    vehicles_count = cur.fetchone()[0] or 0
+
+    cur.execute("SELECT COUNT(*) FROM properties WHERE company_id = %s", (comp_id,))
+    properties_count = cur.fetchone()[0] or 0
+
+    cur.execute("SELECT COUNT(*) FROM clients WHERE company_id = %s", (comp_id,))
+    clients_count = cur.fetchone()[0] or 0
+
+    usage = {
+        'staff_count': staff_count,
+        'vehicles_count': vehicles_count,
+        'properties_count': properties_count,
+        'clients_count': clients_count
+    }
+
+    # 3. Fetch All Available Upgrade Plans
+    cur.execute("""
+        SELECT id, name, price, max_users, max_vehicles, max_clients, max_properties, max_storage, sector
+        FROM plans
+        WHERE price > 0
+        ORDER BY price ASC
+    """)
+    available_plans = []
+    for r in cur.fetchall():
+        available_plans.append({
+            'id': r[0],
+            'name': r[1],
+            'price': float(r[2]),
+            'max_users': r[3],
+            'max_vehicles': r[4],
+            'max_clients': r[5],
+            'max_properties': r[6],
+            'max_storage': r[7],
+            'sector': r[8] or 'Trade'
+        })
+
+    return render_template('finance/settings_billing.html',
+                           current_sub=current_sub,
+                           usage=usage,
+                           available_plans=available_plans,
+                           active_tab='billing',
+                           brand_color=config['color'],
+                           logo_url=config['logo'])
+
+@finance_bp.route('/finance/settings/switch-plan', methods=['POST'])
+def switch_plan():
+    if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']:
+        return redirect(url_for('auth.login'))
+        
+    comp_id = session.get('company_id')
+    target_plan_id = request.form.get('plan_id', type=int)
+    
+    if not target_plan_id:
+        flash("❌ Invalid plan selected.", "error")
+        return redirect(url_for('finance.settings_billing'))
+        
+    conn = get_db(); cur = conn.cursor()
+    
+    # 1. Fetch Target Plan
+    cur.execute("""
+        SELECT id, name, price, max_users, max_vehicles, max_clients, max_properties, max_storage
+        FROM plans WHERE id = %s
+    """, (target_plan_id,))
+    plan_row = cur.fetchone()
+    
+    if not plan_row:
+        flash("❌ Target plan not found.", "error")
+        return redirect(url_for('finance.settings_billing'))
+        
+    p_id, p_name, p_price, p_users, p_veh, p_clients, p_props, p_storage = plan_row
+    
+    # 2. Check Resource Usage vs New Limits
+    cur.execute("SELECT COUNT(*) FROM staff WHERE company_id = %s AND status = 'Active'", (comp_id,))
+    staff_count = cur.fetchone()[0] or 0
+    if p_users and p_users < 9999 and staff_count > p_users:
+        flash(f"⚠️ Cannot switch to {p_name}: You currently have {staff_count} active staff members, but this plan allows up to {p_users}. Please archive inactive staff before downgrading.", "error")
+        return redirect(url_for('finance.settings_billing'))
+
+    cur.execute("SELECT COUNT(*) FROM vehicles WHERE company_id = %s", (comp_id,))
+    veh_count = cur.fetchone()[0] or 0
+    if p_veh and p_veh < 9999 and veh_count > p_veh:
+        flash(f"⚠️ Cannot switch to {p_name}: You currently have {veh_count} fleet vehicles, but this plan allows up to {p_veh}. Please remove unused vehicles before downgrading.", "error")
+        return redirect(url_for('finance.settings_billing'))
+
+    cur.execute("SELECT COUNT(*) FROM properties WHERE company_id = %s", (comp_id,))
+    prop_count = cur.fetchone()[0] or 0
+    if p_props and p_props < 9999 and prop_count > p_props:
+        flash(f"⚠️ Cannot switch to {p_name}: You currently have {prop_count} managed properties, but this plan allows up to {p_props}.", "error")
+        return redirect(url_for('finance.settings_billing'))
+        
+    # 3. Apply Plan Update
+    cur.execute("""
+        UPDATE subscriptions 
+        SET plan_id = %s, plan_tier = %s, max_users = %s, max_vehicles = %s, 
+            max_properties = %s, max_clients = %s, max_storage = %s, status = 'Active'
+        WHERE company_id = %s
+    """, (p_id, p_name, p_users, p_veh, p_props, p_clients, p_storage, comp_id))
+    conn.commit()
+    
+    from routes.admin_routes import log_audit
+    log_audit("SWITCH PLAN TIER", "subscriptions", f"Company switched plan to {p_name} (£{p_price:.0f}/mo)")
+    
+    flash(f"🎉 Subscription successfully updated to {p_name} (£{p_price:.0f}/mo)!", "success")
+    return redirect(url_for('finance.settings_billing'))
+
 @finance_bp.route('/finance/settings/integrations', methods=['GET', 'POST'])
 def settings_integrations():
     if session.get('role') not in ['Admin', 'SuperAdmin', 'Finance']: return redirect(url_for('auth.login'))
